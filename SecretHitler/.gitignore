@@ -1,0 +1,12 @@
+__pycache__/Commands.cpython-37.pyc
+__pycache__/GamesController.cpython-37.pyc
+__pycache__/MainController.cpython-37.pyc
+__pycache__/PlayerStats.cpython-37.pyc
+Boardgamebox/__pycache__/__init__.cpython-37.pyc
+Boardgamebox/__pycache__/Board.cpython-37.pyc
+Boardgamebox/__pycache__/Game.cpython-37.pyc
+Boardgamebox/__pycache__/Player.cpython-37.pyc
+Boardgamebox/__pycache__/State.cpython-37.pyc
+Constants/__pycache__/__init__.cpython-37.pyc
+Constants/__pycache__/Cards.cpython-37.pyc
+Constants/__pycache__/Config.cpython-37.pyc
