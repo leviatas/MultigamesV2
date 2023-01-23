@@ -1,4 +1,4 @@
-python-telegram-bot>=12.7
+python-telegram-bot==13.14
 requests==2.24.0
 six==1.15.0
 psycopg2>=2.7.3.1
