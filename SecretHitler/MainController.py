@@ -1183,7 +1183,7 @@ def main():
 	dp.add_handler(CommandHandler("reload", Commands.command_reloadgame))
 	dp.add_handler(CommandHandler("debug", Commands.command_toggle_debugging))
 	dp.add_handler(CommandHandler("anarchy", Commands.command_anarquia))
-	dp.add_handler(CommandHandler("prueba", Commands.command_prueba))
+	dp.add_handler(CommandHandler("fix", Commands.command_fix))
 	dp.add_handler(CommandHandler("claimoculto", Commands.command_claim_oculto))
 	dp.add_handler(CommandHandler("info", Commands.command_info))
 	dp.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)\*chooseGameInfo\*(.*)\*(-?[0-9]*)", callback=Commands.callback_info))

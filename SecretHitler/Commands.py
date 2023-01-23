@@ -755,7 +755,7 @@ def command_anarquia(update: Update, context: CallbackContext):
 		bot.send_message(cid, str(e))
 		log.error("Unknown error: " + str(e))    
 		
-def command_prueba(update: Update, context: CallbackContext):
+def command_fix(update: Update, context: CallbackContext):
 	bot = context.bot	
 	uid = update.message.from_user.id
 	log.info("Ingreso en FIX")
@@ -764,6 +764,7 @@ def command_prueba(update: Update, context: CallbackContext):
 		game = get_game(cid)
 		game.board.state.chosen_president = None
 		game.board.state.player_counter = 3
+		game.board.state.fascist_track = 4
 		'''
 		game.board.state.drawn_policies = []
 		
