@@ -763,7 +763,7 @@ def command_fix(update: Update, context: CallbackContext):
 		cid = update.message.chat_id
 		game = get_game(cid)
 		game.board.state.chosen_president = None
-		game.board.state.player_counter = 3
+		game.board.state.player_counter = 2
 		game.board.state.fascist_track = 4
 		'''
 		game.board.state.drawn_policies = []
