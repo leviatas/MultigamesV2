@@ -765,6 +765,7 @@ def command_fix(update: Update, context: CallbackContext):
 		game.board.state.chosen_president = None
 		game.board.state.player_counter = 2
 		game.board.state.fascist_track = 4
+		game.board.policies = ["fascista","fascista","fascista","fascista","fascista","fascista"]
 		'''
 		game.board.state.drawn_policies = []
 		
