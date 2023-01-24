@@ -762,10 +762,14 @@ def command_fix(update: Update, context: CallbackContext):
 	if uid == ADMIN:
 		cid = update.message.chat_id
 		game = get_game(cid)
-		game.board.state.chosen_president = None
-		game.board.state.player_counter = 2
-		game.board.state.fascist_track = 4
-		game.board.policies = ["fascista","fascista","fascista","fascista","fascista","fascista"]
+
+		MainController.end_game(bot, game, 2)
+
+
+		# game.board.state.chosen_president = None
+		# game.board.state.player_counter = 2
+		# game.board.state.fascist_track = 4
+		# game.board.policies = ["fascista","fascista","fascista","fascista","fascista","fascista"]
 		'''
 		game.board.state.drawn_policies = []
 		
@@ -788,7 +792,7 @@ def command_fix(update: Update, context: CallbackContext):
 		MainController.enact_policy(bot, game, "fascista", False)
 		'''
 		
-		save_game(cid, "Game conflict state", game)
+		# save_game(cid, "Game conflict state", game)
 		
 		'''
 		for uid in game.playerlist:
