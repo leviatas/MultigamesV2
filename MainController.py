@@ -29,7 +29,7 @@ import Wavelength.Controller as WavelengthController
 import Decrypt.Controller as DecryptController
 import Werewords.Controller as WerewordsController
 import Deception.Controller as DeceptionController
-
+import Unanimo.Controller as UnanimoController
 
 # Importo los comandos de los juegos que vaya agregando
 import JustOne.Commands as JustoneCommands
@@ -40,6 +40,7 @@ import Wavelength.Commands as WavelengthCommands
 import Decrypt.Commands as DecryptCommands
 import Werewords.Commands as WerewordsCommands
 import Deception.Commands as DeceptionCommands
+import Unanimo.Commands as UnanimoCommands
 
 from Constants.Cards import playerSets, actions
 from Constants.Config import TOKEN, STATS, ADMIN
@@ -116,6 +117,9 @@ def init_game(bot, game):
 	elif game.tipo == "Deception":
 		game.create_board()
 		DeceptionController.init_game(bot, game)
+	elif game.tipo == "Unanimo":
+		game.create_board()
+		UnanimoController.init_game(bot, game)
 
 
 def init_lost_expedition(bot, game, player_number):
@@ -573,7 +577,6 @@ def main():
 	dp.add_handler(CommandHandler("leave", Commands.command_leave))
 	dp.add_handler(CommandHandler("history", Commands.command_showhistory))
 	dp.add_handler(CommandHandler("ping", Commands.call_players_group))
-	#dp.add_handler(CommandHandler("votes", Commands.command_votes))
 	dp.add_handler(CommandHandler("call", Commands.command_call))
 	dp.add_handler(CommandHandler("claim", Commands.command_claim))	
 	dp.add_handler(CommandHandler("prueba", Commands.command_prueba))	
@@ -744,6 +747,16 @@ def main():
 
 	dp.add_handler(CommandHandler("newevidence", DeceptionCommands.command_evidence_collection))
 	dp.add_handler(CommandHandler("accuse", DeceptionCommands.command_accuse))
+
+	# Unanimo Comandos y Callbacks de botones
+	dp.add_handler(CommandHandler("words", UnanimoCommands.command_words))
+	dp.add_handler(CallbackQueryHandler(pattern=r"(-[0-9]*)\*choosediccUnanimo\*(.*)\*([0-9]*)", callback=UnanimoController.callback_finish_config_unanimo))
+	dp.add_handler(CallbackQueryHandler(pattern=r"(-[0-9]*)\*choosegamewords\*(.*)\*([0-9]*)", callback=UnanimoCommands.callback_choose_game_clue))
+	# dp.add_handler(CallbackQueryHandler(pattern=r"(-[0-9]*)\*rechazar\*([0-9]*)", callback=JustOneController.callback_review_clues))
+	# dp.add_handler(CallbackQueryHandler(pattern=r"(-[0-9]*)\*finalizar\*(.*)\*([0-9]*)", callback=JustOneController.callback_review_clues_finalizado))
+	# dp.add_handler(CallbackQueryHandler(pattern=r"(-[0-9]*)\*reviewerconfirm\*(.*)\*([0-9]*)", callback=JustOneController.callback_reviewer_confirm))
+	# dp.add_handler(CallbackQueryHandler(pattern=r"(-[0-9]*)\*choosegameclue\*(.*)\*([0-9]*)", callback=JustoneCommands.callback_choose_game_clue))
+	# dp.add_handler(CallbackQueryHandler(pattern=r"(-[0-9]*)\*chooseend\*(.*)\*([0-9]*)", callback=JustOneController.callback_finish_game_buttons))
 
 	# WEb Crapping commands
 	dp.add_handler(CommandHandler("news", Commands.command_noticias))

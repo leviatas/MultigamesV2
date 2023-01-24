@@ -65,6 +65,12 @@ JUEGOS_DISPONIBLES = {
                     "Werewords" : "Werewords"
                 },	
         },
+        "Unanimo" : {
+                "comandos" : {
+                    "Unanimo" : "Unanimo"
+                },
+		"permitir_ingreso_tardio" : True
+        },
 }
 
 
@@ -198,5 +204,21 @@ MODULOS_DISPONIBES = {
                         "min_jugadores" : 1,
                         "max_jugadores" : 20
                 } 
+        },
+        "Unanimo" : {
+                "Cooperativo" : {
+                        "comandos" : {
+                            "Cooperativo" : "Cooperativo"
+                        },
+                        "min_jugadores" : 1,
+                        "max_jugadores" : 8
+                }
+                # "Extreme" : {
+                #         "comandos" : {
+                #             "Extreme" : "Extreme"
+                #         },
+                #         "min_jugadores" : 1,
+                #         "max_jugadores" : 15
+                # } 
         },
 }

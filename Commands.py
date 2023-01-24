@@ -10,6 +10,7 @@ from time import sleep
 import JustOne.Controller as JustOneController
 import SayAnything.Controller as SayAnythingController
 import Werewords.Controller as WerewordsController
+import Unanimo.Controller as UnanimoController
 
 from Utils import restricted, player_call, send_typing_action, get_game, delete_game, save, load_game, save_game
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ParseMode, Update, ForceReply, Update
@@ -948,6 +949,8 @@ def myturn_message(bot, game, uid):
 	try:
 		if game.tipo == 'JustOne':
 			return JustOneController.myturn_message(game, uid)
+		elif game.tipo == 'Unanimo':
+			return UnanimoController.myturn_message(game, uid)
 		elif game.tipo == 'SayAnything':
 			#log.info("Fase: {} Grupo {}".format(game.board.state.fase_actual, game.groupName))
 			if game.board.state.fase_actual == "Votando Frases":				
