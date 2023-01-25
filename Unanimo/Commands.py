@@ -15,17 +15,9 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ParseMode, Upda
 from telegram.ext import (CallbackContext)
 
 import GamesController
-from Constants.Config import STATS
-from Boardgamebox.Board import Board
-from Boardgamebox.Game import Game
-from Boardgamebox.Player import Player
-from Boardgamebox.State import State
 from Constants.Config import ADMIN
 
 from Utils import player_call, simple_choose_buttons
-
-
-from collections import namedtuple
 
 # from PIL import Image
 # from io import BytesIO

@@ -118,7 +118,7 @@ def init_game(bot, game):
 		game.create_board()
 		DeceptionController.init_game(bot, game)
 	elif game.tipo == "Unanimo":
-		# game.create_board()
+		game.create_board()
 		UnanimoController.init_game(bot, game)
 
 

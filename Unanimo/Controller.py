@@ -15,14 +15,18 @@ from telegram.ext import (Updater, CommandHandler, CallbackQueryHandler, Callbac
 from Utils import get_game, save
 from Constants.Cards import playerSets, actions
 from Constants.Config import TOKEN, STATS, ADMIN
+
+from Unanimo.Boardgamebox.Player import Player
+from Unanimo.Boardgamebox.Board import Board
+from Unanimo.Boardgamebox.Game import Game
+
 from Boardgamebox.Game import Game
-from Boardgamebox.Player import Player
-from Boardgamebox.Board import Board
 
 from Utils import (next_player_after_active_player, remove_same_elements_dict,  increment_player_counter, get_config_data, player_call, simple_choose_buttons)
 
 import GamesController
 import datetime
+from collections import Counter
 
 import os
 import psycopg2
@@ -137,7 +141,7 @@ def call_players_to_clue(bot, game):
 			#bot.send_message(cid, "Enviando mensaje a: %s" % game.playerlist[uid].name)
 			mensaje = "Nueva palabra en el grupo {1}.\nLa palabra es: *{0}*, propone tus palabras representativas separadas por coma [,]!".format(game.board.state.acciones_carta_actual, game.group_link_name())
 			bot.send_message(uid, mensaje, ParseMode.MARKDOWN)
-			mensaje = "Ejemplo: Palabra Fiesta\n/words Cumpleaños, Torta, Decoracion, Musica, Rock, Infantil, Luces, Velas"
+			mensaje = "Ejemplo: Palabra es *Fiesta*\n/words Cumpleaños, Torta, Decoracion, Musica, Rock, Infantil, Luces, Velas"
 			bot.send_message(uid, mensaje)
 	
 def review_clues(bot, game):
@@ -162,13 +166,31 @@ def review_clues(bot, game):
 	start_next_round(bot, game, True)
 
 def count_points(last_votes):
-	last_votes_to_lower = {key:val.lower() for key, val in last_votes.items()}	
-	repeated_keys = []
-	valores_last_votes_to_lower = list(last_votes_to_lower.values())#last_votes_to_lower.values()
-	for key, value in last_votes_to_lower.items():
-		if valores_last_votes_to_lower.count(value) > 1:
-			repeated_keys.append(key)	
-	return {key:val for key, val in last_votes.items() if key not in repeated_keys}, {key:val for key, val in last_votes.items() if key in repeated_keys}
+	# lista para almacenar las palabras de todos los elementos
+	lista_palabras = []
+
+	# recorrer cada elemento del diccionario
+	for uid, palabras in last_votes.items():
+		# dividir las palabras en una lista
+		lista_palabras += palabras.replace(" ", "").split(",")
+
+	# contar las repeticiones de cada palabra
+	contador = Counter(lista_palabras)
+
+	# Filtrar palabras que se repiten más de una vez
+	contador_filtrado = {k: v for k, v in contador.items() if v > 1}
+
+	# Crear un nuevo diccionario para almacenar los valores de las palabras repetidas para cada uid
+	dic_valores = {}
+	for uid, votes in last_votes.items():
+		# Obtener solo las palabras repetidas del valor del diccionario
+		palabras_repetidas = [p for p in votes.replace(" ", "").split(',') if p in contador_filtrado]
+		# sumar los valores para cada palabra
+		suma_valores = sum(contador_filtrado[p] for p in palabras_repetidas)
+		dic_valores[uid] = suma_valores
+
+	# imprimir el resultado
+	print(dic_valores)
 
 
 def start_next_round(bot, game, failed = False):

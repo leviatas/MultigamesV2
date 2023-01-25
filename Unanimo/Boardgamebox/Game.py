@@ -3,8 +3,8 @@ from datetime import datetime
 from random import shuffle, randint
 
 from Boardgamebox.Game import Game as BaseGame
-from Werewords.Boardgamebox.Player import Player
-from Werewords.Boardgamebox.Board import Board
+from Unanimo.Boardgamebox.Player import Player
+from Unanimo.Boardgamebox.Board import Board
 #from Boardgamebox.Board import Board
 #from Boardgamebox.State import State
 from Utils import get_config_data, basic_validation
@@ -13,54 +13,8 @@ class Game(BaseGame):
 	def __init__(self, cid, initiator, groupName, tipo = None, modo = None):
 		BaseGame.__init__(self, cid, initiator, groupName, tipo, modo)
 		self.modulos = []
-		self.using_timer = False
+		self.using_timer = False	
 	
-	def get_mayor(self):
-		for uid in self.playerlist:
-			if self.playerlist[uid].is_mayor:
-				return self.playerlist[uid]
-		return None
-
-	def get_vidente(self):
-		for uid in self.playerlist:
-			if self.playerlist[uid].rol == "Vidente":
-				return self.playerlist[uid]
-		return None
-
-	def get_rol(self, rol):
-		for uid in self.playerlist:
-			if self.playerlist[uid].rol == rol:
-				return self.playerlist[uid]
-		return None
-
-	def get_badguys(self):
-		hombres_lobo = []
-		for uid, player in self.playerlist.items():
-			if (player.is_werewolf()):
-				hombres_lobo.append(player)
-		return hombres_lobo
-
-	def get_minions(self):
-		minions = []
-		for uid, player in self.playerlist.items():
-			if player.is_minion():
-				minions.append(player)
-		return minions
-
-	def get_masones(self):
-		masones = []
-		for uid, player in self.playerlist.items():
-			if (player == "Mason" or player.dople_rol == "Mason"):
-				masones.append(player)
-		return masones
-
-	def get_oracles(self):
-		oraculos = []
-		for uid, player in self.playerlist.items():
-			if (player == "Oraculo" or player.dople_rol == "Oraculo"):
-				oraculos.append(player)
-		return oraculos
-
 	def get_rules(self):
 		return ["""El juego es una combinacion de Werewolf y Preguntas para adivinar una o mas palabras
 Un jugador, el mayor, responderá las preguntas y sabrá la respuesta.
@@ -126,10 +80,10 @@ Si NO se adivino la palabra, los aldeanos votan a ver quien es el lobo. *Si un l
 		return basic_validation(self, uid) and self.board.state.fase_actual is None 
 
 	def call(self, context):
-		import Werewords.Commands as WerewordsCommands
+		import Unanimo.Commands as UnanimoCommands
 		if self.board is not None:
-				WerewordsCommands.command_call(context, self)
+				UnanimoCommands.command_call(context, self)
 	def timer(self, update, context):
-		import Werewords.Commands as WerewordsCommands
+		import Unanimo.Commands as UnanimoCommands
 		if self.board is not None:
-			WerewordsCommands.callback_timer(update, context)
+			UnanimoCommands.callback_timer(update, context)
