@@ -158,11 +158,12 @@ def review_clues(bot, game):
 	txt_words = "Las palabras escritas son:"
 	for uid_pista, words in game.board.state.last_votes.items():
 		player = game.playerlist[uid_pista]
-		txt_words += f"{player.name}: {words}"
+		txt_words += f"\n*{player.name}*:\n{words}"
 	bot.send_message(game.cid, txt_words, ParseMode.MARKDOWN)
 	save(bot, game.cid)	
-	count_points(game.board.state.last_votes)
-
+	players_points = count_points(game.board.state.last_votes)
+	text_points = json.dumps(players_points, indent = 4)
+	bot.send_message(game.cid, text_points, ParseMode.MARKDOWN)
 	start_next_round(bot, game, True)
 
 def count_points(last_votes):
@@ -190,7 +191,7 @@ def count_points(last_votes):
 		dic_valores[uid] = suma_valores
 
 	# imprimir el resultado
-	print(dic_valores)
+	return dic_valores
 
 
 def start_next_round(bot, game, failed = False):

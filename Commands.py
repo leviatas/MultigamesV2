@@ -29,6 +29,7 @@ from Wavelength.Boardgamebox.Game import Game as GameWavelength
 from Decrypt.Boardgamebox.Game import Game as GameDecrypt
 from Werewords.Boardgamebox.Game import Game as GameWerewords
 from Deception.Boardgamebox.Game import Game as GameDeception
+from Unanimo.Boardgamebox.Game import Game as GameUnanimo
 
 from Boardgamebox.Player import Player
 from Boardgamebox.State import State
@@ -631,6 +632,8 @@ def CreateGame(cid, uid, tipo, groupName, bot):
 		#WerewordsController.configurar_partida(bot, GamesController.games[cid])
 	elif tipo == 'Deception':
 		GamesController.games[cid] = GameDeception(cid, uid, groupName, tipo)
+	elif tipo == 'Unanimo':
+		GamesController.games[cid] = GameUnanimo(cid, uid, groupName, tipo)
 	else:
 		GamesController.games[cid] = Game(cid, uid, groupName, tipo)
 
