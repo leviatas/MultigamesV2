@@ -147,11 +147,11 @@ def review_clues(bot, game):
 	log.info('review_clues called')
 	game.dateinitvote = None
 	game.board.state.fase_actual = "Revisando Pistas"
-	reviewer_player = game.board.state.reviewer_player
+	# reviewer_player = game.board.state.reviewer_player
 	
-	bot.send_message(game.cid, "El revisor {0} esta viendo las pistas".format(reviewer_player.name), ParseMode.MARKDOWN)
+	# bot.send_message(game.cid, "El revisor {0} esta viendo las pistas".format(reviewer_player.name), ParseMode.MARKDOWN)
 		
-	reviewer_player = game.board.state.reviewer_player
+	# reviewer_player = game.board.state.reviewer_player
 
 	txt_words = "Las palabras escritas son:"
 	for uid_pista, words in game.board.state.last_votes.items():
@@ -178,7 +178,7 @@ def count_points(last_votes):
 	# recorrer cada elemento del diccionario
 	for uid, palabras in last_votes.items():
 		# dividir las palabras en una lista
-		lista_palabras += palabras.replace(" ", "").split(",")
+		lista_palabras += palabras.replace(" ", "").lower().split(",")
 
 	# contar las repeticiones de cada palabra
 	contador = Counter(lista_palabras)
@@ -190,7 +190,7 @@ def count_points(last_votes):
 	dic_valores = {}
 	for uid, votes in last_votes.items():
 		# Obtener solo las palabras repetidas del valor del diccionario
-		palabras_repetidas = [p for p in votes.replace(" ", "").split(',') if p in contador_filtrado]
+		palabras_repetidas = [p for p in votes.replace(" ", "").lower().split(',') if p in contador_filtrado]
 		# sumar los valores para cada palabra
 		suma_valores = sum(contador_filtrado[p] for p in palabras_repetidas)
 		dic_valores[uid] = suma_valores
@@ -198,12 +198,14 @@ def count_points(last_votes):
 	# imprimir el resultado
 	return dic_valores
 
+def calculate_winner(bot, game):
+	return "Leviatas"
 
 def start_next_round(bot, game, failed = False):
 	log.info('Verifing End_Game called')
 	if (not game.board.cartas and game.modo != 'Extreme') or (game.modo == 'Extreme' and failed):
 		# Si no quedan cartas se termina el juego y se muestra el puntaje.
-		mensaje = "Juego finalizado! El puntaje fue de: *{0}*".format(game.board.state.progreso)		
+		mensaje = f"Juego finalizado! El ganador es {calculate_winner(bot, game)}"		
 		game.board.state.fase_actual = "Finalizado"
 		save(bot, game.cid)
 		bot.send_message(game.cid, mensaje, ParseMode.MARKDOWN)

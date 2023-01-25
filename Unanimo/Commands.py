@@ -82,11 +82,8 @@ def call_proponiendo_pistas(bot, game):
 			if len(history_text) > 0:
 				bot.send_message(game.cid, history_text, ParseMode.MARKDOWN)
 			# Se pone >= ya que si un jugador se va del partido y ya puso pista entonces vale
-			if game.board.num_players != 3 and len(game.board.state.last_votes) >= len(game.player_sequence)-1:
-				UnanimoController.review_clues(bot, game)
-			elif len(game.board.state.last_votes) == len(game.player_sequence)+1:
-				# De a 3 jugadores exigo que pongan 2 pistas cada uno son 4 de a 3 jugadores
-				UnanimoController.review_clues(bot, game)
+			if game.board.num_players != 3 and len(game.board.state.last_votes) >= len(game.player_sequence):
+				UnanimoController.review_clues(bot, game)			
 		else:
 			bot.send_message(game.cid, "5 minutos deben pasar para llamar a call") 
 
@@ -192,7 +189,8 @@ def command_words(update: Update, context: CallbackContext):
 								# Creo el boton el cual eligirá el jugador
 								txtBoton = game.groupName
 								comando_callback = "choosegamewords"
-								datos = str(game_chat_id) + "*" + comando_callback + "*" + clue_text + "*" + str(uid)
+								context.user_data[uid] = clue_text
+								datos = str(game_chat_id) + "*" + comando_callback + "*pista*" + str(uid)
 								btns.append([InlineKeyboardButton(txtBoton, callback_data=datos)])
 					except Exception as e:
 						game.groupName
@@ -231,7 +229,7 @@ def callback_choose_game_clue(update: Update, context: CallbackContext):
 	callback = update.callback_query
 	log.info('callback_choose_mode called: %s' % callback.data)	
 	regex = re.search(r"(-[0-9]*)\*choosegamewords\*(.*)\*([0-9]*)", callback.data)
-	cid, opcion, uid = int(regex.group(1)), regex.group(2), int(regex.group(3)),
+	cid, uid = int(regex.group(1)), int(regex.group(3)),
 	
 	if cid == -1:
 		bot.edit_message_text("Cancelado", uid, callback.message.message_id)
@@ -240,6 +238,8 @@ def callback_choose_game_clue(update: Update, context: CallbackContext):
 	game = get_game(cid)
 	mensaje_edit = "Has elegido el grupo {0}".format(game.groupName)
 	
+	opcion = context.user_data[uid]
+
 	bot.edit_message_text(mensaje_edit, uid, callback.message.message_id)
 	set_words(bot, [opcion, cid, uid])
 
