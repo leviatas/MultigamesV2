@@ -25,9 +25,9 @@ class Board(BaseBoard):
         for player in game.player_sequence:
             nombre = player.name.replace("_", " ")
             if self.state.active_player == player:
-                board += "*" + nombre + "*" + " " + u"\u27A1\uFE0F" + " "
+                board += f"*{nombre}* ({player.points}) " + u"\u27A1\uFE0F" + " "
             else:
-                board += nombre + " " + u"\u27A1\uFE0F" + " "
+                board += f"{nombre} ({player.points}) " + u"\u27A1\uFE0F" + " "
         board = board[:-3]
         board += u"\U0001F501"
         board += f"\n\nLa carta actual es {game.board.state.acciones_carta_actual}"

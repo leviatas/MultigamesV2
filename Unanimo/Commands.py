@@ -119,7 +119,7 @@ def set_words(bot, args):
 			# Verifico si todos los jugadores -1 pusieron pista
 			bot.send_message(game.cid, "El jugador *%s* ha puesto una pista." % game.playerlist[uid].name, ParseMode.MARKDOWN)
 			
-			if len(game.board.state.last_votes) == len(game.player_sequence)-1:
+			if len(game.board.state.last_votes) == len(game.player_sequence):
 				UnanimoController.review_clues(bot, game)
 			# if game.board.num_players != 3:
 			# 	if len(game.board.state.last_votes) == len(game.player_sequence)-1:

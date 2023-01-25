@@ -8,6 +8,7 @@ class Player(BasePlayer):
         self.is_mayor = False
         self.dople_rol = None
         self.dople_afiliacion = None
+        self.points = 0
 
     def get_private_info(self, game):
         board = "--- Info del Jugador {} en la partida *{}*---\n".format(self.name, game.groupName)
@@ -18,19 +19,3 @@ class Player(BasePlayer):
             board += "\n*ERES EL MAYOR*" if self.is_mayor else ""
 
         return board
-
-    
-    def is_aprendiz(self):
-        return self.rol == "Aprendiz" or self.dople_rol == "Aprendiz"
-
-    def is_vidente(self):
-        return self.rol == "Vidente" or self.dople_rol == "Vidente"
-    
-    def is_werewolf_team(self):
-        return self.afiliacion == "Hombre Lobo" or self.dople_afiliacion == "Hombre Lobo"
-
-    def is_werewolf(self):
-        return self.rol == "Hombre Lobo" or self.dople_rol == "Hombre Lobo"
-
-    def is_minion(self):
-        return self.rol == "Secuaz" or self.dople_rol == "Secuaz"

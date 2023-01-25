@@ -138,7 +138,7 @@ def start_round_unanimo(bot, game):
 def call_players_to_clue(bot, game):
 	for uid in game.playerlist:		
 		#bot.send_message(cid, "Enviando mensaje a: %s" % game.playerlist[uid].name)
-		mensaje = "Nueva palabra en el grupo {1}.\nLa palabra es: *{0}*, propone tus palabras representativas separadas por coma [,]!".format(game.board.state.acciones_carta_actual, game.group_link_name())
+		mensaje = "Nueva palabra en el grupo {1}.\nLa palabra es: *{0}*, propone tus palabras representativas separadas por coma!".format(game.board.state.acciones_carta_actual, game.group_link_name())
 		bot.send_message(uid, mensaje, ParseMode.MARKDOWN)
 		mensaje = "Ejemplo: Palabra es *Fiesta*\n/words Cumpleaños, Torta, Decoracion, Musica, Rock, Infantil, Luces, Velas"
 		bot.send_message(uid, mensaje, ParseMode.MARKDOWN)
@@ -150,8 +150,7 @@ def review_clues(bot, game):
 	reviewer_player = game.board.state.reviewer_player
 	
 	bot.send_message(game.cid, "El revisor {0} esta viendo las pistas".format(reviewer_player.name), ParseMode.MARKDOWN)
-	
-	
+		
 	reviewer_player = game.board.state.reviewer_player
 
 	txt_words = "Las palabras escritas son:"
@@ -161,7 +160,14 @@ def review_clues(bot, game):
 	bot.send_message(game.cid, txt_words, ParseMode.MARKDOWN)
 	save(bot, game.cid)	
 	players_points = count_points(game.board.state.last_votes)
-	text_points = json.dumps(players_points, indent = 4)
+
+	text_points = ""
+	for uid, points in players_points.items():
+		player = game.playerlist[uid]
+		player.points += points
+		text_points += f"El jugador *{player.name}* ha ganado {points} ahora tiene {player.points}\n"
+
+	# text_points = json.dumps(players_points, indent = 4)
 	bot.send_message(game.cid, text_points, ParseMode.MARKDOWN)
 	start_next_round(bot, game, True)
 
