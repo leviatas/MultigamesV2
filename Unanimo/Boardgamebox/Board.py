@@ -30,11 +30,11 @@ class Board(BaseBoard):
                 board += nombre + " " + u"\u27A1\uFE0F" + " "
         board = board[:-3]
         board += u"\U0001F501"
-        
+        board += f"\n\nLa carta actual es {game.board.state.acciones_carta_actual}"
         # board += "\n\nEl jugador *{0}* tiene que adivinar".format(game.board.state.active_player.name)
         # board += "\n\nEl jugador *{0}* revisara las pistas".format(game.board.state.reviewer_player.name)
         if len( game.board.cartas) == 0:
-            board += "\n\n‼️Esta es la ultima carta del mazo‼️"
+            board += "\n‼️Esta es la ultima carta del mazo‼️"
         
         
         
