@@ -228,62 +228,60 @@ def continue_playing(bot, game):
 def callback_finish_game_buttons(update: Update, context: CallbackContext):
 	bot = context.bot
 	callback = update.callback_query
-	try:		
-		#log.info('callback_finish_game_buttons called: %s' % callback.data)	
-		regex = re.search(r"(-[0-9]*)\*unanimo\*(.*)\*([0-9]*)", callback.data)
-		cid, opcion, uid = int(regex.group(1)), regex.group(2), int(regex.group(3))
-		mensaje_edit = "Has elegido el diccionario: {0}".format(opcion)
-		try:
-			bot.edit_message_text(mensaje_edit, cid, callback.message.message_id)
-		except Exception as e:
-			bot.edit_message_text(mensaje_edit, uid, callback.message.message_id)				
-		game = get_game(cid)
-		
-		# Obtengo el diccionario actual, primero casos no tendre el config y pondre el community
-		try:
-			dicc = game.configs.get('diccionario','original')
-		except Exception as e:
-			dicc = 'community'
-		
-		# Obtengo datos de juego anterior		
-		groupName = game.groupName
-		tipojuego = game.tipo
-		modo = game.modo
-		descarte = game.board.discards
-		# Pongo el link asi no lo pierdo cuando comienza otra partida
-		link = game.configs.get('link', None)
-		# Dependiendo de la opcion veo que como lo inicio
-		players = game.playerlist.copy()
-		# Creo nuevo juego
-		game = Game(cid, uid, groupName, tipojuego, modo)
-		GamesController.games[cid] = game
-		# Guarda los descartes en configs para asi puedo recuperarlos
-		game.configs['discards'] = descarte
-		#Persisto el nuevo link
-		game.configs['link'] = link
-
-		if opcion == "Nuevo":
-			bot.send_message(cid, "Cada jugador puede unirse al juego con el comando /join.\nEl iniciador del juego (o el administrador) pueden unirse tambien y escribir /startgame cuando todos se hayan unido al juego!")			
-			return
-		#log.info('Llego hasta la creacion')		
-		game.playerlist = players
-		# StartGame
-		player_number = len(game.playerlist)
-		game.board = Board(player_number, game)		
-		game.player_sequence = []
-		game.shuffle_player_sequence()
-					
-		if opcion == "Mismo Diccionario":
-			#(Beta) Nuevo Partido, mismos jugadores, mismo diccionario
-			#log.info('Llego hasta el new2')
-			game.configs['diccionario'] = dicc
-			finish_config(bot, game)
-		if opcion == "Otro Diccionario":
-			#(Beta) Nuevo Partido, mismos jugadores, diferente diccionario
-			call_dicc_buttons(bot, game)				
+			
+	#log.info('callback_finish_game_buttons called: %s' % callback.data)	
+	regex = re.search(r"(-[0-9]*)\*unanimo\*(.*)\*([0-9]*)", callback.data)
+	cid, opcion, uid = int(regex.group(1)), regex.group(2), int(regex.group(3))
+	mensaje_edit = "Has elegido el diccionario: {0}".format(opcion)
+	try:
+		bot.edit_message_text(mensaje_edit, cid, callback.message.message_id)
 	except Exception as e:
-		bot.send_message(ADMIN[0], 'No se ejecuto el comando debido a: '+str(e))
-		bot.send_message(ADMIN[0], callback.data)
+		bot.edit_message_text(mensaje_edit, uid, callback.message.message_id)				
+	game = get_game(cid)
+	
+	# Obtengo el diccionario actual, primero casos no tendre el config y pondre el community
+	try:
+		dicc = game.configs.get('diccionario','original')
+	except Exception as e:
+		dicc = 'community'
+	
+	# Obtengo datos de juego anterior		
+	groupName = game.groupName
+	tipojuego = game.tipo
+	modo = game.modo
+	descarte = game.board.discards
+	# Pongo el link asi no lo pierdo cuando comienza otra partida
+	link = game.configs.get('link', None)
+	# Dependiendo de la opcion veo que como lo inicio
+	players = game.playerlist.copy()
+	# Creo nuevo juego
+	game = Game(cid, uid, groupName, tipojuego, modo)
+	GamesController.games[cid] = game
+	# Guarda los descartes en configs para asi puedo recuperarlos
+	game.configs['discards'] = descarte
+	#Persisto el nuevo link
+	game.configs['link'] = link
+
+	if opcion == "Nuevo":
+		bot.send_message(cid, "Cada jugador puede unirse al juego con el comando /join.\nEl iniciador del juego (o el administrador) pueden unirse tambien y escribir /startgame cuando todos se hayan unido al juego!")			
+		return
+	#log.info('Llego hasta la creacion')		
+	game.playerlist = players
+	# StartGame
+	player_number = len(game.playerlist)
+	game.board = Board(player_number, game)		
+	game.player_sequence = []
+	game.shuffle_player_sequence()
+				
+	if opcion == "Mismo Diccionario":
+		#(Beta) Nuevo Partido, mismos jugadores, mismo diccionario
+		#log.info('Llego hasta el new2')
+		game.configs['diccionario'] = dicc
+		finish_config(bot, game)
+	if opcion == "Otro Diccionario":
+		#(Beta) Nuevo Partido, mismos jugadores, diferente diccionario
+		call_dicc_buttons(bot, game)				
+
 
 def myturn_message(game, uid):
 	try:
