@@ -230,7 +230,7 @@ def callback_finish_game_buttons(update: Update, context: CallbackContext):
 	callback = update.callback_query
 			
 	#log.info('callback_finish_game_buttons called: %s' % callback.data)	
-	regex = re.search(r"(-[0-9]*)\*unanimo\*(.*)\*([0-9]*)", callback.data)
+	regex = re.search(r"(-[0-9]*)\*chooseendunanimo\*(.*)\*([0-9]*)", callback.data)
 	cid, opcion, uid = int(regex.group(1)), regex.group(2), int(regex.group(3))
 	mensaje_edit = "Has elegido el diccionario: {0}".format(opcion)
 	try:
