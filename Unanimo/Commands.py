@@ -77,7 +77,7 @@ def call_proponiendo_pistas(bot, game):
 					# Envio mensaje inicial de pistas para recordarle al jugador la pista y el grupo
 					mensaje = "Palabra en el grupo {1}.\nAdivina el jugador: *{2}*\nLa palabra es: *{0}*, propone tus palabras representativas!".format(game.board.state.acciones_carta_actual, game.group_link_name(), game.board.state.active_player.name)
 					bot.send_message(player.uid, mensaje, ParseMode.MARKDOWN)
-					mensaje = "/clue Ejemplo" if game.board.num_players != 3 else "/clue Ejemplo Ejemplo2"
+					mensaje = "Ejemplo: Si la palabra fuese (Fiesta)\n/words Cumpleaños, Torta, Decoracion, Musica, Rock, Infantil, Luces, Velas"
 					bot.send_message(player.uid, mensaje)
 			if len(history_text) > 0:
 				bot.send_message(game.cid, history_text, ParseMode.MARKDOWN)
@@ -134,94 +134,94 @@ def set_words(bot, args):
 def command_words(update: Update, context: CallbackContext):
 	bot = context.bot
 	args = context.args
-	try:		
-		#Send message of executing command   
-		try:			
-			cid = update.message.chat_id
-			uid = update.message.from_user.id
-		except Exception as e:
-			cid = args[1]
-			uid = args[2]
-		
-		# Si no se esta enviando al bot le borro el mensaje
-		if update.effective_message.chat.type in ['group', 'supergroup']:
-			bot.delete_message(cid, update.message.message_id)
-			return
-
-		# Para simplificar mando el CHAT_ID del partido junto con la pista
-		# Permito las dos formas de gregar pistas
-		
-		if len(args) > 0:
-			# Obtengo todos los juegos de base de datos de los que usan clue
-			mensaje_error = ""
-			conn = psycopg2.connect(
-				database=url.path[1:],
-				user=url.username,
-				password=url.password,
-				host=url.hostname,
-				port=url.port
-			)
-			cursor = conn.cursor()			
-			log.info("Executing in DB")
-			query = "select * from games g where g.tipojuego = 'Unanimo'"
-			cursor.execute(query)
-			# Si encuentra partida...
-			if cursor.rowcount > 0:					
-				for table in cursor.fetchall():
-					# Por cada partida encontrada la cargo en games si no esta en el controller.
-					#bot.send_message(uid, table[0])
-					if table[0] not in GamesController.games.keys():
-						#bot.send_message(uid, "Cargando el juego {0}".format(table[0]))
-						get_game(table[0])
-				clue_games_restriction = ['Unanimo']
-				#bot.send_message(uid, "Obtuvo esta cantidad de juegos: {0}".format(len(GamesController.games)))
-				clue_games = {key:val for key, val in GamesController.games.items() if val.tipo in clue_games_restriction}
-				btns = []
-				#bot.send_message(uid, len(clue_games))rdd
-				
-				for game_chat_id, game in clue_games.items():
-					#bot.send_message(uid, "Creando boton para el juego {0}".format(game_chat_id))
-					try:
-						if uid in game.playerlist and game.board != None:
-							if game.board.state.fase_actual == "Proponiendo Pistas":
-								clue_text = ' '.join(args)
-								cid = game_chat_id
-								# Creo el boton el cual eligirá el jugador
-								txtBoton = game.groupName
-								comando_callback = "choosegamewords"
-								context.user_data[uid] = clue_text
-								datos = str(game_chat_id) + "*" + comando_callback + "*pista*" + str(uid)
-								btns.append([InlineKeyboardButton(txtBoton, callback_data=datos)])
-					except Exception as e:
-						game.groupName
-						bot.send_message(ADMIN[0], f"En el juego [{game.groupName}] ha habido un error")
-						bot.send_message(ADMIN[0], str(e))
-				#bot.send_message(uid, "Llego a botones")
-				# Despues de recorrer los partidos y verificar si el usuario puede poner pista le pregunto
-				if len(btns) != 0:
-					if len(btns) == 1:
-						#Si es solo 1 juego lo hago automatico
-						set_words(bot, [' '.join(args), cid, uid])
-					else:
-						txtBoton = "Cancel"
-						datos = "-1*choosegamewords*" + clue_text + "*" + str(uid)
-						btns.append([InlineKeyboardButton(txtBoton, callback_data=datos)])
-						btnMarkup = InlineKeyboardMarkup(btns)
-						bot.send_message(uid, "En cual de estos grupos queres mandar la pista?", reply_markup=btnMarkup)
-				else:
-					mensaje_error = "No hay partidas en las que puedas hacer /words"
-					bot.send_message(uid, mensaje_error)
-						
-			else:
-				mensaje_error = "No hay partidas vivas en las que puedas hacer /words"
-				bot.send_message(cid, mensaje_error)
-			conn.close()
-		else:
-			bot.send_message(cid, "Le faltan/sobran argumentos recuerde que es /words [Palabra1, Palabra2, Palabra8]. Ej: /words Cumpleaños, Torta, Decoracion, Musica, Rock, Infantil, Luces, Velas")
+	# try:		
+	#Send message of executing command   
+	try:			
+		cid = update.message.chat_id
+		uid = update.message.from_user.id
 	except Exception as e:
-		game.groupName
-		bot.send_message(ADMIN[0], f"En el juego {game.groupName} ha habido un error")
-		bot.send_message(ADMIN[0], str(e))
+		cid = args[1]
+		uid = args[2]
+	
+	# Si no se esta enviando al bot le borro el mensaje
+	if update.effective_message.chat.type in ['group', 'supergroup']:
+		bot.delete_message(cid, update.message.message_id)
+		return
+
+	# Para simplificar mando el CHAT_ID del partido junto con la pista
+	# Permito las dos formas de gregar pistas
+	
+	if len(args) > 0:
+		# Obtengo todos los juegos de base de datos de los que usan clue
+		mensaje_error = ""
+		conn = psycopg2.connect(
+			database=url.path[1:],
+			user=url.username,
+			password=url.password,
+			host=url.hostname,
+			port=url.port
+		)
+		cursor = conn.cursor()			
+		log.info("Executing in DB")
+		query = "select * from games g where g.tipojuego = 'Unanimo'"
+		cursor.execute(query)
+		# Si encuentra partida...
+		if cursor.rowcount > 0:					
+			for table in cursor.fetchall():
+				# Por cada partida encontrada la cargo en games si no esta en el controller.
+				#bot.send_message(uid, table[0])
+				if table[0] not in GamesController.games.keys():
+					#bot.send_message(uid, "Cargando el juego {0}".format(table[0]))
+					get_game(table[0])
+			clue_games_restriction = ['Unanimo']
+			#bot.send_message(uid, "Obtuvo esta cantidad de juegos: {0}".format(len(GamesController.games)))
+			clue_games = {key:val for key, val in GamesController.games.items() if val.tipo in clue_games_restriction}
+			btns = []
+			#bot.send_message(uid, len(clue_games))rdd
+			
+			for game_chat_id, game in clue_games.items():
+				#bot.send_message(uid, "Creando boton para el juego {0}".format(game_chat_id))
+				# try:
+				if uid in game.playerlist and game.board != None:
+					if game.board.state.fase_actual == "Proponiendo Pistas":
+						clue_text = ' '.join(args)
+						cid = game_chat_id
+						# Creo el boton el cual eligirá el jugador
+						txtBoton = game.groupName
+						comando_callback = "choosegamewords"
+						context.user_data[uid] = clue_text
+						datos = str(game_chat_id) + "*" + comando_callback + "*pista*" + str(uid)
+						btns.append([InlineKeyboardButton(txtBoton, callback_data=datos)])
+				# except Exception as e:
+				# 	game.groupName
+				# 	bot.send_message(ADMIN[0], f"En el juego [{game.groupName}] ha habido un error")
+				# 	bot.send_message(ADMIN[0], str(e))
+			#bot.send_message(uid, "Llego a botones")
+			# Despues de recorrer los partidos y verificar si el usuario puede poner pista le pregunto
+			if len(btns) != 0:
+				if len(btns) == 1:
+					#Si es solo 1 juego lo hago automatico
+					set_words(bot, [' '.join(args), cid, uid])
+				else:
+					txtBoton = "Cancel"
+					datos = "-1*choosegamewords*" + clue_text + "*" + str(uid)
+					btns.append([InlineKeyboardButton(txtBoton, callback_data=datos)])
+					btnMarkup = InlineKeyboardMarkup(btns)
+					bot.send_message(uid, "En cual de estos grupos queres mandar la pista?", reply_markup=btnMarkup)
+			else:
+				mensaje_error = "No hay partidas en las que puedas hacer /words"
+				bot.send_message(uid, mensaje_error)
+					
+		else:
+			mensaje_error = "No hay partidas vivas en las que puedas hacer /words"
+			bot.send_message(cid, mensaje_error)
+		conn.close()
+	else:
+		bot.send_message(cid, "Le faltan/sobran argumentos recuerde que es /words [Palabra1, Palabra2, Palabra8]. Ej: /words Cumpleaños, Torta, Decoracion, Musica, Rock, Infantil, Luces, Velas")
+	# except Exception as e:
+	# 	game.groupName
+	# 	bot.send_message(ADMIN[0], f"En el juego {game.groupName} ha habido un error")
+	# 	bot.send_message(ADMIN[0], str(e))
 		#raise
 
 def callback_choose_game_clue(update: Update, context: CallbackContext):
