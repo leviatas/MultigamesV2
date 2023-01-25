@@ -184,7 +184,7 @@ def command_words(update: Update, context: CallbackContext):
 				# try:
 				if uid in game.playerlist and game.board != None:
 					if game.board.state.fase_actual == "Proponiendo Pistas":
-						clue_text = ' '.join(args)
+						clue_text = replace_accent(' '.join(args))
 						cid = game_chat_id
 						# Creo el boton el cual eligirá el jugador
 						txtBoton = game.groupName
@@ -263,40 +263,6 @@ def replace_accent(txt):
 	for acento in acentos:
 		txt = txt.replace(acento[0], acento[1])
 	return txt
-
-def command_guess(update: Update, context: CallbackContext):
-	bot = context.bot
-	args = context.args
-	try:
-		log.info('command_guess called')
-		#Send message of executing command   
-		cid = update.message.chat_id
-		uid = update.message.from_user.id
-		game = get_game(cid)
-		if (len(args) < 1 or game.board.state.fase_actual != "Adivinando" or uid != game.board.state.active_player.uid):# and uid not in ADMIN:
-			bot.send_message(game.cid, "No es el momento de adivinar, no eres el que tiene que adivinar o no has ingresado algo para adivinar", ParseMode.MARKDOWN)
-			return
-		args_text = ' '.join(args)
-		
-		if replace_accent(args_text.lower()) == replace_accent(game.board.state.acciones_carta_actual.lower()):
-			#Adivino correctamente! Aumento el puntaje
-			game.board.state.progreso += 1
-			bot.send_message(game.cid, "*CORRECTO!!!*", ParseMode.MARKDOWN)			
-			game.board.discards.append(game.board.state.acciones_carta_actual)			
-			UnanimoController.start_next_round(bot, game)			
-		else:
-			#Preguntar al revisor
-			mensaje = "*Revisor* {0} confirme por favor!".format(player_call(game.board.state.reviewer_player))
-			bot.send_message(game.cid, mensaje, ParseMode.MARKDOWN)
-			opciones_botones = {
-				"correcto" : "Si",
-				"incorrecto" : "No"
-			}
-			simple_choose_buttons(bot, cid, game.board.state.reviewer_player.uid, game.board.state.reviewer_player.uid, "reviewerconfirm", "Partida {2}\n¿Es correcto lo que se adivinó ({1})? Palabra: {0}".format(game.board.state.acciones_carta_actual, args_text, game.groupName), opciones_botones)
-			
-	except Exception as e:
-		bot.send_message(uid, str(e))
-		log.error("Unknown error: " + str(e))
 
 def command_continue(bot, game, uid):
 	try:
