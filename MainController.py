@@ -756,7 +756,7 @@ def main():
 	# dp.add_handler(CallbackQueryHandler(pattern=r"(-[0-9]*)\*finalizar\*(.*)\*([0-9]*)", callback=JustOneController.callback_review_clues_finalizado))
 	# dp.add_handler(CallbackQueryHandler(pattern=r"(-[0-9]*)\*reviewerconfirm\*(.*)\*([0-9]*)", callback=JustOneController.callback_reviewer_confirm))
 	# dp.add_handler(CallbackQueryHandler(pattern=r"(-[0-9]*)\*choosegameclue\*(.*)\*([0-9]*)", callback=JustoneCommands.callback_choose_game_clue))
-	# dp.add_handler(CallbackQueryHandler(pattern=r"(-[0-9]*)\*chooseend\*(.*)\*([0-9]*)", callback=JustOneController.callback_finish_game_buttons))
+	dp.add_handler(CallbackQueryHandler(pattern=r"(-[0-9]*)\*chooseendunanimo\*(.*)\*([0-9]*)", callback=UnanimoController.callback_finish_game_buttons))
 
 	# WEb Crapping commands
 	dp.add_handler(CommandHandler("news", Commands.command_noticias))

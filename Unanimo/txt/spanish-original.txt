@@ -9,13 +9,15 @@ Magia
 Cantante
 Vacaciones
 Ordenador
-PlayerStatsCielo
+Playa
+Cielo
 Dinero
 Protagonista
 Dulce
 Fin de año
 Zumo
-PartidasBebé
+Paris
+Bebé
 Pizza
 Corazón
 Supermercado

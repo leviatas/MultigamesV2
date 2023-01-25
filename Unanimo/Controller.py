@@ -159,7 +159,7 @@ def review_clues(bot, game):
 		txt_words += f"\n*{player.name}*:\n{words}"
 	bot.send_message(game.cid, txt_words, ParseMode.MARKDOWN)
 	save(bot, game.cid)	
-	players_points = count_points(game.board.state.last_votes)
+	players_points, contador_filtrado = count_points(game.board.state.last_votes)
 
 	text_points = ""
 	for uid, points in players_points.items():
@@ -167,7 +167,8 @@ def review_clues(bot, game):
 		player.points += points
 		text_points += f"El jugador *{player.name}* ha ganado {points} ahora tiene {player.points}\n"
 
-	# text_points = json.dumps(players_points, indent = 4)
+	text_points_word = json.dumps(contador_filtrado, indent = 4)
+	bot.send_message(game.cid, text_points_word, ParseMode.MARKDOWN)
 	bot.send_message(game.cid, text_points, ParseMode.MARKDOWN)
 	start_next_round(bot, game, True)
 
@@ -196,7 +197,7 @@ def count_points(last_votes):
 		dic_valores[uid] = suma_valores
 
 	# imprimir el resultado
-	return dic_valores
+	return dic_valores, contador_filtrado
 
 def calculate_winner( game):
 	best_player = max(game.player_sequence, key=lambda x: x.points)
@@ -222,14 +223,14 @@ def start_next_round(bot, game, failed = False):
 def continue_playing(bot, game):
 	opciones_botones = { "Nuevo" : "Nuevo Partido con nuevos jugadores", "Mismo Diccionario" : "Mismo diccionario", "Otro Diccionario" : "Diferente diccionario"}
 	msg = "¿Quieres continuar jugando? *Modo actual {}*. Si quieres cambiar de modo debes elegir nuevo partido".format(game.modo)
-	simple_choose_buttons(bot, game.cid, 1, game.cid, "chooseend", msg, opciones_botones)
+	simple_choose_buttons(bot, game.cid, 1, game.cid, "chooseendunanimo", msg, opciones_botones)
 	
 def callback_finish_game_buttons(update: Update, context: CallbackContext):
 	bot = context.bot
 	callback = update.callback_query
 	try:		
 		#log.info('callback_finish_game_buttons called: %s' % callback.data)	
-		regex = re.search(r"(-[0-9]*)\*chooseend\*(.*)\*([0-9]*)", callback.data)
+		regex = re.search(r"(-[0-9]*)\*unanimo\*(.*)\*([0-9]*)", callback.data)
 		cid, opcion, uid = int(regex.group(1)), regex.group(2), int(regex.group(3))
 		mensaje_edit = "Has elegido el diccionario: {0}".format(opcion)
 		try:
@@ -240,7 +241,7 @@ def callback_finish_game_buttons(update: Update, context: CallbackContext):
 		
 		# Obtengo el diccionario actual, primero casos no tendre el config y pondre el community
 		try:
-			dicc = game.configs.get('diccionario','edespañola')
+			dicc = game.configs.get('diccionario','original')
 		except Exception as e:
 			dicc = 'community'
 		
