@@ -204,7 +204,7 @@ def command_words(update: Update, context: CallbackContext):
 					set_words(bot, [' '.join(args), cid, uid])
 				else:
 					txtBoton = "Cancel"
-					datos = "-1*choosegamewords*" + clue_text + "*" + str(uid)
+					datos = "-1*choosegamewords*pista*" + str(uid)
 					btns.append([InlineKeyboardButton(txtBoton, callback_data=datos)])
 					btnMarkup = InlineKeyboardMarkup(btns)
 					bot.send_message(uid, "En cual de estos grupos queres mandar la pista?", reply_markup=btnMarkup)

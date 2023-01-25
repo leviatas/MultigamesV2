@@ -198,14 +198,15 @@ def count_points(last_votes):
 	# imprimir el resultado
 	return dic_valores
 
-def calculate_winner(bot, game):
-	return "Leviatas"
+def calculate_winner( game):
+	best_player = max(game.player_sequence, key=lambda x: x.points)
+	return best_player.name
 
 def start_next_round(bot, game, failed = False):
 	log.info('Verifing End_Game called')
 	if (not game.board.cartas and game.modo != 'Extreme') or (game.modo == 'Extreme' and failed):
 		# Si no quedan cartas se termina el juego y se muestra el puntaje.
-		mensaje = f"Juego finalizado! El ganador es {calculate_winner(bot, game)}"		
+		mensaje = f"Juego finalizado! El ganador es {calculate_winner(game)}"		
 		game.board.state.fase_actual = "Finalizado"
 		save(bot, game.cid)
 		bot.send_message(game.cid, mensaje, ParseMode.MARKDOWN)
