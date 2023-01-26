@@ -958,9 +958,7 @@ def verify_my_turn(game, uid):
 def myturn_message(bot, game, uid):
 	try:
 		if game.tipo == 'JustOne':
-			return JustOneController.myturn_message(game, uid)
-		elif game.tipo == 'Unanimo':
-			return UnanimoController.myturn_message(game, uid)
+			return JustOneController.myturn_message(game, uid)		
 		elif game.tipo == 'SayAnything':
 			#log.info("Fase: {} Grupo {}".format(game.board.state.fase_actual, game.groupName))
 			if game.board.state.fase_actual == "Votando Frases":				

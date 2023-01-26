@@ -281,19 +281,4 @@ def callback_finish_game_buttons(update: Update, context: CallbackContext):
 		finish_config(bot, game)
 	if opcion == "Otro Diccionario":
 		#(Beta) Nuevo Partido, mismos jugadores, diferente diccionario
-		call_dicc_buttons(bot, game)				
-
-
-def myturn_message(game, uid):
-	try:
-		group_link_name = game.group_link_name()
-		if game.board.state.fase_actual == "Proponiendo Pistas":			
-			mensaje_clue_ejemplo = "/words Ejemplo" if game.board.num_players != 3 else "/clue Ejemplo Ejemplo2"
-			return "Partida: {} debes dar {} para la palabra: *{}*.\nAdivina el jugador *{}*".format(group_link_name, mensaje_clue_ejemplo, game.board.state.acciones_carta_actual, game.board.state.active_player.name)
-		elif game.board.state.fase_actual == "Revisando Pistas":
-			return "Partida: {} Revisor recorda que tenes que verificar las pistas".format(group_link_name)
-		elif game.board.state.fase_actual == "Adivinando":			
-			return "Partida: {} estamos esperando para que hagas /guess EJEMPLO o /pass".format(group_link_name)
-	except Exception as e:
-		return str(e)
-		
+		call_dicc_buttons(bot, game)
