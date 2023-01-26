@@ -44,49 +44,29 @@ Si NO se adivino la palabra, los aldeanos votan a ver quien es el lobo. *Si un l
 		self.board = Board(player_number, self)
 	
 	def verify_turn(self, uid):
-		return False
+		if self.board.state.fase_actual == "Proponiendo Pistas":
+			return uid not in self.board.state.last_votes
+		else:
+			return False
 
-	def myturn_message(self, uid):		
-		group_link_name = self.groupName if get_config_data(self, "link") is None else "[{0}]({1})".format(self.groupName, get_config_data(self, "link"))
-		
-		if self.board.state.fase_actual == "Set_Reference":
-			msg = ""
-			return msg
-		if self.board.state.fase_actual == "Intercept/Decrypt":
-			msg = ""
-			return msg
-
-	def print_roles(self):
-		try:	
-			rtext =  ""
-			for uid, player in self.playerlist.items():
-				name = player.name
-				rol = player.rol
-				afiliacion = player.afiliacion
-				txt_mayor = " *y era el mayor*"	if player.is_mayor else ""
-				rtext += "El rol de *{}* era *{}* con afiliacion *{}*{}.\n".format(name, rol, afiliacion, txt_mayor)
-				rtext +=  "\n"
-			return rtext
+	def myturn_message(self, uid):
+		try:
+			group_link_name = self.groupName if get_config_data(self, "link") is None else "[{0}]({1})".format(self.groupName, get_config_data(self, "link"))
+			if self.board.state.fase_actual == "Proponiendo Pistas":
+				mensaje_clue_ejemplo = "Ejemplo: Si la palabra fuese (Fiesta)\n/words Cumpleaños, Torta, Decoracion, Musica, Rock, Infantil, Luces, Velas"				
+				return f"Partida: {group_link_name} debes dar {mensaje_clue_ejemplo} para la palabra:\n*{self.board.state.acciones_carta_actual}*."	
 		except Exception as e:
-			rtext += str(e)
+			return str(e)
 
 	def resetPlayerPoints(self):
 		for player in self.playerlist.values():
 			player.points = 0
 
-	def validate_call_choose_lobo(self, uid):
-		return basic_validation(self, uid)
-
-	def validate_call_choose_vidente(self, uid):
-		return basic_validation(self, uid) and any(player_lobo.uid == uid for player_lobo in self.get_badguys())
-
-	def validate_call_choose_poke(self, uid):
-		return basic_validation(self, uid) and self.board.state.fase_actual is None 
-
 	def call(self, context):
 		import Unanimo.Commands as UnanimoCommands
 		if self.board is not None:
 				UnanimoCommands.command_call(context.bot, self)
+				
 	def timer(self, update, context):
 		import Unanimo.Commands as UnanimoCommands
 		if self.board is not None:
