@@ -167,7 +167,10 @@ def review_clues(bot, game):
 		player.points += points
 		text_points += f"El jugador *{player.name}* ha ganado {points} ahora tiene {player.points}\n"
 
-	text_points_word = json.dumps(contador_filtrado, indent = 4)
+	text_points_word = ""
+	for key, value in contador_filtrado.items():
+		text_points_word += f"{key}: {value}\n"
+
 	bot.send_message(game.cid, text_points_word, ParseMode.MARKDOWN)
 	bot.send_message(game.cid, text_points, ParseMode.MARKDOWN)
 	start_next_round(bot, game, True)
