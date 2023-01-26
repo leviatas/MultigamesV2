@@ -179,7 +179,7 @@ def count_points(last_votes):
 	# recorrer cada elemento del diccionario
 	for uid, palabras in last_votes.items():
 		# dividir las palabras en una lista
-		lista_palabras += palabras.replace(" ", "").lower().split(",")
+		lista_palabras += palabras.split(",")
 
 	# contar las repeticiones de cada palabra
 	contador = Counter(lista_palabras)
@@ -191,7 +191,7 @@ def count_points(last_votes):
 	dic_valores = {}
 	for uid, votes in last_votes.items():
 		# Obtener solo las palabras repetidas del valor del diccionario
-		palabras_repetidas = [p for p in votes.replace(" ", "").lower().split(',') if p in contador_filtrado]
+		palabras_repetidas = [p for p in votes.split(',') if p in contador_filtrado]
 		# sumar los valores para cada palabra
 		suma_valores = sum(contador_filtrado[p] for p in palabras_repetidas)
 		dic_valores[uid] = suma_valores

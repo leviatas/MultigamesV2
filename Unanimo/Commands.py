@@ -87,6 +87,12 @@ def call_proponiendo_pistas(bot, game):
 		else:
 			bot.send_message(game.cid, "5 minutos deben pasar para llamar a call") 
 
+def validateAndFormat(words):
+	# list(set()) remueve duplicados
+	words_list = list(set(words.replace(", ", ",").title().split(",")))
+	words_list.sort()
+	return ','.join(words_list)
+
 def set_words(bot, args):
 	game = get_game(int(args[1]))
 	uid = args[2]
@@ -96,21 +102,11 @@ def set_words(bot, args):
 			bot.send_message(game.cid, "El juego no ha comenzado!")
 			return					
 		if game.board.state.fase_actual == "Proponiendo Pistas":
-			#Data is being claimed
-			# TODO Verificar que el usuario no mande pistas con espacios.
-			claimtext = args[0]
-			#claimtexttohistory = "El jugador %s declara: %s" % (game.playerlist[uid].name, claimtext)
-			bot.send_message(uid, "Tu pista: %s fue agregada a las pistas." % (claimtext))
 			
-			# # Si son 3 jugadores se agregan dos pistas 
-			# if game.board.num_players == 3:
-			# 	claimtext_pistas = claimtext.split(' ')
-			# 	i = 0
-			# 	for claimtext_pista in claimtext_pistas:
-			# 		game.board.state.last_votes[uid + i] = claimtext_pista
-			# 		i += 1
-			# else:
-			game.board.state.last_votes[uid] = claimtext
+			player_words = validateAndFormat(args[0])
+			bot.send_message(uid, f"Tu pista: {player_words} fue agregada a las pistas.")
+			
+			game.board.state.last_votes[uid] = player_words
 			
 			save(bot, game.cid)
 			# Verifico si todos los jugadores -1 pusieron pista
