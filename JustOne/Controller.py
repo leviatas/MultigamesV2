@@ -343,13 +343,20 @@ def get_pistas_eliminadas(game):
 			text_eliminadas += "*{1}: {0}*\n".format(value, player.name)
 	return text_eliminadas
 
+def informar_pistas_eliminadas(bot, game):
+	try:
+		#bot.send_message(ADMIN[0], game.board.state.removed_votes)
+		text_eliminadas = get_pistas_eliminadas(game)
+		log.info(text_eliminadas)
+		bot.send_message(game.cid, text_eliminadas, ParseMode.MARKDOWN)
+	except Exception as e:
+		log.info(f"{game.cid} No se ejecuto el comando debido a: " +str(e))
+
+
 def start_next_round(bot, game, failed = False):
 	log.info('start_next_round called')	
 	if game.board.state.removed_votes:
-		#bot.send_message(ADMIN[0], game.board.state.removed_votes)
-		text_eliminadas = get_pistas_eliminadas(game)
-		log.info(text_eliminadas)	
-		bot.send_message(game.cid, text_eliminadas, ParseMode.MARKDOWN)
+		informar_pistas_eliminadas(bot, game)
 	log.info('Verifing End_Game called')
 	if (not game.board.cartas and game.modo != 'Extreme') or (game.modo == 'Extreme' and failed):
 		# Si no quedan cartas se termina el juego y se muestra el puntaje.
