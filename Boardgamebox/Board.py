@@ -18,6 +18,8 @@ class Board(object):
    
     def print_board(self, game):
         board = ""
+        if game.is_debugging:
+            board += f"--- Fase Actual: {game.board.state.fase_actual} ---\n"
         board += "--- *Estado de Partida* ---\n"
         board += "Cartas restantes: {0}\n".format(len(game.board.cartas))
         board += "Puntaje actual: {0}".format(game.board.state.progreso)

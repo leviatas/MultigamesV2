@@ -348,6 +348,7 @@ def start_next_round(bot, game, failed = False):
 	if game.board.state.removed_votes:
 		#bot.send_message(ADMIN[0], game.board.state.removed_votes)
 		text_eliminadas = get_pistas_eliminadas(game)
+		log.info(text_eliminadas)	
 		bot.send_message(game.cid, text_eliminadas, ParseMode.MARKDOWN)
 	log.info('Verifing End_Game called')
 	if (not game.board.cartas and game.modo != 'Extreme') or (game.modo == 'Extreme' and failed):
