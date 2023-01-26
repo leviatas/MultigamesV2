@@ -54,7 +54,7 @@ Si NO se adivino la palabra, los aldeanos votan a ver quien es el lobo. *Si un l
 			group_link_name = self.groupName if get_config_data(self, "link") is None else "[{0}]({1})".format(self.groupName, get_config_data(self, "link"))
 			if self.board.state.fase_actual == "Proponiendo Pistas":
 				mensaje_clue_ejemplo = "Ejemplo: Si la palabra fuese (Fiesta)\n/words Cumpleaños, Torta, Decoracion, Musica, Rock, Infantil, Luces, Velas"
-				return f"Partida: {group_link_name} debes dar {mensaje_clue_ejemplo} para la palabra:\n*{self.board.state.acciones_carta_actual}*."
+				return f"Partida: {group_link_name} debes dar {mensaje_clue_ejemplo}. \nLa palabra es : *{self.board.state.acciones_carta_actual}* propone tus palabras!."
 		except Exception as e:
 			return str(e)
 
