@@ -104,7 +104,7 @@ def set_words(bot, args):
 		if game.board.state.fase_actual == "Proponiendo Pistas":
 			
 			player_words = validateAndFormat(args[0])
-			bot.send_message(uid, "Tu pista:" + player_words.replace(',', ', ') + "fue agregada a las pistas.")	
+			bot.send_message(uid, "Tu pista: " + player_words.replace(',', ', ') + "fue agregada a las pistas.")	
 			# Agrego las palabras del usuario al diccionario		
 			game.board.state.last_votes[uid] = player_words
 			
@@ -197,7 +197,7 @@ def command_words(update: Update, context: CallbackContext):
 			if len(btns) != 0:
 				if len(btns) == 1:
 					#Si es solo 1 juego lo hago automatico
-					set_words(bot, [' '.join(args), cid, uid])
+					set_words(bot, [replace_accent(' '.join(args)), cid, uid])
 				else:
 					txtBoton = "Cancel"
 					datos = "-1*choosegamewords*pista*" + str(uid)
