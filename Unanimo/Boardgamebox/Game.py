@@ -70,6 +70,10 @@ Si NO se adivino la palabra, los aldeanos votan a ver quien es el lobo. *Si un l
 		except Exception as e:
 			rtext += str(e)
 
+	def resetPlayerPoints(self):
+		for player in self.playerlist.values():
+			player.points = 0
+
 	def validate_call_choose_lobo(self, uid):
 		return basic_validation(self, uid)
 

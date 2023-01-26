@@ -265,8 +265,9 @@ def callback_finish_game_buttons(update: Update, context: CallbackContext):
 	if opcion == "Nuevo":
 		bot.send_message(cid, "Cada jugador puede unirse al juego con el comando /join.\nEl iniciador del juego (o el administrador) pueden unirse tambien y escribir /startgame cuando todos se hayan unido al juego!")			
 		return
-	#log.info('Llego hasta la creacion')		
+	#log.info('Llego hasta la creacion')
 	game.playerlist = players
+	game.resetPlayerPoints()
 	# StartGame
 	player_number = len(game.playerlist)
 	game.board = Board(player_number, game)		
