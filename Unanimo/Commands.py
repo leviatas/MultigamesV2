@@ -126,6 +126,28 @@ def set_words(bot, args):
 	else:
 		bot.send_message(uid, "No puedes hacer clue si no estas en ningun partido.")
 
+def command_points(update: Update, context: CallbackContext):
+	bot = context.bot
+	args = context.args
+	cid = update.message.chat_id
+	game = get_game(cid)
+	if not game or game.tipo != 'Unanimo':
+		bot.send_message(cid, 'Aca no hay juego de Unanimo', ParseMode.MARKDOWN)
+		return
+	# Valido que hayan pasado 2+ datos
+	if len(args) >= 2:
+		bot.send_message(cid, 'El comando es /points Leviatas -1 o /points Leviatas 2', ParseMode.MARKDOWN)
+		return
+	try:
+		puntos = int(args[-1])
+		player = game.find_player(args[0:len(args)-1])
+		if not player:
+			bot.send_message(cid, f'El jugador *{args[0:len(args)-1]}* no existe', ParseMode.MARKDOWN)
+			return
+		player.points += puntos
+		save(bot, game.cid)
+	except ValueError:
+		int()
 
 def command_words(update: Update, context: CallbackContext):
 	bot = context.bot
@@ -239,27 +261,29 @@ def callback_choose_game_clue(update: Update, context: CallbackContext):
 	bot.edit_message_text(mensaje_edit, uid, callback.message.message_id)
 	set_words(bot, [opcion, cid, uid])
 
-def command_pass(update: Update, context: CallbackContext):
-	bot = context.bot
-	log.info('command_pass called')
-	uid = update.message.from_user.id
-	cid = update.message.chat_id
-	game = get_game(cid)
-	
-	if game.board.state.fase_actual != "Adivinando" or uid != game.board.state.active_player.uid:
-		bot.send_message(game.cid, "No es el momento de adivinar o no eres el que tiene que adivinar", ParseMode.MARKDOWN)
-		return
-	if game.modo == 'Extreme':
-		bot.send_message(game.cid, "No se puede hacer /pass en modo extremo *COBARDE*!\nHace /guess como se debe!.", ParseMode.MARKDOWN)
-		return
-	UnanimoController.pass_just_one(bot, game)
-
 def replace_accent(txt):
 	acentos = [("á", "a"),("é", "e"),("í", "i"),("ó","o"),("ú","u")]
 	for acento in acentos:
 		txt = txt.replace(acento[0], acento[1])
 	return txt
 
+def command_continue(bot, game, uid):
+	try:
+		
+		# Verifico en mi maquina de estados que comando deberia usar para el estado(fase) actual
+		if game.board.state.fase_actual == "Proponiendo Pistas":
+			# Vuelvo a mandar la pista
+			UnanimoController.call_players_to_clue(bot, game)
+		elif game.board.state.fase_actual == "Revisando Pistas":
+			UnanimoController.review_clues(bot, game)
+		elif game.board.state.fase_actual == "Adivinando":
+			active_player = game.board.state.active_player
+			bot.send_message(game.cid, "{0} estamos esperando para que hagas /guess EJEMPLO o /pass".format(player_call(active_player)), ParseMode.MARKDOWN)
+		elif game.board.state.fase_actual == "Finalizado":
+			UnanimoController.continue_playing(bot, game)
+	except Exception as e:
+		bot.send_message(game.cid, str(e))
+		
 def command_continue(bot, game, uid):
 	try:
 		

@@ -750,6 +750,8 @@ def main():
 
 	# Unanimo Comandos y Callbacks de botones
 	dp.add_handler(CommandHandler("words", UnanimoCommands.command_words))
+	dp.add_handler(CommandHandler("points", UnanimoCommands.command_points))
+	
 	dp.add_handler(CallbackQueryHandler(pattern=r"(-[0-9]*)\*choosediccUnanimo\*(.*)\*([0-9]*)", callback=UnanimoController.callback_finish_config_unanimo))
 	dp.add_handler(CallbackQueryHandler(pattern=r"(-[0-9]*)\*choosegamewords\*(.*)\*([0-9]*)", callback=UnanimoCommands.callback_choose_game_clue))
 	# dp.add_handler(CallbackQueryHandler(pattern=r"(-[0-9]*)\*rechazar\*([0-9]*)", callback=JustOneController.callback_review_clues))
