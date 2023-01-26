@@ -661,11 +661,18 @@ def command_join(update: Update, context: CallbackContext):
 	game = get_game(cid)
 	if len(args) <= 0:
 		# if not args, use normal behaviour
-		fname = update.message.from_user.first_name
+		fname = update.message.from_user.first_name.replace("_", " ")
 		uid = update.message.from_user.id
 	else:
-		fname = args[0]
-		uid = int(args[1])
+		uid = update.message.from_user.id
+		if uid == ADMIN:
+			for i,k in zip(args[0::2], args[1::2]):
+				fname = i.replace("_", " ")
+				uid = int(k)
+				player = Player(fname, uid)
+				game.add_player(uid, player)
+				log.info("%s (%d) joined a game in %d" % (fname, uid, game.cid))
+				save(cid, "Game in join state", game)
 	
 	if groupType not in ['group', 'supergroup']:
 		bot.send_message(cid, "Tienes que agregarme a un grupo primero y escribir /newgame allá!")
