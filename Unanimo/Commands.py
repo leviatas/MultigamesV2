@@ -104,8 +104,8 @@ def set_words(bot, args):
 		if game.board.state.fase_actual == "Proponiendo Pistas":
 			
 			player_words = validateAndFormat(args[0])
-			bot.send_message(uid, f"Tu pista: {player_words} fue agregada a las pistas.")
-			
+			bot.send_message(uid, "Tu pista:" + player_words.replace(',', ', ') + "fue agregada a las pistas.")	
+			# Agrego las palabras del usuario al diccionario		
 			game.board.state.last_votes[uid] = player_words
 			
 			save(bot, game.cid)
