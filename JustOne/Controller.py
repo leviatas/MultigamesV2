@@ -343,7 +343,8 @@ def get_pistas_eliminadas(game):
 			text_eliminadas += "*{1}: {0}*\n".format(value, player.name)
 	return text_eliminadas
 
-def start_next_round(bot, game, failed = False):	
+def start_next_round(bot, game, failed = False):
+	log.info('start_next_round called')	
 	if game.board.state.removed_votes:
 		#bot.send_message(ADMIN[0], game.board.state.removed_votes)
 		text_eliminadas = get_pistas_eliminadas(game)
