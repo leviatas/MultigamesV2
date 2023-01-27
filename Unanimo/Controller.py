@@ -142,7 +142,16 @@ def call_players_to_clue(bot, game):
 		bot.send_message(uid, mensaje, ParseMode.MARKDOWN)
 		mensaje = "Ejemplo: Si la palabra fuese (Fiesta)\n/words Cumpleaños, Torta, Decoracion, Musica, Rock, Infantil, Luces, Velas"
 		bot.send_message(uid, mensaje, ParseMode.MARKDOWN)
-	
+
+def format_player_words_with_points(words, contador_filtrado):
+	formated_words = []
+	for word in words.split(","):
+		if word in contador_filtrado:
+			formated_words.append(f"*{word} ({contador_filtrado[word]})*")
+		else:
+			formated_words.append(f"{word}")
+	return ', '.join(formated_words)
+
 def review_clues(bot, game):
 	log.info('review_clues called')
 	game.dateinitvote = None
