@@ -873,7 +873,14 @@ def command_announce(update: Update, context: CallbackContext):
 	uid = update.message.from_user.id
 	cid = update.message.chat_id
 	# Lo pongo estatico ya que no anunciare en todos los tipos de juegos.
-	opciones_botones = { "Deception" : "Deception","Werewords" : "Werewords", "JustOne" : "Just One", "Arcana" : "Arcana", "Todos" : "Todos", "Cancel" : "Cancel" }
+	opciones_botones = { 
+		"Unanimo" : "Unanimo",
+		"Deception" : "Deception",
+		"Werewords" : "Werewords", 
+		"JustOne" : "Just One", 
+		"Arcana" : "Arcana", 
+		"Todos" : "Todos", 
+		"Cancel" : "Cancel" }
 	if len(args) < 1:
 		bot.send_message(cid, "Edu, tenes que poner un mensaje", ParseMode.MARKDOWN)
 		return
