@@ -55,6 +55,8 @@ import random
 import re
 import requests
 from bs4 import BeautifulSoup
+
+import pathlib
 # Objetos que uso de prueba estaran en el state
 
 # Enable logging
@@ -1271,8 +1273,8 @@ def command_image(update: Update, context: CallbackContext):
 	css = "body {background: red;}"
 	path_saved = hti.screenshot(html_str=html, css_str=css, save_as='red_page.png')
 	log.info(path_saved)
-	log.info(os.getcwd())
-	bot.send_photo(cid, photo=open(path_saved[0], 'rb'))
+	log.info(pathlib.Path().absolute())
+	bot.send_photo(cid, photo=open(pathlib.Path().absolute() + path_saved[0], 'rb'))
 
 @restricted
 def command_admin_games(update: Update, context: CallbackContext):
