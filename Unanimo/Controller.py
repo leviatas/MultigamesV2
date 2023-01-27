@@ -161,14 +161,14 @@ def review_clues(bot, game):
 	# bot.send_message(game.cid, "El revisor {0} esta viendo las pistas".format(reviewer_player.name), ParseMode.MARKDOWN)
 		
 	# reviewer_player = game.board.state.reviewer_player
-
+	players_points, contador_filtrado = count_points(game.board.state.last_votes)
 	txt_words = "Las palabras escritas son:"
 	for uid_pista, words in game.board.state.last_votes.items():
 		player = game.playerlist[uid_pista]
-		txt_words += f"\n*{player.name}*:\n{words}"
+		txt_words += f"\n*{player.name}*:\n{format_player_words_with_points(words, contador_filtrado)}"
 	bot.send_message(game.cid, txt_words, ParseMode.MARKDOWN)
 	save(bot, game.cid)	
-	players_points, contador_filtrado = count_points(game.board.state.last_votes)
+	
 
 	text_points = ""
 	for uid, points in players_points.items():
