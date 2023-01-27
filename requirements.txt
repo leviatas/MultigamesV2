@@ -32,3 +32,4 @@ beautifulsoup4==4.9.3
 pandas==1.2.4
 discord==1.7.3
 scipy==1.5.4
+html2image==2.0.1

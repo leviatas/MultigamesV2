@@ -38,6 +38,7 @@ from collections import namedtuple
 
 from PIL import Image
 from io import BytesIO
+from html2image import Html2Image
 
 # Objetos que uso de prueba estaran en el state
 from Constants.Cards import cartas_aventura
@@ -1260,6 +1261,14 @@ def command_noticias(update: Update, context: CallbackContext):
 	bot.send_message(cid, text, ParseMode.MARKDOWN)
 	if len(textContinue) > 0:
 		bot.send_message(cid, textContinue, ParseMode.MARKDOWN)
+
+def command_image(update: Update, context: CallbackContext):
+	hti = Html2Image(size=(500, 200))
+	html = """<h1> An interesting title </h1> This page will be red"""
+	css = "body {background: red;}"
+	path_saved = hti.screenshot(html_str=html, css_str=css, save_as='red_page.png')
+	log.info(path_saved)
+
 
 @restricted
 def command_admin_games(update: Update, context: CallbackContext):

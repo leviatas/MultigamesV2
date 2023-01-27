@@ -762,6 +762,7 @@ def main():
 
 	# WEb Crapping commands
 	dp.add_handler(CommandHandler("news", Commands.command_noticias))
+	dp.add_handler(CommandHandler("news", Commands.command_image))
 	# Handlers de D100
 	dp.add_handler(CommandHandler("tirada", Commands.command_roll))
 	
