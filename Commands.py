@@ -1266,15 +1266,13 @@ def command_image(update: Update, context: CallbackContext):
 	bot = context.bot
 	cid = update.message.chat_id
 
-	hti = Html2Image(size=(500, 200) output_path='tem_image_folder')
+	hti = Html2Image(size=(500, 200), output_path='temp_image_folder')
 	html = """<h1> An interesting title </h1> This page will be red"""
 	css = "body {background: red;}"
 	path_saved = hti.screenshot(html_str=html, css_str=css, save_as='red_page.png')
 	log.info(path_saved)
 	log.info(os.getcwd())
 	bot.send_photo(cid, photo=open(path_saved[0], 'rb'))
-
-
 
 @restricted
 def command_admin_games(update: Update, context: CallbackContext):
