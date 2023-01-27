@@ -1263,11 +1263,16 @@ def command_noticias(update: Update, context: CallbackContext):
 		bot.send_message(cid, textContinue, ParseMode.MARKDOWN)
 
 def command_image(update: Update, context: CallbackContext):
+	bot = context.bot
+	cid = update.message.chat_id
+	
 	hti = Html2Image(size=(500, 200))
 	html = """<h1> An interesting title </h1> This page will be red"""
 	css = "body {background: red;}"
 	path_saved = hti.screenshot(html_str=html, css_str=css, save_as='red_page.png')
 	log.info(path_saved)
+	bot.send_photo(cid, photo=path_saved[0])
+
 
 
 @restricted
