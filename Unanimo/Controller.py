@@ -20,8 +20,6 @@ from Unanimo.Boardgamebox.Player import Player
 from Unanimo.Boardgamebox.Board import Board
 from Unanimo.Boardgamebox.Game import Game
 
-from Boardgamebox.Game import Game
-
 from Utils import (next_player_after_active_player, remove_same_elements_dict,  increment_player_counter, get_config_data, player_call, simple_choose_buttons)
 
 import GamesController
