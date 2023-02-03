@@ -42,7 +42,7 @@ def loop_c():
 def loop_d():
     while 1:
         sleep(0.01)
-        secretHitlerBot.main()
+        bloodClocktowerBot.main()
 
 if __name__ == '__main__':
     # Multigames

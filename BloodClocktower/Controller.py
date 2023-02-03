@@ -58,6 +58,7 @@ def error(update, context):
     logger.warning('Update "%s" caused error "%s"', update, context.error)
 
 def main():
+    log.info("Starting blood bot")
     GamesController.init() #Call only once
 
     token = os.environ.get('TOKEN_BLOOD', None)
