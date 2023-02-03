@@ -139,7 +139,8 @@ def command_newgame(update: Update, context: CallbackContext):
 	elif game:
 		bot.send_message(cid, "Hay un juego comenzado en este chat. Si quieres terminarlo escribe /cancelgame!")
 	else:
-		GamesController.games[cid] = Game(cid, update.message.from_user.id, groupName)
+		newGame = Game(cid, update.message.from_user.id, groupName)
+		GamesController.games[cid] = newGame
 		bot.send_message(cid, "Nuevo juego creado! Cada jugador debe unirse al juego con el comando /join.\nEl iniciador del juego (o el administrador) pueden unirse tambien y escribir /startgame cuando todos se hayan unido al juego!")
 			
 
