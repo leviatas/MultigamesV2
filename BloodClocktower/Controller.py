@@ -70,7 +70,9 @@ def main():
     dp.add_handler(CommandHandler("help", Commands.command_help))
     dp.add_handler(CommandHandler("board", Commands.command_board))
     dp.add_handler(CommandHandler("rules", Commands.command_rules))
-
+    dp.add_handler(CommandHandler("newgame", Commands.command_newgame))
+    dp.add_handler(CommandHandler("join", Commands.command_join))
+    
     dp.add_error_handler(error)
 
     updater.bot.send_message(ADMIN[0], "Nueva version en linea")
