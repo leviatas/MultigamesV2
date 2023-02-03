@@ -10,9 +10,9 @@ from BloodClocktower.Boardgamebox.Board import Board
 from Utils import get_config_data, basic_validation
 
 class Game(BaseGame):
-	def __init__(self, cid, initiator, groupName, tipo = None, modo = None):
-		BaseGame.__init__(self, cid, initiator, groupName, tipo, modo)
-		self.modulos = []
+	def __init__(self, cid, initiator, groupName):
+		BaseGame.__init__(self, cid, initiator, groupName, None, None)
+		
 		self.using_timer = False	
 	
 	def get_rules(self):
