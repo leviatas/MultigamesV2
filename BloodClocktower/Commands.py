@@ -9,7 +9,7 @@ from psycopg2 import sql
 import urllib.parse
 import logging as log
 
-import BloodClocktower.Boardgamebox.Game as Game
+from BloodClocktower.Boardgamebox.Game import Game
 import BloodClocktower.Boardgamebox.Player as Player
 from Constants.Config import ADMIN
 
