@@ -44,13 +44,7 @@ logger = log.getLogger(__name__)
 urllib.parse.uses_netloc.append("postgres")
 url = urllib.parse.urlparse(os.environ["DATABASE_URL"])
 
-conn = psycopg2.connect(
-    database=url.path[1:],
-    user=url.username,
-    password=url.password,
-    host=url.hostname,
-    port=url.port
-)
+
 '''
 cur = conn.cursor()
 query = "SELECT ...."
@@ -489,42 +483,38 @@ def enact_policy(bot, game, policy, anarchy):
 
 
 def choose_veto(update: Update, context: CallbackContext):
-	
-    bot = context.bot
-
-    callback = update.callback_query
-    regex = re.search("(-[0-9]*)_(.*)", callback.data)
-    cid = int(regex.group(1))
-    answer = regex.group(2)
-    try:
-        game = Commands.get_game(cid)
-        uid = callback.from_user.id
-        if answer == "yesveto":
-            log.info("Player %s (%d) accepted the veto" % (callback.from_user.first_name, uid))
-            bot.edit_message_text("Has aceptado el Veto!", uid, callback.message.message_id)
-            bot.send_message(game.cid,
-                             "El Presidente %s ha aceptado el Veto del Canciller %s. No se ha promulgado una politíca pero esto cuenta como una elección fallida." % (
-                                 game.board.state.president.name, game.board.state.chancellor.name))
-            game.board.discards += game.board.state.drawn_policies
-            game.board.state.drawn_policies = []
-            game.board.state.failed_votes += 1
-            shuffle_policy_pile(bot, game)  
-            if game.board.state.failed_votes == 3:
-                do_anarchy(bot, game)
-            else:                
-                start_next_round(bot, game)
-        elif answer == "noveto":
-            log.info("Player %s (%d) declined the veto" % (callback.from_user.first_name, uid))
-            game.board.state.veto_refused = True
-            bot.edit_message_text("Has rechazado el Veto!", uid, callback.message.message_id)
-            bot.send_message(game.cid,
-                             "El Presidente %s ha rechazado el Veto del Canciller %s. El Canciller debe ahora elegir una política!" % (
-                                 game.board.state.president.name, game.board.state.chancellor.name))
-            pass_two_policies(bot, game)
-        else:
-            log.error("choose_veto: Callback data can either be \"veto\" or \"noveto\", but not %s" % answer)
-    except:
-        log.error("choose_veto: Game or board should not be None!")
+	bot = context.bot
+	callback = update.callback_query
+	regex = re.search("(-[0-9]*)_(.*)", callback.data)
+	cid = int(regex.group(1))
+	answer = regex.group(2)
+	game = Commands.get_game(cid)
+	uid = callback.from_user.id
+	if answer == "yesveto":
+		log.info("Player %s (%d) accepted the veto" % (callback.from_user.first_name, uid))
+		bot.edit_message_text("Has aceptado el Veto!", uid, callback.message.message_id)
+		bot.send_message(game.cid,
+							"El Presidente %s ha aceptado el Veto del Canciller %s. No se ha promulgado una politíca pero esto cuenta como una elección fallida." % (
+								game.board.state.president.name, game.board.state.chancellor.name))
+		game.board.discards += game.board.state.drawn_policies
+		game.board.state.drawn_policies = []
+		game.board.state.failed_votes += 1
+		shuffle_policy_pile(bot, game)  
+		if game.board.state.failed_votes == 3:
+			do_anarchy(bot, game)
+		else:                
+			start_next_round(bot, game)
+	elif answer == "noveto":
+		log.info("Player %s (%d) declined the veto" % (callback.from_user.first_name, uid))
+		game.board.state.veto_refused = True
+		bot.edit_message_text("Has rechazado el Veto!", uid, callback.message.message_id)
+		bot.send_message(game.cid,
+							"El Presidente %s ha rechazado el Veto del Canciller %s. El Canciller debe ahora elegir una política!" % (
+								game.board.state.president.name, game.board.state.chancellor.name))
+		pass_two_policies(bot, game)
+	else:
+		log.error("choose_veto: Callback data can either be \"veto\" or \"noveto\", but not %s" % answer)
+    
 
 
 def do_anarchy(bot, game):
@@ -791,17 +781,29 @@ def count_votes_anarquia(bot, game):
 ##
 
 def get_stats(bot, cid):
-	try:
-		cur = conn.cursor()
-		query = "select * from stats_secret_hitler"
-		cur.execute(query)
-		dbdata = cur.fetchone()
-		return dbdata
-	except Exception as e:
-		bot.send_message(cid, 'No se ejecuto el comando get_stats debido a: '+str(e))
-		conn.rollback()	
+	conn = psycopg2.connect(
+		database=url.path[1:],
+		user=url.username,
+		password=url.password,
+		host=url.hostname,
+		port=url.port
+	)
+	cur = conn.cursor()
+	query = "select * from stats_secret_hitler"
+	cur.execute(query)
+	dbdata = cur.fetchone()
+	conn.close()
+	return dbdata
+	
 
 def set_stats(column_name, value, bot, cid):
+	conn = psycopg2.connect(
+		database=url.path[1:],
+		user=url.username,
+		password=url.password,
+		host=url.hostname,
+		port=url.port
+	)
 	try:
 		cursor = conn.cursor()
 		#cursor.execute("UPDATE stats SET %s=%s", (column_name, value));		
@@ -811,20 +813,26 @@ def set_stats(column_name, value, bot, cid):
 	except Exception as e:
 		bot.send_message(cid, 'No se ejecuto el comandoset_stats debido a: '+str(e))
 		conn.rollback()
+	conn.close()
 		
 def save_game_details(bot, print_roles, game_endcode, liberal_track, fascist_track, num_players):
-	try:
-		#Check if game is in DB first
-		cursor = conn.cursor()			
-		log.info("Executing in DB")		
-		query = "INSERT INTO stats_detail_secret_hitler(playerlist, game_endcode, liberal_track, fascist_track, num_players) VALUES (%s, %s, %s, %s, %s);"
-		#query = "INSERT INTO games(id , groupName  , data) VALUES (%s, %s, %s) RETURNING data;"
-		cursor.execute(query, (print_roles, game_endcode, liberal_track, fascist_track, num_players))		
-		#dbdata = cur.fetchone()
-		conn.commit()
-	except Exception as e:
-		conn.rollback()
-		bot.send_message(ADMIN, 'No se ejecuto el comando save_game_details debido a: '+str(e))
+	conn = psycopg2.connect(
+		database=url.path[1:],
+		user=url.username,
+		password=url.password,
+		host=url.hostname,
+		port=url.port
+	)
+	#Check if game is in DB first
+	cursor = conn.cursor()			
+	log.info("Executing in DB")		
+	query = "INSERT INTO stats_detail_secret_hitler(playerlist, game_endcode, liberal_track, fascist_track, num_players) VALUES (%s, %s, %s, %s, %s);"
+	#query = "INSERT INTO games(id , groupName  , data) VALUES (%s, %s, %s) RETURNING data;"
+	cursor.execute(query, (print_roles, game_endcode, liberal_track, fascist_track, num_players))		
+	#dbdata = cur.fetchone()
+	conn.commit()
+	conn.close()
+	
 
 def change_stats(uid, tipo_juego, stat_name, amount):
 	user_stats = load_player_stats(uid)		
@@ -835,6 +843,13 @@ def change_stats(uid, tipo_juego, stat_name, amount):
 	save_player_stats(uid, user_stats)	
 
 def save_player_stats(uid, data):
+	conn = psycopg2.connect(
+		database=url.path[1:],
+		user=url.username,
+		password=url.password,
+		host=url.hostname,
+		port=url.port
+	)
 	#Check if game is in DB first
 	cur = conn.cursor()			
 	log.info("Searching Game in DB")
@@ -857,8 +872,16 @@ def save_player_stats(uid, data):
 		cur.execute(query, (uid, datajson))
 		#log.info(cur.fetchone()[0])
 		conn.commit()
+	conn.close()
 
 def load_player_stats(uid):
+	conn = psycopg2.connect(
+		database=url.path[1:],
+		user=url.username,
+		password=url.password,
+		host=url.hostname,
+		port=url.port
+	)
 	cur = conn.cursor()			
 	log.info("Searching Game in DB")
 	query = "SELECT * FROM user_stats WHERE id = %s;"
@@ -870,10 +893,13 @@ def load_player_stats(uid):
 		jsdata = dbdata[1]
 		log.info("jsdata = {}".format(jsdata))				
 		stats = jsonpickle.decode(jsdata)
+		conn.close()
 		return stats
 	else:
 		log.info("user_stats Not Found")
+		conn.close()
 		return None
+	
 
 ##
 # game_endcode:
@@ -1052,6 +1078,13 @@ def shuffle_policy_pile(bot, game):
 			"No habia cartas suficientes en el mazo de políticas asi que he mezclado el resto con el mazo de descarte!")
 
 def getGamesByTipo(opcion):
+	conn = psycopg2.connect(
+		database=url.path[1:],
+		user=url.username,
+		password=url.password,
+		host=url.hostname,
+		port=url.port
+	)
 	games = None
 	cursor = conn.cursor()			
 	log.info("Executing in DB")
@@ -1073,7 +1106,8 @@ def getGamesByTipo(opcion):
 		if opcion != "Todos":
 			games = {key:val for key, val in GamesController.games.items() if val.tipo in games_restriction}
 		else:
-			games = GamesController.games		
+			games = GamesController.games
+	conn.close()
 	return games
 
 def error_callback(update, context):
@@ -1113,17 +1147,31 @@ def change_groupname(bot, update):
 	game.groupName = groupname
 	bot.send_message(ADMIN, text="El group en {cid} ha cambiado de nombre a {groupname}".format(groupname=groupname, cid=cid))
 
-def get_TOKEN():	
+def get_TOKEN():
+	conn = psycopg2.connect(
+		database=url.path[1:],
+		user=url.username,
+		password=url.password,
+		host=url.hostname,
+		port=url.port
+	)
 	cur = conn.cursor()
 	query = "select * from config;"
 	cur.execute(query)
 	dbdata = cur.fetchone()
 	token = dbdata[1]
+	conn.close()
 	return token
 	
 def main():
 	GamesController.init() #Call only once
-
+	conn = psycopg2.connect(
+		database=url.path[1:],
+		user=url.username,
+		password=url.password,
+		host=url.hostname,
+		port=url.port
+	)
 	#Init DB Create tables if they don't exist   
 	log.info('Init DB Secret Hitler')
 	conn.autocommit = True
@@ -1131,6 +1179,8 @@ def main():
 	cur.execute(open("DBCreate.sql", "r").read())
 	log.info('DB Created/Updated Secret Hitler')
 	conn.autocommit = False
+	conn.close()
+	
 	'''
 	log.info('Insertando')
 	query = "INSERT INTO users(facebook_id, name , access_token , created) values ('2','3','4',1) RETURNING id;"

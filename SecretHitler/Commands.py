@@ -885,6 +885,7 @@ def command_newgame_sql_command(update: Update, context: CallbackContext):
 		except Exception as e:
 			bot.send_message(cid, 'No se ejecuto el comando debido a: '+str(e))
 			conn.rollback()
+			conn.close()
 
 def command_choose_posible_role(update: Update, context: CallbackContext):
 	bot = context.bot
