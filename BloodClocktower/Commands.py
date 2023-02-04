@@ -194,7 +194,7 @@ def command_join(update: Update, context: CallbackContext):
 		elif len(game.playerlist) == 1:
 			bot.send_message(game.cid, "%s se ha unido al juego. Hay %d jugador en el juego y se necesita 5-10 jugadores." % (fname, len(game.playerlist)))
 		else:
-				bot.send_message(game.cid, "%s se ha unido al juego. Hay %d jugadores en el juego y se necesita 5-10 jugadores" % (fname, len(game.playerlist)))
+			bot.send_message(game.cid, "%s se ha unido al juego. Hay %d jugadores en el juego y se necesita 5-10 jugadores" % (fname, len(game.playerlist)))
 			# Luego dicto los jugadores que se han unido
 		jugadoresActuales = "Los jugadores que se han unido al momento son:\n"
 		for uid in game.playerlist:
@@ -231,9 +231,9 @@ def save_game(cid, groupName, game):
 	else:
 		log.info('Saving Game in DB')
 		gamejson = jsonpickle.encode(game)
-		query = "INSERT INTO games_blood(id , groupName  , data) VALUES (%s, %s, %s);"
+		query = "INSERT INTO games_blood(id , groupName, tipojuego , data) VALUES (%s, %s, %s, %s);"
 		#query = "INSERT INTO games(id , groupName  , data) VALUES (%s, %s, %s) RETURNING data;"
-		cur.execute(query, (cid, groupName, gamejson))
+		cur.execute(query, (cid, groupName, "blood", gamejson))
 		#log.info(cur.fetchone()[0])
 		conn.commit()
 	conn.close()
