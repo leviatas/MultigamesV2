@@ -182,29 +182,29 @@ def command_join(update: Update, context: CallbackContext):
 	else:
 		#uid = update.message.from_user.id
 		player = Player(fname, uid)
-		try:
+		
 			#Commented to dont disturb player during testing uncomment in production
-			bot.send_message(uid, "Te has unido a un juego en %s. Pronto te dire cual es tu rol secreto." % groupName)
+		bot.send_message(uid, "Te has unido a un juego en %s. Pronto te dire cual es tu rol secreto." % groupName)
 			# choose_posible_role(bot, cid, uid)
 			
-			game.add_player(uid, player)
-			log.info("%s (%d) joined a game in %d" % (fname, uid, game.cid))
-			if len(game.playerlist) > 4:
-				bot.send_message(game.cid, fname + " se ha unido al juego. Escribe /startgame si este es el último jugador y quieren comenzar con %d jugadores!" % len(game.playerlist))
-			elif len(game.playerlist) == 1:
-				bot.send_message(game.cid, "%s se ha unido al juego. Hay %d jugador en el juego y se necesita 5-10 jugadores." % (fname, len(game.playerlist)))
-			else:
+		game.add_player(uid, player)
+		log.info("%s (%d) joined a game in %d" % (fname, uid, game.cid))
+		if len(game.playerlist) > 4:
+			bot.send_message(game.cid, fname + " se ha unido al juego. Escribe /startgame si este es el último jugador y quieren comenzar con %d jugadores!" % len(game.playerlist))
+		elif len(game.playerlist) == 1:
+			bot.send_message(game.cid, "%s se ha unido al juego. Hay %d jugador en el juego y se necesita 5-10 jugadores." % (fname, len(game.playerlist)))
+		else:
 				bot.send_message(game.cid, "%s se ha unido al juego. Hay %d jugadores en el juego y se necesita 5-10 jugadores" % (fname, len(game.playerlist)))
 			# Luego dicto los jugadores que se han unido
-			jugadoresActuales = "Los jugadores que se han unido al momento son:\n"
-			for uid in game.playerlist:
-				jugadoresActuales += "%s\n" % game.playerlist[uid].name
-			bot.send_message(game.cid, jugadoresActuales)
-			save_game(cid, "Game in join state", game)
-		except Exception as e:
-			log.error(e)
-			bot.send_message(game.cid,
-				fname + ", No te puedo enviar un mensaje privado. Por favor, ve a @secrethitlertestlbot y has pincha \"Start\".\nLuego necesitas escribir /join de nuevo.")
+		jugadoresActuales = "Los jugadores que se han unido al momento son:\n"
+		for uid in game.playerlist:
+			jugadoresActuales += "%s\n" % game.playerlist[uid].name
+		bot.send_message(game.cid, jugadoresActuales)
+		save_game(cid, "Game in join state", game)
+		
+
+		
+
 
 def save_game(cid, groupName, game):
 	#Check if game is in DB first
