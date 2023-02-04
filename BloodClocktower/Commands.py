@@ -83,9 +83,10 @@ def load_game(cid):
 	dbdata = cur.fetchone()
 
 	if cur.rowcount > 0:
-		log.info("Game Found")
+		log.info("Gane found")
 		jsdata = dbdata[2]
-		#log.info("jsdata = %s" % (jsdata))				
+		log.info(jsdata)
+		#log.info("jsdat = %s" % (jsdata))				
 		game = jsonpickle.decode(jsdata)
 		
 		# For some reason the decoding fails when bringing the dict playerlist and it changes it id from int to string.
