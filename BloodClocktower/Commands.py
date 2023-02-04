@@ -84,7 +84,7 @@ def load_game(cid):
 
 	if cur.rowcount > 0:
 		log.info("Gane found")
-		jsdata = dbdata[2]
+		jsdata = dbdata[3]
 		log.info(jsdata)
 		#log.info("jsdat = %s" % (jsdata))				
 		game = jsonpickle.decode(jsdata)
