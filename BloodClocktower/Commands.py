@@ -183,11 +183,11 @@ def command_join(update: Update, context: CallbackContext):
 	else:
 		#uid = update.message.from_user.id
 		player = Player(fname, uid)
-		
-			#Commented to dont disturb player during testing uncomment in production
-		bot.send_message(uid, "Te has unido a un juego en %s. Pronto te dire cual es tu rol secreto." % groupName)
-			# choose_posible_role(bot, cid, uid)
 		try:
+			#Commented to dont disturb player during testing uncomment in production
+			bot.send_message(uid, "Te has unido a un juego en %s. Pronto te dire cual es tu rol secreto." % groupName)
+			# choose_posible_role(bot, cid, uid)
+
 			game.add_player(uid, player)
 			log.info("%s (%d) joined a game in %d" % (fname, uid, game.cid))
 			if len(game.playerlist) > 4:
