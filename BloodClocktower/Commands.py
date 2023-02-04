@@ -10,7 +10,7 @@ import urllib.parse
 import logging as log
 
 from BloodClocktower.Boardgamebox.Game import Game
-import BloodClocktower.Boardgamebox.Player as Player
+from BloodClocktower.Boardgamebox.Player import Player
 from Constants.Config import ADMIN
 
 log.basicConfig(
