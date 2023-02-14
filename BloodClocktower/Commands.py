@@ -190,18 +190,17 @@ def command_join(update: Update, context: CallbackContext):
 	elif game.board:
 		bot.send_message(cid, "El juego ha comenzado. Por favor espera el proximo juego!")
 	elif uid in game.playerlist:
-		bot.send_message(game.cid, "Ya te has unido al juego, %s!" % fname)
+		bot.send_message(game.cid, f"Ya te has unido al juego, {fname}!")
 	elif len(game.playerlist) >= 10:
 		bot.send_message(game.cid, "Han llegado al maximo de jugadores. Por favor comiencen el juego con /startgame!")
 	else:
-		#uid = update.message.from_user.id
-		player = Player(fname, uid)
+		#uid = update.message.from_user.id		
 		# try:
 		#Commented to dont disturb player during testing uncomment in production
-		bot.send_message(uid, "Te has unido a un juego en %s. Pronto te dire cual es tu rol secreto." % groupName)
+		bot.send_message(uid, f"Te has unido a un juego en {groupName}. Pronto te dire cual es tu rol secreto.")
 		# choose_posible_role(bot, cid, uid)
 
-		game.add_player(uid, player)
+		game.add_player(uid, fname)
 		log.info("%s (%d) joined a game in %d" % (fname, uid, game.cid))
 		if len(game.playerlist) > 4:
 			bot.send_message(game.cid, fname + " se ha unido al juego. Escribe /startgame si este es el último jugador y quieren comenzar con %d jugadores!" % len(game.playerlist))
