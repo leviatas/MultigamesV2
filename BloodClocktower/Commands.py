@@ -249,7 +249,7 @@ def command_storyteller(update: Update, context: CallbackContext):
 
 	fname = update.message.from_user.first_name.replace("_", " ")
 
-	if game.storyteller is None
+	if game.storyteller is None:
 		game.storyteller = uid
 		bot.send_message(game.cid, f"El Storyteller es: {fname}, teman por sus vidas Aldeanos!!!")
 		game.shuffle_player_sequence()
