@@ -11,6 +11,7 @@ class Player(BasePlayer):
         self.nominated_someone = False # Indica si nominaste a alguien esta ronda
         self.was_nominated = False # Indica si fue animado
         self.has_voted = False # Indica si has votado
+        self.dead = False # Indica si has muerto
 
     def get_private_info(self, game):
         board = "--- Info del Jugador {} en la partida *{}*---\n".format(self.name, game.groupName) 

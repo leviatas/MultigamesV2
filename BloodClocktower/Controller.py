@@ -70,10 +70,19 @@ def main():
     dp.add_handler(CommandHandler("help", Commands.command_help))
     dp.add_handler(CommandHandler("board", Commands.command_board))
     dp.add_handler(CommandHandler("rules", Commands.command_rules))
+
     dp.add_handler(CommandHandler("newgame", Commands.command_newgame))
     dp.add_handler(CommandHandler("join", Commands.command_join))
+    dp.add_handler(CommandHandler("startgame", Commands.command_startgame))
+    dp.add_handler(CommandHandler("storyteller", Commands.command_storyteller))
+    
+    dp.add_handler(CommandHandler("firstnight", Commands.command_firstnight))
+    dp.add_handler(CommandHandler("night", Commands.command_night))
+    dp.add_handler(CommandHandler("day", Commands.command_day))
+
     dp.add_handler(CommandHandler("players", Commands.command_players))
     dp.add_handler(CommandHandler("leave", Commands.command_leave))
+    
     
     dp.add_error_handler(error)
 

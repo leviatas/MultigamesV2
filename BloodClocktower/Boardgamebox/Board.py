@@ -7,20 +7,19 @@ from BloodClocktower.Boardgamebox.State import State
 from telegram import ParseMode
 
 class Board(BaseBoard):
-    def __init__(self, playercount, game):
+    def __init__(self, playercount):
         self.state = State()
         self.num_players = playercount
-        self.cards = []
-        self.discards = []
-        self.magic_word = None
         
     def print_board(self, game):
+        state = game.board.state
+
+        if game.storyteller is None:
+            return "¡¡El juego no tiene Storyteller todvia!! Conviertete en él poniendo /storyteller"
+
         board = ""
-        board += "--- *Estado de Partida* ---\n"
-        board += "Cartas restantes: {0}\n".format(len(game.board.cartas))
-        board += "Puntaje actual: {0}".format(game.board.state.progreso)        
-        board += "\n\n"
-        
+        board += f"--- *Estado de Partida* Dia {state.day} Fase: {state.phase}---\n"
+        board += "\n\n"        
         board += "--- *Orden de jugadores* ---\n"
         for player in game.player_sequence:
             nombre = player.name.replace("_", " ")
@@ -30,12 +29,5 @@ class Board(BaseBoard):
                 board += f"{nombre} " + u"\u27A1\uFE0F" + " "
         board = board[:-3]
         board += u"\U0001F501"
-        board += f"\n\nLa carta actual es {game.board.state.acciones_carta_actual}"
-        # board += "\n\nEl jugador *{0}* tiene que adivinar".format(game.board.state.active_player.name)
-        # board += "\n\nEl jugador *{0}* revisara las pistas".format(game.board.state.reviewer_player.name)
-        if len( game.board.cartas) == 0:
-            board += "\n‼️Esta es la ultima carta del mazo‼️"
-        
-        
-        
+
         return board

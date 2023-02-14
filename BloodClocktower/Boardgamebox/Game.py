@@ -11,29 +11,15 @@ from Utils import get_config_data, basic_validation
 
 class Game(BaseGame):
 	def __init__(self, cid, initiator, groupName):
-		BaseGame.__init__(self, cid, initiator, groupName, None, None)
-		
-		self.using_timer = False	
+		BaseGame.__init__(self, cid, initiator, groupName, None, None)		
+		self.using_timer = False
+		self.storyteller = None
 	
+	def startgame(self):
+		game.board = Board(len(self.playerlist))
+
 	def get_rules(self):
-		return ["""El juego es una combinacion de Werewolf y Preguntas para adivinar una o mas palabras
-Un jugador, el mayor, responderá las preguntas y sabrá la respuesta.
-
-Los jugadores, o el mayor, pueden tener estos roles:
-Aldeano = No conoce la palabra y tiene que adivinarla.
-Lobo = Conoce la palabra y quiere que *NO* se adivine.
-Vidente = Conoce la palabra y quiere que se adivine.
-
-El mayor si es:
-Vidente = Tiene que ver de escoger una palabra fácil ya que no hay vidente.
-Lobo = Tiene que desviar de la palabra pero no ser muy obvio porque sino lo descubren.
-
-Al final del partido (cuando se adivina la palabra o el equipo se queda sin preguntas) pasa lo siguiente:
-
-Si se adivino la palabra, se revelan los hombres lobo y estos señalan a un jugador, *si adivinan a la vidente*, ellos ganan.
-
-Si NO se adivino la palabra, los aldeanos votan a ver quien es el lobo. *Si un lobo le dan la mayoria, o empata en mayoria de votos*, los lobos pierden."""]
-		
+		return ["""El juego es Blood on the clocktower"""]		
 		
 	# Creacion de player de juego.	
 	def add_player(self, uid, name):

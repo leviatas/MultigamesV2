@@ -2,6 +2,7 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ParseMode, Upda
 from telegram.ext import (CallbackContext)
 import GamesController
 
+from functools import wraps
 import jsonpickle
 import os
 import psycopg2
@@ -12,6 +13,7 @@ import logging as log
 from BloodClocktower.Boardgamebox.Game import Game
 from BloodClocktower.Boardgamebox.Player import Player
 from Constants.Config import ADMIN
+from Utils import restricted, player_call, storyteller
 
 log.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -35,6 +37,20 @@ commands = [  # command description used in the "help" command
     '/votes - Imprime quien ha votado',
     '/call - Avisa a los jugadores que se tiene que actuar'    
 ]
+
+def storyteller(func):
+	@wraps(func)
+	def wrapped(update, context, *args, **kwargs):
+		user_id = update.effective_user.id
+		bot = context.bot
+		cid = update.message.chat_id		
+		game = get_game(cid)
+
+		if user_id != game.storyteller:
+			update.effective_message.reply_text("No tienes acceso, ya que no eres el Storyteller")
+			return
+		return func(update, context, *args, **kwargs)
+	return wrapped
 
 def command_start(update: Update, context: CallbackContext):
 	bot = context.bot
@@ -119,7 +135,7 @@ def command_board(update: Update, context: CallbackContext):
 		except Exception :
 			game.board.print_board(bot, game)
 	else:
-		bot.send_message(cid, "There is no running game in this chat. Please start the game with /startgame")
+		bot.send_message(cid, "No ha comenzado el juego todavia, para comenzar pone /startgame")
 
 def command_rules(update: Update, context: CallbackContext):
 	bot = context.bot
@@ -142,7 +158,7 @@ def command_newgame(update: Update, context: CallbackContext):
 	else:
 		newGame = Game(cid, update.message.from_user.id, groupName)
 		GamesController.games[cid] = newGame
-		bot.send_message(cid, "Nuevo juego creado! Cada jugador debe unirse al juego con el comando /join.\nEl iniciador del juego (o el administrador) pueden unirse tambien y escribir /startgame cuando todos se hayan unido al juego!")
+		bot.send_message(cid, "Nuevo juego creado! Cada jugador debe unirse al juego con el comando /join.\nEl storyteller no debe unirse de esta forma, el sera asignado mas tarde\nEl iniciador del juego (o el administrador) pueden unirse tambien y escribir /startgame cuando todos se hayan unido al juego!")
 
 def command_join(update: Update, context: CallbackContext):
 	bot = context.bot
@@ -201,6 +217,77 @@ def command_join(update: Update, context: CallbackContext):
 			save_game(cid, "Game in join state", game)
 		except Exception:
 			bot.send_message(game.cid, f"Jugador {fname} debes ir a @botontheclocktowerbot y darle /start")
+
+def command_startgame(update: Update, context: CallbackContext):
+	bot = context.bot	
+	uid = update.message.from_user.id
+	cid = update.message.chat_id
+	
+	game = get_game(cid)
+
+	if not game:
+		bot.send_message(cid, "No hay juego en este grupo crea un nuevo juego con /newgame")
+	elif update.message.from_user.id not in ADMIN and update.message.from_user.id != game.initiator and bot.getChatMember(cid, update.message.from_user.id).status not in ("administrator", "creator"):
+		bot.send_message(game.cid, "Solo el creador del juego o un admin puede iniciar con /startgame")	
+	elif game.board:
+		bot.send_message(cid, "El juego ya empezo!")		
+	else:		
+		# Verifico si la configuracion ha terminado y se han unido los jugadores necesarios		
+		min_jugadores = 5		
+		if len(game.playerlist) >= min_jugadores:
+			save_game(cid, "Game in starting state", game)
+			game.startgame()
+			bot.send_message(game.cid, "El Storyteller debe poner aqui el comando /storyteller para ser reconocido como tal")
+		else:
+			bot.send_message(game.cid, "Falta el numero mínimo de jugadores. Faltan: %s " % (str(min_jugadores - len(game.playerlist))))
+
+def command_storyteller(update: Update, context: CallbackContext):
+	bot = context.bot	
+	uid = update.message.from_user.id
+	cid = update.message.chat_id	
+	game = get_game(cid)
+
+	fname = update.message.from_user.first_name.replace("_", " ")
+
+	if game.storyteller is None
+		game.storyteller = uid
+		bot.send_message(game.cid, f"El Storyteller es: {fname}, teman por sus vidas Aldeanos!!!")
+		game.shuffle_player_sequence()
+		bot.send_message(game.cid, f"Jugaremos Trouble Brewing, ya que es el unico modulo que tengo XD")
+		bot.send_message(uid, "Eres el storyteller, prepara los roles y cuando quieras reparte los roles")
+		bot.send_message(uid, "Con /firstnight en el grupo se hará la primera noche (No hace nada actualmente)")
+		bot.send_message(uid, "Con /day comenzarás el primer día y luego con /night pasarás a la noche. Para ir al siguiente dia, pones /day nuevamente.")
+	else:
+		bot.send_message(game.cid, f"La partida ya tiene storyteller, vete de aquí maldito usurpador!!!")
+
+@storyteller
+def command_firstnight(update: Update, context: CallbackContext):
+	bot = context.bot	
+	uid = update.message.from_user.id
+	cid = update.message.chat_id
+	game = get_game(cid)
+
+	bot.send_message(game.cid, f"Comienza la primera noche, todos... cierren los ojos...")
+
+@storyteller
+def command_day(update: Update, context: CallbackContext):
+	bot = context.bot	
+	uid = update.message.from_user.id
+	cid = update.message.chat_id
+	game = get_game(cid)
+	# Se incrementa el dia
+	game.board.state.day += 1
+	game.board.state.phase = "Día"
+	bot.send_message(game.cid, f"Todos, abran los ojos...")
+
+@storyteller
+def command_night(update: Update, context: CallbackContext):
+	bot = context.bot	
+	uid = update.message.from_user.id
+	cid = update.message.chat_id
+	game = get_game(cid)
+	game.board.state.phase = "Noche"
+	bot.send_message(game.cid, f"Todos, cirren los ojos...")
 
 def command_players(update: Update, context: CallbackContext):
 	bot = context.bot	
