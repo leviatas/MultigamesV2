@@ -72,6 +72,8 @@ def main():
     dp.add_handler(CommandHandler("rules", Commands.command_rules))
     dp.add_handler(CommandHandler("newgame", Commands.command_newgame))
     dp.add_handler(CommandHandler("join", Commands.command_join))
+    dp.add_handler(CommandHandler("players", Commands.command_players))
+    dp.add_handler(CommandHandler("leave", Commands.command_leave))
     
     dp.add_error_handler(error)
 

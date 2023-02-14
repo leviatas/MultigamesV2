@@ -143,9 +143,6 @@ def command_newgame(update: Update, context: CallbackContext):
 		newGame = Game(cid, update.message.from_user.id, groupName)
 		GamesController.games[cid] = newGame
 		bot.send_message(cid, "Nuevo juego creado! Cada jugador debe unirse al juego con el comando /join.\nEl iniciador del juego (o el administrador) pueden unirse tambien y escribir /startgame cuando todos se hayan unido al juego!")
-			
-
-
 
 def command_join(update: Update, context: CallbackContext):
 	bot = context.bot
@@ -205,8 +202,38 @@ def command_join(update: Update, context: CallbackContext):
 		except Exception:
 			bot.send_message(game.cid, f"Jugador {fname} debes ir a @botontheclocktowerbot y darle /start")
 
+def command_players(update: Update, context: CallbackContext):
+	bot = context.bot	
+	uid = update.message.from_user.id
+	cid = update.message.chat_id
+	
+	game = get_game(cid)	
+	
+	if not game:
+		bot.send_message(game.cid, "No hay partida en este grupo")
 		
+	jugadoresActuales = "Los jugadores que se han unido al momento son:\n"
+	
+	for uid in game.playerlist:
+		jugadoresActuales += "{}\n".format(player_call(game.playerlist[uid]))					
+	bot.send_message(game.cid, jugadoresActuales, ParseMode.MARKDOWN)
 
+def command_leave(update: Update, context: CallbackContext):
+	bot = context.bot
+	args = context.args
+	cid = update.message.chat_id
+	uid = update.effective_user.id
+
+	game = get_game(cid)
+
+	if not game:
+		bot.send_message(cid, '‼‼*No hay juego del que salir*‼‼', ParseMode.MARKDOWN)
+	else:
+		if game.board:
+			bot.send_message(cid, '‼‼*El juego ya empezo y el admin no permite salir de juegos ya empezados*‼‼', ParseMode.MARKDOWN)
+		else:
+			del game.playerlist[uid]
+			bot.send_message(cid, '‼‼*Has salido exitosamente del juego*‼‼', ParseMode.MARKDOWN)
 
 def save_game(cid, groupName, game):
 	#Check if game is in DB first
