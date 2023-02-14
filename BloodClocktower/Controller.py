@@ -75,6 +75,7 @@ def main():
     dp.add_handler(CommandHandler("join", Commands.command_join))
     dp.add_handler(CommandHandler("startgame", Commands.command_startgame))
     dp.add_handler(CommandHandler("storyteller", Commands.command_storyteller))
+    dp.add_handler(CommandHandler("delete", Commands.command_delete))
     # Comandos para avanzar el dia y el juego
     dp.add_handler(CommandHandler("firstnight", Commands.command_firstnight))
     dp.add_handler(CommandHandler("night", Commands.command_night))

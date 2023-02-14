@@ -260,6 +260,23 @@ def command_storyteller(update: Update, context: CallbackContext):
 	else:
 		bot.send_message(game.cid, f"La partida ya tiene storyteller, vete de aquí maldito usurpador!!!")
 
+def command_delete(update: Update, context: CallbackContext):
+	bot = context.bot
+	args = context.args
+	log.info('command_cancelgame called {}'.format(args))
+	cid = update.message.chat_id
+	uid = update.effective_user.id
+	#Always try to delete in DB	
+	if len(args) > 0 and uid == ADMIN[0]:
+		cid = int(args[0])	
+	try:
+		delete_game(cid)
+		if cid in GamesController.games.keys():
+			del GamesController.games[cid]
+		bot.send_message(cid, "Borrado exitoso.")
+	except Exception as e:
+		bot.send_message(cid, "El borrado ha fallado debido a: "+str(e))
+
 @storyteller
 def command_firstnight(update: Update, context: CallbackContext):
 	bot = context.bot	
@@ -369,4 +386,19 @@ def save_game(cid, groupName, game):
 		cur.execute(query, (cid, groupName, "blood", gamejson))
 		#log.info(cur.fetchone()[0])
 		conn.commit()
+	conn.close()
+
+def delete_game(cid):
+	conn = psycopg2.connect(
+		database=url.path[1:],
+		user=url.username,
+		password=url.password,
+		host=url.hostname,
+		port=url.port
+	)
+	cur = conn.cursor()
+	#log.info("Deleting Game in DB")
+	query = "DELETE FROM games_blood WHERE id = %s;"
+	cur.execute(query, [cid])
+	conn.commit()
 	conn.close()
