@@ -83,9 +83,11 @@ def main():
     # Comandos sobre los jugadores
     dp.add_handler(CommandHandler("kill", Commands.command_kill))
 
-
+    #Comandos utiles para jugadores
     dp.add_handler(CommandHandler("players", Commands.command_players))
     dp.add_handler(CommandHandler("leave", Commands.command_leave))
+    dp.add_handler(CommandHandler("history", Commands.command_showhistory))
+    dp.add_handler(CommandHandler("claim", Commands.command_claim))	
     
     
     dp.add_error_handler(error)

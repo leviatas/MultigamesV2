@@ -355,6 +355,56 @@ def command_leave(update: Update, context: CallbackContext):
 			del game.playerlist[uid]
 			bot.send_message(cid, '‼‼*Has salido exitosamente del juego*‼‼', ParseMode.MARKDOWN)
 
+def command_claim(update: Update, context: CallbackContext):
+	bot = context.bot
+	args = context.args
+	#game.pedrote = 3
+	try:
+		#Send message of executing command   
+		cid = update.message.chat_id
+		#Check if there is a current game 
+		game = get_game(cid)
+		if game:
+			uid = update.message.from_user.id
+			if uid in game.playerlist:								
+				if len(args) > 0:
+					#Data is being claimed
+					claimtext = ' '.join(args)
+					claimtexttohistory = "El jugador %s declara: %s" % (game.playerlist[uid].name, claimtext)
+					bot.send_message(cid, "Tu declaración: %s fue agregada al historial." % (claimtext))
+					game.history.append("%s" % (claimtexttohistory))
+				else:					
+					bot.send_message(cid, "Debes mandar un mensaje para hacer una declaración.")
+
+			else:
+				bot.send_message(cid, "Debes ser un jugador del partido para declarar algo.")				
+		else:
+			bot.send_message(cid, "No hay juego en este chat. Crea un nuevo juego con /newgame")
+	except Exception as e:
+		bot.send_message(cid, str(e))
+		log.error("Unknown error: " + str(e))  
+
+def command_showhistory(update: Update, context: CallbackContext):
+	bot = context.bot
+	#game.pedrote = 3
+	try:
+		#Send message of executing command   
+		cid = update.message.chat_id
+		#Check if there is a current game 
+		game = get_game(cid)
+		if game:			
+			#bot.send_message(cid, "Current round: " + str(game.board.state.currentround + 1))
+			uid = update.message.from_user.id
+			for history in game.getHistory(uid):
+				if len(history) > 0:
+					bot.send_message(uid, history, ParseMode.MARKDOWN)
+		else:
+			bot.send_message(cid, "No hay ninguna partida en este chat.")
+	except Exception as e:
+		bot.send_message(cid, str(e))
+		log.error("Unknown error: " + str(e))  
+
+
 def save_game(cid, groupName, game):
 	#Check if game is in DB first
 	conn = psycopg2.connect(
