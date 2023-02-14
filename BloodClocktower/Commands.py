@@ -13,7 +13,7 @@ import logging as log
 from BloodClocktower.Boardgamebox.Game import Game
 from BloodClocktower.Boardgamebox.Player import Player
 from Constants.Config import ADMIN
-from Utils import restricted, player_call, storyteller
+from Utils import restricted, player_call
 
 log.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
