@@ -211,7 +211,7 @@ def command_join(update: Update, context: CallbackContext):
 			bot.send_message(game.cid, "%s se ha unido al juego. Hay %d jugadores en el juego y se necesita 5-10 jugadores" % (fname, len(game.playerlist)))
 			# Luego dicto los jugadores que se han unido
 		jugadoresActuales = "Los jugadores que se han unido al momento son:\n"
-		for player in game.playerlist.items:
+		for player in game.playerlist.values():
 			jugadoresActuales += f"{player.name}\n"
 		bot.send_message(game.cid, jugadoresActuales)
 		save_game(cid, "Game in join state", game)
@@ -335,7 +335,7 @@ def command_players(update: Update, context: CallbackContext):
 		
 	jugadoresActuales = "Los jugadores que se han unido al momento son:\n"
 	
-	for player in game.playerlist.values():	
+	for player in game.playerlist.values():
 		jugadoresActuales += f"{player_call(player)}\n"			
 	bot.send_message(game.cid, jugadoresActuales, ParseMode.MARKDOWN)
 
