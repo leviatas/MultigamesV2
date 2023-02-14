@@ -16,7 +16,7 @@ class Game(BaseGame):
 		self.storyteller = None
 	
 	def startgame(self):
-		game.board = Board(len(self.playerlist))
+		self.board = Board(len(self.playerlist))
 
 	def get_rules(self):
 		return ["""El juego es Blood on the clocktower"""]		
