@@ -289,6 +289,23 @@ def command_night(update: Update, context: CallbackContext):
 	game.board.state.phase = "Noche"
 	bot.send_message(game.cid, f"Todos, cirren los ojos...")
 
+@storyteller
+def command_kill(update: Update, context: CallbackContext):
+	bot = context.bot	
+	args = context.args
+	cid = update.message.chat_id
+	game = get_game(cid)
+	
+	if len(args) > 0:
+		# Busco el jugador a matar
+		player_name = ' '.join(args)
+		player = game.find_player(player_name)
+		player.dead = True
+		save_game(cid, f"Matamos a {player_name}", game)
+		bot.send_message(game.cid, f"Jugador {player_name} te han matado, no posees más tu habilidad, pero puedes hablar y votar una última vez")
+	else:
+		bot.send_message(game.cid, f"Debes ingresar a un jugador para matar")
+
 def command_players(update: Update, context: CallbackContext):
 	bot = context.bot	
 	uid = update.message.from_user.id
@@ -301,8 +318,8 @@ def command_players(update: Update, context: CallbackContext):
 		
 	jugadoresActuales = "Los jugadores que se han unido al momento son:\n"
 	
-	for uid in game.playerlist:
-		jugadoresActuales += "{}\n".format(player_call(game.playerlist[uid]))					
+	for player in game.playerlist.values():	
+		jugadoresActuales += f"{player_call(player)}\n"			
 	bot.send_message(game.cid, jugadoresActuales, ParseMode.MARKDOWN)
 
 def command_leave(update: Update, context: CallbackContext):

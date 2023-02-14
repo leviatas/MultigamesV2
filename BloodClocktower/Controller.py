@@ -75,10 +75,13 @@ def main():
     dp.add_handler(CommandHandler("join", Commands.command_join))
     dp.add_handler(CommandHandler("startgame", Commands.command_startgame))
     dp.add_handler(CommandHandler("storyteller", Commands.command_storyteller))
-    
+    # Comandos para avanzar el dia y el juego
     dp.add_handler(CommandHandler("firstnight", Commands.command_firstnight))
     dp.add_handler(CommandHandler("night", Commands.command_night))
     dp.add_handler(CommandHandler("day", Commands.command_day))
+    # Comandos sobre los jugadores
+    dp.add_handler(CommandHandler("kill", Commands.command_kill))
+
 
     dp.add_handler(CommandHandler("players", Commands.command_players))
     dp.add_handler(CommandHandler("leave", Commands.command_leave))
