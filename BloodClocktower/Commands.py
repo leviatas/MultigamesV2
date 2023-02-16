@@ -295,6 +295,11 @@ def command_day(update: Update, context: CallbackContext):
 	game.board.state.day += 1
 	game.board.state.phase = "Día"
 	bot.send_message(game.cid, f"Todos, abran los ojos...")
+	if game.board.state.day is 1:
+		bot.send_message(game.cid, """En el recondito pueblo de ravenswood bluff los aldeanos se despiertan por un grito ahogado en el centro del pueblo, al llegar encuentran a su querido storyteller empelado en una de las manecillas del reloj.
+
+Esto es la obra de un demonio que mata durante la noche, pero durante el día toma la forma de uno de ustedes; su trabajo es encontrarlo y vengar a las almas de los caídos por el.
+Mucha suerte""")
 
 @storyteller
 def command_night(update: Update, context: CallbackContext):
@@ -404,6 +409,44 @@ def command_showhistory(update: Update, context: CallbackContext):
 		bot.send_message(cid, str(e))
 		log.error("Unknown error: " + str(e))  
 
+def command_whisper(update: Update, context: CallbackContext):
+	bot = context.bot	
+	uid = update.message.from_user.id
+	cid = update.message.chat_id
+	game = get_game(cid)
+	args = context.args
+	player = game.find_player(' '.join(args))
+	requester = game.playerlist[uid]
+	if player is None:
+		bot.send_message(game.cid, "El jugador no esta en el partido, recuerda poner el nombre que aparece en el board")
+		return
+	if player.whispering and player.whispering is not requester.name:
+		bot.send_message(game.cid, f"El jugador ya esta haciendo whisper con {player.whispering}")
+	elif requester.whispering and requester.whispering is not player.name:
+		bot.send_message(game.cid, f"Ya estás haciendo whisper con {requester.whispering} terminalo con /endwhisper")
+	else:
+		# Si el jugador no esta haciendo whispering con nadie asigno whisper a él
+		requester.whispering = player.name
+		player.whispering = requester.name
+		
+		bot.send_message(game.cid, f"Se ha creado el whisper entre {requester.whispering} y {player.whispering}")
+
+def command_endwhisper(update: Update, context: CallbackContext):
+	bot = context.bot	
+	uid = update.message.from_user.id
+	cid = update.message.chat_id
+	game = get_game(cid)
+	
+	requester = game.playerlist[uid]
+	if requester.whispering:
+		player = game.find_player(requester.whispering)
+		requester.whispering = None
+		player.whispering = None
+		bot.send_message(game.cid, f"Se hanterminado el whisper entre {requester.name} y {player.name}")
+	else:
+		bot.send_message(game.cid, "No estas haciendo actualmente whispering")
+		
+	
 
 def save_game(cid, groupName, game):
 	#Check if game is in DB first

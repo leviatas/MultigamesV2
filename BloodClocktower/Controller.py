@@ -87,7 +87,9 @@ def main():
     dp.add_handler(CommandHandler("players", Commands.command_players))
     dp.add_handler(CommandHandler("leave", Commands.command_leave))
     dp.add_handler(CommandHandler("history", Commands.command_showhistory))
-    dp.add_handler(CommandHandler("claim", Commands.command_claim))	
+    dp.add_handler(CommandHandler("claim", Commands.command_claim))
+    dp.add_handler(CommandHandler("whisper", Commands.command_whisper))
+    dp.add_handler(CommandHandler("endwhisper", Commands.command_endwhisper))
     
     
     dp.add_error_handler(error)
