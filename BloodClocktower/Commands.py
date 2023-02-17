@@ -452,7 +452,8 @@ def command_set_player_order(update: Update, context: CallbackContext):
 	args = context.args
 	cid = update.message.chat_id
 	game = get_game(cid)
-	game.set_playerorder(args)
+	players = ' '.join(args)
+	game.set_playerorder(players.split(","))
 	save_game(cid, "Jugadores seteados", game)
 	bot.send_message(game.cid, "Jugadores reorganizados")
 
