@@ -15,6 +15,13 @@ class Game(BaseGame):
 		self.using_timer = False
 		self.storyteller = None
 	
+	def set_playerorder(self, playerorder):
+	     new_list = []
+	     for name in playerorder:
+	     	player = self.find_player(name)
+	     	new_list.append(player)
+	     	self.player_sequence = new_list
+        
 	def startgame(self):
 		self.board = Board(len(self.playerlist))
 

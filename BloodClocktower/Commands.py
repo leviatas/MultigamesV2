@@ -446,7 +446,15 @@ def command_endwhisper(update: Update, context: CallbackContext):
 	else:
 		bot.send_message(game.cid, "No estas haciendo actualmente whispering")
 		
-	
+@storyteller
+def command_set_player_order(update: Update, context: CallbackContext):
+	bot = context.bot	
+	args = context.args
+	cid = update.message.chat_id
+	game = get_game(cid)
+	game.set_playerorder(args)
+	save_game(cid, "Jugadores seteados", game)
+	bot.send_message(game.cid, "Jugadores reorganizados")
 
 def save_game(cid, groupName, game):
 	#Check if game is in DB first
