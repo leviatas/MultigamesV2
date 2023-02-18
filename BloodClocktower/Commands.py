@@ -401,6 +401,7 @@ def command_showhistory(update: Update, context: CallbackContext):
 		if game:			
 			#bot.send_message(cid, "Current round: " + str(game.board.state.currentround + 1))
 			uid = update.message.from_user.id
+			log.info(game.getHistory(uid))
 			for history in game.getHistory(uid):
 				bot.send_message(uid, history)
 				if len(history) > 0:
