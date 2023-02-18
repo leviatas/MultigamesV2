@@ -375,9 +375,10 @@ def command_claim(update: Update, context: CallbackContext):
 				if len(args) > 0:
 					#Data is being claimed
 					claimtext = ' '.join(args)
-					claimtexttohistory = "El jugador %s declara: %s" % (game.playerlist[uid].name, claimtext)
-					bot.send_message(cid, "Tu declaración: %s fue agregada al historial." % (claimtext))
-					game.history.append("%s" % (claimtexttohistory))
+					claimtexttohistory = f"El jugador {game.playerlist[uid]} declara: {claimtext}"
+					bot.send_message(cid, f"Tu declaración: {claimtext} fue agregada al historial.")
+					game.history.append(claimtexttohistory)
+					log.info(game.history)
 					save_game(cid, "Claim", game)
 				else:					
 					bot.send_message(cid, "Debes mandar un mensaje para hacer una declaración.")
