@@ -91,6 +91,7 @@ def main():
     dp.add_handler(CommandHandler("whisper", Commands.command_whisper))
     dp.add_handler(CommandHandler("endwhisper", Commands.command_endwhisper))
     dp.add_handler(CommandHandler("setplayerorder", Commands.command_set_player_order))
+    dp.add_handler(CommandHandler("fix", Commands.command_fix))
     
     dp.add_error_handler(error)
 

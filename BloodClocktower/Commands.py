@@ -371,7 +371,7 @@ def command_claim(update: Update, context: CallbackContext):
 		game = get_game(cid)
 		if game:
 			uid = update.message.from_user.id
-			if uid in game.playerlist:								
+			if uid in game.playerlist or uid is game.storyteller:								
 				if len(args) > 0:
 					#Data is being claimed
 					claimtext = ' '.join(args)
@@ -471,6 +471,15 @@ def command_set_player_order(update: Update, context: CallbackContext):
 	game.set_playerorder(players.split(","))
 	save_game(cid, "Jugadores seteados", game)
 	bot.send_message(game.cid, "Jugadores reorganizados")
+
+def command_fix(update: Update, context: CallbackContext):
+	bot = context.bot
+	cid = update.message.chat_id
+	game = get_game(cid)
+	for player in game.playerlist.values():
+		player.whispering = None
+	bot.send_message("Fixed")
+	save_game(cid, "Fix", game)
 
 def save_game(cid, groupName, game):
 	#Check if game is in DB first
