@@ -35,7 +35,7 @@ class Game(object):
 
     def getHistory(self, uid):
         history_list = []
-        history_text = "History del grupo *{}*:\n\n".format(self.groupName) 
+        history_text = f"History del grupo *{self.groupName}*:\n\n"
         for x in self.history:
             if len(history_text) < 3500:
                 history_text += x + "\n\n"
