@@ -391,7 +391,7 @@ def command_claim(update: Update, context: CallbackContext):
 
 def command_showhistory(update: Update, context: CallbackContext):
 	bot = context.bot
-	
+	log.info("Entro en history")
 	#game.pedrote = 3
 	try:
 		#Send message of executing command   
