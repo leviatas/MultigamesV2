@@ -478,7 +478,7 @@ def command_fix(update: Update, context: CallbackContext):
 	game = get_game(cid)
 	for player in game.playerlist.values():
 		player.whispering = None
-	bot.send_message("Fixed")
+	bot.send_message(cid, "Fixed")
 	save_game(cid, "Fix", game)
 
 def save_game(cid, groupName, game):
