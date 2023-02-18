@@ -256,7 +256,6 @@ def command_storyteller(update: Update, context: CallbackContext):
 		bot.send_message(uid, "Eres el storyteller, prepara los roles y cuando quieras reparte los roles")
 		bot.send_message(uid, "Con /firstnight en el grupo se hará la primera noche (No hace nada actualmente)")
 		bot.send_message(uid, "Con /day comenzarás el primer día y luego con /night pasarás a la noche. Para ir al siguiente dia, pones /day nuevamente.")
-		save_game(cid, "Storyteller set", game)
 	else:
 		bot.send_message(game.cid, f"La partida ya tiene storyteller, vete de aquí maldito usurpador!!!")
 
@@ -285,7 +284,6 @@ def command_firstnight(update: Update, context: CallbackContext):
 	game = get_game(cid)
 
 	bot.send_message(game.cid, f"Comienza la primera noche, todos... cierren los ojos...")
-	save_game(cid, "First night", game)
 
 @storyteller
 def command_day(update: Update, context: CallbackContext):
@@ -296,7 +294,6 @@ def command_day(update: Update, context: CallbackContext):
 	# Se incrementa el dia
 	game.board.state.day += 1
 	game.board.state.phase = "Día"
-	save_game(cid, "Dia", game)
 	bot.send_message(game.cid, f"Todos, abran los ojos...")
 	if game.board.state.day is 1:
 		bot.send_message(game.cid, """En el recondito pueblo de ravenswood bluff los aldeanos se despiertan por un grito ahogado en el centro del pueblo, al llegar encuentran a su querido storyteller empelado en una de las manecillas del reloj.
@@ -312,7 +309,6 @@ def command_night(update: Update, context: CallbackContext):
 	game = get_game(cid)
 	game.board.state.phase = "Noche"
 	bot.send_message(game.cid, f"Todos, cirren los ojos...")
-	save_game(cid, "noche", game)
 
 @storyteller
 def command_kill(update: Update, context: CallbackContext):
@@ -395,6 +391,7 @@ def command_claim(update: Update, context: CallbackContext):
 
 def command_showhistory(update: Update, context: CallbackContext):
 	bot = context.bot
+	
 	#game.pedrote = 3
 	try:
 		#Send message of executing command   
@@ -405,6 +402,7 @@ def command_showhistory(update: Update, context: CallbackContext):
 			#bot.send_message(cid, "Current round: " + str(game.board.state.currentround + 1))
 			uid = update.message.from_user.id
 			for history in game.getHistory(uid):
+				bot.send_message(uid, history)
 				if len(history) > 0:
 					bot.send_message(uid, history, ParseMode.MARKDOWN)
 		else:
@@ -432,7 +430,7 @@ def command_whisper(update: Update, context: CallbackContext):
 		# Si el jugador no esta haciendo whispering con nadie asigno whisper a él
 		requester.whispering = player.name
 		player.whispering = requester.name
-		save_game(cid, "Whisper", game)
+		
 		bot.send_message(game.cid, f"Se ha creado el whisper entre {requester.whispering} y {player.whispering}")
 
 def command_endwhisper(update: Update, context: CallbackContext):
