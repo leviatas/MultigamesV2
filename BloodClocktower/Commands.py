@@ -327,6 +327,22 @@ def command_kill(update: Update, context: CallbackContext):
 	else:
 		bot.send_message(game.cid, f"Debes ingresar a un jugador para matar")
 
+@storyteller
+def command_open_accusations(update: Update, context: CallbackContext):
+	bot = context.bot	
+	cid = update.message.chat_id
+	game = get_game(cid)
+	game.board.state.can_accuse = True
+	bot.send_message(game.cid, "*Se puede acusar a los demas*", ParseMode.MARKDOWN)
+
+@storyteller
+def command_close_accusations(update: Update, context: CallbackContext):
+	bot = context.bot	
+	cid = update.message.chat_id
+	game = get_game(cid)
+	game.board.state.can_accuse = False
+	bot.send_message(game.cid, "*Se cierran las acusaciones*", ParseMode.MARKDOWN)
+
 def command_players(update: Update, context: CallbackContext):
 	bot = context.bot	
 	uid = update.message.from_user.id
@@ -457,7 +473,7 @@ def command_endwhisper(update: Update, context: CallbackContext):
 		player = game.find_player(requester.whispering)
 		requester.whispering = None
 		player.whispering = None
-		bot.send_message(game.cid, f"Se hanterminado el whisper entre {requester.name} y {player.name}")
+		bot.send_message(game.cid, f"Se ha terminado el whisper entre {requester.name} y {player.name}")
 	else:
 		bot.send_message(game.cid, "No estas haciendo actualmente whispering")
 		
