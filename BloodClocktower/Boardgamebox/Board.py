@@ -23,10 +23,10 @@ class Board(BaseBoard):
         vivos = game.count_alive()
         votos = game.count_votes()
         
-        board += f"Dia {state.day} Fase: {state.phase}\n"
-        board += f"👤 {jugadores}\n❤ {vivos}\n 🗳 {votos}"
-        board += "💀 Jugador muerto pero con voto\n"
-        board += "☠️ Jugador muerto pero sin voto\n"
+        board += f"{state.phase} {state.day}\n"
+        board += f"👤 {jugadores} Jugadores\n❤ {vivos} Vivos\n🗳 {votos} Votos totales\n"
+        board += "💀 Muerto pero con voto\n"
+        board += "☠️ Muerto pero sin voto\n"
         board += "\n\n"        
         board += "--- *Orden de jugadores* ---\n"
         for player in game.player_sequence:
