@@ -130,7 +130,9 @@ def command_board(update: Update, context: CallbackContext):
 	cid = update.message.chat_id
 	game = get_game(cid)
 	if game.board:
-		bot.send_message(cid, game.board.print_board(game), ParseMode.MARKDOWN)
+		board_text = game.board.print_board(game)
+		log.info(board_text)
+		bot.send_message(cid, board_text, ParseMode.MARKDOWN)
 	else:
 		bot.send_message(cid, "No ha comenzado el juego todavia, para comenzar pone /startgame")
 
