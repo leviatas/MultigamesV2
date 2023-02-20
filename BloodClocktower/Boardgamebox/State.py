@@ -7,3 +7,7 @@ class State(BaseState):
         self.day = 0 # Indica el día actual, la primera noche es especial
         self.phase = 'Noche' # El juego comienza de noche
         self.can_accuse = False # Al comenzar no se puede acusar esto sera habilitadoncon un comando
+        self.accuser = None # Jugador que acuso
+        self.defender = None # Jugador que fue acusado
+        self.accusation = None # Acusacion del acusafor
+        self.defense = None # Defenss del acusado

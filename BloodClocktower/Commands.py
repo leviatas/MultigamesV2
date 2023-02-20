@@ -361,7 +361,6 @@ def command_players(update: Update, context: CallbackContext):
 
 def command_leave(update: Update, context: CallbackContext):
 	bot = context.bot
-	args = context.args
 	cid = update.message.chat_id
 	uid = update.effective_user.id
 
@@ -476,7 +475,45 @@ def command_endwhisper(update: Update, context: CallbackContext):
 		bot.send_message(game.cid, f"Se ha terminado el whisper entre {requester.name} y {player.name}")
 	else:
 		bot.send_message(game.cid, "No estas haciendo actualmente whispering")
-		
+
+def command_accuse(update: Update, context: CallbackContext):
+	bot = context.bot	
+	args = context.args
+	cid = update.message.chat_id
+	uid = update.message.from_user.id
+	game = get_game(cid)
+	data = ' '.join(args).split(",")
+	if len(args) == 2:
+		# Busco el jugador a acusar
+		player_name = data[0]
+		defender = game.find_player(player_name)
+		if defender is None:
+			bot.send_message(cid, "Elnjugador ingresado nonexiste")
+			return
+		accuser = game.playerlist[uid]
+		game.board.state.accuser = accuser
+		game.board.state.defender = defender
+		game.board.state.accusation = data[1]
+		save_game(cid, f"Matamos a {player_name}", game)
+		bot.send_message(game.cid, f"De repente {accuser.name} se levanta y señala con el dedo a {player_name} deberoas ir a la horca!\nPorque: {data[1]}")
+	else:
+		bot.send_message(game.cid, "Debes ingresar /accuse [Nombre jugador], Texto Acusación")
+
+def command_defend(update: Update, context: CallbackContext):
+	bot = context.bot	
+	args = context.args
+	cid = update.message.chat_id
+	game = get_game(cid)
+	uid = update.message.from_user.id
+	if len(args) > 0 and game.board.state.defender.uid is uid:
+		defender = game.board.state.defender
+		accuser = game.board.state.accuser
+		game.board.state.defense = " ".join(args)
+		save_game(cid, "Defensa acusacion", game)
+		bot.send_message(game.cid, f"Entonces {defender.name} mira a los ojos a {accuser.name} y dice a todo el pueblo: {game.board.state.defense}")
+	else:
+		bot.send_message(game.cid, "Debes ingresar algo pars tu defensa")
+
 @storyteller
 def command_set_player_order(update: Update, context: CallbackContext):
 	bot = context.bot	

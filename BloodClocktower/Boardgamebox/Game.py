@@ -15,6 +15,12 @@ class Game(BaseGame):
 		self.using_timer = False
 		self.storyteller = None
 	
+	def count_alive(self):
+		return sum(not p.dead for p in self.player_sequence)
+	
+	def count_votes(self):
+		return sum(not p.dead or p.has_last_vote for p in self.player_sequence)
+	
 	def set_playerorder(self, playerorder):
 	     new_list = []
 	     for name in playerorder:

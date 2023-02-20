@@ -94,6 +94,8 @@ def main():
     dp.add_handler(CommandHandler("fix", Commands.command_fix))
     dp.add_handler(CommandHandler("openaccusations", Commands.command_open_accusations))
     dp.add_handler(CommandHandler("closeaccussations", Commands.command_close_accusations))
+    dp.add_handler(CommandHandler("defend", Commands.command_defend))
+    dp.add_handler(CommandHandler("accuse", Commands.command_accuse))
     
     dp.add_error_handler(error)
 

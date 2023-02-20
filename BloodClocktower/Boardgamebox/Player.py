@@ -9,7 +9,7 @@ class Player(BasePlayer):
         self.poisoned = False # Indica si el jugador esta envenenado
         self.drunk = False # Indica si el jugador esta borracho
         self.nominated_someone = False # Indica si nominaste a alguien esta ronda
-        self.was_nominated = False # Indica si fue animado
+        self.was_nominated = False # Indica si fue nominado
         self.has_voted = False # Indica si has votado
         self.dead = False # Indica si has muerto
         self.had_last_vote = True # Indica si el jugador muerto todavia puede votar
