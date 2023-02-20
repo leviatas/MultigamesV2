@@ -35,6 +35,5 @@ class Board(BaseBoard):
             # else:
             dead = ('💀' if player.had_last_vote else '☠️') if player.dead else ""
             board += f"{nombre} {dead}\n"
-        board += u"\U0001F501"
 
         return board

@@ -481,7 +481,7 @@ def command_accuse(update: Update, context: CallbackContext):
 	cid = update.message.chat_id
 	uid = update.message.from_user.id
 	game = get_game(cid)
-	data = ' '.join(args).split(",")
+	data = ' '.join(args).split(";")
 	if len(args) == 2:
 		# Busco el jugador a acusar
 		player_name = data[0]
