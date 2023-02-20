@@ -6,11 +6,25 @@ import random
 from BloodClocktower.Boardgamebox.State import State
 from telegram import ParseMode
 
+import math
+
 class Board(BaseBoard):
     def __init__(self, playercount):
         self.state = State()
         self.num_players = playercount
-        
+    
+    def getIndex(self, li, player): 
+    	for index, x in enumerate(li): 
+    		if x.uid == player.uid: 
+    			return index 
+    	return -1
+    	
+    def starting_with(self, lst, player):
+     	index = self.getIndex(lst, player)
+     	start = index-1 if index is not 0 else len(lst)-1
+     	for idx in range(len(lst)):
+     		yield  lst[(idx + start) % len(lst)]
+			  
     def print_board(self, game):
         state = game.board.state
 
@@ -28,12 +42,22 @@ class Board(BaseBoard):
         board += "💀 Muerto pero con voto\n"
         board += "☠️ Muerto pero sin voto\n"
         board += "\n\n"
-        for player in game.player_sequence:
+        
+        if state.accuser is not None:
+        	positivos = list(state.votes.values()).count("si")
+        	necesarios = math.ceil(vivos/2)
+        	board += f"{state.accuser} nominó a {state.defender.name} ({positivos}/{necesarios} votos necesarios para llevarlo al chopping) "
+        
+        lista = game.player_sequence if state.accuser is None else self.starting_with(game.player_sequence, state.defender)
+        
+        for player in lista:
             nombre = player.name.replace("_", " ")
             # if self.state.active_player == player:
             #     board += f"*{nombre}* " + u"\u27A1\uFE0F" + " "
             # else:
             dead = ('💀' if player.had_last_vote else '☠️') if player.dead else ""
-            board += f"{nombre} {dead}\n"
+            voted = player.uid in state.votes
+            board += f"{nombre} {dead} {voted}\n"
 
         return board
+        

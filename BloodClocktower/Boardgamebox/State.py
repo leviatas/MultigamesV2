@@ -11,3 +11,4 @@ class State(BaseState):
         self.defender = None # Jugador que fue acusado
         self.accusation = None # Acusacion del acusafor
         self.defense = None # Defenss del acusado
+        self.votes = {}
