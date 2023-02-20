@@ -483,7 +483,7 @@ def command_nominate(update: Update, context: CallbackContext):
 	game = get_game(cid)
 	data = ' '.join(args).split(";")
 	log.info(data)
-	if len(args) == 2:
+	if len(data) == 2:
 		# Busco el jugador a acusar
 		player_name = data[0]
 		defender = game.find_player(player_name)
