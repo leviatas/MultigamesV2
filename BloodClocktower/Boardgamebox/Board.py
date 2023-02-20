@@ -24,7 +24,7 @@ class Board(BaseBoard):
         votos = game.count_votes()
         
         board += f"Dia {state.day} Fase: {state.phase}\n"
-        board += f"Jugadores {jugadores} Vivos {vivos} Votos {votos}"
+        board += f"👤 {jugadores}\n❤ {vivos}\n 🗳 {votos}"
         board += "💀 Jugador muerto pero con voto\n"
         board += "☠️ Jugador muerto pero sin voto\n"
         board += "\n\n"        
