@@ -529,7 +529,7 @@ def command_fix(update: Update, context: CallbackContext):
 	cid = update.message.chat_id
 	game = get_game(cid)
 	for player in game.playerlist.values():
-		player.whispering = None
+		player.had_last_vote = True
 	bot.send_message(cid, "Fixed")
 	save_game(cid, "Fix", game)
 
