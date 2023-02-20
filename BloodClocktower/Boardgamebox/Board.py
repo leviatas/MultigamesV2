@@ -18,7 +18,7 @@ class Board(BaseBoard):
             return "¡¡El juego no tiene Storyteller todvia!! Conviertete en él poniendo /storyteller"
 
         board = ""
-        board += f"*Dia {state.day}: {state.phase}*\n"
+        #board += f"Dia {state.day}: {state.phase}\n"
         jugadores = len(game.player_sequence)
         vivos = game.count_alive()
         votos = game.count_votes()
