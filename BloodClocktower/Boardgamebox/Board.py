@@ -17,11 +17,13 @@ class Board(BaseBoard):
         if game.storyteller is None:
             return "¡¡El juego no tiene Storyteller todvia!! Conviertete en él poniendo /storyteller"
 
-        board = "Tablero:\n\n"
+        board = ""
         #board += f"Dia {state.day}: {state.phase}\n"
         jugadores = len(game.player_sequence)
         vivos = game.count_alive()
         votos = game.count_votes()
+        
+        board += f"--- *Estado de Partida* Dia {state.day} Fase: {state.phase}---\n"
         #board += f"Jugadores {jugadores} vivos {vivos} Votos {votos}"
         board += "💀 Jugador muerto pero con voto\n"
         board += "☠️ Jugador muerto pero sin voto\n"
