@@ -19,9 +19,9 @@ class Board(BaseBoard):
 
         board = ""
         #board += f"Dia {state.day}: {state.phase}\n"
-        jugadores = len(game.player_sequence)
-        vivos = game.count_alive()
-        votos = game.count_votes()
+        #jugadores = len(game.player_sequence)
+        #vivos = game.count_alive()
+        #votos = game.count_votes()
         
         board += f"--- *Estado de Partida* Dia {state.day} Fase: {state.phase}---\n"
         #board += f"Jugadores {jugadores} vivos {vivos} Votos {votos}"
