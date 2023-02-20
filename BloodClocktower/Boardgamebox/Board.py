@@ -27,16 +27,14 @@ class Board(BaseBoard):
         board += f"👤 {jugadores} Jugadores\n❤ {vivos} Vivos\n🗳 {votos} Votos totales\n"
         board += "💀 Muerto pero con voto\n"
         board += "☠️ Muerto pero sin voto\n"
-        board += "\n\n"        
-        board += "--- *Orden de jugadores* ---\n"
+        board += "\n\n"
         for player in game.player_sequence:
             nombre = player.name.replace("_", " ")
             # if self.state.active_player == player:
             #     board += f"*{nombre}* " + u"\u27A1\uFE0F" + " "
             # else:
             dead = ('💀' if player.had_last_vote else '☠️') if player.dead else ""
-            board += f"{nombre} {dead}" + u"\u27A1\uFE0F" + " "
-        board = board[:-3]
+            board += f"{nombre} {dead}\n"
         board += u"\U0001F501"
 
         return board
