@@ -56,7 +56,7 @@ class Board(BaseBoard):
             #     board += f"*{nombre}* " + u"\u27A1\uFE0F" + " "
             # else:
             dead = ('💀' if player.had_last_vote else '☠️') if player.dead else ""
-            voted = player.uid in state.votes
+            voted = "✋" if player.uid in state.votes else ""
             board += f"{nombre} {dead} {voted}\n"
 
         return board
