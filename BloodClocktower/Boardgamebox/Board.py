@@ -19,7 +19,7 @@ class Board(BaseBoard):
 
         board = ""
         board += f"*Dia {state.day}: {state.phase}*\n"
-        board += f" {len(game.player_sequence)} 👤 {game.count_alive()} ❤️ {game.count_votes} 🗳"
+        board += f"{len(game.player_sequence)} Jugadored {game.count_alive()} ❤️ {game.count_votes} Votos"
         board += "💀 Jugador muerto pero con voto\n"
         board += "☠️ Jugador muerto pero sin voto\n"
         board += "\n\n"        
