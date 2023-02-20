@@ -475,13 +475,14 @@ def command_endwhisper(update: Update, context: CallbackContext):
 	else:
 		bot.send_message(game.cid, "No estas haciendo actualmente whispering")
 
-def command_accuse(update: Update, context: CallbackContext):
+def command_nominate(update: Update, context: CallbackContext):
 	bot = context.bot	
 	args = context.args
 	cid = update.message.chat_id
 	uid = update.message.from_user.id
 	game = get_game(cid)
 	data = ' '.join(args).split(";")
+	log.info(data)
 	if len(args) == 2:
 		# Busco el jugador a acusar
 		player_name = data[0]
@@ -494,9 +495,9 @@ def command_accuse(update: Update, context: CallbackContext):
 		game.board.state.defender = defender
 		game.board.state.accusation = data[1]
 		save_game(cid, f"Matamos a {player_name}", game)
-		bot.send_message(game.cid, f"De repente {accuser.name} se levanta y señala con el dedo a {player_name} deberoas ir a la horca!\nPorque: {data[1]}")
+		bot.send_message(game.cid, f"De repente {accuser.name} se levanta y señala con el dedo a {player_name} deberias ir a la horca!\nPorque: {data[1]}")
 	else:
-		bot.send_message(game.cid, "Debes ingresar /accuse [Nombre jugador], Texto Acusación")
+		bot.send_message(game.cid, "Debes ingresar /accuse [Nombre jugador]; Texto Acusación")
 
 def command_defend(update: Update, context: CallbackContext):
 	bot = context.bot	
