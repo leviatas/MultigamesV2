@@ -4,7 +4,7 @@ class State(BaseState):
     """Storage object for game state"""
     def __init__(self):
         BaseState.__init__(self)
-        self.day = 0 # Indica el día actual, la primera noche es especial
+        self.day = 1 # Indica el día actual, la primera noche es especial
         self.phase = 'Noche' # El juego comienza de noche
         self.can_nominate = False # Al comenzar no se puede acusar esto sera habilitadon con un comando
         self.accuser = None # Jugador que acuso

@@ -286,13 +286,10 @@ def command_firstnight(update: Update, context: CallbackContext):
 @storyteller
 def command_day(update: Update, context: CallbackContext):
 	bot = context.bot	
-	uid = update.message.from_user.id
 	cid = update.message.chat_id
 	game = get_game(cid)
-	# Se incrementa el dia
-	game.board.state.day += 1
 	game.board.state.phase = "Día"
-	bot.send_message(game.cid, f"Todos, abran los ojos...")
+	bot.send_message(game.cid, "Todos, abran los ojos...")
 	save_game(cid, "Day", game)
 	if game.board.state.day is 1:
 		bot.send_message(game.cid, """En el recondito pueblo de ravenswood bluff los aldeanos se despiertan por un grito ahogado en el centro del pueblo, al llegar encuentran a su querido storyteller empelado en una de las manecillas del reloj.
@@ -306,6 +303,7 @@ def command_night(update: Update, context: CallbackContext):
 	cid = update.message.chat_id
 	game = get_game(cid)
 	game.board.state.phase = "Noche"
+	game.board.state.day += 1
 	bot.send_message(game.cid, "Todos, cirren los ojos...")
 	save_game(cid, "Night", game)
 
