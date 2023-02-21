@@ -22,6 +22,7 @@ class Game(BaseGame):
 		state.accusation = None # Acusacion del acusador
 		state.defense = None # Defenss del acusado
 		state.votes = {}
+		state.clock = -1
 	
 	def toggle_nominations(self):
 		state = self.board.state

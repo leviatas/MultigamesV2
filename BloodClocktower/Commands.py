@@ -131,7 +131,6 @@ def command_board(update: Update, context: CallbackContext):
 	game = get_game(cid)
 	if game.board:
 		board_text = game.board.print_board(game)
-		log.info(board_text)
 		bot.send_message(cid, board_text, ParseMode.MARKDOWN)
 	else:
 		bot.send_message(cid, "No ha comenzado el juego todavia, para comenzar pone /startgame")
@@ -552,6 +551,8 @@ def command_tick(update: Update, context: CallbackContext):
 	game = get_game(cid)
 	game.advance_clock()
 	bot.send_message(cid, "The clock goes forward")
+	board_text = game.board.print_board(game)
+	bot.send_message(cid, board_text, ParseMode.MARKDOWN)
 	save_game(cid, "Cloak Advance", game)
 
 def command_fix(update: Update, context: CallbackContext):
