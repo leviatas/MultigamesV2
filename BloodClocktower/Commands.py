@@ -524,11 +524,19 @@ def command_set_player_order(update: Update, context: CallbackContext):
 	save_game(cid, "Jugadores seteados", game)
 	bot.send_message(game.cid, "Jugadores reorganizados")
 
+def command_clear(update: Update, context: CallbackContext):
+	bot = context.bot
+	cid = update.message.chat_id
+	game = get_game(cid)
+	game.clear_nomination()
+	bot.send_message(cid, "Se eliminó la acusación actual")
+	save_game(cid, "Fix", game)
+
 def command_fix(update: Update, context: CallbackContext):
 	bot = context.bot
 	cid = update.message.chat_id
 	game = get_game(cid)
-	game.board.state.votes = {}
+	game.boar.state.votes = {}
 	bot.send_message(cid, "Fixed")
 	save_game(cid, "Fix", game)
 

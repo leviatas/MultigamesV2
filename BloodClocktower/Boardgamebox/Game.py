@@ -15,6 +15,14 @@ class Game(BaseGame):
 		self.using_timer = False
 		self.storyteller = None
 	
+	def clear_nomination(self):
+		state = self.board.state
+		state.accuser = None # Jugador que acuso
+		state.defender = None # Jugador que fue acusado
+		state.accusation = None # Acusacion del acusador
+		state.defense = None # Defenss del acusado
+		state.votes = {}
+		
 	def count_alive(self):
 		return sum(not p.dead for p in self.player_sequence)
 	
