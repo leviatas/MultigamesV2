@@ -40,13 +40,12 @@ class Board(BaseBoard):
         board += f"{state.phase} {state.day}\n"
         board += f"👤 {jugadores} Jugadores\n❤ {vivos} Vivos\n🗳 {votos} Votos totales\n"
         board += "💀 Muerto pero con voto\n"
-        board += "☠️ Muerto pero sin voto\n"
-        board += "\n\n"
+        board += "☠️ Muerto pero sin voto\n\n"
         
         if state.accuser is not None:
         	positivos = list(state.votes.values()).count("si")
         	necesarios = math.ceil(vivos/2)
-        	board += f"{state.accuser.name} nominó a {state.defender.name} ({positivos}/{necesarios} votos necesarios para llevarlo al chopping)\n\n "
+        	board += f"{state.accuser.name} nominó a {state.defender.name} ({positivos}/{necesarios} votos necesarios para llevarlo al chopping)\n\n"
         
         lista = game.player_sequence if state.accuser is None else self.starting_with(game.player_sequence, state.defender)
         
