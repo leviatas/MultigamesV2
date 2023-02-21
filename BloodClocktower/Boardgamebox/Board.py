@@ -7,6 +7,8 @@ from BloodClocktower.Boardgamebox.State import State
 from telegram import ParseMode
 
 import math
+from Utils import player_call
+
 
 class Board(BaseBoard):
     def __init__(self, playercount):
@@ -49,14 +51,12 @@ class Board(BaseBoard):
         
         lista = game.player_sequence if state.accuser is None else self.starting_with(game.player_sequence, state.defender)
         
-        for player in lista:
-            nombre = player.name.replace("_", " ")
-            # if self.state.active_player == player:
-            #     board += f"*{nombre}* " + u"\u27A1\uFE0F" + " "
-            # else:
+        for index, player in enumerate(lista):
+            nombre = player.name.replace("_", " ") if state.clock is not index else player_call(player)
+            clock = "➡️ " if state.clock == index else ""
             dead = ('💀' if player.had_last_vote else '☠️') if player.dead else ""
             voted = "✋" if player.uid in state.votes else ""
-            board += f"{nombre} {dead} {voted}\n"
+            board += f"{clock}{nombre} {dead} {voted}\n"
 
         return board
         

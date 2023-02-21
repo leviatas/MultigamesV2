@@ -98,7 +98,8 @@ def main():
     dp.add_handler(CommandHandler("nominate", Commands.command_nominate))
     
     dp.add_handler(CommandHandler("clear", Commands.command_clear))
-    
+    dp.add_handler(CommandHandler("nominations", Commands.command_toggle_nominations))
+    dp.add_handler(CommandHandler("tick", Commands.command_tick))
     dp.add_error_handler(error)
 
     updater.bot.send_message(ADMIN[0], "Nueva version en linea")

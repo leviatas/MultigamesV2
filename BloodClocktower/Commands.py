@@ -489,6 +489,9 @@ def command_nominate(update: Update, context: CallbackContext):
 		if defender is None:
 			bot.send_message(cid, "El jugador ingresado nonexiste")
 			return
+		if not game.board.state.can_nominate:
+			bot.send_message(cid, "El storyteller no ha habilitado las nominaciones")
+			return	
 		accuser = game.playerlist[uid]
 		game.board.state.accuser = accuser
 		game.board.state.defender = defender
@@ -514,6 +517,25 @@ def command_defend(update: Update, context: CallbackContext):
 		bot.send_message(game.cid, "Debes ingresar algo para tu defensa")
 
 @storyteller
+def command_clear(update: Update, context: CallbackContext):
+	bot = context.bot
+	cid = update.message.chat_id
+	game = get_game(cid)
+	game.clear_nomination()
+	bot.send_message(cid, "Se eliminó la acusación actual")
+	save_game(cid, "Fix", game)
+
+@storyteller
+def command_toggle_nominations(update: Update, context: CallbackContext):
+	bot = context.bot
+	cid = update.message.chat_id
+	game = get_game(cid)
+	game.toggle_nominations()
+	msg = "abierto" if game.board.state.can_nominate else "cerrado"
+	bot.send_message(cid, f"Se han {msg} las nominaciones")
+	save_game(cid, "Fix", game)
+	
+@storyteller
 def command_set_player_order(update: Update, context: CallbackContext):
 	bot = context.bot	
 	args = context.args
@@ -524,19 +546,21 @@ def command_set_player_order(update: Update, context: CallbackContext):
 	save_game(cid, "Jugadores seteados", game)
 	bot.send_message(game.cid, "Jugadores reorganizados")
 
-def command_clear(update: Update, context: CallbackContext):
+def command_tick(update: Update, context: CallbackContext):
 	bot = context.bot
 	cid = update.message.chat_id
 	game = get_game(cid)
-	game.clear_nomination()
-	bot.send_message(cid, "Se eliminó la acusación actual")
-	save_game(cid, "Fix", game)
+	game.advance_clock()
+	bot.send_message(cid, "The clock goes forward")
+	save_game(cid, "Cloak Advance", game)
 
 def command_fix(update: Update, context: CallbackContext):
 	bot = context.bot
 	cid = update.message.chat_id
 	game = get_game(cid)
-	game.boar.state.votes = {}
+	state = game.board.state
+	state.can_nominate = False
+	state.clock = 0
 	bot.send_message(cid, "Fixed")
 	save_game(cid, "Fix", game)
 

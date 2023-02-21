@@ -22,7 +22,15 @@ class Game(BaseGame):
 		state.accusation = None # Acusacion del acusador
 		state.defense = None # Defenss del acusado
 		state.votes = {}
-		
+	
+	def toggle_nominations(self):
+		state = self.board.state
+		state.can_nominate = not state.can_nominate
+	
+	def advance_clock(self):
+		state = self.board.state
+		state.clock += 1
+									
 	def count_alive(self):
 		return sum(not p.dead for p in self.player_sequence)
 	
