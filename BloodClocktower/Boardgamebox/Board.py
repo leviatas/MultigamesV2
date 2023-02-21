@@ -55,7 +55,7 @@ class Board(BaseBoard):
             nombre = player.name.replace("_", " ") if state.clock is not index else player_call(player)
             clock = "➡️ " if state.clock == index else ""
             dead = ('💀' if player.had_last_vote else '☠️') if player.dead else ""
-            voted = "✋" if player.uid in state.votes else ""
+            voted = "✋" if player.uid in state.votes and state.votes[player.uid] == "si" else ""
             board += f"{clock}{nombre} {dead} {voted}\n"
 
         return board
