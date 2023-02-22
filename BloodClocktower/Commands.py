@@ -59,7 +59,7 @@ def player(func):
 		game = get_game(cid)
 
 		# Si no es u jugador o el ST...
-		if uid not in game.playerlist or uid != game.storyteller:
+		if  False:
 			update.effective_message.reply_text("No tienes acceso, ya que no eres jugador o storyteller")
 			return
 		return func(update, context, *args, **kwargs)
