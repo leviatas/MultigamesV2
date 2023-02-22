@@ -67,5 +67,8 @@ class Board(BaseBoard):
             voted = "✋" if player.uid in state.votes and state.votes[player.uid] == "si" else ""
             board += f"{clock}{nombre} {dead} {voted}\n"
 
+        if state.accuser is not None:
+            board += "Se puede votar con /vote, eliminar el voto con /clearvote o pasar usando /tick"
+
         return board
         

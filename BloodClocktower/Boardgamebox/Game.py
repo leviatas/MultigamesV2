@@ -23,6 +23,30 @@ class Game(BaseGame):
 		state.votes = {}
 		state.clock = -1
 	
+	def is_current_voter(self, uid):
+		state = self.board.state
+		# Si no se esta votando devolver vacio
+		# Si el clock no comenzo tampoco hay current voter
+		if state.accuser is None or state.clock == -1:
+			return False
+		# Obtengo la lista con el defensor al final
+		lista = self.board.starting_with(self.player_sequence, state.defender)
+		# Valido
+		return uid == lista[state.clock].uid
+
+	def can_modify_vote(self, uid):
+		state = self.board.state
+		# Si no se esta votando devolver vacio
+		# Si el clock no comenzo tampoco hay current voter
+		if state.accuser is None or state.clock == -1:
+			return False
+		# Obtengo la lista con el defensor al final
+		lista = self.board.starting_with(self.player_sequence, state.defender)
+		
+		uid_player_index = next((i for i, item in enumerate(lista) if item.uid == uid), -1)
+		# Valido
+		return uid_player_index >= state.clock
+
 	def toggle_nominations(self):
 		state = self.board.state
 		state.can_nominate = not state.can_nominate

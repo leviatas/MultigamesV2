@@ -441,6 +441,15 @@ def command_showhistory(update: Update, context: CallbackContext):
 		bot.send_message(cid, str(e))
 		log.error("Unknown error: " + str(e))  
 
+@restricted
+def command_debug(update: Update, context: CallbackContext):
+	bot = context.bot	
+	# uid = update.message.from_user.id
+	cid = update.message.chat_id
+	game = get_game(cid)
+	game.is_debugging = True if not game.is_debugging else False
+	bot.send_message(cid, "Debug Mode: ON" if game.is_debugging else "Debug Mode: OFF")
+
 def command_whisper(update: Update, context: CallbackContext):
 	bot = context.bot	
 	uid = update.message.from_user.id
@@ -556,16 +565,45 @@ def command_set_player_order(update: Update, context: CallbackContext):
 	save_game(cid, "Jugadores seteados", game)
 	bot.send_message(game.cid, "Jugadores reorganizados")
 
-@storyteller
 def command_tick(update: Update, context: CallbackContext):
 	bot = context.bot
 	cid = update.message.chat_id
+	uid = update.message.from_user.id
+
 	game = get_game(cid)
-	game.advance_clock()
-	bot.send_message(cid, "The clock goes forward")
-	board_text = game.board.print_board(game)
-	bot.send_message(cid, board_text, ParseMode.MARKDOWN)
-	save_game(cid, "Cloak Advance", game)
+	if uid == game.storyteller or game.is_current_voter(uid):
+		game.advance_clock()
+		bot.send_message(cid, "The clock goes forward")
+		board_text = game.board.print_board(game)
+		bot.send_message(cid, board_text, ParseMode.MARKDOWN)
+		save_game(cid, "Cloak Advance", game)
+	else:
+		bot.send_message(cid, "No puedes hacer /tick porque no eres el storyteller ni el jugador que tiene que votar", ParseMode.MARKDOWN)
+
+def command_vote(update: Update, context: CallbackContext):
+	bot = context.bot
+	cid = update.message.chat_id
+	uid = update.message.from_user.id
+	game = get_game(cid)
+	if game.can_modify_vote(uid):
+		game.votes[uid] = "si"
+		save_game(cid, "Vote", game)
+		bot.send_message(cid, "Has votado, puedes pasar al proximo jugador con /tick", ParseMode.MARKDOWN)
+	else:
+		bot.send_message(cid, "No puedes modificar tu voto porque ha pasado tu turno", ParseMode.MARKDOWN)
+		
+def command_clearvote(update: Update, context: CallbackContext):
+	bot = context.bot
+	cid = update.message.chat_id
+	uid = update.message.from_user.id
+	game = get_game(cid)
+	if game.can_modify_vote(uid):
+		game.votes.pop(uid, None)
+		save_game(cid, "Clear Vote", game)
+		bot.send_message(cid, "Has eliminado tu voto, puedes pasar al proximo jugador con /tick o votar con /vote", ParseMode.MARKDOWN)
+	else:
+		bot.send_message(cid, "*No puedes modificar tu voto porque ha pasado tu turno*", ParseMode.MARKDOWN)
+
 
 def command_fix(update: Update, context: CallbackContext):
 	bot = context.bot

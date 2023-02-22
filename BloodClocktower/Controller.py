@@ -70,6 +70,7 @@ def main():
     dp.add_handler(CommandHandler("help", Commands.command_help))
     dp.add_handler(CommandHandler("board", Commands.command_board))
     dp.add_handler(CommandHandler("rules", Commands.command_rules))
+    dp.add_handler(CommandHandler("debug", Commands.command_debug))
 
     dp.add_handler(CommandHandler("newgame", Commands.command_newgame))
     dp.add_handler(CommandHandler("join", Commands.command_join))
@@ -100,6 +101,8 @@ def main():
     dp.add_handler(CommandHandler("clear", Commands.command_clear))
     dp.add_handler(CommandHandler("nominations", Commands.command_toggle_nominations))
     dp.add_handler(CommandHandler("tick", Commands.command_tick))
+    dp.add_handler(CommandHandler("vote", Commands.command_vote))
+    dp.add_handler(CommandHandler("clearvote", Commands.command_clearvote))
     dp.add_error_handler(error)
 
     updater.bot.send_message(ADMIN[0], "Nueva version en linea")
