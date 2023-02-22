@@ -318,6 +318,8 @@ def command_kill(update: Update, context: CallbackContext):
 		# Busco el jugador a matar
 		player_name = ' '.join(args)
 		player = game.find_player(player_name)
+		if player is None:
+			bot.send_message(game.cid, "El jugador no esta en el partido, recuerda poner el nombre que aparece en el board")
 		player.dead = True
 		save_game(cid, f"Matamos a {player_name}", game)
 		bot.send_message(game.cid, f"Jugador {player_name} te han matado, no posees más tu habilidad, pero puedes hablar y votar una última vez")
