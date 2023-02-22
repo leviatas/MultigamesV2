@@ -7,7 +7,6 @@ from BloodClocktower.Boardgamebox.Player import Player
 from BloodClocktower.Boardgamebox.Board import Board
 #from Boardgamebox.Board import Board
 #from Boardgamebox.State import State
-from Utils import get_config_data, basic_validation
 
 class Game(BaseGame):
 	def __init__(self, cid, initiator, groupName):
@@ -39,11 +38,11 @@ class Game(BaseGame):
 		return sum(not p.dead or p.has_last_vote for p in self.player_sequence)
 	
 	def set_playerorder(self, playerorder):
-	     new_list = []
-	     for name in playerorder:
-	     	player = self.find_player(name)
-	     	new_list.append(player)
-	     	self.player_sequence = new_list
+		new_list = []
+		for name in playerorder:
+			player = self.find_player(name)
+			new_list.append(player)
+		self.player_sequence = new_list
         
 	def startgame(self):
 		self.board = Board(len(self.playerlist))
@@ -67,7 +66,7 @@ class Game(BaseGame):
 
 	def myturn_message(self, uid):
 		try:
-			group_link_name = self.groupName if get_config_data(self, "link") is None else "[{0}]({1})".format(self.groupName, get_config_data(self, "link"))
+			group_link_name = self.groupName
 			if self.board.state.fase_actual == "Proponiendo Pistas":
 				mensaje_clue_ejemplo = "Ejemplo: Si la palabra fuese (Fiesta)\n/words Cumpleaños, Torta, Decoracion, Musica, Rock, Infantil, Luces, Velas"
 				return f"Partida: {group_link_name} debes dar {mensaje_clue_ejemplo}. \nLa palabra es : *{self.board.state.acciones_carta_actual}* propone tus palabras!."

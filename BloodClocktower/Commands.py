@@ -495,13 +495,14 @@ def command_nominate(update: Update, context: CallbackContext):
 			return
 		if not game.board.state.can_nominate:
 			bot.send_message(cid, "El storyteller no ha habilitado las nominaciones")
-			return	
-		
+			return
+
 		game.board.state.accuser = accuser
 		game.board.state.defender = defender
-		game.board.state.accusation = data[1]
+		game.board.state.accusation = data[1].strip()
 		save_game(cid, f"Se nomino a: {player_call(defender)}", game)
-		bot.send_message(game.cid, f"De repente {player_call(accuser)} se levanta y señala con el dedo a {player_call(defender)} deberias ir a la horca!\n{data[1]}")
+		message_nomination = f"De repente {player_call(accuser)} se levanta y señala con el dedo a {player_call(defender)} deberias ir a la horca!\nMotivo: {game.board.state.accusation}"
+		bot.send_message(game.cid, message_nomination, ParseMode.MARKDOWN)
 	else:
 		bot.send_message(game.cid, "Debes ingresar /nominate [Nombre jugador en Board];Texto Acusación")
 

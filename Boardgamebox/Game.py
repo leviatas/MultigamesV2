@@ -5,8 +5,6 @@ from random import shuffle
 from Boardgamebox.Player import Player
 from Boardgamebox.State import State
 
-from Utils import get_config_data
-
 class Game(object):
     def __init__(self, cid, initiator, groupName, tipo = None, modo = None, ):
         self.playerlist = {}
@@ -82,7 +80,7 @@ class Game(object):
             JustoneCommands.command_call(context.bot, self)
 
     def group_link_name(self):
-        link_info = get_config_data(self, "link")
+        link_info = None
         if link_info == None:
             group_link_name = "*{0}*".format(self.groupName)
         else:

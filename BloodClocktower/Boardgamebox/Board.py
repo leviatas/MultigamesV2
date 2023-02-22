@@ -7,8 +7,13 @@ from BloodClocktower.Boardgamebox.State import State
 from telegram import ParseMode
 
 import math
-from Utils import player_call
 
+# import logging as log
+
+# log.basicConfig(
+#     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+#     level=log.INFO)
+# logger = log.getLogger(__name__)
 
 class Board(BaseBoard):
     def __init__(self, playercount):
@@ -23,10 +28,14 @@ class Board(BaseBoard):
     	
     def starting_with(self, lst, player):
         index = self.getIndex(lst, player)
-        start = index-1 if index is not 0 else len(lst)-1
+        # log.info(index)
+        start = index+1 if index is not len(lst)-1 else 0
         for idx in range(len(lst)):
             yield  lst[(idx + start) % len(lst)]
-			  
+
+    def player_call(player):
+        return "[{0}](tg://user?id={1})".format(player.name, player.uid)
+
     def print_board(self, game):
         state = game.board.state
 
@@ -52,7 +61,7 @@ class Board(BaseBoard):
         lista = game.player_sequence if state.accuser is None else self.starting_with(game.player_sequence, state.defender)
         
         for index, player in enumerate(lista):
-            nombre = player.name.replace("_", " ") if state.clock is not index else player_call(player)
+            nombre = player.name.replace("_", " ") if state.clock is not index else self.player_call(player)
             clock = "➡️ " if state.clock == index else ""
             dead = ('💀' if player.had_last_vote else '☠️') if player.dead else ""
             voted = "✋" if player.uid in state.votes and state.votes[player.uid] == "si" else ""
