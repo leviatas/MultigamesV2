@@ -32,7 +32,7 @@ class Game(BaseGame):
 		# Obtengo la lista con el defensor al final
 		lista = self.board.starting_with(self.player_sequence, state.defender)
 		# Valido
-		return uid == lista[state.clock].uid
+		return uid == list(lista[state.clock]).uid
 
 	def can_modify_vote(self, uid):
 		state = self.board.state
