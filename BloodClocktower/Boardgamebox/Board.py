@@ -6,6 +6,8 @@ import random
 from BloodClocktower.Boardgamebox.State import State
 from telegram import ParseMode
 
+from BloodClocktower.Constants import playerSets
+
 import math
 
 # import logging as log
@@ -37,6 +39,11 @@ class Board(BaseBoard):
         return "[{0}](tg://user?id={1})".format(player.name, player.uid)
 
     def print_board(self, game):
+        roles = list(playerSets[self.num_players]["roles"])
+        townfolk = roles.count("Townfolk")
+        outsiders = roles.count("Outsiders")
+        minions = roles.count("Minions")
+        demons = roles.count("Demons")
         state = game.board.state
 
         if game.storyteller is None:
@@ -52,7 +59,8 @@ class Board(BaseBoard):
         board += f"👤 {jugadores} Jugadores\n❤ {vivos} Vivos\n🗳 {votos} Votos totales\n"
         board += "💀 Muerto con voto\n"
         board += "☠️ Muerto sin voto\n\n"
-        
+        board += f"{townfolk}💙 {outsiders}💚 {minions}🧡 {demons}❤️"
+
         if state.accuser is not None:
             positivos = list(state.votes.values()).count("si")
             necesarios = math.ceil(vivos/2)
