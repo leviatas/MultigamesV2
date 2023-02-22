@@ -586,12 +586,20 @@ def command_vote(update: Update, context: CallbackContext):
 	uid = update.message.from_user.id
 	game = get_game(cid)
 	if game.can_modify_vote(uid):
-		game.votes[uid] = "si"
-		save_game(cid, "Vote", game)
-		bot.send_message(cid, "Has votado, puedes pasar al proximo jugador con /tick", ParseMode.MARKDOWN)
+		# Solo puede votar si esta vivo o si tiene el ultimo voto
+		voter = game.playerlist[uid]
+		if not voter.dead or (voter.dead and voter.has_last_vote):
+			game.votes[uid] = "si"
+			# Si el jugador esta muerto se le quita el ultimo voto
+			if voter.dead:
+				voter.has_last_vote = False
+			save_game(cid, "Vote", game)
+			bot.send_message(cid, "Has votado, puedes pasar al proximo jugador con /tick", ParseMode.MARKDOWN)
+		else:
+			bot.send_message(cid, "No puedes votar ya que estas muerto y has gastado tu voto haz /tick", ParseMode.MARKDOWN)
 	else:
 		bot.send_message(cid, "No puedes modificar tu voto porque ha pasado tu turno", ParseMode.MARKDOWN)
-		
+
 def command_clearvote(update: Update, context: CallbackContext):
 	bot = context.bot
 	cid = update.message.chat_id
@@ -599,6 +607,10 @@ def command_clearvote(update: Update, context: CallbackContext):
 	game = get_game(cid)
 	if game.can_modify_vote(uid):
 		game.votes.pop(uid, None)
+		voter = game.playerlist[uid]
+		# Si el votante estaba muerto y le quite el ultimo voto, se lo devuelvo.
+		if voter.dead:
+			voter.has_last_vote = True
 		save_game(cid, "Clear Vote", game)
 		bot.send_message(cid, "Has eliminado tu voto, puedes pasar al proximo jugador con /tick o votar con /vote", ParseMode.MARKDOWN)
 	else:
