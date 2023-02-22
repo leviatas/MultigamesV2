@@ -280,7 +280,6 @@ def command_firstnight(update: Update, context: CallbackContext):
 	uid = update.message.from_user.id
 	cid = update.message.chat_id
 	game = get_game(cid)
-
 	bot.send_message(game.cid, f"Comienza la primera noche, todos... cierren los ojos...")
 
 @storyteller
@@ -290,6 +289,7 @@ def command_day(update: Update, context: CallbackContext):
 	game = get_game(cid)
 	game.board.state.phase = "Día"
 	bot.send_message(game.cid, "Todos, abran los ojos...")
+	game.history.append(f"*Día {game.board.state.day}*")
 	save_game(cid, "Day", game)
 	if game.board.state.day is 1:
 		bot.send_message(game.cid, """En el recondito pueblo de ravenswood bluff los aldeanos se despiertan por un grito ahogado en el centro del pueblo, al llegar encuentran a su querido storyteller empelado en una de las manecillas del reloj.
@@ -304,7 +304,8 @@ def command_night(update: Update, context: CallbackContext):
 	game = get_game(cid)
 	game.board.state.phase = "Noche"
 	game.board.state.day += 1
-	bot.send_message(game.cid, "Todos, cirren los ojos...")
+	game.history.append(f"*Noche {game.board.state.day}*")
+	bot.send_message(game.cid, "Todos, cierren los ojos...")
 	save_game(cid, "Night", game)
 
 @storyteller
@@ -322,11 +323,13 @@ def command_kill(update: Update, context: CallbackContext):
 			bot.send_message(game.cid, "El jugador no esta en el partido, recuerda poner el nombre que aparece en el board")
 		player.dead = True
 		save_game(cid, f"Matamos a {player_name}", game)
-		bot.send_message(game.cid, f"Jugador {player_name} te han matado, no posees más tu habilidad, pero puedes hablar y votar una última vez")
+		kill_message = f"Jugador {player_name} te han matado, no posees más tu habilidad, pero puedes hablar y votar una última vez"
+		game.history.append(kill_message)
+		bot.send_message(game.cid, kill_message)
 	else:
 		bot.send_message(game.cid, f"Debes ingresar a un jugador para matar")
 
-@storyteller
+
 def command_open_accusations(update: Update, context: CallbackContext):
 	bot = context.bot	
 	cid = update.message.chat_id
@@ -457,8 +460,9 @@ def command_whisper(update: Update, context: CallbackContext):
 		# Si el jugador no esta haciendo whispering con nadie asigno whisper a él
 		requester.whispering = player.name
 		player.whispering = requester.name
-		
-		bot.send_message(game.cid, f"Se ha creado el whisper entre {requester.whispering} y {player.whispering}")
+		whisper_message = f"Se ha creado el whisper entre {requester.whispering} y {player.whispering}"
+		game.history.append(whisper_message)
+		bot.send_message(game.cid, whisper_message)
 
 def command_endwhisper(update: Update, context: CallbackContext):
 	bot = context.bot	
@@ -500,8 +504,9 @@ def command_nominate(update: Update, context: CallbackContext):
 		game.board.state.accuser = accuser
 		game.board.state.defender = defender
 		game.board.state.accusation = data[1].strip()
-		save_game(cid, f"Se nomino a: {player_call(defender)}", game)
 		message_nomination = f"De repente {player_call(accuser)} se levanta y señala con el dedo a {player_call(defender)} deberias ir a la horca!\nMotivo: {game.board.state.accusation}"
+		game.history.append(message_nomination)
+		save_game(cid, f"Se nomino a: {defender.name}", game)		
 		bot.send_message(game.cid, message_nomination, ParseMode.MARKDOWN)
 	else:
 		bot.send_message(game.cid, "Debes ingresar /nominate [Nombre jugador en Board];Texto Acusación")
@@ -551,6 +556,7 @@ def command_set_player_order(update: Update, context: CallbackContext):
 	save_game(cid, "Jugadores seteados", game)
 	bot.send_message(game.cid, "Jugadores reorganizados")
 
+@storyteller
 def command_tick(update: Update, context: CallbackContext):
 	bot = context.bot
 	cid = update.message.chat_id
@@ -566,8 +572,7 @@ def command_fix(update: Update, context: CallbackContext):
 	cid = update.message.chat_id
 	game = get_game(cid)
 	state = game.board.state
-	state.can_nominate = False
-	state.clock = 0
+	state.clock = -1
 	bot.send_message(cid, "Fixed")
 	save_game(cid, "Fix", game)
 
