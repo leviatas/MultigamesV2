@@ -16,16 +16,16 @@ class Board(BaseBoard):
         self.num_players = playercount
     
     def getIndex(self, li, player): 
-    	for index, x in enumerate(li): 
-    		if x.uid == player.uid: 
-    			return index 
-    	return -1
+        for index, x in enumerate(li): 
+            if x.uid == player.uid: 
+                return index 
+        return -1
     	
     def starting_with(self, lst, player):
-     	index = self.getIndex(lst, player)
-     	start = index-1 if index is not 0 else len(lst)-1
-     	for idx in range(len(lst)):
-     		yield  lst[(idx + start) % len(lst)]
+        index = self.getIndex(lst, player)
+        start = index-1 if index is not 0 else len(lst)-1
+        for idx in range(len(lst)):
+            yield  lst[(idx + start) % len(lst)]
 			  
     def print_board(self, game):
         state = game.board.state
@@ -45,10 +45,10 @@ class Board(BaseBoard):
         board += "☠️ Muerto sin voto\n\n"
         
         if state.accuser is not None:
-        	positivos = list(state.votes.values()).count("si")
-        	necesarios = math.ceil(vivos/2)
-        	board += f"{state.accuser.name} nominó a {state.defender.name} ({positivos}/{necesarios} votos necesarios para llevarlo al chopping)\n\n"
-        
+            positivos = list(state.votes.values()).count("si")
+            necesarios = math.ceil(vivos/2)
+            board += f"{state.accuser.name} nominó a {state.defender.name} ({positivos}/{necesarios} votos necesarios para llevarlo al chopping)\n\n"
+
         lista = game.player_sequence if state.accuser is None else self.starting_with(game.player_sequence, state.defender)
         
         for index, player in enumerate(lista):

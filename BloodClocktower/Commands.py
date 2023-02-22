@@ -480,24 +480,28 @@ def command_nominate(update: Update, context: CallbackContext):
 	uid = update.message.from_user.id
 	game = get_game(cid)
 	data = ' '.join(args).split(";")
-	if len(args) == 2:
+	if len(data) == 2:
 		# Busco el jugador a acusar
 		player_name = data[0]
 		defender = game.find_player(player_name)
+		accuser = game.playerlist[uid]
+		if accuser.dead :
+			bot.send_message(cid, "Un jugador muerto no puede nominar")
+			return
 		if defender is None:
-			bot.send_message(cid, "El jugador ingresado nonexiste")
+			bot.send_message(cid, "El jugador ingresado no existe")
 			return
 		if not game.board.state.can_nominate:
 			bot.send_message(cid, "El storyteller no ha habilitado las nominaciones")
 			return	
-		accuser = game.playerlist[uid]
+		
 		game.board.state.accuser = accuser
 		game.board.state.defender = defender
 		game.board.state.accusation = data[1]
 		save_game(cid, f"Se nomino a: {player_call(defender)}", game)
 		bot.send_message(game.cid, f"De repente {player_call(accuser)} se levanta y señala con el dedo a {player_call(defender)} deberias ir a la horca!\n{data[1]}")
 	else:
-		bot.send_message(game.cid, "Debes ingresar /accuse [Nombre jugador]; Texto Acusación")
+		bot.send_message(game.cid, "Debes ingresar /nominate [Nombre jugador en Board];Texto Acusación")
 
 def command_defend(update: Update, context: CallbackContext):
 	bot = context.bot	
