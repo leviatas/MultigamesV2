@@ -58,8 +58,8 @@ class Board(BaseBoard):
         board += f"{state.phase} {state.day}\n"
         board += f"👤 {jugadores} Jugadores\n❤ {vivos} Vivos\n🗳 {votos} Votos totales\n"
         board += "💀 Muerto con voto\n"
-        board += "☠️ Muerto sin voto\n\n"
-        board += f"{townfolk}💙 {outsiders}💚 {minions}🧡 {demons}❤️"
+        board += "☠️ Muerto sin voto\n"
+        board += f"{townfolk}💙 {outsiders}💚 {minions}🧡 {demons}❤️\n\n"
 
         if state.accuser is not None:
             positivos = list(state.votes.values()).count("si")
