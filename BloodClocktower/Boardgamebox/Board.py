@@ -33,7 +33,7 @@ class Board(BaseBoard):
         for idx in range(len(lst)):
             yield  lst[(idx + start) % len(lst)]
 
-    def player_call(player):
+    def player_call(self, player):
         return "[{0}](tg://user?id={1})".format(player.name, player.uid)
 
     def print_board(self, game):
