@@ -42,12 +42,25 @@ def storyteller(func):
 	@wraps(func)
 	def wrapped(update, context, *args, **kwargs):
 		user_id = update.effective_user.id
-		bot = context.bot
 		cid = update.message.chat_id		
 		game = get_game(cid)
 
 		if user_id != game.storyteller:
 			update.effective_message.reply_text("No tienes acceso, ya que no eres el Storyteller")
+			return
+		return func(update, context, *args, **kwargs)
+	return wrapped
+
+def player(func):
+	@wraps(func)
+	def wrapped(update, context, *args, **kwargs):
+		uid = update.effective_user.id
+		cid = update.message.chat_id		
+		game = get_game(cid)
+
+		# Si no es u jugador o el ST...
+		if uid not in game.playerlist or uid != game.storyteller:
+			update.effective_message.reply_text("No tienes acceso, ya que no eres jugador o storyteller")
 			return
 		return func(update, context, *args, **kwargs)
 	return wrapped
@@ -125,6 +138,7 @@ def load_game(cid):
 		conn.close()
 		return None
 
+@player
 def command_board(update: Update, context: CallbackContext):
 	bot = context.bot
 	cid = update.message.chat_id
@@ -329,22 +343,6 @@ def command_kill(update: Update, context: CallbackContext):
 	else:
 		bot.send_message(game.cid, f"Debes ingresar a un jugador para matar")
 
-
-def command_open_accusations(update: Update, context: CallbackContext):
-	bot = context.bot	
-	cid = update.message.chat_id
-	game = get_game(cid)
-	game.board.state.can_accuse = True
-	bot.send_message(game.cid, "*Se puede acusar a los demas*", ParseMode.MARKDOWN)
-
-@storyteller
-def command_close_accusations(update: Update, context: CallbackContext):
-	bot = context.bot	
-	cid = update.message.chat_id
-	game = get_game(cid)
-	game.board.state.can_accuse = False
-	bot.send_message(game.cid, "*Se cierran las acusaciones*", ParseMode.MARKDOWN)
-
 def command_players(update: Update, context: CallbackContext):
 	bot = context.bot	
 	uid = update.message.from_user.id
@@ -377,6 +375,7 @@ def command_leave(update: Update, context: CallbackContext):
 			del game.playerlist[uid]
 			bot.send_message(cid, '‼‼*Has salido exitosamente del juego*‼‼', ParseMode.MARKDOWN)
 
+@player
 def command_claim(update: Update, context: CallbackContext):
 	bot = context.bot
 	args = context.args
@@ -450,6 +449,7 @@ def command_debug(update: Update, context: CallbackContext):
 	game.is_debugging = True if not game.is_debugging else False
 	bot.send_message(cid, "Debug Mode: ON" if game.is_debugging else "Debug Mode: OFF")
 
+@player
 def command_whisper(update: Update, context: CallbackContext):
 	bot = context.bot	
 	uid = update.message.from_user.id
@@ -473,6 +473,7 @@ def command_whisper(update: Update, context: CallbackContext):
 		game.history.append(whisper_message)
 		bot.send_message(game.cid, whisper_message)
 
+@player
 def command_endwhisper(update: Update, context: CallbackContext):
 	bot = context.bot	
 	uid = update.message.from_user.id
@@ -488,6 +489,7 @@ def command_endwhisper(update: Update, context: CallbackContext):
 	else:
 		bot.send_message(game.cid, "No estas haciendo actualmente whispering")
 
+@player
 def command_nominate(update: Update, context: CallbackContext):
 	bot = context.bot	
 	args = context.args
@@ -520,6 +522,7 @@ def command_nominate(update: Update, context: CallbackContext):
 	else:
 		bot.send_message(game.cid, "Debes ingresar /nominate [Nombre jugador en Board];Texto Acusación")
 
+@player
 def command_defend(update: Update, context: CallbackContext):
 	bot = context.bot	
 	args = context.args
@@ -565,6 +568,7 @@ def command_set_player_order(update: Update, context: CallbackContext):
 	save_game(cid, "Jugadores seteados", game)
 	bot.send_message(game.cid, "Jugadores reorganizados")
 
+@player
 def command_tick(update: Update, context: CallbackContext):
 	bot = context.bot
 	cid = update.message.chat_id
@@ -580,11 +584,16 @@ def command_tick(update: Update, context: CallbackContext):
 	else:
 		bot.send_message(cid, "No puedes hacer /tick porque no eres el storyteller ni el jugador que tiene que votar", ParseMode.MARKDOWN)
 
+@player
 def command_vote(update: Update, context: CallbackContext):
 	bot = context.bot
 	cid = update.message.chat_id
 	uid = update.message.from_user.id
 	game = get_game(cid)
+	args = context.args
+
+	# if uid == game.storyteller and len(args) > 0:
+		
 	if game.can_modify_vote(uid):
 		# Solo puede votar si esta vivo o si tiene el ultimo voto
 		voter = game.playerlist[uid]
@@ -600,6 +609,7 @@ def command_vote(update: Update, context: CallbackContext):
 	else:
 		bot.send_message(cid, "No puedes modificar tu voto porque ha pasado tu turno", ParseMode.MARKDOWN)
 
+@player
 def command_clearvote(update: Update, context: CallbackContext):
 	bot = context.bot
 	cid = update.message.chat_id
@@ -616,7 +626,7 @@ def command_clearvote(update: Update, context: CallbackContext):
 	else:
 		bot.send_message(cid, "*No puedes modificar tu voto porque ha pasado tu turno*", ParseMode.MARKDOWN)
 
-
+@restricted
 def command_fix(update: Update, context: CallbackContext):
 	bot = context.bot
 	cid = update.message.chat_id

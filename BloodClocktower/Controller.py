@@ -93,8 +93,6 @@ def main():
     dp.add_handler(CommandHandler("endwhisper", Commands.command_endwhisper))
     dp.add_handler(CommandHandler("setplayerorder", Commands.command_set_player_order))
     dp.add_handler(CommandHandler("fix", Commands.command_fix))
-    dp.add_handler(CommandHandler("openaccusations", Commands.command_open_accusations))
-    dp.add_handler(CommandHandler("closeaccussations", Commands.command_close_accusations))
     dp.add_handler(CommandHandler("defend", Commands.command_defend))
     dp.add_handler(CommandHandler("nominate", Commands.command_nominate))
     
