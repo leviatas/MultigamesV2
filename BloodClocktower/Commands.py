@@ -607,7 +607,7 @@ def command_vote(update: Update, context: CallbackContext):
 		# Solo puede votar si esta vivo o si tiene el ultimo voto
 		voter = game.playerlist[uid]
 		if not voter.dead or (voter.dead and voter.has_last_vote):
-			game.votes[uid] = "si"
+			game.board.state.votes[uid] = "si"
 			# Si el jugador esta muerto se le quita el ultimo voto
 			if voter.dead:
 				voter.has_last_vote = False
