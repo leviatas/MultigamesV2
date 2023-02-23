@@ -626,7 +626,7 @@ def command_clearvote(update: Update, context: CallbackContext):
 	uid = update.message.from_user.id
 	game = get_game(cid)
 	if game.can_modify_vote(uid):
-		game.votes.pop(uid, None)
+		game.board.state.votes(uid, None)
 		voter = game.playerlist[uid]
 		# Si el votante estaba muerto y le quite el ultimo voto, se lo devuelvo.
 		if voter.dead:
