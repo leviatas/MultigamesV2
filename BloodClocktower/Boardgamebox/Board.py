@@ -65,8 +65,8 @@ class Board(BaseBoard):
             positivos = list(state.votes.values()).count("si")
             necesarios = math.ceil(vivos/2)
             board += f"{state.accuser.name} nominó a {state.defender.name} ({positivos}/{necesarios} votos necesarios para llevarlo al chopping block)\n\n"
-            board += f"Acusación: {state.accusation}\n\n"
-            board += f"Defensa: {state.defense}\n\n"
+            board += f"*Acusación*: {state.accusation}\n\n"
+            board += f"*Defensa*: {state.defense}\n\n"
 
         lista = game.player_sequence if state.accuser is None else self.starting_with(game.player_sequence, state.defender)
         

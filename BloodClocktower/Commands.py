@@ -540,7 +540,7 @@ def command_defend(update: Update, context: CallbackContext):
 		accuser = state.accuser
 		state.defense = " ".join(args)
 		save_game(cid, "Defensa acusacion", game)
-		bot.send_message(game.cid, f"Entonces {player_call(defender)} mira a los ojos a {player_call(accuser)} y dice a todo el pueblo: {state.defense}")
+		bot.send_message(game.cid, f"Entonces {player_call(defender)} mira a los ojos a {player_call(accuser)} y dice a todo el pueblo: {state.defense}", ParseMode.MARKDOWN)
 	else:
 		bot.send_message(game.cid, "Debes ingresar algo para tu defensa")
 
