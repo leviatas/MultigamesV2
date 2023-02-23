@@ -145,7 +145,8 @@ def command_board(update: Update, context: CallbackContext):
 	game = get_game(cid)
 	if game.board:
 		board_text = game.board.print_board(game)
-		bot.send_message(cid, board_text, ParseMode.MARKDOWN)
+		board_message = bot.send_message(cid, board_text, ParseMode.MARKDOWN)
+		game.board_message_id = board_message.message_id
 	else:
 		bot.send_message(cid, "No ha comenzado el juego todavia, para comenzar pone /startgame")
 
