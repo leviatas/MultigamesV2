@@ -72,10 +72,12 @@ class Board(BaseBoard):
         
         for index, player in enumerate(lista):
             nombre = player.name.replace("_", " ") if state.clock is not index else self.player_call(player)
+
+            chop = f"🪓 {state.chopping_block_votes}" if state.chopping_block is not None and state.chopping_block.uid == player.uid else ""
             clock = "➡️ " if state.clock == index else ""
             dead = ('💀' if player.had_last_vote else '☠️') if player.dead else ""
             voted = "✋" if player.uid in state.votes and state.votes[player.uid] == "si" else ""
-            board += f"{clock}{nombre} {dead} {voted}\n"
+            board += f"{clock}{nombre} {chop}{dead} {voted}\n"
 
         if state.accuser is not None:
             board += "\nSe puede votar con /vote, eliminar el voto con /clearvote y luego pasar usando /tick"
