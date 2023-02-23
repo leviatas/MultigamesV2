@@ -603,7 +603,9 @@ def command_vote(update: Update, context: CallbackContext):
 	args = context.args
 
 	# if uid == game.storyteller and len(args) > 0:
-		
+	# Si el voto ya estaba no hago nada
+	if uid in game.board.state.votes:
+		return
 	if game.can_modify_vote(uid):
 		# Solo puede votar si esta vivo o si tiene el ultimo voto
 		voter = game.playerlist[uid]
@@ -631,6 +633,10 @@ def command_clearvote(update: Update, context: CallbackContext):
 	cid = update.message.chat_id
 	uid = update.message.from_user.id
 	game = get_game(cid)
+
+	if uid not in game.board.state.votes:
+		return
+
 	if game.can_modify_vote(uid):
 		game.board.state.votes.pop(uid, None)
 		voter = game.playerlist[uid]
