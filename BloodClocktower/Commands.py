@@ -588,7 +588,7 @@ def command_tick(update: Update, context: CallbackContext):
 	uid = update.message.from_user.id
 
 	game = get_game(cid)
-	if uid == game.storyteller or game.get_current_voter().uid == uid:
+	if uid == game.storyteller or (game.get_current_voter() is not None and game.get_current_voter().uid == uid):
 		clock_msg = game.advance_clock()
 		bot.send_message(cid, clock_msg, ParseMode.MARKDOWN)	
 		board_text = game.board.print_board(game)
@@ -683,8 +683,8 @@ def command_fix(update: Update, context: CallbackContext):
 	cid = update.message.chat_id
 	game = get_game(cid)
 	state = game.board.state
-	state.chopping_block = game.find_player("Fran")
-	state.chopping_block_votes = 4
+	ema = game.find_player("Emmanuel")
+	ema.has_last_vote = False
 	bot.send_message(cid, "Fixed")
 	save_game(cid, "Fix", game)
 
