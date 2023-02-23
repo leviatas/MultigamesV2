@@ -684,8 +684,8 @@ def command_fix(update: Update, context: CallbackContext):
 	cid = update.message.chat_id
 	game = get_game(cid)
 	state = game.board.state
-	state.chopping_block = None
-	state.chopping_block_votes = 0
+	state.chopping_block = game.find_player("Fran")
+	state.chopping_block_votes = 4
 	bot.send_message(cid, "Fixed")
 	save_game(cid, "Fix", game)
 
