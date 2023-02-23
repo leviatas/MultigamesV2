@@ -82,7 +82,7 @@ def command_help(update: Update, context: CallbackContext):
 		help_text += i + "\n"
 	bot.send_message(cid, help_text)
 
-def get_game(cid):
+def get_game(cid) -> Game:
 	# Busco el juego actual
 	game = GamesController.games.get(cid, None)	
 	if game:
@@ -499,7 +499,7 @@ def command_nominate(update: Update, context: CallbackContext):
 	data = ' '.join(args).split(";")
 	if len(data) == 2:
 		# Busco el jugador a acusar
-		player_name = data[0]
+		player_name = data[0].strip()
 		defender = game.find_player(player_name)
 		accuser = game.playerlist[uid]
 		if accuser.dead :
@@ -528,13 +528,17 @@ def command_defend(update: Update, context: CallbackContext):
 	args = context.args
 	cid = update.message.chat_id
 	game = get_game(cid)
+	state = game.board.state
 	uid = update.message.from_user.id
-	if len(args) > 0 and game.board.state.defender.uid is uid:
-		defender = game.board.state.defender
-		accuser = game.board.state.accuser
-		game.board.state.defense = " ".join(args)
+	if len(args) > 0:
+		# Si el jugador que defiende no es el defensor...
+		if state.defender.uid != uid:
+			bot.send_message(game.cid, f"El mensaje debe ser enviado por {player_call(state.defender)}")
+		defender = state.defender
+		accuser = state.accuser
+		state.defense = " ".join(args)
 		save_game(cid, "Defensa acusacion", game)
-		bot.send_message(game.cid, f"Entonces {player_call(defender)} mira a los ojos a {player_call(accuser)} y dice a todo el pueblo: {game.board.state.defense}")
+		bot.send_message(game.cid, f"Entonces {player_call(defender)} mira a los ojos a {player_call(accuser)} y dice a todo el pueblo: {state.defense}")
 	else:
 		bot.send_message(game.cid, "Debes ingresar algo para tu defensa")
 
@@ -576,10 +580,13 @@ def command_tick(update: Update, context: CallbackContext):
 
 	game = get_game(cid)
 	if uid == game.storyteller or game.is_current_voter(uid):
-		game.advance_clock()
-		bot.send_message(cid, "The clock goes forward")
+		clock_msg = game.advance_clock()
+		bot.send_message(cid, clock_msg)		
 		board_text = game.board.print_board(game)
-		bot.send_message(cid, board_text, ParseMode.MARKDOWN)
+		if game.board_message_id:			
+			bot.edit_message_text(board_text, cid, game.board_message_id, ParseMode.MARKDOWN)
+		else:
+			game.board_message_id = bot.send_message(cid, board_text, ParseMode.MARKDOWN)
 		save_game(cid, "Cloak Advance", game)
 	else:
 		bot.send_message(cid, "No puedes hacer /tick porque no eres el storyteller ni el jugador que tiene que votar", ParseMode.MARKDOWN)
@@ -631,7 +638,7 @@ def command_fix(update: Update, context: CallbackContext):
 	bot = context.bot
 	cid = update.message.chat_id
 	game = get_game(cid)
-	game.votes ={}
+	game.board_message_id = None
 	bot.send_message(cid, "Fixed")
 	save_game(cid, "Fix", game)
 

@@ -13,6 +13,7 @@ class Game(BaseGame):
 		BaseGame.__init__(self, cid, initiator, groupName, None, None)		
 		self.using_timer = False
 		self.storyteller = None
+		self.board_message_id = None
 	
 	def clear_nomination(self):
 		state = self.board.state
@@ -51,9 +52,15 @@ class Game(BaseGame):
 		state = self.board.state
 		state.can_nominate = not state.can_nominate
 	
-	def advance_clock(self):
+	def advance_clock(self) -> str:
 		state = self.board.state
 		state.clock += 1
+		# Si estoy haciendo tick desde el ultimo jugador (que es normalmente el defensor)
+		# Aviso al ST que debe decidir que pasa
+		if state.clock == len(self.player_sequence):
+			return f"The clock rings the time has ended!\nStory Teller:\nUse /clear to clear nomination"
+		else:
+			return "The clock goes forward"
 									
 	def count_alive(self):
 		return sum(not p.dead for p in self.player_sequence)
