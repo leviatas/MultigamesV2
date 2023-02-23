@@ -101,6 +101,8 @@ def main():
     dp.add_handler(CommandHandler("tick", Commands.command_tick))
     dp.add_handler(CommandHandler("vote", Commands.command_vote))
     dp.add_handler(CommandHandler("clearvote", Commands.command_clearvote))
+    dp.add_handler(CommandHandler("chopping", Commands.command_chopping))
+
     dp.add_error_handler(error)
 
     updater.bot.send_message(ADMIN[0], "Nueva version en linea")

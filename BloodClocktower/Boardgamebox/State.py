@@ -13,3 +13,5 @@ class State(BaseState):
         self.defense = None # Defenss del acusado
         self.votes = {}
         self.clock = 0 # Marca que jugador debe votar
+        self.chopping_block_votes = 0
+        self.chopping_block = None
