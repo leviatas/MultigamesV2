@@ -587,7 +587,7 @@ def command_tick(update: Update, context: CallbackContext):
 		bot.send_message(cid, clock_msg)		
 		board_text = game.board.print_board(game)
 		if game.board_message_id:			
-			bot.edit_message_text(board_text, cid, game.board_message_id, ParseMode.MARKDOWN)
+			bot.edit_message_text(board_text, cid, game.board_message_id, parse_mode=ParseMode.MARKDOWN)
 		else:
 			game.board_message_id = bot.send_message(cid, board_text, ParseMode.MARKDOWN)
 		save_game(cid, "Cloak Advance", game)
@@ -615,7 +615,7 @@ def command_vote(update: Update, context: CallbackContext):
 			save_game(cid, "Vote", game)
 			board_text = game.board.print_board(game)
 			if game.board_message_id:			
-				bot.edit_message_text(board_text, cid, game.board_message_id, ParseMode.MARKDOWN)
+				bot.edit_message_text(board_text, cid, game.board_message_id, parse_mode=ParseMode.MARKDOWN)
 			else:
 				game.board_message_id = bot.send_message(cid, board_text, ParseMode.MARKDOWN)
 
@@ -640,7 +640,7 @@ def command_clearvote(update: Update, context: CallbackContext):
 		save_game(cid, "Clear Vote", game)
 		board_text = game.board.print_board(game)
 		if game.board_message_id:			
-			bot.edit_message_text(board_text, cid, game.board_message_id, ParseMode.MARKDOWN)
+			bot.edit_message_text(board_text, cid, game.board_message_id, parse_mode=ParseMode.MARKDOWN)
 		else:
 			game.board_message_id = bot.send_message(cid, board_text, ParseMode.MARKDOWN)
 		bot.send_message(cid, "Has eliminado tu voto, puedes pasar al proximo jugador con /tick o votar con /vote", ParseMode.MARKDOWN)
