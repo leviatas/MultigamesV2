@@ -631,8 +631,7 @@ def command_fix(update: Update, context: CallbackContext):
 	bot = context.bot
 	cid = update.message.chat_id
 	game = get_game(cid)
-	state = game.board.state
-	state.clock = -1
+	game.votes ={}
 	bot.send_message(cid, "Fixed")
 	save_game(cid, "Fix", game)
 
