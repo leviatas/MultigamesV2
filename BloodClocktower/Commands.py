@@ -152,6 +152,7 @@ def command_board(update: Update, context: CallbackContext):
 		board_text = game.board.print_board(game)
 		board_message = bot.send_message(cid, board_text, ParseMode.MARKDOWN)
 		game.board_message_id = board_message.message_id
+		save_game(cid, "Game in join state", game)
 	else:
 		bot.send_message(cid, "No ha comenzado el juego todavia, para comenzar pone /startgame")
 
