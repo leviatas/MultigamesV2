@@ -13,6 +13,7 @@ class Game(BaseGame):
 		BaseGame.__init__(self, cid, initiator, groupName, None, None)		
 		self.using_timer = False
 		self.storyteller = None
+		self.board_message_id = None
 	
 	def clear_nomination(self):
 		state = self.board.state
@@ -23,16 +24,16 @@ class Game(BaseGame):
 		state.votes = {}
 		state.clock = -1
 	
-	def is_current_voter(self, uid):
+	def get_current_voter(self):
 		state = self.board.state
 		# Si no se esta votando devolver vacio
 		# Si el clock no comenzo tampoco hay current voter
 		if state.accuser is None or state.clock == -1:
-			return False
+			return None
 		# Obtengo la lista con el defensor al final
 		lista = self.board.starting_with(self.player_sequence, state.defender)
 		# Valido
-		return uid == list(lista)[state.clock].uid
+		return list(lista)[state.clock]
 
 	def can_modify_vote(self, uid):
 		state = self.board.state
@@ -51,9 +52,19 @@ class Game(BaseGame):
 		state = self.board.state
 		state.can_nominate = not state.can_nominate
 	
-	def advance_clock(self):
+	def player_call(self, player):
+		return "[{0}](tg://user?id={1})".format(player.name, player.uid)
+
+	def advance_clock(self) -> str:
 		state = self.board.state
 		state.clock += 1
+		# Si estoy haciendo tick desde el ultimo jugador (que es normalmente el defensor)
+		# Aviso al ST que debe decidir que pasa
+		if state.clock == len(self.player_sequence):
+			return f"The clock rings the time has ended!\nStory Teller {self.player_call(self.storyteller)}: Usa /clear para limpiar la nominación"
+		else:
+			current_voter = self.get_current_voter()
+			return f"The clock goes forward {self.player_call(current_voter)} te toca!"
 									
 	def count_alive(self):
 		return sum(not p.dead for p in self.player_sequence)
