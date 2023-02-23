@@ -589,7 +589,7 @@ def command_tick(update: Update, context: CallbackContext):
 	game = get_game(cid)
 	if uid == game.storyteller or game.get_current_voter().uid == uid:
 		clock_msg = game.advance_clock()
-		bot.send_message(cid, clock_msg)		
+		bot.send_message(cid, clock_msg, ParseMode.MARKDOWN)	
 		board_text = game.board.print_board(game)
 		if game.board_message_id:
 			bot.edit_message_text(board_text, cid, game.board_message_id, parse_mode=ParseMode.MARKDOWN)
