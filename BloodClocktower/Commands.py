@@ -587,11 +587,11 @@ def command_tick(update: Update, context: CallbackContext):
 	uid = update.message.from_user.id
 
 	game = get_game(cid)
-	if uid == game.storyteller or game.is_current_voter(uid):
+	if uid == game.storyteller or game.get_current_voter().uid == uid:
 		clock_msg = game.advance_clock()
 		bot.send_message(cid, clock_msg)		
 		board_text = game.board.print_board(game)
-		if game.board_message_id:			
+		if game.board_message_id:
 			bot.edit_message_text(board_text, cid, game.board_message_id, parse_mode=ParseMode.MARKDOWN)
 		else:
 			game.board_message_id = bot.send_message(cid, board_text, ParseMode.MARKDOWN)
@@ -625,7 +625,7 @@ def command_vote(update: Update, context: CallbackContext):
 				bot.edit_message_text(board_text, cid, game.board_message_id, parse_mode=ParseMode.MARKDOWN)
 			else:
 				game.board_message_id = bot.send_message(cid, board_text, ParseMode.MARKDOWN)
-			if game.is_current_voter(uid):
+			if game.get_current_voter() == uid:
 				bot.send_message(cid, "Has votado, puedes pasar al proximo jugador con /tick", ParseMode.MARKDOWN)
 		else:
 			bot.send_message(cid, "No puedes votar ya que estas muerto y has gastado tu voto haz /tick", ParseMode.MARKDOWN)
@@ -654,7 +654,7 @@ def command_clearvote(update: Update, context: CallbackContext):
 			bot.edit_message_text(board_text, cid, game.board_message_id, parse_mode=ParseMode.MARKDOWN)
 		else:
 			game.board_message_id = bot.send_message(cid, board_text, ParseMode.MARKDOWN)
-		if game.is_current_voter(uid):
+		if game.get_current_voter() == uid:
 			bot.send_message(cid, "Has eliminado tu voto, puedes pasar al proximo jugador con /tick o votar con /vote", ParseMode.MARKDOWN)
 	else:
 		bot.send_message(cid, "*No puedes modificar tu voto porque ha pasado tu turno*", ParseMode.MARKDOWN)
