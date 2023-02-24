@@ -631,6 +631,19 @@ def command_vote(update: Update, context: CallbackContext):
 	else:
 		bot.send_message(cid, "No puedes modificar tu voto porque ha pasado tu turno", ParseMode.MARKDOWN)
 
+
+@player
+def command_refresh(update: Update, context: CallbackContext):
+	bot = context.bot
+	cid = update.message.chat_id
+	uid = update.message.from_user.id
+	game = get_game(cid)
+	player = game.playerlist[uid]
+	player.name = update.message.from_user.first_name.replace("_", " ")
+	player.nick = update.message.from_user.username
+	bot.send_message(cid, "No puedes modificar tu voto porque ha pasado tu turno", ParseMode.MARKDOWN)
+
+
 @player
 def command_clearvote(update: Update, context: CallbackContext):
 	bot = context.bot
@@ -682,8 +695,9 @@ def command_fix(update: Update, context: CallbackContext):
 	cid = update.message.chat_id
 	game = get_game(cid)
 	state = game.board.state
-	
-	state.can_nominate = False
+
+	for player in game.playerlist.values():
+		player.nick = ""
 
 	bot.send_message(cid, "Fixed")
 	save_game(cid, "Fix", game)
