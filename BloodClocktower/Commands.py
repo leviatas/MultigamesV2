@@ -652,7 +652,7 @@ def command_info(update: Update, context: CallbackContext):
 	player = game.find_player_by_id(uid)
 	
 	if player is not None:
-		bot.send_message(cid, f"""*Datos del jugador:*
+		bot.send_message(uid, f"""*Datos del jugador:*
 Nombre: {player.name}
 Nick: {player.nick}
 Rol: {player.role}
