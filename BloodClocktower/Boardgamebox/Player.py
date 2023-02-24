@@ -15,6 +15,7 @@ class Player(BasePlayer):
         self.has_last_vote = True # Indica si el jugador muerto todavia puede votar
         self.nick = "" # Nick del usuario (El @leviatas por ej)
         self.role_description = "" # Descripcion del rol
+        self.whispering = "" # Con quien esta hablando el jugador actualmente
 
     def get_private_info(self, game):
         board = "--- Info del Jugador {} en la partida *{}*---\n".format(self.name, game.groupName) 

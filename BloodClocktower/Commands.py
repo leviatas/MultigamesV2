@@ -717,8 +717,7 @@ def command_fix(update: Update, context: CallbackContext):
 	state = game.board.state
 
 	for player in game.playerlist.values():
-		player.nick = ""
-		player.role_description = ""
+		player.whispering = ""
 
 	bot.send_message(cid, "Fixed")
 	save_game(cid, "Fix", game)
