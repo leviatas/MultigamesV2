@@ -32,6 +32,7 @@ class Game(BaseGame):
 		# Limpio el chopping block
 		state.chopping_block_votes = 0
 		state.chopping_block = None
+		state.can_nominate = False
 
 	def set_day(self):
 		state = self.board.state

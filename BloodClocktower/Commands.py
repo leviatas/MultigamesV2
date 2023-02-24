@@ -543,6 +543,8 @@ def command_defend(update: Update, context: CallbackContext):
 		defender = state.defender
 		accuser = state.accuser
 		state.defense = " ".join(args)
+		# Se da posibilidad que vote el primero
+		state.clock = 0
 		save_game(cid, "Defensa acusacion", game)
 		bot.send_message(game.cid, f"Entonces {player_call(defender)} mira a los ojos a {player_call(accuser)} y dice a todo el pueblo: {state.defense}", ParseMode.MARKDOWN)
 	else:
@@ -680,8 +682,9 @@ def command_fix(update: Update, context: CallbackContext):
 	cid = update.message.chat_id
 	game = get_game(cid)
 	state = game.board.state
-	state.chopping_block_votes = 0
-	state.chopping_block = None
+	
+	state.can_nominate = False
+
 	bot.send_message(cid, "Fixed")
 	save_game(cid, "Fix", game)
 
