@@ -641,8 +641,7 @@ def command_refresh(update: Update, context: CallbackContext):
 	player = game.playerlist[uid]
 	player.name = update.message.from_user.first_name.replace("_", " ")
 	player.nick = update.message.from_user.username
-	bot.send_message(cid, "No puedes modificar tu voto porque ha pasado tu turno", ParseMode.MARKDOWN)
-
+	bot.send_message(cid, "Se ha modificado exitosamente al jugador", ParseMode.MARKDOWN)
 
 @player
 def command_clearvote(update: Update, context: CallbackContext):
