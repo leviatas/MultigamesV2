@@ -15,6 +15,16 @@ class Game(BaseGame):
 		self.storyteller = None
 		self.board_message_id = None
 	
+	def find_player(self, name):
+		for uid in self.playerlist:
+			player = self.find_player_by_id(uid)
+			if player.name == name or player.nick == name.replace("@",""):
+				return player
+		for player in self.player_sequence:
+			if player.name == name:
+				return player
+		return None
+
 	def find_player_by_id(self, uid) -> Player:
 		return self.playerlist[uid]
 
