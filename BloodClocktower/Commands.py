@@ -473,10 +473,10 @@ def command_whisper(update: Update, context: CallbackContext):
 		# Si el jugador no esta haciendo whispering con nadie asigno whisper a él
 		requester.whispering = player.name
 		player.whispering = requester.name
-		whisper_message = f"Se ha creado el whisper entre {requester.whispering} y {player.whispering}.\n Para terminarlo hacer /endwhisper"
+		whisper_message = f"Se ha creado el whisper entre {requester.whispering} y {player.whispering}."
 		game.history.append(whisper_message)
 		save_game(cid, "Claim", game)
-		bot.send_message(game.cid, whisper_message)
+		bot.send_message(game.cid, f"{whisper_message}\nPara terminarlo hacer /endwhisper")
 
 @player
 def command_endwhisper(update: Update, context: CallbackContext):
