@@ -644,6 +644,23 @@ def command_refresh(update: Update, context: CallbackContext):
 	bot.send_message(cid, "Se ha modificado exitosamente al jugador", ParseMode.MARKDOWN)
 
 @player
+def command_info(update: Update, context: CallbackContext):
+	bot = context.bot
+	cid = update.message.chat_id
+	uid = update.message.from_user.id
+	game = get_game(cid)
+	player = game.find_player_by_id(uid)
+	
+	if player is not None:
+		bot.send_message(cid, f"""*Datos del jugador:*
+Nombre: {player.name}
+Nick: {player.nick}
+Rol: {player.role}
+Descripción del rol: {player.role_description}
+Afiliation : {player.afiliation}
+Tipo de personaje: {player.townfolk_Outsider_Minion_Demon}""", ParseMode.MARKDOWN)
+
+@player
 def command_clearvote(update: Update, context: CallbackContext):
 	bot = context.bot
 	cid = update.message.chat_id
@@ -697,6 +714,7 @@ def command_fix(update: Update, context: CallbackContext):
 
 	for player in game.playerlist.values():
 		player.nick = ""
+		player.role_description = ""
 
 	bot.send_message(cid, "Fixed")
 	save_game(cid, "Fix", game)

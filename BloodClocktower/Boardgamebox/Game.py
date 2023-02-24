@@ -15,6 +15,9 @@ class Game(BaseGame):
 		self.storyteller = None
 		self.board_message_id = None
 	
+	def find_player_by_id(self, uid) -> Player:
+		return self.playerlist[uid]
+
 	def clear_nomination(self):
 		state = self.board.state
 		state.accuser = None # Jugador que acuso

@@ -102,7 +102,9 @@ def main():
     dp.add_handler(CommandHandler("vote", Commands.command_vote))
     dp.add_handler(CommandHandler("clearvote", Commands.command_clearvote))
     dp.add_handler(CommandHandler("chopping", Commands.command_chopping))
+    
     dp.add_handler(CommandHandler("refresh", Commands.command_refresh))
+    dp.add_handler(CommandHandler("info", Commands.command_info))
 
     dp.add_error_handler(error)
 
