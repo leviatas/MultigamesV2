@@ -645,6 +645,7 @@ def command_refresh(update: Update, context: CallbackContext):
 	player = game.playerlist[uid]
 	player.name = update.message.from_user.first_name.replace("_", " ")
 	player.nick = update.message.from_user.username
+	save_game(cid, "Refresh Player Info", game)
 	bot.send_message(cid, "Se ha modificado exitosamente al jugador", ParseMode.MARKDOWN)
 
 @player
