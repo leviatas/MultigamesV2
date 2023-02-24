@@ -24,6 +24,20 @@ class Game(BaseGame):
 		state.votes = {}
 		state.clock = -1
 	
+	def set_night(self):
+		state = self.board.state
+		state.phase = "Noche"
+		state.day += 1
+		self.history.append(f"*Noche {state.day}*")
+		# Limpio el chopping block
+		state.chopping_block_votes = 0
+		state.chopping_block = None
+
+	def set_day(self):
+		state = self.board.state
+		state.phase = "Día"
+		self.history.append(f"*Día {state.day}*")
+
 	def get_current_voter(self):
 		state = self.board.state
 		# Si no se esta votando devolver vacio
@@ -61,7 +75,8 @@ class Game(BaseGame):
 		# Si estoy haciendo tick desde el ultimo jugador (que es normalmente el defensor)
 		# Aviso al ST que debe decidir que pasa
 		if state.clock == len(self.player_sequence):
-			return f"The clock rings the time has ended!\nStory Teller {self.player_call(self.storyteller)}: Usa /clear para limpiar la nominación"
+			storyteller = Player("Storyteller", self.storyteller)
+			return f"The clock rings the time has ended!\n{self.player_call(storyteller)}: Usa /chopping para mandarlo al chopping block si lo merece, luego Usa /clear para limpiar la nominación"
 		else:
 			current_voter = self.get_current_voter()
 			return f"The clock goes forward {self.player_call(current_voter)} te toca!"

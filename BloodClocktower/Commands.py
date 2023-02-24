@@ -298,7 +298,7 @@ def command_delete(update: Update, context: CallbackContext):
 @storyteller
 def command_firstnight(update: Update, context: CallbackContext):
 	bot = context.bot	
-	uid = update.message.from_user.id
+	# uid = update.message.from_user.id
 	cid = update.message.chat_id
 	game = get_game(cid)
 	bot.send_message(game.cid, f"Comienza la primera noche, todos... cierren los ojos...")
@@ -308,9 +308,8 @@ def command_day(update: Update, context: CallbackContext):
 	bot = context.bot	
 	cid = update.message.chat_id
 	game = get_game(cid)
-	game.board.state.phase = "Día"
+	game.set_day()
 	bot.send_message(game.cid, "Todos, abran los ojos...")
-	game.history.append(f"*Día {game.board.state.day}*")
 	save_game(cid, "Day", game)
 	if game.board.state.day is 1:
 		bot.send_message(game.cid, """En el recondito pueblo de ravenswood bluff los aldeanos se despiertan por un grito ahogado en el centro del pueblo, al llegar encuentran a su querido storyteller empelado en una de las manecillas del reloj.
@@ -323,9 +322,7 @@ def command_night(update: Update, context: CallbackContext):
 	bot = context.bot	
 	cid = update.message.chat_id
 	game = get_game(cid)
-	game.board.state.phase = "Noche"
-	game.board.state.day += 1
-	game.history.append(f"*Noche {game.board.state.day}*")
+	game.set_night()	
 	bot.send_message(game.cid, "Todos, cierren los ojos...")
 	save_game(cid, "Night", game)
 
@@ -683,8 +680,8 @@ def command_fix(update: Update, context: CallbackContext):
 	cid = update.message.chat_id
 	game = get_game(cid)
 	state = game.board.state
-	ema = game.find_player("Emmanuel")
-	ema.has_last_vote = False
+	state.chopping_block_votes = 0
+	state.chopping_block = None
 	bot.send_message(cid, "Fixed")
 	save_game(cid, "Fix", game)
 

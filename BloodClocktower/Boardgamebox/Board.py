@@ -80,7 +80,7 @@ class Board(BaseBoard):
             board += f"{clock}{nombre} {chop}{dead} {voted}\n"
 
         if state.accuser is not None:
-            board += "\nSe puede votar con /vote, eliminar el voto con /clearvote y luego pasar usando /tick"
+            board += "\n/vote - votar ✋\n/clearvote - eliminar el voto\n/tick - pasar el turno al siguiente jugador"
 
         return board
         
