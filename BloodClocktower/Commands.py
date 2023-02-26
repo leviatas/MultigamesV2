@@ -766,7 +766,7 @@ def command_notes(update: Update, context: CallbackContext):
 		if len(args) > 0:
 			notes = ' '.join(args)
 			first.add_note(uid, notes)
-			save_game(cid, "Chopping block", game)
+			save_game(first.cid, "Chopping block", first)
 			bot.send_message(cid, f"{notes} fue agregada a la partida {first.groupName}", ParseMode.MARKDOWN)
 		else:
 			# Show notes
