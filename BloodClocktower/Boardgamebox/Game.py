@@ -16,6 +16,10 @@ class Game(BaseGame):
 		self.board_message_id = None
 		self.tipo = "blood"
 	
+	def add_note(self, uid, notas):
+		player = self.find_player_by_id(uid)
+		player.notes.append(notas)
+
 	def find_player(self, name):
 		for uid in self.playerlist:
 			player = self.find_player_by_id(uid)

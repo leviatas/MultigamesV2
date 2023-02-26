@@ -87,7 +87,7 @@ def main():
     #Comandos utiles para jugadores
     dp.add_handler(CommandHandler("players", Commands.command_players))
     dp.add_handler(CommandHandler("leave", Commands.command_leave))
-    dp.add_handler(CommandHandler("history", Commands.command_showhistory))
+    dp.add_handler(CommandHandler("history", Commands.command_history))
     dp.add_handler(CommandHandler("claim", Commands.command_claim))
     dp.add_handler(CommandHandler("whisper", Commands.command_whisper))
     dp.add_handler(CommandHandler("endwhisper", Commands.command_endwhisper))
@@ -105,6 +105,9 @@ def main():
     
     dp.add_handler(CommandHandler("refresh", Commands.command_refresh))
     dp.add_handler(CommandHandler("info", Commands.command_info))
+    dp.add_handler(CommandHandler("notes", Commands.command_notes))
+
+    dp.add_handler(CallbackQueryHandler(pattern=r"(-[0-9]*)\*choosegameblood\*(.*)\*([0-9]*)", callback=Commands.callback_choose_game_blood))
 
     dp.add_error_handler(error)
 

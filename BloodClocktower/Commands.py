@@ -14,6 +14,8 @@ from BloodClocktower.Boardgamebox.Game import Game
 from BloodClocktower.Boardgamebox.Player import Player
 from Constants.Config import ADMIN
 from Utils import restricted, player_call
+from typing import List
+import re
 
 log.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -96,6 +98,30 @@ def get_game(cid) -> Game:
 			return game
 		else:
 			None
+
+
+
+def load_and_get_games() -> List[Game]:
+	games = []
+
+	conn = psycopg2.connect(
+		database=url.path[1:],
+		user=url.username,
+		password=url.password,
+		host=url.hostname,
+		port=url.port
+	)
+	cursor = conn.cursor()
+	query = "SELECT * FROM games_blood"
+
+	cursor.execute(query)
+	if cursor.rowcount > 0:
+		# Si encuentro juegos los busco a todos y los cargo en memoria
+		for table in cursor.fetchall():
+			if table[0] not in GamesController.games.keys():
+				get_game(table[0])
+	conn.close()
+	return list(GamesController.games.values())
 
 def load_game(cid):
 	conn = psycopg2.connect(
@@ -411,7 +437,7 @@ def command_claim(update: Update, context: CallbackContext):
 		bot.send_message(cid, str(e))
 		log.error("Unknown error: " + str(e))  
 
-def command_showhistory(update: Update, context: CallbackContext):
+def command_history(update: Update, context: CallbackContext):
 	bot = context.bot
 	#game.pedrote = 3
 	try:
@@ -708,7 +734,80 @@ def command_chopping(update: Update, context: CallbackContext):
 	else:
 		bot.send_message(cid, "No hay acusado para mandar al chopping block")
 	# pone al defender actuan en el chopping block
+
+def print_notes(game, uid, bot):
+	history_text = "Notas partida en *{}*:\n\n".format(game.groupName)
+	history_textContinue = "" 
+	for x in game.playerlist[uid].notes:
+		if len(history_text) < 3500:
+			history_text += x + "\n\n"
+		else:
+			history_textContinue += x + "\n\n"
+
+	bot.send_message(uid, history_text, ParseMode.MARKDOWN)
+	if len(history_textContinue) > 0:
+		bot.send_message(uid, history_textContinue, ParseMode.MARKDOWN)
+
+def command_notes(update: Update, context: CallbackContext):
+	bot = context.bot
+	cid = update.message.chat_id
+	uid = update.message.from_user.id
+	args = context.args
+
+	games = load_and_get_games()
+	games_with_the_player = [game for game in games if uid in game.playerlist and game.board != None]
+
+	if len(games_with_the_player) == 0:
+		bot.send_message(cid, "*No estas en ningun juego de Blood*", ParseMode.MARKDOWN)
+	elif len(games_with_the_player) == 1:
+		# Si solo esta en un solo juego hago la accion directa
+		# Si es agregar entonces agrego la nota
+		if len(args) > 0:
+			games_with_the_player[0].add_note(uid, ' '.join(args))
+		else:
+			# Show notes
+			print_notes(games_with_the_player[0], uid, bot)
+	else:
+		btns = []
+		for game in games_with_the_player:
+			notes = ' '.join(args)
+			cid = game.cid
+			# Creo el boton el cual eligirá el jugador
+			txtBoton = game.groupName
+			comando_callback = "choosegameblood"
+			context.user_data[uid] = notes
+			datos = str(cid) + "*" + comando_callback + str(uid)
+			btns.append([InlineKeyboardButton(txtBoton, callback_data=datos)])
+		# Agrego boton de cancel
+		txtBoton = "Cancel"
+		datos = "-1*choosegameblood" + str(uid)
+		btns.append([InlineKeyboardButton(txtBoton, callback_data=datos)])
+		btnMarkup = InlineKeyboardMarkup(btns)
+		bot.send_message(uid, "En cual de estos grupos quieres hacer la acción?", reply_markup=btnMarkup)
+
+def callback_choose_game_blood(update: Update, context: CallbackContext):
+	bot = context.bot
+	callback = update.callback_query
+	log.info('callback_choose_game_blood called: %s' % callback.data)	
+	regex = re.search(r"(-[0-9]*)\*choosegameblood\*(.*)\*([0-9]*)", callback.data)
+	cid, uid = int(regex.group(1)), int(regex.group(3)),
 	
+	if cid == -1:
+		bot.edit_message_text("Cancelado", uid, callback.message.message_id)
+		return
+	
+	game = get_game(cid)
+	mensaje_edit = "Has elegido el grupo {0}".format(game.groupName)
+	
+	notas = context.user_data[uid]
+
+	bot.edit_message_text(mensaje_edit, uid, callback.message.message_id)
+	
+	if len(notas) > 0 :
+		game.add_note(uid, notas)
+	else:
+		print_notes(game, uid, bot)
+
 
 @restricted
 def command_fix(update: Update, context: CallbackContext):
