@@ -75,9 +75,10 @@ class Board(BaseBoard):
 
             chop = f"🪓 {state.chopping_block_votes}" if state.chopping_block is not None and state.chopping_block.uid == player.uid else ""
             clock = "➡️ " if state.clock == index else ""
+            accuser = "🫵" if player.uid == state.defender.uid else "" 
             dead = ('💀' if player.has_last_vote else '☠️') if player.dead else ""
             voted = "✋" if player.uid in state.votes and state.votes[player.uid] == "si" else ""
-            board += f"{clock}{nombre} {chop}{dead} {voted}\n"
+            board += f"{clock}{nombre} {chop}{dead}{accuser} {voted}\n"
 
         if state.accuser is not None:
             board += "\n/vote - votar ✋\n/clearvote - eliminar el voto\n/tick - pasar el turno al siguiente jugador"
