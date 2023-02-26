@@ -10,6 +10,7 @@ from BloodClocktower.Constants import playerSets
 
 import math
 
+
 # import logging as log
 
 # log.basicConfig(
