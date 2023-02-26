@@ -762,15 +762,15 @@ def command_notes(update: Update, context: CallbackContext):
 	elif len(games_with_the_player) == 1:
 		# Si solo esta en un solo juego hago la accion directa
 		# Si es agregar entonces agrego la nota
-		first_game = games_with_the_player[0]
+		game = games_with_the_player[0]
 		if len(args) > 0:
 			notes = ' '.join(args)
-			first_game.add_note(uid, notes)
-			save_game(cid, "Chopping block", first_game)
-			bot.send_message(cid, f"{notes} fue agregada a la partida {first_game.groupName}", ParseMode.MARKDOWN)
+			game.add_note(uid, notes)
+			save_game(cid, "Chopping block", game)
+			bot.send_message(cid, f"{notes} fue agregada a la partida {game.groupName}", ParseMode.MARKDOWN)
 		else:
 			# Show notes
-			print_notes(first_game, uid, bot)
+			print_notes(game, uid, bot)
 	else:
 		btns = []
 		for game in games_with_the_player:
