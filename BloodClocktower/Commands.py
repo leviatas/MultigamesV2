@@ -766,7 +766,7 @@ def command_notes(update: Update, context: CallbackContext):
 		if len(args) > 0:
 			notes = ' '.join(args)
 			first.add_note(uid, notes)
-			save_game(first.cid, "Chopping block", first)
+			save_game(first.cid, "Notes", first)
 			bot.send_message(cid, f"{notes} fue agregada a la partida {first.groupName}", ParseMode.MARKDOWN)
 		else:
 			# Show notes
@@ -809,7 +809,7 @@ def callback_choose_game_blood(update: Update, context: CallbackContext):
 	
 	if len(notas) > 0 :
 		game.add_note(uid, notas)
-		save_game(cid, "Chopping block", game)
+		save_game(cid, "Notes", game)
 	else:
 		print_notes(game, uid, bot)
 
