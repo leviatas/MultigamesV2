@@ -18,6 +18,7 @@ log.basicConfig(
     level=log.INFO)
 logger = log.getLogger(__name__)
 
+
 def error(update, context):
     # add all the dev user_ids in this list. You can also add ids of channels or groups.
     devs = [ADMIN[0]]
