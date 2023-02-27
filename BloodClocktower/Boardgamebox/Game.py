@@ -5,6 +5,7 @@ from random import shuffle, randint
 from Boardgamebox.Game import Game as BaseGame
 from BloodClocktower.Boardgamebox.Player import Player
 from BloodClocktower.Boardgamebox.Board import Board
+from BloodClocktower.Boardgamebox.State import State
 #from Boardgamebox.Board import Board
 #from Boardgamebox.State import State
 
@@ -16,6 +17,9 @@ class Game(BaseGame):
 		self.board_message_id = None
 		self.tipo = "blood"
 	
+	def get_state(self)-> State:
+		return self.board.state
+		
 	def add_note(self, uid, notas):
 		player = self.find_player_by_id(uid)
 		player.notes.append(notas)

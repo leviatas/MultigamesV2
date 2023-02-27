@@ -1,7 +1,7 @@
 # Base Board
 from Boardgamebox.Board import Board as BaseBoard
 from BloodClocktower.Boardgamebox.State import State
-
+from BloodClocktower.Boardgamebox.Game import Game
 import random
 from BloodClocktower.Boardgamebox.State import State
 from telegram import ParseMode
@@ -39,13 +39,13 @@ class Board(BaseBoard):
     def player_call(self, player):
         return "[{0}](tg://user?id={1})".format(player.name, player.uid)
 
-    def print_board(self, game):
+    def print_board(self, game: Game):
         roles = list(playerSets[self.num_players]["roles"])
         townfolk = roles.count("Townfolk")
         outsiders = roles.count("Outsiders")
         minions = roles.count("Minions")
         demons = roles.count("Demons")
-        state = game.board.state
+        state = game.get_state()
 
         if game.storyteller is None:
             return "¡¡El juego no tiene Storyteller todvia!! Conviertete en él poniendo /storyteller"
@@ -80,7 +80,9 @@ class Board(BaseBoard):
             dead = ('💀' if player.has_last_vote else '☠️') if player.dead else ""
             voted = "✋" if player.uid in state.votes and state.votes[player.uid] == "si" else ""
             board += f"{clock}{nombre} {chop}{dead}{accuser} {voted}\n"
-
+        
+        if state.can_nominate and state.accuser is not None:
+            board += "\n*Las nominaciones están abiertas*"
         if state.accuser is not None:
             board += "\n/vote - votar ✋\n/clearvote - eliminar el voto\n/tick - pasar el turno al siguiente jugador"
 
