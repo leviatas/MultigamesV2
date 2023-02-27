@@ -16,10 +16,7 @@ class Game(BaseGame):
 		self.storyteller = None
 		self.board_message_id = None
 		self.tipo = "blood"
-	
-	def get_state(self)-> State:
-		return self.board.state
-		
+
 	def add_note(self, uid, notas):
 		player = self.find_player_by_id(uid)
 		player.notes.append(notas)

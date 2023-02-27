@@ -1,11 +1,6 @@
 # Base Board
 from Boardgamebox.Board import Board as BaseBoard
 from BloodClocktower.Boardgamebox.State import State
-from BloodClocktower.Boardgamebox.Game import Game
-import random
-from BloodClocktower.Boardgamebox.State import State
-from telegram import ParseMode
-
 from BloodClocktower.Constants import playerSets
 
 import math
@@ -39,13 +34,13 @@ class Board(BaseBoard):
     def player_call(self, player):
         return "[{0}](tg://user?id={1})".format(player.name, player.uid)
 
-    def print_board(self, game: Game):
+    def print_board(self, game):
         roles = list(playerSets[self.num_players]["roles"])
         townfolk = roles.count("Townfolk")
         outsiders = roles.count("Outsiders")
         minions = roles.count("Minions")
         demons = roles.count("Demons")
-        state = game.get_state()
+        state = game.board.state
 
         if game.storyteller is None:
             return "¡¡El juego no tiene Storyteller todvia!! Conviertete en él poniendo /storyteller"
