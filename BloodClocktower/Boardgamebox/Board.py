@@ -59,7 +59,7 @@ class Board(BaseBoard):
 
         if state.accuser is not None:
             positivos = list(state.votes.values()).count("si")
-            necesarios = max(math.ceil(vivos/2), self.chopping_block_votes)
+            necesarios = max(math.ceil(vivos/2), state.chopping_block_votes)
             board += f"*{state.accuser.name}* nominó a *{state.defender.name}* ({positivos}/{necesarios} votos necesarios para llevarlo al chopping block)\n\n"
             board += f"*Acusación*: {state.accusation}\n\n"
             board += f"*Defensa*: {state.defense}\n\n"
