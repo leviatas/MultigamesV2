@@ -827,7 +827,7 @@ def command_call(update: Update, context: CallbackContext):
 	uid = update.message.from_user.id
 	game = get_game(cid)
 	state = game.board.state
-	message = ""
+	message = "Sin call actual"
 	if state.can_nominate and state.accuser is None:
 		message = game.get_possible_nominators_message()
 	elif state.accuser is not None and state.defense is not None:
