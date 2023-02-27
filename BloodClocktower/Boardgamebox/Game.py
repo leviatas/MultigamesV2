@@ -58,7 +58,7 @@ class Game(BaseGame):
 		state.phase = "Día"
 		self.history.append(f"*Día {state.day}*")
 
-	def get_current_voter(self):
+	def get_current_voter(self) -> Player:
 		state = self.board.state
 		# Si no se esta votando devolver vacio
 		# Si el clock no comenzo tampoco hay current voter
@@ -89,7 +89,7 @@ class Game(BaseGame):
 	def player_call(self, player):
 		return "[{0}](tg://user?id={1})".format(player.name, player.uid)
 
-	def advance_clock(self) -> str:
+	def advance_clock(self, message) -> str:
 		state = self.board.state
 		state.clock += 1
 		# Si estoy haciendo tick desde el ultimo jugador (que es normalmente el defensor)
@@ -99,7 +99,13 @@ class Game(BaseGame):
 			return f"The clock rings the time has ended!\n{self.player_call(storyteller)}: Usa /chopping para mandarlo al chopping block si lo merece, luego Usa /clear para limpiar la nominación"
 		else:
 			current_voter = self.get_current_voter()
-			return f"The clock goes forward {self.player_call(current_voter)} te toca!"
+			# Si el jugador actual esta muerto paso al siguiente
+			if current_voter.dead and not current_voter.has_last_vote:
+				message_voter_without_votes = f"The clock goes forward, skipping {current_voter.name} because is dead and used his last vote!\n"
+				message += f"{message_voter_without_votes}"
+				return self.advance_clock(message)
+			else:
+				return f"The clock goes forward {self.player_call(current_voter)} te toca!"
 									
 	def count_alive(self):
 		return sum(not p.dead for p in self.player_sequence)

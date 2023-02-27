@@ -28,17 +28,16 @@ url = urllib.parse.urlparse(os.environ["DATABASE_URL"])
 
 commands = [  # command description used in the "help" command
     '/help - Te da informacion de los comandos disponibles',
-    '/start - Da un poco de información sobre Secret Hitler',
-    '/symbols - Te muestra todos los símbolos posibles en el tablero',
-    '/rules - Te da un link al sitio oficial con las reglas de Secret Hitler',
+    '/start - Da un poco de información sobre Blood on the Clocktower',
+    '/rules - Te da un link al sitio oficial con las reglas de Blood on the Clocktower',
     '/newgame - Crea un nuevo juego o carga un juego previo',
     '/join - Te une a un juego existente',
     '/startgame - Comienza un juego existente cuando todos los jugadores se han unido',
-    '/cancelgame - Cancela un juego existente, todos los datos son borrados.',
+    '/delete - Borra el juego actual',
     '/board - Imprime el tablero actual con la pista liberal y la pista fascista, orden presidencial y contador de elección',
     '/history - Imprime el historial del juego actual',
-    '/votes - Imprime quien ha votado',
-    '/call - Avisa a los jugadores que se tiene que actuar'    
+    '/call - Avisa a los jugadores que se tiene que actuar',
+	'/notes [notas]- (Solo en privado) Escribe notas, o las visualiza'
 ]
 
 def storyteller(func):
@@ -574,10 +573,13 @@ def command_defense(update: Update, context: CallbackContext):
 		defender = state.defender
 		accuser = state.accuser
 		state.defense = " ".join(args)
-		# Se da posibilidad que vote el primero
-		state.clock = 0
-		save_game(cid, "Defensa acusacion", game)
 		bot.send_message(game.cid, f"Entonces {player_call(defender)} mira a los ojos a {player_call(accuser)} y dice a todo el pueblo: {state.defense}", ParseMode.MARKDOWN)
+		
+		clock_msg = game.advance_clock("")
+		bot.send_message(cid, clock_msg, ParseMode.MARKDOWN)	
+		board_text = game.board.print_board(game)
+		game.board_message_id = bot.send_message(cid, board_text, ParseMode.MARKDOWN)
+		save_game(cid, "Defensa acusacion", game)
 	else:
 		bot.send_message(game.cid, "Debes ingresar algo para tu defensa")
 
@@ -619,7 +621,7 @@ def command_tick(update: Update, context: CallbackContext):
 
 	game = get_game(cid)
 	if uid == game.storyteller or (game.get_current_voter() is not None and game.get_current_voter().uid == uid):
-		clock_msg = game.advance_clock()
+		clock_msg = game.advance_clock("")
 		bot.send_message(cid, clock_msg, ParseMode.MARKDOWN)	
 		board_text = game.board.print_board(game)
 		if game.board_message_id:
