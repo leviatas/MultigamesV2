@@ -558,7 +558,7 @@ def command_nominate(update: Update, context: CallbackContext):
 		bot.send_message(game.cid, "Debes ingresar /nominate [Nombre jugador en Board];Texto Acusación")
 
 @player
-def command_defend(update: Update, context: CallbackContext):
+def command_defense(update: Update, context: CallbackContext):
 	bot = context.bot	
 	args = context.args
 	cid = update.message.chat_id
