@@ -76,11 +76,15 @@ class Board(BaseBoard):
             voted = "✋" if player.uid in state.votes and state.votes[player.uid] == "si" else ""
             board += f"{clock}{nombre} {chop}{dead}{accuser} {voted}\n"
         
-        if state.can_nominate and state.accuser is not None:
+        # Si estan abiertas la snominaciones y nadie acuso
+        if state.can_nominate and state.accuser is None:
             board += "\n*Las nominaciones están abiertas*"
-        if state.accuser is not None and state.defense is not None:
-            board += "\n/vote - votar ✋\n/clearvote - eliminar el voto\n/tick - pasar el turno al siguiente jugador"
+        # Si falta la defensa
         elif state.accuser is not None and state.defense is None:
             board += f"{self.player_call(state.defender)} debes dar tu defensa, para hacer haz /defense [Defensa]"
+        # Si estamos en el momento de votar
+        elif state.accuser is not None and state.defense is not None:
+            board += "\n/vote - votar ✋\n/clearvote - eliminar el voto\n/tick - pasar el turno al siguiente jugador"
+        
         return board
         

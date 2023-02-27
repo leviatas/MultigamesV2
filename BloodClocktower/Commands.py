@@ -822,9 +822,11 @@ def command_fix(update: Update, context: CallbackContext):
 	game = get_game(cid)
 	state = game.board.state
 
-	for playerb in game.playerlist.values():
-		playerb.notes = []
-
+	# for playerb in game.playerlist.values():
+	# 	playerb.notes = []
+	state.defense = "Estoy segurisima que es Gonza, y Emma y Lu están desviando la atención hacia mí"
+	state.clock = 0
+	
 	bot.send_message(cid, "Fixed")
 	save_game(cid, "Fix", game)
 
