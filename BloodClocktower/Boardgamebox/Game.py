@@ -17,6 +17,14 @@ class Game(BaseGame):
 		self.board_message_id = None
 		self.tipo = "blood"
 
+	def get_possible_nominators_message(self):
+		jugadores_nominadores = "Jugadores que pueden nominar todavia:\n"
+	
+		for player in self.playerlist.values():
+			if not player.nominated_someone:
+				jugadores_nominadores += f"{self.player_call(player)}\n"
+		return jugadores_nominadores
+
 	def add_note(self, uid, notas):
 		player = self.find_player_by_id(uid)
 		player.notes.append(notas)

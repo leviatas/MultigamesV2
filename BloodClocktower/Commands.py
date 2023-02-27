@@ -546,6 +546,9 @@ def command_nominate(update: Update, context: CallbackContext):
 			bot.send_message(cid, "El storyteller no ha habilitado las nominaciones")
 			return
 
+		accuser.nominated_someone = True
+		defender.was_nominated = True
+
 		game.board.state.accuser = accuser
 		game.board.state.defender = defender
 		game.board.state.accusation = data[1].strip()
@@ -553,6 +556,7 @@ def command_nominate(update: Update, context: CallbackContext):
 		game.history.append(message_nomination)
 		save_game(cid, f"Se nomino a: {defender.name}", game)		
 		bot.send_message(game.cid, message_nomination, ParseMode.MARKDOWN)
+		bot.send_message(game.cid, f"{player_call(defender)} debes hacer tu defensa con /defense Defensa", ParseMode.MARKDOWN)
 	else:
 		bot.send_message(game.cid, "Debes ingresar /nominate [Nombre jugador en Board];Texto Acusación")
 
@@ -816,6 +820,17 @@ def callback_choose_game_blood(update: Update, context: CallbackContext):
 	else:
 		print_notes(game, uid, bot)
 
+@player
+def command_call(update: Update, context: CallbackContext):
+	bot = context.bot
+	cid = update.message.chat_id
+	uid = update.message.from_user.id
+	game = get_game(cid)
+	state = game.board.state
+	message = ""
+	if state.can_nominate and state.accuser is None:
+		message = game.get_possible_nominators_message()
+	bot.send_message(game.cid, message, ParseMode.MARKDOWN)
 
 @restricted
 def command_fix(update: Update, context: CallbackContext):
