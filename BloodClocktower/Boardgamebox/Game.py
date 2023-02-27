@@ -17,6 +17,16 @@ class Game(BaseGame):
 		self.board_message_id = None
 		self.tipo = "blood"
 
+	def get_call_message(self):
+		state = self.board.state
+		message = "Sin call actual"
+		if state.can_nominate and state.accuser is None:
+			message = self.get_possible_nominators_message()
+		elif state.accuser is not None and state.defense is not None:
+			current_voter = self.get_current_voter()
+			message = f"{self.player_call(current_voter)} te toca votar"
+		return message
+		
 	def get_possible_nominators_message(self):
 		jugadores_nominadores = "Jugadores que pueden nominar todavia:\n"
 	

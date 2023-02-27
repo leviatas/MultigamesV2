@@ -826,13 +826,7 @@ def command_call(update: Update, context: CallbackContext):
 	cid = update.message.chat_id
 	uid = update.message.from_user.id
 	game = get_game(cid)
-	state = game.board.state
-	message = "Sin call actual"
-	if state.can_nominate and state.accuser is None:
-		message = game.get_possible_nominators_message()
-	elif state.accuser is not None and state.defense is not None:
-		current_voter = game.get_current_voter()
-		message = f"{game.player_call(current_voter)} te toca votar"
+	message = game.get_call_message()
 	bot.send_message(game.cid, message, ParseMode.MARKDOWN)
 
 @restricted
