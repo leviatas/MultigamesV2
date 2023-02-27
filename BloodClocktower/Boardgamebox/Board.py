@@ -64,8 +64,8 @@ class Board(BaseBoard):
 
         if state.accuser is not None:
             positivos = list(state.votes.values()).count("si")
-            necesarios = math.ceil(vivos/2)
-            board += f"{state.accuser.name} nominó a {state.defender.name} ({positivos}/{necesarios} votos necesarios para llevarlo al chopping block)\n\n"
+            necesarios = max(math.ceil(vivos/2), self.chopping_block_votes)
+            board += f"*{state.accuser.name}* nominó a *{state.defender.name}* ({positivos}/{necesarios} votos necesarios para llevarlo al chopping block)\n\n"
             board += f"*Acusación*: {state.accusation}\n\n"
             board += f"*Defensa*: {state.defense}\n\n"
 
@@ -83,8 +83,9 @@ class Board(BaseBoard):
         
         if state.can_nominate and state.accuser is not None:
             board += "\n*Las nominaciones están abiertas*"
-        if state.accuser is not None:
+        if state.accuser is not None and state.defense is not None:
             board += "\n/vote - votar ✋\n/clearvote - eliminar el voto\n/tick - pasar el turno al siguiente jugador"
-
+        elif state.accuser is not None and state.defense is None:
+            board += f"{self.player_call(state.defender)} debes dar tu defensa, para hacer haz /defense [Defensa]"
         return board
         
