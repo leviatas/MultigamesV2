@@ -846,6 +846,7 @@ def command_travel(update: Update, context: CallbackContext):
 		return
 	game.add_player(uid, fname)
 	game.add_traveller(uid)
+	save_game(cid, "Notes", game)
 	bot.send_message(cid, f"Todos observan como *{fname}* llaga al pueblo", ParseMode.MARKDOWN)
 
 @restricted
