@@ -841,6 +841,8 @@ def command_travel(update: Update, context: CallbackContext):
 	uid = update.message.from_user.id
 	fname = update.message.from_user.first_name.replace("_", " ")
 	game = get_game(cid)
+	if game.find_player_by_id(uid) != None:
+		bot.send_message(cid, f"*{fname}* ya estas en el pueblo.", ParseMode.MARKDOWN)
 	game.add_player(uid, fname)
 	game.add_traveller(uid)
 	bot.send_message(cid, f"Todos observan como *{fname}* llaga al pueblo", ParseMode.MARKDOWN)
