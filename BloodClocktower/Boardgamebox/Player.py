@@ -1,8 +1,9 @@
 from Boardgamebox.Player import Player as BasePlayer
 
 class Player(BasePlayer):
-    def __init__(self, name, uid):
+    def __init__(self, name, uid, nick):
         BasePlayer.__init__(self, name, uid)
+        self.nick = nick # Nick del usuario (El @leviatas por ej)
         self.role = "" # Ej: Drunk
         self.afiliation = "" # Good or Evil
         self.townfolk_Outsider_Minion_Demon_Traveller = "" # Indica cual de los subgrupos es el jugador
@@ -13,7 +14,7 @@ class Player(BasePlayer):
         self.has_voted = False # Indica si has votado
         self.dead = False # Indica si has muerto
         self.has_last_vote = True # Indica si el jugador muerto todavia puede votar
-        self.nick = "" # Nick del usuario (El @leviatas por ej)
+        
         self.role_description = "" # Descripcion del rol
         self.whispering = "" # Con quien esta hablando el jugador actualmente
         self.notes = []

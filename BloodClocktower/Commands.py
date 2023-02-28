@@ -216,6 +216,7 @@ def command_join(update: Update, context: CallbackContext):
 	if len(args) <= 0:
 		# if not args, use normal behaviour
 		fname = update.message.from_user.first_name.replace("_", " ")
+		nick = update.message.from_user.username
 		uid = update.message.from_user.id
 	else:
 		uid = update.message.from_user.id
@@ -245,7 +246,7 @@ def command_join(update: Update, context: CallbackContext):
 			bot.send_message(uid, f"Te has unido a un juego en {groupName}. Pronto te dire cual es tu rol secreto.")
 			# choose_posible_role(bot, cid, uid)
 
-			game.add_player(uid, fname)
+			game.add_player(uid, fname, nick)
 			log.info("%s (%d) joined a game in %d" % (fname, uid, game.cid))
 			if len(game.playerlist) > 4:
 				bot.send_message(game.cid, fname + " se ha unido al juego. Escribe /startgame si este es el último jugador y quieren comenzar con %d jugadores!" % len(game.playerlist))
@@ -787,6 +788,7 @@ def command_notes(update: Update, context: CallbackContext):
 			txtBoton = game.groupName
 			comando_callback = "choosegameblood"
 			context.user_data[uid] = notes
+			context.user_data["accion"] = "notas"
 			datos = str(cid) + "*" + comando_callback + str(uid)
 			btns.append([InlineKeyboardButton(txtBoton, callback_data=datos)])
 		# Agrego boton de cancel
@@ -810,15 +812,26 @@ def callback_choose_game_blood(update: Update, context: CallbackContext):
 	game = get_game(cid)
 	mensaje_edit = "Has elegido el grupo {0}".format(game.groupName)
 	
-	notas = context.user_data[uid]
-
+	informacion = context.user_data[uid]
+	accion = context.user_data["accion"]
 	bot.edit_message_text(mensaje_edit, uid, callback.message.message_id)
 	
-	if len(notas) > 0 :
-		game.add_note(uid, notas)
-		save_game(cid, "Notes", game)
-	else:
-		print_notes(game, uid, bot)
+	if accion == "notas":
+		if len(informacion) > 0 :
+			game.add_note(uid, informacion)
+			save_game(cid, "Notes", game)
+		else:
+			print_notes(game, uid, bot)
+	elif accion == "setrole":
+		data = informacion.split(";")
+		if len(data) != 2:
+			bot.send_message(cid, f"Te falta poner algun argumento es /setrole Usuario;Role", ParseMode.MARKDOWN)
+			return
+		elif len(data) == 2:
+			message = game.set_role(data[0], data[1])
+			save_game(game.cid, "setrole", game)
+			bot.send_message(cid, message, ParseMode.MARKDOWN)
+
 
 @player
 def command_call(update: Update, context: CallbackContext):
@@ -828,6 +841,54 @@ def command_call(update: Update, context: CallbackContext):
 	game = get_game(cid)
 	message = game.get_call_message()
 	bot.send_message(game.cid, message, ParseMode.MARKDOWN)
+
+@storyteller
+def command_setrole(update: Update, context: CallbackContext):
+	bot = context.bot
+	cid = update.message.chat_id
+	uid = update.message.from_user.id
+	args = context.args
+
+	games = load_and_get_games()
+	games_with_me_as_storyteller = [game for game in games if game.storyteller == uid and game.board != None]
+
+	if len(games_with_me_as_storyteller) == 0:
+		bot.send_message(cid, "*No estas dirigiendo ningun juego de Blood*", ParseMode.MARKDOWN)
+	elif len(games_with_me_as_storyteller) == 1:
+		# Si solo esta en un solo juego hago la accion directa
+		# Si es agregar entonces agrego la nota
+		first = games_with_me_as_storyteller[0]
+		
+		if len(args) > 0:
+			data_string = ' '.join(args)
+			data = data_string.split(";")
+			if len(data) != 2:
+				bot.send_message(cid, f"Te falta poner algun argumento es /setrole Usuario;Role", ParseMode.MARKDOWN)
+				return
+			elif len(data) == 2:
+				message = game.set_role(data[0], data[1])
+				save_game(first.cid, "setrole", first)
+				bot.send_message(cid, message, ParseMode.MARKDOWN)			
+		else:
+			bot.send_message(cid, f"Tienes que poner /setrole Usuario;Role", ParseMode.MARKDOWN)
+	else:
+		btns = []
+		for game in games_with_me_as_storyteller:
+			notes = ' '.join(args)
+			cid = game.cid
+			# Creo el boton el cual eligirá el jugador
+			txtBoton = game.groupName
+			comando_callback = "choosegameblood"
+			context.user_data[uid] = notes
+			context.user_data["accion"] = "setrole"
+			datos = str(cid) + "*" + comando_callback + str(uid)
+			btns.append([InlineKeyboardButton(txtBoton, callback_data=datos)])
+		# Agrego boton de cancel
+		txtBoton = "Cancel"
+		datos = "-1*choosegameblood" + str(uid)
+		btns.append([InlineKeyboardButton(txtBoton, callback_data=datos)])
+		btnMarkup = InlineKeyboardMarkup(btns)
+		bot.send_message(uid, "En cual de estos grupos quieres hacer la acción?", reply_markup=btnMarkup)
 
 def command_id(update: Update, context: CallbackContext):
 	bot = context.bot
@@ -840,11 +901,12 @@ def command_travel(update: Update, context: CallbackContext):
 	cid = update.message.chat_id
 	uid = update.message.from_user.id
 	fname = update.message.from_user.first_name.replace("_", " ")
+	nick = update.message.from_user.username
 	game = get_game(cid)
 	if uid in game.playerlist:
 		bot.send_message(cid, f"*{fname}* ya estas en el pueblo.", ParseMode.MARKDOWN)
 		return
-	game.add_player(uid, fname)
+	game.add_player(uid, fname, nick)
 	game.add_traveller(uid)
 	save_game(cid, "Notes", game)
 	bot.send_message(cid, f"Todos observan como *{fname}* llaga al pueblo", ParseMode.MARKDOWN)
@@ -856,9 +918,7 @@ def command_fix(update: Update, context: CallbackContext):
 	game = get_game(cid)
 	state = game.board.state
 
-	game.add_traveller(593132551)
-	for playerb in game.playerlist.values():
-		playerb.townfolk_Outsider_Minion_Demon_Traveller = ""
+	game.board.num_players = 8
 	
 	bot.send_message(cid, "Fixed")
 	save_game(cid, "Fix", game)

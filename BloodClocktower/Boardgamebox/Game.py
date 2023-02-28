@@ -16,6 +16,14 @@ class Game(BaseGame):
 		self.storyteller = None
 		self.board_message_id = None
 		self.tipo = "blood"
+	
+	def set_role(self, nombre, rol):
+		player = self.find_player(nombre)
+		if player != None:
+			player.role = rol
+			return f"Se ha asignado {rol} a {player.name}"
+		else:
+			return f"No existe ese jugador"
 
 	def add_traveller(self, uid):
 		player = self.find_player_by_id(uid)
@@ -149,8 +157,8 @@ class Game(BaseGame):
 		return ["""El juego es Blood on the clocktower"""]		
 		
 	# Creacion de player de juego.	
-	def add_player(self, uid, name):
-		self.playerlist[uid] = Player(name, uid)
+	def add_player(self, uid, name, nick):
+		self.playerlist[uid] = Player(name, uid, nick)
 
 	def create_board(self):
 		player_number = len(self.playerlist)
