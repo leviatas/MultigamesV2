@@ -856,6 +856,7 @@ def command_fix(update: Update, context: CallbackContext):
 	game = get_game(cid)
 	state = game.board.state
 
+	game.add_traveller(593132551)
 	for playerb in game.playerlist.values():
 		playerb.townfolk_Outsider_Minion_Demon_Traveller = ""
 	
