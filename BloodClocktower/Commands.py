@@ -911,7 +911,6 @@ def command_travel(update: Update, context: CallbackContext):
 	save_game(cid, "Notes", game)
 	bot.send_message(cid, f"Todos observan como *{fname}* llaga al pueblo", ParseMode.MARKDOWN)
 
-@storyteller
 def command_readgamejson(update: Update, context: CallbackContext):
 	bot = context.bot
 	cid = update.message.chat_id
