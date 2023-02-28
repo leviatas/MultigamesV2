@@ -824,7 +824,7 @@ def callback_choose_game_blood(update: Update, context: CallbackContext):
 def command_call(update: Update, context: CallbackContext):
 	bot = context.bot
 	cid = update.message.chat_id
-	uid = update.message.from_user.id
+	# uid = update.message.from_user.id
 	game = get_game(cid)
 	message = game.get_call_message()
 	bot.send_message(game.cid, message, ParseMode.MARKDOWN)
@@ -834,12 +834,16 @@ def command_id(update: Update, context: CallbackContext):
 	cid = update.message.chat_id
 	bot.send_message(cid, f"El id del usuario es {update.effective_user.id}", ParseMode.MARKDOWN)
 
-def command_traveller(update: Update, context: CallbackContext):
+
+def command_travel(update: Update, context: CallbackContext):
 	bot = context.bot
 	cid = update.message.chat_id
-	
-
-	bot.send_message(cid, f"El id del usuario es {update.effective_user.id}", ParseMode.MARKDOWN)
+	uid = update.message.from_user.id
+	fname = update.message.from_user.first_name.replace("_", " ")
+	game = get_game(cid)
+	game.add_player(uid, fname)
+	game.add_traveller(uid)
+	bot.send_message(cid, f"Todos observan como *{fname}* llaga al pueblo", ParseMode.MARKDOWN)
 
 @restricted
 def command_fix(update: Update, context: CallbackContext):
@@ -848,10 +852,8 @@ def command_fix(update: Update, context: CallbackContext):
 	game = get_game(cid)
 	state = game.board.state
 
-	# for playerb in game.playerlist.values():
-	# 	playerb.notes = []
-	state.defense = "Estoy segurisima que es Gonza, y Emma y Lu están desviando la atención hacia mí"
-	state.clock = 0
+	for playerb in game.playerlist.values():
+		playerb.townfolk_Outsider_Minion_Demon_Traveller = ""
 	
 	bot.send_message(cid, "Fixed")
 	save_game(cid, "Fix", game)

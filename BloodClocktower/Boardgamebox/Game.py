@@ -1,6 +1,6 @@
 import json
 from datetime import datetime
-from random import shuffle, randint
+from random import shuffle, randint, random
 
 from Boardgamebox.Game import Game as BaseGame
 from BloodClocktower.Boardgamebox.Player import Player
@@ -17,6 +17,10 @@ class Game(BaseGame):
 		self.board_message_id = None
 		self.tipo = "blood"
 
+	def add_traveller(self, uid):
+		player = self.find_player_by_id(uid)
+		self.player_sequence.insert(random.randint(0, len(self.player_sequence)), player)
+
 	def get_call_message(self):
 		state = self.board.state
 		message = "Sin call actual"
@@ -26,7 +30,7 @@ class Game(BaseGame):
 			current_voter = self.get_current_voter()
 			message = f"{self.player_call(current_voter)} te toca votar"
 		return message
-		
+
 	def get_possible_nominators_message(self):
 		jugadores_nominadores = "Jugadores que pueden nominar todavia:\n"
 	
