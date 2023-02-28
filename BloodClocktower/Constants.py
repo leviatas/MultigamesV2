@@ -157,6 +157,7 @@ playerSets = {
     },
 }
 
+
 roles = [
   {
     "id": "washerwoman",
@@ -1897,5 +1898,570 @@ roles = [
     "reminders": [],
     "setup": False,
     "ability": "Once per day, you may choose to kill an alive neighbour, if your other alive neighbour agrees."
+  }
+]
+
+
+hatred = [
+  {
+    "id": "Chambermaid",
+    "hatred": [
+      {
+        "id": "Mathematician",
+        "reason": "The Chambermaid learns if the Mathematician wakes tonight or not, even though the Chambermaid wakes first."
+      }
+    ]
+  },
+  {
+    "id": "Butler",
+    "hatred": [
+      {
+        "id": "Cannibal",
+        "reason": "If the Cannibal gains the Butler ability, the Cannibal learns this."
+      }
+    ]
+  },
+  {
+    "id": "Lunatic",
+    "hatred": [
+      {
+        "id": "Mathematician",
+        "reason": "The Mathematician learns if the Lunatic attacks a different player(s) than the real Demon attacked."
+      }
+    ]
+  },
+  {
+    "id": "Pit-Hag",
+    "hatred": [
+      {
+        "id": "Heretic",
+        "reason": "A Pit-Hag can not create a Heretic. "
+      },
+      {
+        "id": "Damsel",
+        "reason": "If a Pit-Hag creates a Damsel, the Storyteller chooses which player it is."
+      },
+      {
+        "id": "Politician",
+        "reason": "A Pit-hag can not create an evil Politician."
+      }
+    ]
+  },
+  {
+    "id": "Cerenovus",
+    "hatred": [
+      {
+        "id": "Goblin",
+        "reason": "The Cerenovus may choose to make a player mad that they are the Goblin."
+      }
+    ]
+  },
+  {
+    "id": "Leviathan",
+    "hatred": [
+      {
+        "id": "Soldier",
+        "reason": "If Leviathan nominates and executes the Soldier, the Soldier does not die."
+      },
+      {
+        "id": "Monk",
+        "reason": "If Leviathan nominates and executes the player the Monk chose, that player does not die."
+      },
+      {
+        "id": "Innkeeper",
+        "reason": "If Leviathan nominates and executes a player the Innkeeper chose, that player does not die."
+      },
+      {
+        "id": "Ravenkeeper",
+        "reason": "If Leviathan is in play & the Ravenkeeper dies by execution, they wake that night to use their ability."
+      },
+      {
+        "id": "Sage",
+        "reason": "If Leviathan is in play & the Sage dies by execution, they wake that night to use their ability."
+      },
+      {
+        "id": "Farmer",
+        "reason": "If Leviathan is in play & a Farmer dies by execution, a good player becomes a Farmer that night."
+      },
+      {
+        "id": "Mayor",
+        "reason": "If Leviathan is in play & no execution occurs on day 5, good wins."
+      }
+    ]
+  },
+  {
+    "id": "Al-Hadikhia",
+    "hatred": [
+      {
+        "id": "Scarlet Woman",
+        "reason": "If there are two living Al-Hadikhias, the Scarlet Woman Al-Hadikhia becomes the Scarlet Woman again."
+      },
+      {
+        "id": "Mastermind",
+        "reason": "Only 1 jinxed character can be in play. Evil players start knowing which player and character it is."
+      }
+    ]
+  },
+  {
+    "id": "Lil' Monsta",
+    "hatred": [
+      {
+        "id": "Poppy Grower",
+        "reason": "If the Poppy Grower is in play, Minions don't wake together. They are woken one by one, until one of them chooses to take the Lil' Monsta token."
+      },
+      {
+        "id": "Magician",
+        "reason": "Only 1 jinxed character can be in play. "
+      },
+      {
+        "id": "Scarlet Woman",
+        "reason": "If there are 5 or more players alive and the player holding the Lil' Monsta token dies, the Scarlet Woman is given the Lil' Monsta token tonight."
+      }
+    ]
+  },
+  {
+    "id": "Lycanthrope",
+    "hatred": [
+      {
+        "id": "Gambler",
+        "reason": "If the Lycanthrope is alive and the Gambler kills themself at night, no other players can die tonight."
+      }
+    ]
+  },
+  {
+    "id": "Legion",
+    "hatred": [
+      {
+        "id": "Engineer",
+        "reason": "Legion and the Engineer can not both be in play at the start of the game. If the Engineer creates Legion, most players (including all evil players) become evil Legion."
+      },
+      {
+        "id": "Preacher",
+        "reason": "Only 1 jinxed character can be in play."
+      }
+    ]
+  },
+  {
+    "id": "Fang Gu",
+    "hatred": [
+      {
+        "id": "Scarlet Woman",
+        "reason": "If the Fang Gu chooses an Outsider and dies, the Scarlet Woman does not become the Fang Gu."
+      }
+    ]
+  },
+  {
+    "id": "Spy",
+    "hatred": [
+      {
+        "id": "Magician",
+        "reason": "When the Spy sees the Grimoire, the Demon and Magician's character tokens are removed."
+      },
+      {
+        "id": "Alchemist",
+        "reason": "The Alchemist can not have the Spy ability."
+      },
+      {
+        "id": "Poppy Grower",
+        "reason": "If the Poppy Grower is in play, the Spy does not see the Grimoire until the Poppy Grower dies."
+      },
+      {
+        "id": "Damsel",
+        "reason": "Only 1 jinxed character can be in play. "
+      },
+      {
+        "id": "Heretic",
+        "reason": "Only 1 jinxed character can be in play."
+      }
+    ]
+  },
+  {
+    "id": "Widow",
+    "hatred": [
+      {
+        "id": "Magician",
+        "reason": "When the Widow sees the Grimoire, the Demon and Magician's character tokens are removed."
+      },
+      {
+        "id": "Poppy Grower",
+        "reason": "If the Poppy Grower is in play, the Widow does not see the Grimoire until the Poppy Grower dies."
+      },
+      {
+        "id": "Alchemist",
+        "reason": "The Alchemist can not have the Widow ability."
+      },
+      {
+        "id": "Damsel",
+        "reason": "Only 1 jinxed character can be in play."
+      },
+      {
+        "id": "Heretic",
+        "reason": "Only 1 jinxed character can be in play."
+      }
+    ]
+  },
+  {
+    "id": "Godfather",
+    "hatred": [
+      {
+        "id": "Heretic",
+        "reason": "Only 1 jinxed character can be in play."
+      }
+    ]
+  },
+  {
+    "id": "Baron",
+    "hatred": [
+      {
+        "id": "Heretic",
+        "reason": "The Baron might only add 1 Outsider, not 2."
+      }
+    ]
+  },
+  {
+    "id": "Marionette",
+    "hatred": [
+      {
+        "id": "Lil' Monsta",
+        "reason": "The Marionette neighbors a Minion, not the Demon. The Marionette is not woken to choose who takes the Lil' Monsta token."
+      },
+      {
+        "id": "Poppy Grower",
+        "reason": "When the Poppy Grower dies, the Demon learns the Marionette but the Marionette learns nothing."
+      },
+      {
+        "id": "Snitch",
+        "reason": "The Marionette does not learn 3 not in-play characters. The Demon learns an extra 3 instead."
+      },
+      {
+        "id": "Balloonist",
+        "reason": "If the Marionette thinks that they are the Balloonist, +1 Outsider was added."
+      },
+      {
+        "id": "Damsel",
+        "reason": "The Marionette does not learn that a Damsel is in play."
+      },
+      {
+        "id": "Huntsman",
+        "reason": "If the Marionette thinks that they are the Huntsman, the Damsel was added."
+      }
+    ]
+  },
+  {
+    "id": "Riot",
+    "hatred": [
+      {
+        "id": "Engineer",
+        "reason": "Riot and the Engineer can not both be in play at the start of the game. \nIf the Engineer creates Riot, the evil players become Riot."
+      },
+      {
+        "id": "Golem",
+        "reason": "If The Golem nominates Riot, the Riot player does not die."
+      },
+      {
+        "id": "Snitch",
+        "reason": "If the Snitch is in play, each Riot player gets an extra 3 bluffs."
+      },
+      {
+        "id": "Saint",
+        "reason": "If a good player nominates and kills the Saint, the Saint's team loses."
+      },
+      {
+        "id": "Butler",
+        "reason": "The Butler can not nominate their master."
+      },
+      {
+        "id": "Pit-Hag",
+        "reason": "If the Pit-Hag creates Riot, all evil players become Riot. \nIf the Pit-Hag creates Riot after day 3, the game continues for one more day."
+      },
+      {
+        "id": "Mayor",
+        "reason": "If the 3rd day begins with just three players alive, the players may choose (as a group) not to nominate at all. If so (and a Mayor is alive) then the Mayor's team wins."
+      },
+      {
+        "id": "Monk",
+        "reason": "If a Riot player nominates and kills the Monk-protected-player, the Monk-protected-player does not die."
+      },
+      {
+        "id": "Farmer",
+        "reason": "If a Riot player nominates and kills a Farmer, the Farmer uses their ability tonight."
+      },
+      {
+        "id": "Innkeeper",
+        "reason": "If a Riot player nominates an Innkeeper-protected-player, the Innkeeper-protected-player does not die."
+      },
+      {
+        "id": "Sage",
+        "reason": "If a Riot player nominates and kills a Sage, the Sage uses their ability tonight."
+      },
+      {
+        "id": "Ravenkeeper",
+        "reason": "If a Riot player nominates and kills the Ravenkeeper, the Ravenkeeper uses their ability tonight."
+      },
+      {
+        "id": "Soldier",
+        "reason": "If a Riot player nominates the Soldier, the Soldier does not die."
+      },
+      {
+        "id": "Grandmother",
+        "reason": "If a Riot player nominates and kills the Grandchild, the Grandmother dies too."
+      },
+      {
+        "id": "King",
+        "reason": "If a Riot player nominates and kills the King and the Choirboy is alive, the Choirboy uses their ability tonight."
+      },
+      {
+        "id": "Exorcist",
+        "reason": "Only 1 jinxed character can be in play."
+      },
+      {
+        "id": "Minstrel",
+        "reason": "Only 1 jinxed character can be in play."
+      },
+      {
+        "id": "Flowergirl",
+        "reason": "Only 1 jinxed character can be in play."
+      },
+      {
+        "id": "Undertaker",
+        "reason": "Players that die by nomination register as being executed to the Undertaker."
+      },
+      {
+        "id": "Cannibal",
+        "reason": "Players that die by nomination register as being executed to the Cannibal."
+      },
+      {
+        "id": "Pacifist",
+        "reason": "Players that die by nomination register as being executed to the Pacifist."
+      },
+      {
+        "id": "Devil's Advocate",
+        "reason": "Players that die by nomination register as being executed to the Devil's Advocate."
+      },
+      {
+        "id": "Investigator",
+        "reason": "Riot registers as a Minion to the Investigator."
+      },
+      {
+        "id": "Clockmaker",
+        "reason": "Riot registers as a Minion to the Clockmaker."
+      },
+      {
+        "id": "Town Crier",
+        "reason": "Riot registers as a Minion to the Town Crier."
+      },
+      {
+        "id": "Damsel",
+        "reason": "Riot registers as a Minion to the Damsel."
+      },
+      {
+        "id": "Preacher",
+        "reason": "Riot registers as a Minion to the Preacher."
+      }
+    ]
+  },
+  {
+    "id": "Lleech",
+    "hatred": [
+      {
+        "id": "Mastermind",
+        "reason": "If the Mastermind is alive and the Lleech's host dies by execution, the Lleech lives but loses their ability. "
+      },
+      {
+        "id": "Slayer",
+        "reason": "If the Slayer slays the Lleech's host, the host dies. "
+      },
+      {
+        "id": "Heretic",
+        "reason": "If the Lleech has poisoned the Heretic then the Lleech dies, the Heretic remains poisoned."
+      }
+    ]
+  }
+]
+
+
+editions = [
+  {
+    "id": "tb",
+    "name": "Trouble Brewing",
+    "author": "The Pandemonium Institute",
+    "description": "Clouds roll in over Ravenswood Bluff, engulfing this sleepy town and its superstitious inhabitants in foreboding shadow. Freshly-washed clothes dance eerily on lines strung between cottages. Chimneys cough plumes of smoke into the air. Exotic scents waft through cracks in windows and under doors, as hidden cauldrons lay bubbling. An unusually warm Autumn breeze wraps around vine-covered walls and whispers ominously to those brave enough to walk the cobbled streets.\n\nAnxious mothers call their children home from play, as thunder begins to clap on the horizon. If you listen more closely, however, noises stranger still can be heard echoing from the neighbouring forest. Under the watchful eye of a looming monastery, silhouetted figures skip from doorway to doorway. Those who can read the signs know there is... Trouble Brewing.",
+    "level": "Beginner",
+    "roles": [],
+    "isOfficial": True
+  },
+  {
+    "id": "bmr",
+    "name": "Bad Moon Rising",
+    "author": "The Pandemonium Institute",
+    "description": "The sun is swallowed by a jagged horizon as another winter's day surrenders to the night. Flecks of orange and red decay into deeper browns, the forest transforming in silent anticipation of the coming snow.\n\nRavenous wolves howl from the bowels of a rocky crevasse beyond the town borders, sending birds scattering from their cozy rooks. Travelers hurry into the inn, seeking shelter from the gathering chill. They warm themselves with hot tea, sweet strains of music and hearty ale, unaware that strange and nefarious eyes stalk them from the ruins of this once great city.\n\nTonight, even the livestock know there is a... Bad Moon Rising.",
+    "level": "Intermediate",
+    "roles": [],
+    "isOfficial": True
+  },
+  {
+    "id": "snv",
+    "name": "Sects & Violets",
+    "author": "The Pandemonium Institute",
+    "description": "Vibrant spring gives way to a warm and inviting summer. Flowers of every description blossom as far as the eye can see, tenderly nurtured in public gardens and window boxes overlooking the lavish promenade. Birds sing, artists paint and philosophers ponder life's greatest mysteries inside a bustling tavern as a circus pitches its endearingly ragged tent on the edge of town.\n\nAs the townsfolk bask in frivolity and mischief, indulging themselves in fine entertainment and even finer wine, dark and clandestine forces are assembling. Witches and cults lurk in majestic ruins on the fringes of the community, hosting secret meetings in underground caves and malevolently plotting the downfall of Ravenswood Bluff and its revelers.\n\nThe time is ripe for... Sects & Violets.",
+    "level": "Intermediate",
+    "roles": [],
+    "isOfficial": True
+  },
+  {
+    "id": "luf",
+    "name": "Laissez un Faire",
+    "author": "The Pandemonium Institute",
+    "description": "",
+    "level": "Veteran",
+    "roles": ["balloonist", "savant", "amnesiac", "fisherman", "artist", "cannibal", "mutant", "lunatic", "widow", "goblin", "leviathan"],
+    "isOfficial": True
+  }
+]
+
+fabled = [
+  {
+    "id": "doomsayer",
+    "firstNightReminder": "",
+    "otherNightReminder": "",
+    "reminders": [],
+    "setup": False,
+    "name": "Doomsayer",
+    "team": "fabled",
+    "ability": "If 4 or more players live, each living player may publicly choose (once per game) that a player of their own alignment dies."
+  },
+  {
+    "id": "angel",
+    "firstNightReminder": "",
+    "otherNightReminder": "",
+    "reminders": ["Protect", "Something Bad"],
+    "setup": False,
+    "name": "Angel",
+    "team": "fabled",
+    "ability": "Something bad might happen to whoever is most responsible for the death of a new player."
+  },
+  {
+    "id": "buddhist",
+    "firstNightReminder": "",
+    "otherNightReminder": "",
+    "reminders": [],
+    "setup": False,
+    "name": "Buddhist",
+    "team": "fabled",
+    "ability": "For the first 2 minutes of each day, veteran players may not talk."
+  },
+  {
+    "id": "hellslibrarian",
+    "firstNightReminder": "",
+    "otherNightReminder": "",
+    "reminders": ["Something Bad"],
+    "setup": False,
+    "name": "Hell's Librarian",
+    "team": "fabled",
+    "ability": "Something bad might happen to whoever talks when the Storyteller has asked for silence."
+  },
+  {
+    "id": "revolutionary",
+    "firstNightReminder": "",
+    "otherNightReminder": "",
+    "reminders": ["Used"],
+    "setup": False,
+    "name": "Revolutionary",
+    "team": "fabled",
+    "ability": "2 neighboring players are known to be the same alignment. Once per game, one of them registers Falsely."
+  },
+  {
+    "id": "fiddler",
+    "firstNightReminder": "",
+    "otherNightReminder": "",
+    "reminders": [],
+    "setup": False,
+    "name": "Fiddler",
+    "team": "fabled",
+    "ability": "Once per game, the Demon secretly chooses an opposing player: all players choose which of these 2 players win."
+  },
+  {
+    "id": "toymaker",
+    "firstNightReminder": "",
+    "otherNight": 1,
+    "otherNightReminder": "If it is a night when a Demon attack could end the game, and the Demon is marked “Final night: No Attack,” then the Demon does not act tonight. (Do not wake them.)",
+    "reminders": ["Final Night: No Attack"],
+    "setup": False,
+    "name": "Toymaker",
+    "team": "fabled",
+    "ability": "The Demon may choose not to attack & must do this at least once per game. Evil players get normal starting info."
+  },
+  {
+    "id": "fibbin",
+    "firstNightReminder": "",
+    "otherNightReminder": "",
+    "reminders": ["Used"],
+    "setup": False,
+    "name": "Fibbin",
+    "team": "fabled",
+    "ability": "Once per game, 1 good player might get False information."
+  },
+  {
+    "id": "duchess",
+    "firstNightReminder": "",
+    "otherNight": 1,
+    "otherNightReminder": "Wake each player marked “Visitor” or “False Info” one at a time. Show them the Duchess token, then fingers (1, 2, 3) equaling the number of evil players marked “Visitor” or, if you are waking the player marked “False Info,” show them any number of fingers except the number of evil players marked “Visitor.”",
+    "reminders": ["Visitor", "False Info"],
+    "setup": False,
+    "name": "Duchess",
+    "team": "fabled",
+    "ability": "Each day, 3 players may choose to visit you. At night*, each visitor learns how many visitors are evil, but 1 gets False info."
+  },
+  {
+    "id": "sentinel",
+    "firstNightReminder": "",
+    "otherNightReminder": "",
+    "reminders": [],
+    "setup": True,
+    "name": "Sentinel",
+    "team": "fabled",
+    "ability": "There might be 1 extra or 1 fewer Outsider in play."
+  },
+  {
+    "id": "spiritofivory",
+    "firstNightReminder": "",
+    "otherNightReminder": "",
+    "reminders": ["No extra evil"],
+    "setup": False,
+    "name": "Spirit of Ivory",
+    "team": "fabled",
+    "ability": "There can't be more than 1 extra evil player."
+  },
+  {
+    "id": "djinn",
+    "firstNight": 0,
+    "firstNightReminder": "",
+    "otherNightReminder": "",
+    "reminders": [],
+    "setup": False,
+    "name": "Djinn",
+    "team": "fabled",
+    "ability": "Use the Djinn's special rule. All players know what it is."
+  },
+  {
+    "id": "stormcatcher",
+    "firstNight": 1,
+    "firstNightReminder": "Mark a good player as \"Safe\". Wake each evil player and show them the marked player.",
+    "otherNightReminder": "",
+    "reminders": ["Safe"],
+    "setup": False,
+    "name": "Storm Catcher",
+    "team": "fabled",
+    "ability": "Name a good character. If in play, they can only die by execution, but evil players learn which player it is."
+  },
+  {
+    "id": "deusexfiasco",
+    "firstNightReminder": "",
+    "otherNightReminder": "",
+    "reminders": ["Whoops"],
+    "setup": False,
+    "name": "Deus ex Fiasco",
+    "team": "fabled",
+    "ability": "Once per game, the Storyteller will make a \"mistake\", correct it and publicly admit to it."
   }
 ]

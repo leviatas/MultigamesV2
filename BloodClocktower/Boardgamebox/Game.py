@@ -9,6 +9,8 @@ from BloodClocktower.Boardgamebox.State import State
 #from Boardgamebox.Board import Board
 #from Boardgamebox.State import State
 
+from BloodClocktower.Constants import roles
+
 class Game(BaseGame):
 	def __init__(self, cid, initiator, groupName):
 		BaseGame.__init__(self, cid, initiator, groupName, None, None)		
@@ -17,6 +19,9 @@ class Game(BaseGame):
 		self.board_message_id = None
 		self.tipo = "blood"
 	
+	def get_role_info(self, name):
+		return next((x for x in roles if x['id'] == name), None)
+
 	def set_role(self, nombre, rol):
 		player = self.find_player(nombre)
 		if player != None:

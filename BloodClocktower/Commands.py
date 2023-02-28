@@ -911,6 +911,27 @@ def command_travel(update: Update, context: CallbackContext):
 	save_game(cid, "Notes", game)
 	bot.send_message(cid, f"Todos observan como *{fname}* llaga al pueblo", ParseMode.MARKDOWN)
 
+@storyteller
+def command_readgamejson(update: Update, context: CallbackContext):
+	bot = context.bot
+	cid = update.message.chat_id
+	game = get_game(cid)
+	args = " ".join(context.args)
+	# Obtengo el json y lo convierto en objecto
+	game_data = jsonpickle.decode(args)
+
+	game = get_game(-741603449)
+
+	for player in game_data["players"]:
+		nombre = player['name']
+		rol = player['role']
+		message = game.set_role(nombre, rol)
+		save_game(game.cid, "setrole", game)
+		bot.send_message(cid, message, ParseMode.MARKDOWN)
+	# state = game.board.state
+
+	
+
 @restricted
 def command_fix(update: Update, context: CallbackContext):
 	bot = context.bot
