@@ -832,8 +832,9 @@ def command_call(update: Update, context: CallbackContext):
 @player
 def command_id(update: Update, context: CallbackContext):
 	bot = context.bot
-	cid = update.message.chat_id	
-	bot.send_message(cid, f"El id del usuario es {update.effective_message.reply_to_message.from_user.id}", ParseMode.MARKDOWN)
+	cid = update.message.chat_id
+	update.effective_message.reply_to_text
+	bot.send_message(cid, f"El id del usuario es {update.effective_user.id}", ParseMode.MARKDOWN)
 
 @restricted
 def command_fix(update: Update, context: CallbackContext):
