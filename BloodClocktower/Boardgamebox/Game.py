@@ -1,6 +1,6 @@
 import json
 from datetime import datetime
-from random import shuffle, randint, random
+from random import shuffle, randint
 
 from Boardgamebox.Game import Game as BaseGame
 from BloodClocktower.Boardgamebox.Player import Player
@@ -19,7 +19,7 @@ class Game(BaseGame):
 
 	def add_traveller(self, uid):
 		player = self.find_player_by_id(uid)
-		self.player_sequence.insert(random.randint(0, len(self.player_sequence)), player)
+		self.player_sequence.insert(randint(0, len(self.player_sequence)), player)
 
 	def get_call_message(self):
 		state = self.board.state
