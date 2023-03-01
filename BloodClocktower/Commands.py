@@ -935,7 +935,7 @@ def command_fix(update: Update, context: CallbackContext):
 	game = get_game(cid)
 	state = game.board.state
 
-	game.board.num_players = 8
+	state.clock = 0
 	
 	bot.send_message(cid, "Fixed")
 	save_game(cid, "Fix", game)
