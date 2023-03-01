@@ -137,7 +137,7 @@ class Game(BaseGame):
 		# Si estoy haciendo tick desde el ultimo jugador (que es normalmente el defensor)
 		# Aviso al ST que debe decidir que pasa
 		if state.clock == len(self.player_sequence):
-			storyteller = Player("Storyteller", self.storyteller)
+			storyteller = Player("Storyteller", self.storyteller, "StoryTeller")
 			return f"The clock rings the time has ended!\n{self.player_call(storyteller)}: Usa /chopping para mandarlo al chopping block si lo merece, luego Usa /clear para limpiar la nominación"
 		else:
 			current_voter = self.get_current_voter()
