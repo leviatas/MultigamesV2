@@ -11,6 +11,7 @@ from BloodClocktower.Boardgamebox.State import State
 
 from BloodClocktower.Constants import roles
 
+from typing import Tuple, AnyStr
 class Game(BaseGame):
 	def __init__(self, cid, initiator, groupName):
 		BaseGame.__init__(self, cid, initiator, groupName, None, None)		
@@ -19,6 +20,12 @@ class Game(BaseGame):
 		self.board_message_id = None
 		self.tipo = "blood"
 	
+	def tick(self, uid):
+		if uid == self.storyteller or (self.get_current_voter() is not None and self.get_current_voter().uid == uid):
+			return (True, self.advance_clock(""))
+		else:
+			return (False, "No puedes hacer /tick porque no eres el storyteller ni el jugador que tiene que votar")
+
 	def get_role_info(self, name):
 		return next((x for x in roles if x['id'] == name), None)
 
@@ -97,7 +104,7 @@ class Game(BaseGame):
 		state = self.board.state
 		# Si no se esta votando devolver vacio
 		# Si el clock no comenzo tampoco hay current voter
-		if state.accuser is None or state.clock == -1:
+		if state.accuser is None or state.clock == -1 or state.clock == len(self.player_sequence):
 			return None
 		# Obtengo la lista con el defensor al final
 		lista = self.board.starting_with(self.player_sequence, state.defender)
