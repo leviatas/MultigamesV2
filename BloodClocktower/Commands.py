@@ -696,7 +696,7 @@ Nick: {player.nick}
 Rol: {player.role}
 Descripción del rol: {player.role_description}
 Afiliation : {player.afiliation}
-Tipo de personaje: {player.townfolk_Outsider_Minion_Demon}""", ParseMode.MARKDOWN)
+Tipo de personaje: {player.townfolk_Outsider_Minion_Demon_Traveller}""", ParseMode.MARKDOWN)
 
 @player
 def command_clearvote(update: Update, context: CallbackContext):
