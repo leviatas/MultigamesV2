@@ -576,12 +576,17 @@ def command_defense(update: Update, context: CallbackContext):
 		if state.defender.uid != uid:
 			bot.send_message(game.cid, f"El mensaje debe ser enviado por {player_call(state.defender)}")
 		defender = state.defender
-		accuser = state.accuser
-		state.defense = " ".join(args)
-		bot.send_message(game.cid, f"Entonces {player_call(defender)} mira a los ojos a {player_call(accuser)} y dice a todo el pueblo: {state.defense}", ParseMode.MARKDOWN)
+		accuser = state.accuser		
+		defensa = " ".join(args)
+
+		bot.send_message(game.cid, f"Entonces {player_call(defender)} mira a los ojos a {player_call(accuser)} y dice a todo el pueblo: {defensa}", ParseMode.MARKDOWN)
 		
-		clock_msg = game.advance_clock("")
-		bot.send_message(cid, clock_msg, ParseMode.MARKDOWN)	
+		# Si es la primera que se hace defense se avanza el reloj
+		if state.defense == None:
+			clock_msg = game.advance_clock("")
+			bot.send_message(cid, clock_msg, ParseMode.MARKDOWN)	
+		state.defense = defensa
+
 		board_text = game.board.print_board(game)
 		game.board_message_id = bot.send_message(cid, board_text, ParseMode.MARKDOWN)
 		save_game(cid, "Defensa acusacion", game)
