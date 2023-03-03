@@ -370,6 +370,19 @@ def command_kill(update: Update, context: CallbackContext):
 	else:
 		bot.send_message(game.cid, f"Debes ingresar a un jugador para matar")
 
+@storyteller
+def command_execute(update: Update, context: CallbackContext):
+	bot = context.bot	
+	args = context.args
+	cid = update.message.chat_id
+	game = get_game(cid)
+	
+	result_execute = game.execute_player()
+	if result_execute[0]:
+		save_game(cid, f"Execute", game)			
+	bot.send_message(game.cid, result_execute[1])
+	
+
 def command_players(update: Update, context: CallbackContext):
 	bot = context.bot	
 	uid = update.message.from_user.id
