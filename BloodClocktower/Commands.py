@@ -741,6 +741,7 @@ def command_chopping(update: Update, context: CallbackContext):
 		state.chopping_block = state.defender
 		state.chopping_block_votes = list(state.votes.values()).count("si")
 		save_game(cid, "Chopping block", game)
+		update_board(bot, game, cid)
 	else:
 		bot.send_message(cid, "No hay acusado para mandar al chopping block")
 	# pone al defender actuan en el chopping block
