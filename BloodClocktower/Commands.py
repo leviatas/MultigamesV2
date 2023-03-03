@@ -940,7 +940,9 @@ def command_fix(update: Update, context: CallbackContext):
 	game = get_game(cid)
 	state = game.board.state
 
-	state.clock = 0
+	for player in game.player_sequence:
+			player.nominated_someone = False # Indica si nominaste a alguien esta ronda
+			player.was_nominated = False # Indica si fue nominado
 	
 	bot.send_message(cid, "Fixed")
 	save_game(cid, "Fix", game)

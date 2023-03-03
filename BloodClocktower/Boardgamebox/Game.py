@@ -93,7 +93,12 @@ class Game(BaseGame):
 		# Limpio el chopping block
 		state.chopping_block_votes = 0
 		state.chopping_block = None
+		# No se puede nominar a la noche
 		state.can_nominate = False
+		# refresco el nominar yser nominado de todos los jugadores
+		for player in self.player_sequence:
+			player.nominated_someone = False # Indica si nominaste a alguien esta ronda
+			player.was_nominated = False # Indica si fue nominado
 
 	def set_day(self):
 		state = self.board.state
