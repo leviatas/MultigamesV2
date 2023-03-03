@@ -584,7 +584,8 @@ def command_defense(update: Update, context: CallbackContext):
 		state.defense = defensa
 
 		board_text = game.board.print_board(game)
-		game.board_message_id = bot.send_message(cid, board_text, ParseMode.MARKDOWN)
+		board_message = bot.send_message(cid, board_text, ParseMode.MARKDOWN)
+		game.board_message_id = board_message.message_id
 		save_game(cid, "Defensa acusacion", game)
 	else:
 		bot.send_message(game.cid, "Debes ingresar algo para tu defensa")
@@ -632,14 +633,14 @@ def command_tick(update: Update, context: CallbackContext):
 		update_board(bot, game, cid)
 	bot.send_message(cid, result[1], ParseMode.MARKDOWN)
 
-
 def update_board(bot, game, cid):
 	board_text = game.board.print_board(game)
 	# Si hay un board anterior lo borro
 	if game.board_message_id:
 		bot.deleteMessage(chat_id = cid, message_id = game.board_message_id)
 		# bot.edit_message_text(board_text, cid, game.board_message_id, parse_mode=ParseMode.MARKDOWN)
-	game.board_message_id = bot.send_message(cid, board_text, ParseMode.MARKDOWN)
+	board_msg = bot.send_message(cid, board_text, ParseMode.MARKDOWN)
+	game.board_message_id = board_msg.message_id
 
 @player
 def command_vote(update: Update, context: CallbackContext):
