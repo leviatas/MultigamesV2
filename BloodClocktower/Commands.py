@@ -639,10 +639,12 @@ def command_tick(update: Update, context: CallbackContext):
 
 def update_board(bot, game, cid):
 	board_text = game.board.print_board(game)
+	# Si hay un board anterior lo borro
 	if game.board_message_id:
-		bot.edit_message_text(board_text, cid, game.board_message_id, parse_mode=ParseMode.MARKDOWN)
-	else:
-		game.board_message_id = bot.send_message(cid, board_text, ParseMode.MARKDOWN)
+		bot.deleteMessage (message_id = game.board_message_id,
+                           chat_id = cid)
+		# bot.edit_message_text(board_text, cid, game.board_message_id, parse_mode=ParseMode.MARKDOWN)
+	game.board_message_id = bot.send_message(cid, board_text, ParseMode.MARKDOWN)
 
 @player
 def command_vote(update: Update, context: CallbackContext):
