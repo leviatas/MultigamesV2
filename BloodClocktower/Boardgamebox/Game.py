@@ -20,6 +20,59 @@ class Game(BaseGame):
 		self.board_message_id = None
 		self.tipo = "blood"
 	
+	def start_whisper(self, uid, members_text):		
+		members_text_list = members_text.split(",")
+		members = []
+		requester = self.find_player_by_id(uid)
+		members.append(requester)
+		not_found = []
+		for member in members_text_list:
+			player = self.find_player(member.strip())
+			if player is None:
+				not_found.append(player)
+			else:
+				members.append(player)
+
+		if len(not_found) > 0:
+			return (False, f"No se encontron : {self.dictate_members(not_found)}")
+		elif [member for member in members if len(member.whispering) > 0]:
+			# Si algun miembro ya esta en whispering...
+			members_whispering = [member for member in members if len(member.whispering) > 0]
+			txt_members_whispering = ""
+			for	member_w in members_whispering:
+				txt_members_whispering += f'Jugador {member_w.name} ya esta hablando con {self.dictate_members(member_w.whispering)} que lo finalice con /endwhisper\n'
+			return (False, txt_members_whispering)
+		else:
+			# Creo el whispering
+			for member in members:
+				member.whispering = members			
+			whisper_message = f"Se ha creado el whisper entre {self.dictate_members(members)}"
+			self.history.append(whisper_message)			
+			return (True, f"{whisper_message}\nPara terminarlo hacer /endwhisper")
+
+	def dictate_members(self, whisper_members):
+		dictado = ""
+		for i in range(len(whisper_members)):
+			if i == len(whisper_members) - 2:
+				dictado += whisper_members[i].name + " y " + whisper_members[i+1].name
+				break
+			else:
+				dictado += whisper_members[i].name + ", "
+		return dictado
+
+	def end_whisper(self, uid):
+		requester = self.find_player_by_id(uid)
+		# Si estaba hablando con alguien...
+		if requester is not None and len(requester.whispering) > 0:
+			whisper_members = requester.whispering.copy()
+			# Saco la charla a todos los involucrados
+			for member in whisper_members:
+				member.whispering = []
+			dictado = self.dictate_members(whisper_members)
+			return f"Se ha terminado el whisper entre {dictado}"
+		else:
+			return "No estas haciendo actualmente whispering"
+
 	def kill_player(self, player_name):
 		player = self.find_player(player_name)
 		if player is None:

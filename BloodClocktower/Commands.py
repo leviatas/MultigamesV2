@@ -482,43 +482,22 @@ def command_whisper(update: Update, context: CallbackContext):
 	uid = update.message.from_user.id
 	cid = update.message.chat_id
 	game = get_game(cid)
-	args = context.args
-	player = game.find_player(' '.join(args))
-	requester = game.playerlist[uid]
-	if player is None:
-		bot.send_message(game.cid, "El jugador no esta en el partido, recuerda poner el nombre que aparece en el board")
-		return
-	if player.whispering and player.whispering is not requester.name:
-		bot.send_message(game.cid, f"El jugador ya esta haciendo whisper con {player.whispering}")
-	elif requester.whispering and requester.whispering is not player.name:
-		bot.send_message(game.cid, f"Ya estás haciendo whisper con {requester.whispering} terminalo con /endwhisper")
-	else:
-		# Si el jugador no esta haciendo whispering con nadie asigno whisper a él
-		requester.whispering = player.name
-		player.whispering = requester.name
-		whisper_message = f"Se ha creado el whisper entre {requester.whispering} y {player.whispering}."
-		game.history.append(whisper_message)
-		save_game(cid, "Claim", game)
-		bot.send_message(game.cid, f"{whisper_message}\nPara terminarlo hacer /endwhisper")
+	args = context.args	
+	whispering_result = game.start_whisper(uid, ' '.join(args))
+	if whispering_result[0]:
+		game.history.append(whispering_result[0])
+		save_game(cid, "Wshiper Created", game)
+	bot.send_message(whispering_result[1])
 
 @player
 def command_endwhisper(update: Update, context: CallbackContext):
 	bot = context.bot	
 	uid = update.message.from_user.id
 	cid = update.message.chat_id
-	game = get_game(cid)
-	
-	requester = game.playerlist[uid]
-	if requester.whispering:
-		player = game.find_player(requester.whispering)
-		requester.whispering = None
-		player.whispering = None
-		whisper_message = f"Se ha terminado el whisper entre {requester.name} y {player.name}"
-		# game.history.append(whisper_message)
-		save_game(cid, "Claim", game)
-		bot.send_message(game.cid, whisper_message)
-	else:
-		bot.send_message(game.cid, "No estas haciendo actualmente whispering")
+	game = get_game(cid)	
+	whisper_message = game.end_whisper(uid)		
+	save_game(cid, "Claim", game)
+	bot.send_message(game.cid, whisper_message)	
 
 @player
 def command_nominate(update: Update, context: CallbackContext):
@@ -943,10 +922,7 @@ def command_fix(update: Update, context: CallbackContext):
 	state = game.board.state
 
 	for player in game.player_sequence:
-		player.nominated_someone = True # Muertos no pueden nominar		
-		if not player.dead:
-			player.nominated_someone = False # Indica si nominaste a alguien esta ronda
-		player.was_nominated = False # Indica si fue nominado
+		player.whispering = []
 	
 	bot.send_message(cid, "Fixed")
 	save_game(cid, "Fix", game)
