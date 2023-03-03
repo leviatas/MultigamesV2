@@ -637,8 +637,7 @@ def update_board(bot, game, cid):
 	board_text = game.board.print_board(game)
 	# Si hay un board anterior lo borro
 	if game.board_message_id:
-		bot.deleteMessage (message_id = game.board_message_id,
-                           chat_id = cid)
+		bot.deleteMessage(chat_id = cid, message_id = game.board_message_id)
 		# bot.edit_message_text(board_text, cid, game.board_message_id, parse_mode=ParseMode.MARKDOWN)
 	game.board_message_id = bot.send_message(cid, board_text, ParseMode.MARKDOWN)
 
@@ -649,6 +648,7 @@ def command_vote(update: Update, context: CallbackContext):
 	uid = update.message.from_user.id
 	game = get_game(cid)
 
+	context.bot.delete_message()
 	# if uid == game.storyteller and len(args) > 0:
 	# Si el voto ya estaba no hago nada
 	if uid in game.board.state.votes:
