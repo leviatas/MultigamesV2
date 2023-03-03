@@ -514,7 +514,7 @@ def command_endwhisper(update: Update, context: CallbackContext):
 		requester.whispering = None
 		player.whispering = None
 		whisper_message = f"Se ha terminado el whisper entre {requester.name} y {player.name}"
-		game.history.append(whisper_message)
+		# game.history.append(whisper_message)
 		save_game(cid, "Claim", game)
 		bot.send_message(game.cid, whisper_message)
 	else:
