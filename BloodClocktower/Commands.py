@@ -695,13 +695,15 @@ def command_info(update: Update, context: CallbackContext):
 	player = game.find_player_by_id(uid)
 	
 	if player is not None:
+		role_data = game.get_role_info(player["role"])["name"]
+
 		bot.send_message(uid, f"""*Datos del jugador:*
 Nombre: {player.name}
 Nick: {player.nick}
-Rol: {player.role}
-Descripción del rol: {player.role_description}
+Rol: {role_data["name"]}
+Descripción del rol: {role_data["ability"]}
 Afiliation : {player.afiliation}
-Tipo de personaje: {player.townfolk_Outsider_Minion_Demon_Traveller}""", ParseMode.MARKDOWN)
+Tipo de personaje: {role_data["team"]}""", ParseMode.MARKDOWN)
 
 @player
 def command_clearvote(update: Update, context: CallbackContext):
