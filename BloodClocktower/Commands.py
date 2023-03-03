@@ -375,13 +375,11 @@ def command_execute(update: Update, context: CallbackContext):
 	bot = context.bot	
 	args = context.args
 	cid = update.message.chat_id
-	game = get_game(cid)
-	
+	game = get_game(cid)	
 	result_execute = game.execute_player()
 	if result_execute[0]:
 		save_game(cid, f"Execute", game)			
-	bot.send_message(game.cid, result_execute[1])
-	
+	bot.send_message(game.cid, result_execute[1])	
 
 def command_players(update: Update, context: CallbackContext):
 	bot = context.bot	
@@ -686,8 +684,7 @@ def command_info(update: Update, context: CallbackContext):
 	player = game.find_player_by_id(uid)
 	
 	if player is not None:
-		role_data = game.get_role_info(player["role"])["name"]
-
+		role_data = game.get_role_info(player.role)
 		bot.send_message(uid, f"""*Datos del jugador:*
 Nombre: {player.name}
 Nick: {player.nick}
