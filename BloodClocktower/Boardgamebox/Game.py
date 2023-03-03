@@ -28,7 +28,6 @@ class Game(BaseGame):
 			kill_message = f"Jugador {player_name} te han matado, no posees más tu habilidad, pero puedes hablar y votar una última vez"
 			player.dead = True
 			player.nominated_someone = True # Muertos no pueden nominar
-			player.was_nominated = True # Muertos no pueden ser nominados
 			self.history.append(kill_message)
 			return (True, kill_message)
 
@@ -110,8 +109,8 @@ class Game(BaseGame):
 		# refresco el nominar y ser nominado de todos los jugadores, excepto los muertos
 		for player in self.player_sequence:
 			if not player.dead:
-				player.nominated_someone = False # Indica si nominaste a alguien esta ronda
-				player.was_nominated = False # Indica si fue nominado
+				player.nominated_someone = False # Los muertos no pueden nominar
+			player.was_nominated = False # ITodos pueden ser nominados
 
 	def set_day(self):
 		state = self.board.state

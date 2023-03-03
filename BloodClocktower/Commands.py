@@ -941,12 +941,10 @@ def command_fix(update: Update, context: CallbackContext):
 	state = game.board.state
 
 	for player in game.player_sequence:
-		player.nominated_someone = True # Muertos no pueden nominar
-		player.was_nominated = True # Muertos no pueden ser nominados
+		player.nominated_someone = True # Muertos no pueden nominar		
 		if not player.dead:
 			player.nominated_someone = False # Indica si nominaste a alguien esta ronda
-			player.was_nominated = False # Indica si fue nominado
-
+		player.was_nominated = False # Indica si fue nominado
 	
 	bot.send_message(cid, "Fixed")
 	save_game(cid, "Fix", game)
