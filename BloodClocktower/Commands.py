@@ -569,6 +569,7 @@ def command_defense(update: Update, context: CallbackContext):
 		# Si el jugador que defiende no es el defensor...
 		# log.info(state.defender.uid)
 		# log.info(uid)
+
 		if state.defender.uid != uid:
 			bot.send_message(game.cid, f"El mensaje debe ser enviado por {player_call(state.defender)}")
 		defender = state.defender
@@ -649,7 +650,6 @@ def command_vote(update: Update, context: CallbackContext):
 	uid = update.message.from_user.id
 	game = get_game(cid)
 
-	context.bot.delete_message()
 	# if uid == game.storyteller and len(args) > 0:
 	# Si el voto ya estaba no hago nada
 	if uid in game.board.state.votes:
