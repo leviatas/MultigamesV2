@@ -20,6 +20,18 @@ class Game(BaseGame):
 		self.board_message_id = None
 		self.tipo = "blood"
 	
+	def kill_player(self, player_name):
+		player = self.find_player(player_name)
+		if player is None:
+			return (False, "El jugador no esta en el partido, recuerda poner el nombre que aparece en el board")
+		else:
+			kill_message = f"Jugador {player_name} te han matado, no posees más tu habilidad, pero puedes hablar y votar una última vez"
+			player.dead = True
+			player.nominated_someone = True # Muertos no pueden nominar
+			player.was_nominated = True # Muertos no pueden ser nominados
+			self.history.append(kill_message)
+			return (True, kill_message)
+
 	def tick(self, uid):
 		if uid == self.storyteller or (self.get_current_voter() is not None and self.get_current_voter().uid == uid):
 			return (True, self.advance_clock(""))
@@ -95,10 +107,11 @@ class Game(BaseGame):
 		state.chopping_block = None
 		# No se puede nominar a la noche
 		state.can_nominate = False
-		# refresco el nominar yser nominado de todos los jugadores
+		# refresco el nominar y ser nominado de todos los jugadores, excepto los muertos
 		for player in self.player_sequence:
-			player.nominated_someone = False # Indica si nominaste a alguien esta ronda
-			player.was_nominated = False # Indica si fue nominado
+			if not player.dead:
+				player.nominated_someone = False # Indica si nominaste a alguien esta ronda
+				player.was_nominated = False # Indica si fue nominado
 
 	def set_day(self):
 		state = self.board.state

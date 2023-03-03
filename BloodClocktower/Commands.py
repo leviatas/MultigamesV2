@@ -362,15 +362,11 @@ def command_kill(update: Update, context: CallbackContext):
 	
 	if len(args) > 0:
 		# Busco el jugador a matar
-		player_name = ' '.join(args)
-		player = game.find_player(player_name)
-		if player is None:
-			bot.send_message(game.cid, "El jugador no esta en el partido, recuerda poner el nombre que aparece en el board")
-		player.dead = True
-		save_game(cid, f"Matamos a {player_name}", game)
-		kill_message = f"Jugador {player_name} te han matado, no posees más tu habilidad, pero puedes hablar y votar una última vez"
-		game.history.append(kill_message)
-		bot.send_message(game.cid, kill_message)
+		player_name = ' '.join(args)		
+		result_kill = game.kill_player(player_name)
+		if result_kill[0]:
+			save_game(cid, f"Matamos a {player_name}", game)			
+		bot.send_message(game.cid, result_kill[1])
 	else:
 		bot.send_message(game.cid, f"Debes ingresar a un jugador para matar")
 
@@ -945,8 +941,12 @@ def command_fix(update: Update, context: CallbackContext):
 	state = game.board.state
 
 	for player in game.player_sequence:
+		player.nominated_someone = True # Muertos no pueden nominar
+		player.was_nominated = True # Muertos no pueden ser nominados
+		if not player.dead:
 			player.nominated_someone = False # Indica si nominaste a alguien esta ronda
 			player.was_nominated = False # Indica si fue nominado
+
 	
 	bot.send_message(cid, "Fixed")
 	save_game(cid, "Fix", game)
