@@ -75,7 +75,7 @@ class Game(BaseGame):
 
 	def execute_player(self):
 		if self.board.state.chopping_block != None:
-			return (True, self.kill_player(self.board.state.chopping_block.name, "ejecutado"))
+			return self.kill_player(self.board.state.chopping_block.name, "ejecutado")
 		else:
 			return (False, "No hay jugador en el chopping block")
 			
@@ -84,7 +84,7 @@ class Game(BaseGame):
 		if player is None:
 			return (False, "El jugador no esta en el partido, recuerda poner el nombre que aparece en el board")
 		else:
-			kill_message = f"Jugador {player_name} te han {verbo}, no posees más tu habilidad, pero puedes hablar y votar una última vez"
+			kill_message = f"Jugador {self.player_call(player)} te han {verbo}, no posees más tu habilidad, pero puedes hablar y votar una última vez"
 			player.dead = True
 			player.nominated_someone = True # Muertos no pueden nominar
 			self.history.append(kill_message)

@@ -384,15 +384,11 @@ def command_execute(update: Update, context: CallbackContext):
 def command_players(update: Update, context: CallbackContext):
 	bot = context.bot	
 	uid = update.message.from_user.id
-	cid = update.message.chat_id
-	
+	cid = update.message.chat_id	
 	game = get_game(cid)	
-	
 	if not game:
-		bot.send_message(game.cid, "No hay partida en este grupo")
-		
-	jugadoresActuales = "Los jugadores que se han unido al momento son:\n"
-	
+		bot.send_message(game.cid, "No hay partida en este grupo")		
+	jugadoresActuales = "Los jugadores que se han unido al momento son:\n"	
 	for player in game.playerlist.values():
 		jugadoresActuales += f"{player_call(player)}\n"			
 	bot.send_message(game.cid, jugadoresActuales, ParseMode.MARKDOWN)
