@@ -116,6 +116,7 @@ def main():
     dp.add_handler(CommandHandler("setrole", Commands.command_setrole))
 
     dp.add_handler(CommandHandler("readgamejson", Commands.command_readgamejson))
+    dp.add_handler(CommandHandler('timer', Commands.callback_timer))
     
 
     dp.add_handler(CallbackQueryHandler(pattern=r"(-[0-9]*)\*choosegameblood\*(.*)\*([0-9]*)", callback=Commands.callback_choose_game_blood))

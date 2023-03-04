@@ -899,6 +899,44 @@ def command_travel(update: Update, context: CallbackContext):
 	save_game(cid, "Notes", game)
 	bot.send_message(cid, f"Todos observan como *{fname}* llaga al pueblo", ParseMode.MARKDOWN)
 
+
+def callback_timer(update: Update, context: CallbackContext):
+	cid = update.message.chat_id
+	bot = context.bot
+	job_queue = context.job_queue
+	args = context.args
+	game = get_game(cid)
+	# Si existe el juego verifico que tenga comando sino se usa el uso pensado del timer.
+	if game and getattr(game, "timer", None):
+		game.timer(update, context)
+	else:
+		# Default 1 minute y mensaje vacio
+		try:
+			minutos = int(args[0]) if len(args) > 0 else 1
+			mensaje = " ".join(args[1:]) if len(args) > 1 else ""
+		except Exception:
+			minutos = 1
+			mensaje = ""
+		
+		if minutos <= 1:
+			msg = 'Se pone timer para {} segundos!'.format(minutos*60)
+		elif minutos <= 60:
+			msg = 'Se pone timer para {} minutos!'.format(minutos)
+		else:
+			msg = 'Se pone timer para {} horas!'.format(minutos/60)
+
+		bot.send_message(chat_id=update.message.chat_id, text=msg)
+		job_queue.run_once(callback_alarm, minutos*60, context=[update.message.chat_id, mensaje])
+
+def callback_alarm(context: CallbackContext):
+	job = context.job
+	cid = job.context[0]
+	mensaje = job.context[1]
+	if mensaje == "":
+		context.bot.send_message(cid, '‼‼*El tiempo ha terminado*‼‼', ParseMode.MARKDOWN)
+	else:
+		context.bot.send_message(cid, '‼‼*Acordate de {}*‼‼'.format(mensaje), ParseMode.MARKDOWN)
+
 @restricted
 def command_readgamejson(update: Update, context: CallbackContext):
 	bot = context.bot
