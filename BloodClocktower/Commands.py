@@ -456,13 +456,13 @@ def command_history(update: Update, context: CallbackContext):
 			#bot.send_message(cid, "Current round: " + str(game.board.state.currentround + 1))
 			uid = update.message.from_user.id
 			game.groupName = groupName
-			history_text = "Historial del grupo *{}*:\n\n".format(groupName)
+			history_text = f"Historial del grupo *{groupName}*:\n\n"
 			history_textContinue = "" 
 			for x in game.history:
 				if len(history_text) < 3500:
-					history_text += x + "\n\n"
+					history_text += f"{x}\n\n"
 				else:
-					history_textContinue += x + "\n\n"
+					history_textContinue += f"{x}\n\n"
 
 			bot.send_message(uid, history_text, ParseMode.MARKDOWN)
 			if len(history_textContinue) > 0:
