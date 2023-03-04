@@ -494,7 +494,7 @@ def command_whisper(update: Update, context: CallbackContext):
 	if whispering_result[0]:
 		game.history.append(whispering_result[0])
 		save_game(cid, "Wshiper Created", game)
-	bot.send_message(whispering_result[1])
+	bot.send_message(cid, whispering_result[1])
 
 @player
 def command_endwhisper(update: Update, context: CallbackContext):
