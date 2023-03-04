@@ -907,7 +907,7 @@ def callback_timer(update: Update, context: CallbackContext):
 	args = context.args
 	game = get_game(cid)
 	# Si existe el juego verifico que tenga comando sino se usa el uso pensado del timer.
-	if game and getattr(game, "timer", None):
+	if False:
 		game.timer(update, context)
 	else:
 		# Default 1 minute y mensaje vacio
