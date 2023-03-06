@@ -29,12 +29,12 @@ class Game(BaseGame):
 		for member in members_text_list:
 			player = self.find_player(member.strip())
 			if player is None:
-				not_found.append(player)
+				not_found.append(member)
 			else:
 				members.append(player)
 
 		if len(not_found) > 0:
-			return (False, f"No se encontron : {self.dictate_members(not_found)}")
+			return (False, f"No se encontró: {self.dictate_members_string(not_found)}")
 		elif [member for member in members if len(member.whispering) > 0]:
 			# Si algun miembro ya esta en whispering...
 			members_whispering = [member for member in members if len(member.whispering) > 0]
@@ -58,6 +58,19 @@ class Game(BaseGame):
 				break
 			else:
 				dictado += whisper_members[i].name + ", "
+		return dictado
+
+	def dictate_members_string(self, whisper_members):
+		dictado = ""
+		for i in range(len(whisper_members)):
+			if i == len(whisper_members) - 2:
+				dictado += whisper_members[i] + " y " + whisper_members[i+1]
+				break
+			else:
+				dictado += whisper_members[i] + ", "
+		if len(whisper_members) == 1:
+			dictado = dictado[:-2]
+
 		return dictado
 
 	def end_whisper(self, uid):
@@ -134,12 +147,11 @@ class Game(BaseGame):
 		player.notes.append(notas)
 
 	def find_player(self, name):
-		for uid in self.playerlist:
-			player = self.find_player_by_id(uid)
-			if player.name == name or player.nick == name.replace("@",""):
+		for player in self.playerlist.values():
+			if player is not None and player.name == name or player.nick == name.replace("@",""):
 				return player
 		for player in self.player_sequence:
-			if player.name == name:
+			if player is not None and player.name == name or player.nick == name.replace("@",""):
 				return player
 		return None
 
