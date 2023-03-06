@@ -366,7 +366,7 @@ def command_kill(update: Update, context: CallbackContext):
 		result_kill = game.kill_player(player_name)
 		if result_kill[0]:
 			save_game(cid, f"Matamos a {player_name}", game)			
-		bot.send_message(game.cid, result_kill[1])
+		bot.send_message(game.cid, result_kill[1], ParseMode.MARKDOWN)
 	else:
 		bot.send_message(game.cid, f"Debes ingresar a un jugador para matar")
 
