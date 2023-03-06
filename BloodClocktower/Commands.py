@@ -359,16 +359,55 @@ def command_kill(update: Update, context: CallbackContext):
 	args = context.args
 	cid = update.message.chat_id
 	game = get_game(cid)
-	
-	if len(args) > 0:
+	uid = update.message.from_user.id
+
+	# Si lo uso desde la pantalla del bot
+	if game is None:
+		games = load_and_get_games()
+		games_with_me_as_storyteller = [game for game in games if game.storyteller == uid and game.board != None]
+		if len(games_with_me_as_storyteller) == 0:
+			bot.send_message(cid, "*No estas dirigiendo ningun juego de Blood*", ParseMode.MARKDOWN)
+			return
+		elif len(games_with_me_as_storyteller) == 1:
+			# Si solo esta en un solo juego hago la accion directa
+			# Si es agregar entonces agrego la nota
+			game = games_with_me_as_storyteller[0]
+			player_name = ' '.join(args)		
+			result_kill = game.kill_player(player_name)
+			if result_kill[0]:
+				save_game(cid, f"Matamos a {player_name}", game)
+			# Me lo mando en privado porque la intencion fue hacerlo en privado		
+			bot.send_message(uid, result_kill[1], ParseMode.MARKDOWN)
+		else:
+			# More than one game
+			btnMarkup = create_choose_buttons(uid, args, "kill_player", games_with_me_as_storyteller, context)
+			bot.send_message(uid, "En cual de estos grupos quieres hacer la acción?", reply_markup=btnMarkup)
+			return
+	else:
 		# Busco el jugador a matar
 		player_name = ' '.join(args)		
 		result_kill = game.kill_player(player_name)
 		if result_kill[0]:
 			save_game(cid, f"Matamos a {player_name}", game)			
 		bot.send_message(game.cid, result_kill[1], ParseMode.MARKDOWN)
-	else:
-		bot.send_message(game.cid, f"Debes ingresar a un jugador para matar")
+
+def create_choose_buttons(uid, args, action, game_list, context):
+	btns = []
+	for game in game_list:
+		cid = game.cid
+		# Creo el boton el cual eligirá el jugador
+		txtBoton = game.groupName
+		comando_callback = "choosegameblood"
+		context.user_data[uid] = ' '.join(args)
+		context.user_data["accion"] = action
+		datos = str(cid) + "*" + comando_callback + str(uid)
+		btns.append([InlineKeyboardButton(txtBoton, callback_data=datos)])
+	# Agrego boton de cancel
+	txtBoton = "Cancel"
+	datos = "-1*choosegameblood" + str(uid)
+	btns.append([InlineKeyboardButton(txtBoton, callback_data=datos)])
+	btnMarkup = InlineKeyboardMarkup(btns)
+	return btnMarkup
 
 @storyteller
 def command_execute(update: Update, context: CallbackContext):
@@ -819,6 +858,12 @@ def callback_choose_game_blood(update: Update, context: CallbackContext):
 			message = game.set_role(data[0], data[1])
 			save_game(game.cid, "setrole", game)
 			bot.send_message(cid, message, ParseMode.MARKDOWN)
+	elif accion == "kill_player":
+		player_name = informacion
+		result_kill = game.kill_player(player_name)
+		if result_kill[0]:
+			save_game(cid, f"Matamos a {player_name}", game)			
+		bot.send_message(uid, result_kill[1], ParseMode.MARKDOWN)
 
 
 @player
