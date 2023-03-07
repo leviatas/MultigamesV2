@@ -994,7 +994,7 @@ def command_getreminders(update: Update, context: CallbackContext):
 	game = get_game(cid)
 	reminders_text = ""
 	for player in game.player_sequence:
-		reminders_text += game.get_player_reminders(player.name)
+		reminders_text += f"{game.get_player_reminders(player.name)}\n"
 	bot.send_message(uid, reminders_text, ParseMode.MARKDOWN)
 
 @restricted
