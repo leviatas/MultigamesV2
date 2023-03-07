@@ -6,6 +6,7 @@ from Boardgamebox.Game import Game as BaseGame
 from BloodClocktower.Boardgamebox.Player import Player
 from BloodClocktower.Boardgamebox.Board import Board
 from BloodClocktower.Boardgamebox.State import State
+from BloodClocktower.Boardgamebox.Reminder import Reminder
 #from Boardgamebox.Board import Board
 #from Boardgamebox.State import State
 
@@ -20,6 +21,33 @@ class Game(BaseGame):
 		self.board_message_id = None
 		self.tipo = "blood"
 	
+	def get_player_reminders(self, name):
+		player = self.find_player(name)
+		if player != None:
+			reminder_text = ""
+			if len(player.reminders) > 0:
+				reminder_text += f"Notas del jugador {player.name}:\n"
+				for reminder in player.reminders:
+					reminder_text += f"{reminder.print()}\n"
+			else:
+				reminder_text = f"El jugador {player.name} no tiene notas."
+			return reminder_text
+		else:
+			return f"No existe ese jugador"
+
+	def add_reminders(self, name, reminders):
+		player = self.find_player(name)
+		if player != None:
+			player.reminders = []
+			text_add_reminder = ""
+			for reminder in reminders:
+				reminder = Reminder(reminder['role'], reminder['name'])
+				player.reminders.append(reminder)
+				text_add_reminder += f"Se agrego a {player.name} -> {reminder.print()}\n"
+			return text_add_reminder
+		else:
+			return f"No existe ese jugador"
+
 	def start_whisper(self, uid, members_text):		
 		members_text_list = members_text.split(",")
 		members = []
@@ -146,7 +174,7 @@ class Game(BaseGame):
 		player = self.find_player_by_id(uid)
 		player.notes.append(notas)
 
-	def find_player(self, name):
+	def find_player(self, name) -> Player:
 		for player in self.playerlist.values():
 			if player is not None and player.name == name or player.nick == name.replace("@",""):
 				return player

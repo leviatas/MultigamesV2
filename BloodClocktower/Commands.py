@@ -12,6 +12,8 @@ import logging as log
 
 from BloodClocktower.Boardgamebox.Game import Game
 from BloodClocktower.Boardgamebox.Player import Player
+from BloodClocktower.Boardgamebox.Reminder import Reminder
+
 from Constants.Config import ADMIN
 from Utils import restricted, player_call
 from typing import List
@@ -983,6 +985,18 @@ def callback_alarm(context: CallbackContext):
 	else:
 		context.bot.send_message(cid, '‼‼*Acordate de {}*‼‼'.format(mensaje), ParseMode.MARKDOWN)
 
+@storyteller
+def command_getreminders(update: Update, context: CallbackContext):
+	bot = context.bot
+	cid = update.message.chat_id
+	uid = update.message.from_user.id
+	# args = context.args
+	game = get_game(cid)
+	reminders_text = ""
+	for player in game.player_sequence:
+		reminders_text += game.get_player_reminders(player.name)
+	bot.send_message(uid, reminders_text, ParseMode.MARKDOWN)
+
 @restricted
 def command_readgamejson(update: Update, context: CallbackContext):
 	bot = context.bot
@@ -994,14 +1008,24 @@ def command_readgamejson(update: Update, context: CallbackContext):
 
 	game = get_game(-741603449)
 
+	# Agrego roles del ST
 	for player in game_data["players"]:
 		nombre = player['name']
 		rol = player['role']
 		if rol == 'drunk':
 			rol == ""
 		message = game.set_role(nombre, rol)
-		save_game(game.cid, "setrole", game)
+		save_game(game.cid, "set_role", game)
 		bot.send_message(cid, message, ParseMode.MARKDOWN)
+
+	# Agrego reminders del ST
+	for player in game_data["players"]:
+		reminders = player["reminders"]
+		nombre = player['name']
+		message = game.add_reminders(nombre, reminders)
+		save_game(game.cid, "add_reminders", game)
+		bot.send_message(cid, message, ParseMode.MARKDOWN)
+		
 	# state = game.board.state
 
 	
@@ -1014,7 +1038,7 @@ def command_fix(update: Update, context: CallbackContext):
 	state = game.board.state
 
 	for player in game.player_sequence:
-		player.whispering = []
+		player.reminders = []
 	
 	bot.send_message(cid, "Fixed")
 	save_game(cid, "Fix", game)

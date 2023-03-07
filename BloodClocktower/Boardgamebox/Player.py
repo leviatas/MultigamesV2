@@ -18,6 +18,7 @@ class Player(BasePlayer):
         self.role_description = "" # Descripcion del rol
         self.whispering = [] # Con quien esta hablando el jugador actualmente
         self.notes = []
+        self.reminders = []
 
     def get_private_info(self, game):
         board = "--- Info del Jugador {} en la partida *{}*---\n".format(self.name, game.groupName) 
