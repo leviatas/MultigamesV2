@@ -74,7 +74,55 @@ def command_start(update: Update, context: CallbackContext):
 
 	cid = update.message.chat_id
 	bot.send_message(cid,
-		     """Este es un bot para jugar Clock On The Bloodtower""")
+"""Este es un bot para jugar Clock On The Bloodtower
+A ver explicación completa la editamos y luego la pongo en el bot.
+
+Blood on the clocktower es un juego de deducción social.
+Hay dos equipos, el pueblo y el demonio.
+
+El objetivo del pueblo es eliminar al demonio.
+
+El objetivo del demonio es que queden 2 jugadores vivos, el siendo uno de ellos.
+
+Los roles determinarán que poder tiene cada jugador y para que equipo juega.
+
+La noche 0 algunos roles usan su poder y se pasa al día.
+
+Desde ese momento se sigue de la siguiente forma:
+
+DIA:
+Los jugadores hablan entre ellos, se puede hablar en secreto (whisper) y se denomina gente para ser ejecutada.
+
+Cada jugador *vivo* puede por día:
+- *Acusar* una vez a un jugador.
+- *Ser acusado* para ser ejecutado una vez.
+
+Cuando un candidato es elegido el a usador normalmente explica los motivos de la acusación y el acusado explica porque es mala idea que lo ejecuten.
+
+Luego comenzando con el jugador a la izquierda del acusado y en sentido de las agujas del reloj los jugadores votan SI o NO.
+
+- Si la cantidad de SI iguala o supera a la mitad de jugadores VIVOS redondeando para arriba.
+
+Entonces el jugador PUEDE  ser ejecutado (Se dice que va al chopping block), los jugadores pueden seguir acusando.
+
+- Si otro jugador es acusado y supera en votos SI al jugador en el Chopping block el otro es liberado y ahora este es el que puede ser ejecutado.
+
+- Si otro jugador es acusado e igual en votos SI al jugador en el chopping block, estos dos jugadores no son ejecutados.
+
+Cualquiera de los dos casos de arriba no impide que se siga acusando gente.
+
+Las acusaciones y votos siguen hasta que el Storyteller decida.
+
+En ese momento si hay alguien que ejecutar se ejecuta y ese jugador muere.
+
+Un jugador muerto pierde:
+- El poder que tenía su personaje.
+- Votar las veces que quiera en más acusaciones. A partir de ese momento solo puede votar UNA última vez en el juego.
+- Acusar a un jugador.
+
+Luego de la ejecución se hace de noche y los jugadores con poderes los usa.
+
+Luego comienza un nuevo día.""", ParseMode.MARKDOWN)
 	command_help(update, context)
 
 def command_help(update: Update, context: CallbackContext):
