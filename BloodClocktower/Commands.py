@@ -495,17 +495,18 @@ def command_history(update: Update, context: CallbackContext):
 			#bot.send_message(cid, "Current round: " + str(game.board.state.currentround + 1))
 			uid = update.message.from_user.id
 			game.groupName = groupName
-			history_text = f"Historial del grupo *{groupName}*:\n\n"
-			history_textContinue = "" 
+			history_text_list = []
+			history_text = f"Historial del grupo *{groupName}*:\n\n"			
 			for x in game.history:
 				if len(history_text) < 3500:
 					history_text += f"{x}\n\n"
 				else:
-					history_textContinue += f"{x}\n\n"
-
-			bot.send_message(uid, history_text, ParseMode.MARKDOWN)
-			if len(history_textContinue) > 0:
-				bot.send_message(uid, history_textContinue, ParseMode.MARKDOWN)
+					history_text_list.append(history_text)
+					history_text = f"{x}\n\n"
+			for history_text_item in history_text_list:
+				bot.send_message(uid, history_text_item, ParseMode.MARKDOWN)
+			# if len(history_textContinue) > 0:
+			# 	bot.send_message(uid, history_textContinue, ParseMode.MARKDOWN)
 			#bot.send_message(cid, "I sent you the history to our private chat")			
 		else:
 			bot.send_message(cid, "No hay juego en este chat. Crea un nuevo juego con /newgame")
