@@ -997,6 +997,8 @@ def command_readgamejson(update: Update, context: CallbackContext):
 	for player in game_data["players"]:
 		nombre = player['name']
 		rol = player['role']
+		if rol == 'drunk':
+			rol == ""
 		message = game.set_role(nombre, rol)
 		save_game(game.cid, "setrole", game)
 		bot.send_message(cid, message, ParseMode.MARKDOWN)
