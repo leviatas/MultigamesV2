@@ -63,7 +63,7 @@ def start_round(bot, game):
 		game.turncount += 1
 	except AttributeError:
 		game.turncount = 1
-	if game.suddenDeath >= 0:
+	if game.getSuddenDeath() >= 0:
 		game.suddenDeath += 1
 	game.board.state.fase_actual = "Set_Reference"
 	game.board.new_wave_card()
@@ -208,7 +208,7 @@ def start_next_round(bot, game, catchup_rule):
 	# O si estan en muerte subita y jugaron una vez cada equipo
 	if (game.board.state.active_team.score >= 10
 	    or game.board.state.inactive_team.score >= 10) or (
-		game.suddenDeath == 2):
+		game.getSuddenDeath() == 2):
 
 		game.board.print_board(bot, game)
 

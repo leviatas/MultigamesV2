@@ -73,3 +73,10 @@ class Game(BaseGame):
 		import Wavelength.Commands as WavelengthCommands
 		if self.board is not None:
     			WavelengthCommands.command_call(context.bot, self)
+
+	# We use this method to ensure existing games without the suddenDeath attr
+	# does not fail
+	def getSuddenDeath(self):
+		if not hasattr(self, 'suddenDeath'):
+			self.suddenDeath = -1
+		return self.suddenDeath
