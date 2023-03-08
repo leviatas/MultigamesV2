@@ -188,10 +188,9 @@ def resolve(bot, game, args = []):
 	start_next_round(bot, game)
 
 def start_next_round(bot, game):
-	# Verifico si alguno de los dos equipos ha llegado a los puntos para ganar. Y que la cantidad de turnos haya sido par
-	if (game.board.state.active_team.score >= 15 
-	    or game.board.state.inactive_team.score >= 15) and (
-		game.turncount % 2 == 0):
+	# Verifico si alguno de los dos equipos ha llegado a los puntos para ganar.
+	if (game.board.state.active_team.score >= 10
+	    or game.board.state.inactive_team.score >= 10)
 
 		game.board.print_board(bot, game)
 
