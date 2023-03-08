@@ -601,7 +601,6 @@ def command_whisper(update: Update, context: CallbackContext):
 	args = context.args	
 	whispering_result = game.start_whisper(uid, ' '.join(args))
 	if whispering_result[0]:
-		game.history.append(whispering_result[0])
 		save_game(cid, "Wshiper Created", game)
 	bot.send_message(cid, whispering_result[1])
 
