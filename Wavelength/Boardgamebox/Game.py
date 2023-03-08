@@ -15,6 +15,7 @@ class Game(BaseGame):
 		BaseGame.__init__(self, cid, initiator, groupName, tipo, modo)
 		self.turncount = 0
 		self.code_length = 5
+		self.suddenDeath = -1
 	# Creacion de player de Say Anything.
 	def add_player(self, uid, name):
 		self.playerlist[uid] = Player(name, uid)

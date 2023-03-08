@@ -63,6 +63,8 @@ def start_round(bot, game):
 		game.turncount += 1
 	except AttributeError:
 		game.turncount = 1
+	if game.suddenDeath >= 0:
+		game.suddenDeath += 1
 	game.board.state.fase_actual = "Set_Reference"
 	game.board.new_wave_card()
 	send_wavelength(bot, game)
@@ -189,8 +191,10 @@ def resolve(bot, game, args = []):
 
 def start_next_round(bot, game):
 	# Verifico si alguno de los dos equipos ha llegado a los puntos para ganar.
+	# O si estan en muerte subita y jugaron una vez cada equipo
 	if (game.board.state.active_team.score >= 10
-	    or game.board.state.inactive_team.score >= 10)
+	    or game.board.state.inactive_team.score >= 10) or (
+		game.suddenDeath == 2):
 
 		game.board.print_board(bot, game)
 
@@ -203,7 +207,11 @@ def start_next_round(bot, game):
 			bot.send_message(game.cid, "El equipo: *{}* HA GANADO!".format(
 				game.board.state.inactive_team.name), ParseMode.MARKDOWN)
 		elif team_diff == 0:
-			bot.send_message(game.cid, "Todos han ganado! ¿O todos perdieron?", ParseMode.MARKDOWN)
+			bot.send_message(game.cid, "El juego esta empatado! *MUERTE SUBITA!*", ParseMode.MARKDOWN)
+			game.suddenDeath = 0 # immediately after start_round will add 1
+			game.board.state.increment_team_counter()
+			start_round(bot, game)
+			return
 		game.board.state.fase_actual = "Finalizado"
 		save(bot, game.cid)
 	else:
