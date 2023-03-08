@@ -156,6 +156,7 @@ def send_guess(bot, game):
 def resolve(bot, game, args = []):
 	log.info('resolve_Wave called')
 	# Resolvemos
+	catchup_rule = False
 	active_wave_card = game.board.state.active_wave_card
 	diff = game.board.state.wavelength - game.board.state.team_choosen_grade
 	abs_diff = abs(diff)
@@ -181,15 +182,21 @@ def resolve(bot, game, args = []):
 	if ((diff > 0 and opp_choose_l_r == 1) or (diff < 0 and opp_choose_l_r == 0)) and abs_diff > 3:
 		game.board.state.inactive_team.score += 1
 		msg += "\nEl equipo inactivo ha correctamente si estaba a la derecha o izquierda del bulls eye. Ha ganado *1 punto*!"
+
+	if game.board.state.active_team.score < game.board.state.active_team.score:
+		msg += "\n\nEl equipo activo ha hecho bullseye y sigue teniendo menor puntaje, se activa la regla de compensación."
+		msg += "\nEl equipo activo tiene otro turno."
+		catchup_rule = True
+
 	bot.send_message(game.cid, msg, ParseMode.MARKDOWN)
 	msg = "*(Debug data)*\nEl grado elegido es *{}*\nEl equipo contrario eligio *{}*.\n\nEl grado real era *{}*".format(
 		game.board.state.team_choosen_grade,
 		"a la Izquierda" if game.board.state.opponent_team_choosen_left_right == 0 else "a la Derecha",
 		game.board.state.wavelength)
 	game.history.append(msg)
-	start_next_round(bot, game)
+	start_next_round(bot, game, catchup_rule)
 
-def start_next_round(bot, game):
+def start_next_round(bot, game, catchup_rule):
 	# Verifico si alguno de los dos equipos ha llegado a los puntos para ganar.
 	# O si estan en muerte subita y jugaron una vez cada equipo
 	if (game.board.state.active_team.score >= 10
@@ -216,7 +223,10 @@ def start_next_round(bot, game):
 		save(bot, game.cid)
 	else:
 		# El juego continua
-		game.board.state.increment_team_counter()
+		if catchup_rule == True:
+			game.board.state.increment_player_counter()
+		else:
+			game.board.state.increment_team_counter()
 		start_round(bot, game)
 
 def continue_playing(bot, game):
