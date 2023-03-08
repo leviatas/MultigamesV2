@@ -17,6 +17,7 @@ class Player(BasePlayer):
         
         self.role_description = "" # Descripcion del rol
         self.whispering = [] # Con quien esta hablando el jugador actualmente
+        self.whispering_count = 0 # Cantidad de whispers que he realizado en el dia
         self.notes = []
         self.reminders = []
 

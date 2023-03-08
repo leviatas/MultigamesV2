@@ -20,6 +20,7 @@ class Game(BaseGame):
 		self.storyteller = None
 		self.board_message_id = None
 		self.tipo = "blood"
+		self.whisper_max = 3
 	
 	def load_json_data(self, game_data):
 		response_msg = ""
@@ -77,6 +78,7 @@ class Game(BaseGame):
 			else:
 				members.append(player)
 
+		# Si no encuentro a alguno de los integrantes no hago nada
 		if len(not_found) > 0:
 			return (False, f"No se encontró: {self.dictate_members_string(not_found)}")
 		elif [member for member in members if len(member.whispering) > 0]:
@@ -84,24 +86,27 @@ class Game(BaseGame):
 			members_whispering = [member for member in members if len(member.whispering) > 0]
 			txt_members_whispering = ""
 			for	member_w in members_whispering:
-				txt_members_whispering += f'Jugador {member_w.name} ya esta hablando con {self.dictate_members(member_w.whispering)} que lo finalice con /endwhisper\n'
+				txt_members_whispering += f'Jugador {member_w.name} ya esta hablando con {self.dictate_members(member_w.whispering, True)} que lo finalice con /endwhisper\n'
 			return (False, txt_members_whispering)
 		else:
 			# Creo el whispering
 			for member in members:
-				member.whispering = members			
+				member.whispering = members
+				member.whispering_count += len(members) -1 #Aumento el count de whispers menos el propio creador que no se tiene que contar
 			whisper_message = f"Se ha creado el whisper entre {self.dictate_members(members)}"
 			self.history.append(whisper_message)			
 			return (True, f"{whisper_message}\nPara terminarlo hacer /endwhisper")
 
-	def dictate_members(self, whisper_members):
+	def dictate_members(self, whisper_members, add_whisper_count = False):
 		dictado = ""
 		for i in range(len(whisper_members)):
+			name = f"{whisper_members[i].name} {whisper_members[i].whispering_count}/{self.whisper_max}" if add_whisper_count else whisper_members[i].name 
 			if i == len(whisper_members) - 2:
-				dictado += whisper_members[i].name + " y " + whisper_members[i+1].name
+				name_last = f"{whisper_members[i+1].name} {whisper_members[i+1].whispering_count}/{self.whisper_max}" if add_whisper_count else whisper_members[i+1].name 
+				dictado += name + " y " + name_last
 				break
 			else:
-				dictado += whisper_members[i].name + ", "
+				dictado += name + ", "
 		return dictado
 
 	def dictate_members_string(self, whisper_members):
@@ -226,6 +231,7 @@ class Game(BaseGame):
 			if not player.dead:
 				player.nominated_someone = False # Los muertos no pueden nominar
 			player.was_nominated = False # ITodos pueden ser nominados
+			player.whispering_count = 0 # reseteo los whispers
 
 	def set_day(self):
 		state = self.board.state

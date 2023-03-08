@@ -1095,8 +1095,9 @@ def command_fix(update: Update, context: CallbackContext):
 	game = get_game(cid)
 	state = game.board.state
 
+	game.whisper_max = 3
 	for player in game.player_sequence:
-		player.reminders = []
+		player.whispering_count = 0
 	
 	bot.send_message(cid, "Fixed")
 	save_game(cid, "Fix", game)

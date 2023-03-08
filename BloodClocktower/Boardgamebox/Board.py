@@ -68,6 +68,7 @@ class Board(BaseBoard):
         
         for index, player in enumerate(lista):
             nombre = player.name.replace("_", " ") if state.clock is not index else self.player_call(player)
+            num_whisper = "" if player.whispering_count == 0 else player.whispering_count
 
             chop = f"🪓 {state.chopping_block_votes}" if state.chopping_block is not None and state.chopping_block.uid == player.uid else ""
             clock = "➡️ " if state.clock == index else ""
