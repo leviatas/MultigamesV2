@@ -122,7 +122,25 @@ Un jugador muerto pierde:
 
 Luego de la ejecución se hace de noche y los jugadores con poderes los usa.
 
-Luego comienza un nuevo día.""", ParseMode.MARKDOWN)
+Luego comienza un nuevo día.
+
+----
+
+Ahora algo a destacar es el rol del Storyteller cuyo objetivo es llegar al día X con 3 jugadores vivos y que la partida sea divertida.
+Para lograr esto usa un arsenal de herramientas pero sin romper las reglas.
+
+Por otro lado en el juego se puede hablar en secreto para esto utilizaremos una regla de juego que usan en discord en server semi oficial
+Uno con sus vecinos puede hablar en secreto hasta 15 palabras. Para esto no debe avisar a nadie.
+Luego tendrá hasta 3 charlas en secreto que tendrá que indicar con /whisper @usuario. El cual debe estar de acuerdo en hacerlo (ya que el gasta una de sus charlas al hacerlo).
+Mientras habla en secreto no se puede hablar acá en el principal, hasta que termine el whisper
+/endwhisper
+
+Hablar en secreto en grupo, si se quiere se puede usar whisper adicionales para hablar con más de una persona. Pero gasta 1 whisper más por persona.
+O sea que hablar con otras 2 personas constaría 2 whispers y con 3 usarías 3 whispers.
+
+Por otro lado mientras se está en whisper con alguien se puede hablar con los vecinos.
+
+También se puede usar un whisper para hablar más de 15 palabras con un vecino cada día.""", ParseMode.MARKDOWN)
 	command_help(update, context)
 
 def command_help(update: Update, context: CallbackContext):
@@ -413,8 +431,7 @@ def command_kill(update: Update, context: CallbackContext):
 
 	# Si lo uso desde la pantalla del bot
 	if game is None:
-		games = load_and_get_games()
-		games_with_me_as_storyteller = [game for game in games if game.storyteller == uid and game.board != None]
+		games_with_me_as_storyteller = get_games_with_me_as_storyteller(uid)
 		if len(games_with_me_as_storyteller) == 0:
 			bot.send_message(cid, "*No estas dirigiendo ningun juego de Blood*", ParseMode.MARKDOWN)
 			return
@@ -430,7 +447,7 @@ def command_kill(update: Update, context: CallbackContext):
 			bot.send_message(uid, result_kill[1], ParseMode.MARKDOWN)
 		else:
 			# More than one game
-			btnMarkup = create_choose_buttons(uid, args, "kill_player", games_with_me_as_storyteller, context)
+			btnMarkup = create_choose_buttons(uid, ' '.join(args), "kill_player", games_with_me_as_storyteller, context)
 			bot.send_message(uid, "En cual de estos grupos quieres hacer la acción?", reply_markup=btnMarkup)
 			return
 	else:
@@ -441,14 +458,19 @@ def command_kill(update: Update, context: CallbackContext):
 			save_game(cid, f"Matamos a {player_name}", game)			
 		bot.send_message(game.cid, result_kill[1], ParseMode.MARKDOWN)
 
-def create_choose_buttons(uid, args, action, game_list, context):
+def get_games_with_me_as_storyteller(uid):
+	games = load_and_get_games()
+	games_with_me_as_storyteller = [game for game in games if game.storyteller == uid and game.board != None]
+	return games_with_me_as_storyteller
+
+def create_choose_buttons(uid, data, action, game_list, context):
 	btns = []
 	for game in game_list:
 		cid = game.cid
 		# Creo el boton el cual eligirá el jugador
 		txtBoton = game.groupName
 		comando_callback = "choosegameblood"
-		context.user_data[uid] = ' '.join(args)
+		context.user_data[uid] = data
 		context.user_data["accion"] = action
 		datos = str(cid) + "*" + comando_callback + str(uid)
 		btns.append([InlineKeyboardButton(txtBoton, callback_data=datos)])
@@ -533,36 +555,33 @@ def command_claim(update: Update, context: CallbackContext):
 def command_history(update: Update, context: CallbackContext):
 	bot = context.bot
 	#game.pedrote = 3
-	try:
-		#Send message of executing command   
-		cid = update.message.chat_id
-		#Check if there is a current game 
-		
-		groupName = update.message.chat.title
+	#Send message of executing command   
+	cid = update.message.chat_id
+	#Check if there is a current game 
+	
+	groupName = update.message.chat.title
 
-		game = get_game(cid)
-		if game:			
-			#bot.send_message(cid, "Current round: " + str(game.board.state.currentround + 1))
-			uid = update.message.from_user.id
-			game.groupName = groupName
-			history_text_list = []
-			history_text = f"Historial del grupo *{groupName}*:\n\n"			
-			for x in game.history:
-				if len(history_text) < 3500:
-					history_text += f"{x}\n\n"
-				else:
-					history_text_list.append(history_text)
-					history_text = f"{x}\n\n"
-			for history_text_item in history_text_list:
+	game = get_game(cid)
+	if game:			
+		#bot.send_message(cid, "Current round: " + str(game.board.state.currentround + 1))
+		uid = update.message.from_user.id
+		game.groupName = groupName
+		history_text_list = []
+		history_text = f"Historial del grupo *{groupName}*:\n\n"			
+		for x in game.history:
+			if len(history_text) < 3500:
+				history_text += f"{x}\n\n"
+			else:
+				history_text_list.append(history_text)
+				history_text = f"{x}\n\n"
+		for history_text_item in history_text_list:
+			if len(history_text_item) > 0:
 				bot.send_message(uid, history_text_item, ParseMode.MARKDOWN)
-			# if len(history_textContinue) > 0:
-			# 	bot.send_message(uid, history_textContinue, ParseMode.MARKDOWN)
-			#bot.send_message(cid, "I sent you the history to our private chat")			
-		else:
-			bot.send_message(cid, "No hay juego en este chat. Crea un nuevo juego con /newgame")
-	except Exception as e:
-		bot.send_message(cid, str(e))
-		log.error("Unknown error: " + str(e))  
+		# if len(history_textContinue) > 0:
+		# 	bot.send_message(uid, history_textContinue, ParseMode.MARKDOWN)
+		#bot.send_message(cid, "I sent you the history to our private chat")			
+	else:
+		bot.send_message(cid, "No hay juego en este chat. Crea un nuevo juego con /newgame")	
 
 @restricted
 def command_debug(update: Update, context: CallbackContext):
@@ -915,7 +934,11 @@ def callback_choose_game_blood(update: Update, context: CallbackContext):
 		if result_kill[0]:
 			save_game(cid, f"Matamos a {player_name}", game)			
 		bot.send_message(uid, result_kill[1], ParseMode.MARKDOWN)
-
+	elif accion == "load_json_data":
+		context.user_data[uid]
+		message = game.load_json_data(informacion)
+		save_game(game.cid, "load_json_data", game)
+		bot.send_message(cid, message, ParseMode.MARKDOWN)
 
 @player
 def command_call(update: Update, context: CallbackContext):
@@ -933,9 +956,7 @@ def command_setrole(update: Update, context: CallbackContext):
 	uid = update.message.from_user.id
 	args = context.args
 
-	games = load_and_get_games()
-	games_with_me_as_storyteller = [game for game in games if game.storyteller == uid and game.board != None]
-
+	games_with_me_as_storyteller = get_games_with_me_as_storyteller(uid)
 	if len(games_with_me_as_storyteller) == 0:
 		bot.send_message(cid, "*No estas dirigiendo ningun juego de Blood*", ParseMode.MARKDOWN)
 	elif len(games_with_me_as_storyteller) == 1:
@@ -1048,34 +1069,25 @@ def command_getreminders(update: Update, context: CallbackContext):
 def command_readgamejson(update: Update, context: CallbackContext):
 	bot = context.bot
 	cid = update.message.chat_id
-	game = get_game(cid)
+	uid = update.message.from_user.id
 	args = " ".join(context.args)
 	# Obtengo el json y lo convierto en objecto
 	game_data = jsonpickle.decode(args)
 
-	game = get_game(-741603449)
+	games_with_me_as_storyteller = get_games_with_me_as_storyteller(uid)
+	if len(games_with_me_as_storyteller) == 0:
+		bot.send_message(cid, "*No estas dirigiendo ningun juego de Blood*", ParseMode.MARKDOWN)
+		return
+	elif len(games_with_me_as_storyteller) == 1:
+		game = games_with_me_as_storyteller[0]
+		message = game.load_json_data(game_data)
+		save_game(game.cid, "load_json_data", game)
+		bot.send_message(cid, message, ParseMode.MARKDOWN)	
+	else:
+		btnMarkup = create_choose_buttons(uid, game_data, "load_json_data", games_with_me_as_storyteller, context)
+		bot.send_message(uid, "En cual de estos grupos quieres hacer la acción?", reply_markup=btnMarkup)
+		return
 
-	# Agrego roles del ST
-	for player in game_data["players"]:
-		nombre = player['name']
-		rol = player['role']
-		if rol == 'drunk':
-			rol == ""
-		message = game.set_role(nombre, rol)
-		save_game(game.cid, "set_role", game)
-		bot.send_message(cid, message, ParseMode.MARKDOWN)
-
-	# Agrego reminders del ST
-	for player in game_data["players"]:
-		reminders = player["reminders"]
-		nombre = player['name']
-		message = game.add_reminders(nombre, reminders)
-		save_game(game.cid, "add_reminders", game)
-		bot.send_message(cid, message, ParseMode.MARKDOWN)
-		
-	# state = game.board.state
-
-	
 
 @restricted
 def command_fix(update: Update, context: CallbackContext):

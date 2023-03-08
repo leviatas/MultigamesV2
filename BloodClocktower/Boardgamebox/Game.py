@@ -21,6 +21,22 @@ class Game(BaseGame):
 		self.board_message_id = None
 		self.tipo = "blood"
 	
+	def load_json_data(self, game_data):
+		response_msg = ""
+		# Agrego roles del ST
+		for player in game_data["players"]:
+			nombre = player['name']
+			rol = player['role']
+			if rol == 'drunk':
+				rol == ""
+			response_msg += self.set_role(nombre, rol)
+		# Agrego reminders del ST
+		for player in game_data["players"]:
+			reminders = player["reminders"]
+			nombre = player['name']
+			response_msg += self.add_reminders(nombre, reminders)
+		return response_msg
+
 	def get_player_reminders(self, name):
 		player = self.find_player(name)
 		if player != None:
