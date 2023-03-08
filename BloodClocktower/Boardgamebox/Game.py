@@ -86,14 +86,14 @@ class Game(BaseGame):
 			members_whispering = [member for member in members if len(member.whispering) > 0]
 			txt_members_whispering = ""
 			for	member_w in members_whispering:
-				txt_members_whispering += f'Jugador {member_w.name} ya esta hablando con {self.dictate_members(member_w.whispering, True)} que lo finalice con /endwhisper\n'
+				txt_members_whispering += f'Jugador {member_w.name} ya esta hablando con {self.dictate_members(member_w.whispering)} que lo finalice con /endwhisper\n'
 			return (False, txt_members_whispering)
 		else:
 			# Creo el whispering
 			for member in members:
 				member.whispering = members
 				member.whispering_count += len(members) -1 #Aumento el count de whispers menos el propio creador que no se tiene que contar
-			whisper_message = f"Se ha creado el whisper entre {self.dictate_members(members)}"
+			whisper_message = f"Se ha creado el whisper entre {self.dictate_members(members, True)}"
 			self.history.append(whisper_message)			
 			return (True, f"{whisper_message}\nPara terminarlo hacer /endwhisper")
 
@@ -130,7 +130,7 @@ class Game(BaseGame):
 			# Saco la charla a todos los involucrados
 			for member in whisper_members:
 				member.whispering = []
-			dictado = self.dictate_members(whisper_members)
+			dictado = self.dictate_members(whisper_members, True)
 			return f"Se ha terminado el whisper entre {dictado}"
 		else:
 			return "No estas haciendo actualmente whispering"
