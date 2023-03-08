@@ -134,6 +134,13 @@ def draw_choose_needle(bot, game, message_id = None):
 	save(bot, game.cid)
 
 def send_guess(bot, game):
+	# To improve game pace, we eagerly check if there is a bullseye and prevent
+	# the other team from having to do an useless left/right guess
+	diff = abs(game.board.state.wavelength - game.board.state.team_choosen_grade)
+	if diff < 3:
+		resolve(bot, game)
+		return
+
 	game.board.print_board(bot, game)
 	active_wave_card = game.board.state.active_wave_card
 	call_other_players = ""
