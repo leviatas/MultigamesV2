@@ -574,9 +574,9 @@ def command_history(update: Update, context: CallbackContext):
 			else:
 				history_text_list.append(history_text)
 				history_text = f"{x}\n\n"
+		history_text_list.append(history_text)
 		for history_text_item in history_text_list:
-			if len(history_text_item) > 0:
-				bot.send_message(uid, history_text_item, ParseMode.MARKDOWN)
+			bot.send_message(uid, history_text_item, ParseMode.MARKDOWN)
 		# if len(history_textContinue) > 0:
 		# 	bot.send_message(uid, history_textContinue, ParseMode.MARKDOWN)
 		#bot.send_message(cid, "I sent you the history to our private chat")			
