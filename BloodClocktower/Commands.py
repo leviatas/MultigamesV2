@@ -1045,7 +1045,6 @@ def command_getreminders(update: Update, context: CallbackContext):
 		reminders_text += f"{game.get_player_reminders(player.name)}\n"
 	bot.send_message(uid, reminders_text, ParseMode.MARKDOWN)
 
-@restricted
 def command_readgamejson(update: Update, context: CallbackContext):
 	bot = context.bot
 	cid = update.message.chat_id
