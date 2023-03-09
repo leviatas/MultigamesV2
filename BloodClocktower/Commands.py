@@ -41,7 +41,7 @@ commands = [  # command description used in the "help" command
 	'/notes [notas]- (Solo en privado) Escribe notas, o las visualiza'
     '/storyteller - Despues de comenzar la partida, el story teller debe ejecutar este comando para asignarse el role',
     '/leave - Salis de la partida si no ha comenzado todavia',    
-    '*Comandos propios del Storyteller*'
+    '*Comandos propios del Storyteller*',
     '/firstnight - Comandos que ejecuta la primera noche',
     '/night - Comando para pasar a la fase de noche, avanza el numero de días. Limpia acciones del dia.',
     '/day - Comando para pasar a la fase de dia,  ',
@@ -195,7 +195,7 @@ def command_help(update: Update, context: CallbackContext):
 	help_text = "Los siguientes comandos están disponibles:\n"
 	for i in commands:
 		help_text += i + "\n"
-	bot.send_message(cid, help_text)
+	bot.send_message(cid, help_text, ParseMode.MARKDOWN)
 
 def get_game(cid) -> Game:
 	# Busco el juego actual
