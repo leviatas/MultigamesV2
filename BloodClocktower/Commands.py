@@ -74,7 +74,7 @@ commands = [  # command description used in the "help" command
     
     '/id - Muestra el id de quien hace el comando',
     '/travel - Agrega al jugador actual a la partida',
-    '/grimorie - Muestra el grimorio en privado al ST',
+    '/grimoire - Muestra el grimorio en privado al ST',
 
 
 ]
@@ -1089,7 +1089,7 @@ def command_readgamejson(update: Update, context: CallbackContext):
 		bot.send_message(uid, "En cual de estos grupos quieres hacer la acción?", reply_markup=btnMarkup)
 		return
 
-def command_grimorie(update: Update, context: CallbackContext):
+def command_grimoire(update: Update, context: CallbackContext):
 	bot = context.bot
 	cid = update.message.chat_id
 	uid = update.message.from_user.id
