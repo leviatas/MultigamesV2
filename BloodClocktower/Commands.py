@@ -36,10 +36,47 @@ commands = [  # command description used in the "help" command
     '/join - Te une a un juego existente',
     '/startgame - Comienza un juego existente cuando todos los jugadores se han unido',
     '/delete - Borra el juego actual',
-    '/board - Imprime el tablero actual con la pista liberal y la pista fascista, orden presidencial y contador de elección',
-    '/history - Imprime el historial del juego actual',
-    '/call - Avisa a los jugadores que se tiene que actuar',
+    '/board - Imprime el tablero actual con la pista liberal y la pista fascista, orden presidencial y contador de elección',	    
+    
 	'/notes [notas]- (Solo en privado) Escribe notas, o las visualiza'
+    '/storyteller - Despues de comenzar la partida, el story teller debe ejecutar este comando para asignarse el role',
+    '/leave - Salis de la partida si no ha comenzado todavia',    
+    '*Comandos propios del Storyteller*'
+    '/firstnight - Comandos que ejecuta la primera noche',
+    '/night - Comando para pasar a la fase de noche, avanza el numero de días. Limpia acciones del dia.',
+    '/day - Comando para pasar a la fase de dia,  ',
+    '/kill - Mata al jugador actual /kill @nick',
+    '/setplayerorder - Setea el orden de los jugadores /setplayerorder name1,name2,name3',
+    '/clear - Limpia los votos de la nominacion actual',
+    '/nominations - Abre las nominaciones',
+    '/chopping - Manda al chopping block al nominado actual',
+    '/execute - Executa al nominado en el chopping block',
+    '/setrole - Setea el role de un jugador',
+    '/readgamejson - Setea el datos del json generado por https://clocktower.online/ ',
+    '/getreminders - Obtiene los recordatorios de los jugadores que tenga el ST',
+	'/timer - Crea un timer de X cantidad de minutos, puede ser usado por cualquiera',
+    '*Comandos utiles para jugadores*',
+	'/call - Avisa a los jugadores que se tiene que actuar',
+    '/players - Muestra los jugadores y sus links',
+    '/history - Imprime el historial del juego actual',
+    '/claim - Comando para guardar en el historial general algo que uno reclama ser',
+    '/whisper - Comando para comenzar un whisper con alguien /whisper @leo @pedro',
+    '/endwhisper - Comando para terminar el whisper actual',    
+    '/defense - Comando para dictar la defensa contra la nominacion actual',
+    '/nominate - Comando para nominar a una persona uso: /nominate @nick,MOTIVO',
+    '/tick - Pasa el reloj al siguiente jugador',
+    '/vote - Vota al jugador nominado actualmente.',
+    '/clearvote - Limpia el voto actual',
+    
+    '/refresh - Refresca la info de nombre y nick del jugador que lo ejecuta',
+    '/info - Muestra informacion en privado al jugador actual sobre su rol y que hace',
+    '/notes - Ejecutado sin texto muestra las notas actuales del jugador, con texto /notes MSG guarda MSG en las notas actuales para recordar',
+    
+    '/id - Muestra el id de quien hace el comando',
+    '/travel - Agrega al jugador actual a la partida',
+    '/grimorie - Muestra el grimorio en privado al ST',
+
+
 ]
 
 def storyteller(func):
@@ -142,6 +179,14 @@ Por otro lado mientras se está en whisper con alguien se puede hablar con los v
 
 También se puede usar un whisper para hablar más de 15 palabras con un vecino cada día.""", ParseMode.MARKDOWN)
 	command_help(update, context)
+
+def command_commands(update: Update, context: CallbackContext):
+	bot = context.bot
+	args = context.args
+	cid = update.message.chat_id
+
+
+
 
 def command_help(update: Update, context: CallbackContext):
 	bot = context.bot
@@ -894,50 +939,7 @@ def command_notes(update: Update, context: CallbackContext):
 		btnMarkup = InlineKeyboardMarkup(btns)
 		bot.send_message(uid, "En cual de estos grupos quieres hacer la acción?", reply_markup=btnMarkup)
 
-def callback_choose_game_blood(update: Update, context: CallbackContext):
-	bot = context.bot
-	callback = update.callback_query
-	log.info('callback_choose_game_blood called: %s' % callback.data)	
-	regex = re.search(r"(-[0-9]*)\*choosegameblood\*(.*)\*([0-9]*)", callback.data)
-	cid, uid = int(regex.group(1)), int(regex.group(3)),
-	
-	if cid == -1:
-		bot.edit_message_text("Cancelado", uid, callback.message.message_id)
-		return
-	
-	game = get_game(cid)
-	mensaje_edit = "Has elegido el grupo {0}".format(game.groupName)
-	
-	informacion = context.user_data[uid]
-	accion = context.user_data["accion"]
-	bot.edit_message_text(mensaje_edit, uid, callback.message.message_id)
-	
-	if accion == "notas":
-		if len(informacion) > 0 :
-			game.add_note(uid, informacion)
-			save_game(cid, "Notes", game)
-		else:
-			print_notes(game, uid, bot)
-	elif accion == "setrole":
-		data = informacion.split(";")
-		if len(data) != 2:
-			bot.send_message(cid, f"Te falta poner algun argumento es /setrole Usuario;Role", ParseMode.MARKDOWN)
-			return
-		elif len(data) == 2:
-			message = game.set_role(data[0], data[1])
-			save_game(game.cid, "setrole", game)
-			bot.send_message(cid, message, ParseMode.MARKDOWN)
-	elif accion == "kill_player":
-		player_name = informacion
-		result_kill = game.kill_player(player_name)
-		if result_kill[0]:
-			save_game(cid, f"Matamos a {player_name}", game)			
-		bot.send_message(uid, result_kill[1], ParseMode.MARKDOWN)
-	elif accion == "load_json_data":
-		context.user_data[uid]
-		message = game.load_json_data(informacion)
-		save_game(game.cid, "load_json_data", game)
-		bot.send_message(cid, message, ParseMode.MARKDOWN)
+
 
 @player
 def command_call(update: Update, context: CallbackContext):
@@ -1086,6 +1088,71 @@ def command_readgamejson(update: Update, context: CallbackContext):
 		btnMarkup = create_choose_buttons(uid, game_data, "load_json_data", games_with_me_as_storyteller, context)
 		bot.send_message(uid, "En cual de estos grupos quieres hacer la acción?", reply_markup=btnMarkup)
 		return
+
+def command_grimorie(update: Update, context: CallbackContext):
+	bot = context.bot
+	cid = update.message.chat_id
+	uid = update.message.from_user.id
+	games_with_me_as_storyteller = get_games_with_me_as_storyteller(uid)
+	if len(games_with_me_as_storyteller) == 0:
+		bot.send_message(cid, "*No estas dirigiendo ningun juego de Blood*", ParseMode.MARKDOWN)
+		return
+	elif len(games_with_me_as_storyteller) == 1:
+		game = games_with_me_as_storyteller[0]
+		message = game.board.print_grimoire(game)
+		bot.send_message(cid, message, ParseMode.MARKDOWN)	
+	else:
+		btnMarkup = create_choose_buttons(uid, "", "print_grimoire", games_with_me_as_storyteller, context)
+		bot.send_message(uid, "En cual de estos grupos quieres hacer la acción?", reply_markup=btnMarkup)
+		return
+
+def callback_choose_game_blood(update: Update, context: CallbackContext):
+	bot = context.bot
+	callback = update.callback_query
+	log.info('callback_choose_game_blood called: %s' % callback.data)	
+	regex = re.search(r"(-[0-9]*)\*choosegameblood\*(.*)\*([0-9]*)", callback.data)
+	cid, uid = int(regex.group(1)), int(regex.group(3)),
+	
+	if cid == -1:
+		bot.edit_message_text("Cancelado", uid, callback.message.message_id)
+		return
+	
+	game = get_game(cid)
+	mensaje_edit = "Has elegido el grupo {0}".format(game.groupName)
+	
+	informacion = context.user_data[uid]
+	accion = context.user_data["accion"]
+	bot.edit_message_text(mensaje_edit, uid, callback.message.message_id)
+	
+	if accion == "notas":
+		if len(informacion) > 0 :
+			game.add_note(uid, informacion)
+			save_game(cid, "Notes", game)
+		else:
+			print_notes(game, uid, bot)
+	elif accion == "setrole":
+		data = informacion.split(";")
+		if len(data) != 2:
+			bot.send_message(cid, f"Te falta poner algun argumento es /setrole Usuario;Role", ParseMode.MARKDOWN)
+			return
+		elif len(data) == 2:
+			message = game.set_role(data[0], data[1])
+			save_game(game.cid, "setrole", game)
+			bot.send_message(cid, message, ParseMode.MARKDOWN)
+	elif accion == "kill_player":
+		player_name = informacion
+		result_kill = game.kill_player(player_name)
+		if result_kill[0]:
+			save_game(cid, f"Matamos a {player_name}", game)			
+		bot.send_message(uid, result_kill[1], ParseMode.MARKDOWN)
+	elif accion == "load_json_data":
+		context.user_data[uid]
+		message = game.load_json_data(informacion)
+		save_game(game.cid, "load_json_data", game)
+		bot.send_message(cid, message, ParseMode.MARKDOWN)
+	elif accion == "print_grimoire":
+		message = game.board.print_grimoire(game)
+		bot.send_message(cid, message, ParseMode.MARKDOWN)
 
 
 @restricted

@@ -78,31 +78,37 @@ def main():
     dp.add_handler(CommandHandler("startgame", Commands.command_startgame))
     dp.add_handler(CommandHandler("storyteller", Commands.command_storyteller))
     dp.add_handler(CommandHandler("delete", Commands.command_delete))
-    # Comandos para avanzar el dia y el juego
+    dp.add_handler(CommandHandler("leave", Commands.command_leave))
+    
+    # Comandos Storyteller
     dp.add_handler(CommandHandler("firstnight", Commands.command_firstnight))
     dp.add_handler(CommandHandler("night", Commands.command_night))
     dp.add_handler(CommandHandler("day", Commands.command_day))
-    # Comandos sobre los jugadores
     dp.add_handler(CommandHandler("kill", Commands.command_kill))
+    dp.add_handler(CommandHandler("setplayerorder", Commands.command_set_player_order))
+    dp.add_handler(CommandHandler("clear", Commands.command_clear))
+    dp.add_handler(CommandHandler("nominations", Commands.command_toggle_nominations))
+    dp.add_handler(CommandHandler("chopping", Commands.command_chopping))
+    dp.add_handler(CommandHandler("execute", Commands.command_execute))
+    dp.add_handler(CommandHandler("setrole", Commands.command_setrole))
+    dp.add_handler(CommandHandler("readgamejson", Commands.command_readgamejson))    
+    dp.add_handler(CommandHandler('getreminders', Commands.command_getreminders))
 
     #Comandos utiles para jugadores
-    dp.add_handler(CommandHandler("players", Commands.command_players))
-    dp.add_handler(CommandHandler("leave", Commands.command_leave))
+    dp.add_handler(CommandHandler('timer', Commands.callback_timer))    
+    dp.add_handler(CommandHandler("players", Commands.command_players))    
     dp.add_handler(CommandHandler("history", Commands.command_history))
     dp.add_handler(CommandHandler("claim", Commands.command_claim))
     dp.add_handler(CommandHandler("whisper", Commands.command_whisper))
     dp.add_handler(CommandHandler("endwhisper", Commands.command_endwhisper))
-    dp.add_handler(CommandHandler("setplayerorder", Commands.command_set_player_order))
-    dp.add_handler(CommandHandler("fix", Commands.command_fix))
-    dp.add_handler(CommandHandler("defense", Commands.command_defense))
-    dp.add_handler(CommandHandler("nominate", Commands.command_nominate))
     
-    dp.add_handler(CommandHandler("clear", Commands.command_clear))
-    dp.add_handler(CommandHandler("nominations", Commands.command_toggle_nominations))
+    dp.add_handler(CommandHandler("fix", Commands.command_fix))
+
+    dp.add_handler(CommandHandler("defense", Commands.command_defense))
+    dp.add_handler(CommandHandler("nominate", Commands.command_nominate))    
     dp.add_handler(CommandHandler("tick", Commands.command_tick))
     dp.add_handler(CommandHandler("vote", Commands.command_vote))
-    dp.add_handler(CommandHandler("clearvote", Commands.command_clearvote))
-    dp.add_handler(CommandHandler("chopping", Commands.command_chopping))
+    dp.add_handler(CommandHandler("clearvote", Commands.command_clearvote))    
     
     dp.add_handler(CommandHandler("refresh", Commands.command_refresh))
     dp.add_handler(CommandHandler("info", Commands.command_info))
@@ -111,13 +117,7 @@ def main():
 
     dp.add_handler(CommandHandler("id", Commands.command_id))
     dp.add_handler(CommandHandler("travel", Commands.command_travel))
-    dp.add_handler(CommandHandler("execute", Commands.command_execute))
-
-    dp.add_handler(CommandHandler("setrole", Commands.command_setrole))
-
-    dp.add_handler(CommandHandler("readgamejson", Commands.command_readgamejson))
-    dp.add_handler(CommandHandler('timer', Commands.callback_timer))
-    dp.add_handler(CommandHandler('getreminders', Commands.command_getreminders))
+    dp.add_handler(CommandHandler("grimorie", Commands.command_grimorie))
     
 
     dp.add_handler(CallbackQueryHandler(pattern=r"(-[0-9]*)\*choosegameblood\*(.*)\*([0-9]*)", callback=Commands.callback_choose_game_blood))
