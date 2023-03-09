@@ -29,6 +29,7 @@ urllib.parse.uses_netloc.append("postgres")
 url = urllib.parse.urlparse(os.environ["DATABASE_URL"])
 
 commands = [  # command description used in the "help" command
+	'*Comandos de Inicio*',
     '/help - Te da informacion de los comandos disponibles',
     '/start - Da un poco de información sobre Blood on the Clocktower',
     '/rules - Te da un link al sitio oficial con las reglas de Blood on the Clocktower',
@@ -36,11 +37,10 @@ commands = [  # command description used in the "help" command
     '/join - Te une a un juego existente',
     '/startgame - Comienza un juego existente cuando todos los jugadores se han unido',
     '/delete - Borra el juego actual',
-    '/board - Imprime el tablero actual con la pista liberal y la pista fascista, orden presidencial y contador de elección',	    
-    
-	'/notes [notas]- (Solo en privado) Escribe notas, o las visualiza'
+    '/board - Imprime el tablero actual con la pista liberal y la pista fascista, orden presidencial y contador de elección',
     '/storyteller - Despues de comenzar la partida, el story teller debe ejecutar este comando para asignarse el role',
-    '/leave - Salis de la partida si no ha comenzado todavia',    
+    '/leave - Salis de la partida si no ha comenzado todavia',
+	'',   
     '*Comandos propios del Storyteller*',
     '/firstnight - Comandos que ejecuta la primera noche',
     '/night - Comando para pasar a la fase de noche, avanza el numero de días. Limpia acciones del dia.',
@@ -55,28 +55,27 @@ commands = [  # command description used in the "help" command
     '/readgamejson - Setea el datos del json generado por https://clocktower.online/ ',
     '/getreminders - Obtiene los recordatorios de los jugadores que tenga el ST',
 	'/timer - Crea un timer de X cantidad de minutos, puede ser usado por cualquiera',
+	'/grimoire - Muestra el grimorio en privado al ST',
+	'',
     '*Comandos utiles para jugadores*',
 	'/call - Avisa a los jugadores que se tiene que actuar',
     '/players - Muestra los jugadores y sus links',
     '/history - Imprime el historial del juego actual',
     '/claim - Comando para guardar en el historial general algo que uno reclama ser',
-    '/whisper - Comando para comenzar un whisper con alguien /whisper @leo @pedro',
+    '/whisper - Comando para comenzar un whisper con alguien /whisper @participant1, @participant2',
     '/endwhisper - Comando para terminar el whisper actual',    
     '/defense - Comando para dictar la defensa contra la nominacion actual',
     '/nominate - Comando para nominar a una persona uso: /nominate @nick,MOTIVO',
     '/tick - Pasa el reloj al siguiente jugador',
     '/vote - Vota al jugador nominado actualmente.',
     '/clearvote - Limpia el voto actual',
-    
+	'/notes [notas]- (Solo en privado) Escribe notas, o las visualiza',
+    '',
+	'Comandos Miscelaneos'
     '/refresh - Refresca la info de nombre y nick del jugador que lo ejecuta',
-    '/info - Muestra informacion en privado al jugador actual sobre su rol y que hace',
-    '/notes - Ejecutado sin texto muestra las notas actuales del jugador, con texto /notes MSG guarda MSG en las notas actuales para recordar',
-    
+    '/info - Muestra informacion en privado al jugador actual sobre su rol y que hace',    
     '/id - Muestra el id de quien hace el comando',
     '/travel - Agrega al jugador actual a la partida',
-    '/grimoire - Muestra el grimorio en privado al ST',
-
-
 ]
 
 def storyteller(func):
