@@ -56,6 +56,7 @@ def call_dicc_buttons(bot, game):
 		"community" : "Español Community",
 		"edespañola"  : "Original Ed Española",
 		"german" : "Español Ed Germán",
+		"orsai": "Español Orsai",
 		"futbol" : "Futbol ed Germán"
 	}
 	simple_choose_buttons(bot, game.cid, 1234, game.cid, "choosedicc", "¿Elija un diccionario para jugar?", opciones_botones)
