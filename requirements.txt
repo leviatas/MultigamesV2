@@ -1,5 +1,5 @@
 python-telegram-bot==13.14
-requests==2.24.0
+requests==2.28.2
 six==1.15.0
 psycopg2>=2.7.3.1
 jsonpickle >=0.8
@@ -30,6 +30,6 @@ sqlparse==0.3.1
 urllib3==1.25.9
 beautifulsoup4==4.9.3
 pandas==1.2.4
-discord==1.7.3
+discord==2.2.2
 scipy==1.5.4
 html2image==2.0.1

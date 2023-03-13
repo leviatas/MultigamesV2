@@ -101,9 +101,6 @@ def main():
     dp.add_handler(CommandHandler("claim", Commands.command_claim))
     dp.add_handler(CommandHandler("whisper", Commands.command_whisper))
     dp.add_handler(CommandHandler("endwhisper", Commands.command_endwhisper))
-    
-    dp.add_handler(CommandHandler("fix", Commands.command_fix))
-
     dp.add_handler(CommandHandler("defense", Commands.command_defense))
     dp.add_handler(CommandHandler("nominate", Commands.command_nominate))    
     dp.add_handler(CommandHandler("tick", Commands.command_tick))
@@ -118,6 +115,11 @@ def main():
     dp.add_handler(CommandHandler("id", Commands.command_id))
     dp.add_handler(CommandHandler("travel", Commands.command_travel))
     dp.add_handler(CommandHandler("grimoire", Commands.command_grimoire))
+
+    # DEveloper commands
+    dp.add_handler(CommandHandler("fix", Commands.command_fix))
+    dp.add_handler(CommandHandler("bug", Commands.command_bug))
+    dp.add_handler(CommandHandler("feature", Commands.command_feature))
     
 
     dp.add_handler(CallbackQueryHandler(pattern=r"(-[0-9]*)\*choosegameblood\*(.*)\*([0-9]*)", callback=Commands.callback_choose_game_blood))

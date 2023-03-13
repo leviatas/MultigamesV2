@@ -3,6 +3,7 @@ from telegram.ext import (CallbackContext)
 import GamesController
 
 from functools import wraps
+import requests
 import jsonpickle
 import os
 import psycopg2
@@ -1104,6 +1105,51 @@ def command_grimoire(update: Update, context: CallbackContext):
 		btnMarkup = create_choose_buttons(uid, "", "print_grimoire", games_with_me_as_storyteller, context)
 		bot.send_message(uid, "En cual de estos grupos quieres hacer la acción?", reply_markup=btnMarkup)
 		return
+
+@restricted
+def command_bug(update: Update, context: CallbackContext):
+	bot = context.bot
+	cid = update.message.chat_id
+	uid = update.message.from_user.id
+	args = " ".join(context.args)
+	result = create_github_issue(args, "bug")
+	bot.send_message(cid, result)
+
+@restricted
+def command_feature(update: Update, context: CallbackContext):
+	bot = context.bot
+	cid = update.message.chat_id
+	uid = update.message.from_user.id
+	args = " ".join(context.args)
+	result = create_github_issue(args, "enhancement")
+	bot.send_message(cid, result)
+
+def create_github_issue(args, tipo):
+	github_token = os.environ.get('github_token', None)
+
+	if len(args) == 0:
+		return "Tienes que agregar texto para crear un bug"
+	if github_token is None:
+		return "No esta seteado el token de github para subir issues"
+
+	endpoint = "https://api.github.com/repos/leviatas/MultigamesV2/issues"
+	data = {
+		"title": args,
+		"body": args,
+		"assignees": [
+			"leviatas"
+		],
+		"milestone": 1,
+		"labels": [
+			tipo
+		]
+	}
+	headers = {"Authorization": f"Bearer {github_token}"}
+	result = requests.post(endpoint, data= jsonpickle.encode(data), headers=headers)		
+	if result.status_code == 201:
+		return f"El {type} ha sido creado exitosamente"
+	else:
+		return f"El servicio de github retorno codigo: {result.status_code} y el json es: {result.json()}"
 
 def callback_choose_game_blood(update: Update, context: CallbackContext):
 	bot = context.bot
