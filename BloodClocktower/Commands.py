@@ -1147,7 +1147,7 @@ def create_github_issue(args, tipo):
 	headers = {"Authorization": f"Bearer {github_token}"}
 	result = requests.post(endpoint, data= jsonpickle.encode(data), headers=headers)		
 	if result.status_code == 201:
-		return f"El {type} ha sido creado exitosamente"
+		return f"El {tipo} ha sido creado exitosamente"
 	else:
 		return f"El servicio de github retorno codigo: {result.status_code} y el json es: {result.json()}"
 
