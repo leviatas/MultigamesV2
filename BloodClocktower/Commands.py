@@ -312,7 +312,7 @@ def command_newgame(update: Update, context: CallbackContext):
 	if groupType not in ['group', 'supergroup']:
 		bot.send_message(cid, "Tienes que agregarme a un grupo primero y escribir /newgame allá!")
 	elif game:
-		bot.send_message(cid, "Hay un juego comenzado en este chat. Si quieres terminarlo escribe /cancelgame!")
+		bot.send_message(cid, "Hay un juego comenzado en este chat. Si quieres terminarlo escribe /delete!")
 	else:
 		newGame = Game(cid, update.message.from_user.id, groupName)
 		GamesController.games[cid] = newGame
@@ -667,34 +667,41 @@ def command_nominate(update: Update, context: CallbackContext):
 	uid = update.message.from_user.id
 	game = get_game(cid)
 	data = ' '.join(args).split(";")
-	if len(data) == 2:
-		# Busco el jugador a acusar
-		player_name = data[0].strip()
-		defender = game.find_player(player_name)
-		accuser = game.playerlist[uid]
-		if accuser.dead :
-			bot.send_message(cid, "Un jugador muerto no puede nominar")
-			return
-		if defender is None:
-			bot.send_message(cid, "El jugador ingresado no existe")
-			return
-		if not game.board.state.can_nominate:
-			bot.send_message(cid, "El storyteller no ha habilitado las nominaciones")
-			return
-
-		accuser.nominated_someone = True
-		defender.was_nominated = True
-
-		game.board.state.accuser = accuser
-		game.board.state.defender = defender
-		game.board.state.accusation = data[1].strip()
-		message_nomination = f"De repente {player_call(accuser)} se levanta y señala con el dedo a {player_call(defender)} deberias ir a la horca!\nMotivo: {game.board.state.accusation}"
-		game.history.append(message_nomination)
-		save_game(cid, f"Se nomino a: {defender.name}", game)		
-		bot.send_message(game.cid, message_nomination, ParseMode.MARKDOWN)
-		bot.send_message(game.cid, f"{player_call(defender)} debes hacer tu defensa con /defense Defensa", ParseMode.MARKDOWN)
-	else:
+	
+	# Si no estan habilitadas las nominaciones
+	if not game.board.state.can_nominate:
+		bot.send_message(cid, "El storyteller no ha habilitado las nominaciones")
+		return
+	if game.board.state.accuser is not None:
+		bot.send_message(cid, "Ya hay una nominación en curso.")
+		return
+	# Si no hay suficentes parametros para nominar (jugador y acusacion)
+	if len(data) != 2:
 		bot.send_message(game.cid, "Debes ingresar /nominate [Nombre jugador en Board];Texto Acusación")
+		
+	# Busco el jugador a acusar
+	player_name = data[0].strip()
+	defender = game.find_player(player_name)
+	accuser = game.playerlist[uid]
+	if accuser.dead:
+		bot.send_message(cid, "Un jugador muerto no puede nominar")
+		return
+	if defender is None:
+		bot.send_message(cid, "El jugador ingresado no existe")
+		return
+	
+
+	accuser.nominated_someone = True
+	defender.was_nominated = True
+
+	game.board.state.accuser = accuser
+	game.board.state.defender = defender
+	game.board.state.accusation = data[1].strip()
+	message_nomination = f"De repente {player_call(accuser)} se levanta y señala con el dedo a {player_call(defender)} deberias ir a la horca!\nMotivo: {game.board.state.accusation}"
+	game.history.append(message_nomination)
+	save_game(cid, f"Se nomino a: {defender.name}", game)		
+	bot.send_message(game.cid, message_nomination, ParseMode.MARKDOWN)
+	bot.send_message(game.cid, f"{player_call(defender)} debes hacer tu defensa con /defense Defensa", ParseMode.MARKDOWN)	
 
 @player
 def command_defense(update: Update, context: CallbackContext):
