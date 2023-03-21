@@ -265,12 +265,13 @@ def callback_reviewer_confirm(update: Update, context: CallbackContext):
 			bot.edit_message_text(mensaje_edit, cid, callback.message.message_id)
 		except Exception as e:
 			bot.edit_message_text(mensaje_edit, uid, callback.message.message_id)
-		
-		if game.board.state.fase_actual != "Adivinando":
-			# Si no se esta en la fase de adivinar no se hace nada
-			return
-		
+
 		reviewer_player = game.board.state.reviewer_player
+
+		if game.board.state.fase_actual != "Adivinando" or reviewer_player.uid != update.effective_user.id:
+			# Si no se esta en la fase de adivinar o el jugador no es el revisor no se hace nada
+			return
+
 		bot.send_message(game.cid, "El revisor {0} ha determinado que es {1}".format(reviewer_player.name, opcion))
 		bot.send_message(game.cid, "La palabra era: *{0}*.".format(game.board.state.acciones_carta_actual), ParseMode.MARKDOWN)
 		failed = False
