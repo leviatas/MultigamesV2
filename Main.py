@@ -61,4 +61,4 @@ if __name__ == '__main__':
     #bot on the clocktower
     p4 = Process(target=loop_d).start()
     #bot de discord
-    p4 = Process(target=loop_e).start()
+    #p4 = Process(target=loop_e).start()
