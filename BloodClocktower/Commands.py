@@ -451,7 +451,7 @@ def command_day(update: Update, context: CallbackContext):
 	game.set_day()
 	bot.send_message(game.cid, "Todos, abran los ojos...")
 	save_game(cid, "Day", game)
-	if game.board.state.day is 1:
+	if game.board.state.day == 1:
 		bot.send_message(game.cid, """En el recondito pueblo de ravenswood bluff los aldeanos se despiertan por un grito ahogado en el centro del pueblo, al llegar encuentran a su querido storyteller empelado en una de las manecillas del reloj.
 
 Esto es la obra de un demonio que mata durante la noche, pero durante el día toma la forma de uno de ustedes; su trabajo es encontrarlo y vengar a las almas de los caídos por el.
