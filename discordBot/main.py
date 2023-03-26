@@ -7,7 +7,9 @@ import os
 from urllib import parse, request
 import re
 
-bot = commands.Bot(command_prefix='>', description="This is a Helper Bot")
+intents = discord.Intents.default()
+intents.message_content = True
+bot = commands.Bot(command_prefix='>', description="This is a Helper Bot", intents=intents)
 
 @bot.command()
 async def ping(ctx):
