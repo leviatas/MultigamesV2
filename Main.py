@@ -13,6 +13,8 @@ import reportBot.main as reportBot
 import SecretHitler.MainController as secretHitlerBot
 import BloodClocktower.Controller as bloodClocktowerBot
 
+import discordBot.main as discordBot
+
 import functools
 
 log.basicConfig(
@@ -44,6 +46,11 @@ def loop_d():
         sleep(0.01)
         bloodClocktowerBot.main()
 
+def loop_e():
+    while 1:
+        sleep(0.01)
+        discordBot.run()
+
 if __name__ == '__main__':
     # Multigames
     p1 = Process(target=loop_a).start()
@@ -53,3 +60,5 @@ if __name__ == '__main__':
     p3 = Process(target=loop_c).start()
     #bot on the clocktower
     p4 = Process(target=loop_d).start()
+    #bot de discord
+    p4 = Process(target=loop_e).start()
