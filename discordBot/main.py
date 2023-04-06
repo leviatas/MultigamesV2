@@ -61,14 +61,14 @@ class Join_Menu(discord.ui.View):
         self.players.append(player)
         embed = discord.Embed(title=f"GAME_TITLE", description=f"Channel ID {channel_id}", timestamp=datetime.datetime.utcnow(), color=discord.Color.blue())
         for count, player in enumerate(self.players, start=1):
-            embed.add_field(name="", value=f"{count}. {player.mention}")
+            embed.add_field(name="", value=f"{count}. {player.nick}")
         # await interaction.response.edit_message(content=f"This is an edited button response! {self.count}")
         await interaction.response.edit_message(embed=embed)
         await interaction.followup.send("You have joined the game", ephemeral=True)
 
     @discord.ui.button(label="Leave",style=discord.ButtonStyle.red)
     async def leave_button(self, interaction:discord.Interaction, button:discord.ui.Button):
-        if interaction.user.mention not in self.players:
+        if not any(x for x in self.players if interaction.user.name == x.name):
             await interaction.response.send_message("You aren't in the game", ephemeral=True)
             return
         user = interaction.user
@@ -78,7 +78,7 @@ class Join_Menu(discord.ui.View):
         self.players.remove(player)
         embed = discord.Embed(title=f"GAME_TITLE", description=f"Channel ID {channel_id}", timestamp=datetime.datetime.utcnow(), color=discord.Color.blue())
         for count, player in enumerate(self.players, start=1):
-            embed.add_field(name="", value=f"{count}. {player.mention}")
+            embed.add_field(name="", value=f"{count}. {player.nick}")
         # await interaction.response.edit_message(content=f"This is an edited button response! {self.count}")
         await interaction.response.edit_message(embed=embed)
         await interaction.followup.send("You left the game", ephemeral=True)
