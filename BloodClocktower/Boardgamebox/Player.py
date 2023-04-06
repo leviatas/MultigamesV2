@@ -20,6 +20,7 @@ class Player(BasePlayer):
         self.whispering_count = 0 # Cantidad de whispers que he realizado en el dia
         self.notes = []
         self.reminders = []
+        self.mention = ""
 
     def get_private_info(self, game):
         board = "--- Info del Jugador {} en la partida *{}*---\n".format(self.name, game.groupName) 
