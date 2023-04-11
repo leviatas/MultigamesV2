@@ -373,7 +373,7 @@ def command_startgame(update: Update, context: CallbackContext):
 	elif game.board:
 		bot.send_message(cid, "El juego ya ha comenzado!")
 	elif update.message.from_user.id != game.initiator and bot.getChatMember(cid, update.message.from_user.id).status not in ("administrator", "creator"):
-		bot.send_message(game.cid, "Solo el creador del juego or el admisnitrador del grupo pueden comenzar el juego con /startgame")
+		bot.send_message(game.cid, "Solo el creador del juego o un administrador del grupo pueden comenzar el juego con /startgame")
 	elif len(game.playerlist) < 5:
 		bot.send_message(game.cid, "No hay suficientes jugadores (min. 5, max. 10). Uneté al juego con /join")
 	else:
