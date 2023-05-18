@@ -34,7 +34,7 @@ from telegram.utils.helpers import mention_html
 # Enable logging
 
 log.basicConfig(
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s Secret Hitler',
         level=log.INFO)
 
 
