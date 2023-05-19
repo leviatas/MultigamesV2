@@ -302,10 +302,10 @@ def draw_policies(bot, game):
 	game.hiddenhistory.append(("*Ronda %d.%d*\nEl presidente %s recibió " % (game.board.state.liberal_track + game.board.state.fascist_track + 1, game.board.state.failed_votes + 1, game.board.state.president.name) ) + hiddenhistory_text)
 	choosePolicyMarkup = InlineKeyboardMarkup(btns)
 	if not game.is_debugging:
-		bot.send_message(game.board.state.president.uid, "Has robado las siguientes 3 politicas. Cual quieres descartar?",
+		bot.send_message(game.board.state.president.uid, f"{game.groupName}\nHas robado las siguientes 3 politicas. Cual quieres descartar?",
 			reply_markup=choosePolicyMarkup)
 	else:
-		bot.send_message(ADMIN, "Has robado las siguientes 3 politicas. Cual quieres descartar?",
+		bot.send_message(ADMIN, f"{game.groupName} Has robado las siguientes 3 politicas. Cual quieres descartar?",
 			reply_markup=choosePolicyMarkup)
 	game.board.state.fase = "legislating president discard"
 	Commands.save_game(game.cid, "legislating president discard Round %d" % (game.board.state.currentround), game)
