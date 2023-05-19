@@ -31,7 +31,7 @@ import urllib.parse
 # Enable logging
 
 log.basicConfig(
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s Multigames - Just One',
         level=log.INFO)
 
 

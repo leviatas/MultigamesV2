@@ -50,7 +50,7 @@ import re
 # Enable logging
 
 log.basicConfig(
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s Multigames - Just One',
         level=log.INFO)
 logger = log.getLogger(__name__)
 
