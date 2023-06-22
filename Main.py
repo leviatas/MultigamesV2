@@ -12,7 +12,6 @@ import MainController
 import reportBot.main as reportBot
 import SecretHitler.MainController as secretHitlerBot
 import BloodClocktower.Controller as bloodClocktowerBot
-
 import discordBot.main as discordBot
 
 import functools
