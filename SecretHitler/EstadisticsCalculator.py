@@ -36,7 +36,7 @@ def calculate_multiple_estadistics(N, A, n, x):
     for i in range(x):
         menorA += hypergeom_pmf(N, A, n, i)
     mayorIgualA = 0
-    for i in range(x,n):
+    for i in range(x,n+1):
         mayorIgualA += hypergeom_pmf(N, A, n, i)
     mayorA = 0
     for i in range(x+1, n+1):
