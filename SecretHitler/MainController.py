@@ -331,7 +331,8 @@ def choose_policy(update: Update, context: CallbackContext):
 		# Si hay 3 politicas veo que sea el presidente el que descarte.
 		if len(game.board.state.drawn_policies) == 3 and uid == game.board.state.president.uid:
 			log.info("Player %s (%d) discarded %s" % (callback.from_user.first_name, uid, answer))
-			bot.edit_message_text("La política %s va a ser descartada!" % answer, uid,
+			politics = ','.join(game.board.state.drawn_policies)
+			bot.edit_message_text("Robaste %s. La política %s va a ser descartada!" % (politics , answer), uid,
 			callback.message.message_id)
 			# remove policy from drawn cards and add to discard pile, pass the other two policies
 			# Grabo en Hidden History que descarta el presidente.
