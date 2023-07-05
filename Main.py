@@ -7,7 +7,6 @@ import asyncio
 from time import sleep
 from telethon.sessions import StringSession
 
-
 import MainController
 import reportBot.main as reportBot
 import SecretHitler.MainController as secretHitlerBot
