@@ -60,3 +60,10 @@ if __name__ == '__main__':
     p4 = Process(target=loop_d).start()
     #bot de discord
     p5 = Process(target=loop_e).start()
+
+    # Verificador que el proceso de multigames siga activo
+    while 1:
+        sleep(1)
+        if not p1.is_alive():
+            # Si el proceso no esta vivo entonces lo revivo 
+            p1 = Process(target=loop_a).start()
