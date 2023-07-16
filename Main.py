@@ -16,7 +16,6 @@ import discordBot.main as discordBot
 import functools
 import requests
 
-
 log.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s MultigamesV2',
     level=log.INFO)
