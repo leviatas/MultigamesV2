@@ -559,7 +559,7 @@ def command_leave(update: Update, context: CallbackContext):
 	if not game:
 		bot.send_message(cid, '‼‼*No hay juego del que salir*‼‼', ParseMode.MARKDOWN)
 	else:
-		if game.board and game.storyteller is not uid:
+		if False:
 			bot.send_message(cid, '‼‼*El juego ya empezo y el admin no permite salir de juegos ya empezados*‼‼', ParseMode.MARKDOWN)
 		else:
 			del game.playerlist[uid]
