@@ -563,6 +563,7 @@ def command_leave(update: Update, context: CallbackContext):
 			bot.send_message(cid, '‼‼*El juego ya empezo y el admin no permite salir de juegos ya empezados*‼‼', ParseMode.MARKDOWN)
 		else:
 			del game.playerlist[uid]
+			game.remove_from_player_sequence(game.find_player_by_id(uid))
 			bot.send_message(cid, '‼‼*Has salido exitosamente del juego*‼‼', ParseMode.MARKDOWN)
 
 @player
