@@ -289,7 +289,7 @@ def command_board(update: Update, context: CallbackContext):
 	game = get_game(cid)
 	if game.board:
 		board_text = game.board.print_board(game)
-		log.info(board_txt)
+		log.info(board_text)
 		board_message = bot.send_message(cid, board_text)
 		game.board_message_id = board_message.message_id
 		save_game(cid, "Game in join state", game)
