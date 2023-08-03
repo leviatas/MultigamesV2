@@ -291,7 +291,7 @@ def command_board(update: Update, context: CallbackContext):
 	if game.board:
 		board_text = game.board.print_board(game)
 		log.info(board_text)
-		board_message = bot.send_message(cid, board_text)
+		board_message = bot.send_message(cid, board_text, ParseMode.MARKDOWN)
 		game.board_message_id = board_message.message_id
 		save_game(cid, "Game in join state", game)
 	else:
@@ -1099,6 +1099,21 @@ def command_readgamejson(update: Update, context: CallbackContext):
 		bot.send_message(uid, "En cual de estos grupos quieres hacer la acción?", reply_markup=btnMarkup)
 		return
 
+def command_getjsondata(update: Update, context: CallbackContext):
+	bot = context.bot
+	cid = update.message.chat_id
+	game = get_game(cid)
+
+	playersjsonTxt = ''
+	for player in game.player_sequence:
+		playersjsonTxt += f'{{"name":"{player.name}","id":"","role":"","reminders":[],"isVoteless":false,"isDead":false,"pronouns":""}},'
+
+	json = f'{{"bluffs":[],"edition":{"id":"tb"},"roles":"","fabled":[],"players":[{playersjsonTxt[:-1]}]}}'
+	bot.send_message(cid, json)
+
+	
+
+
 def command_grimoire(update: Update, context: CallbackContext):
 	bot = context.bot
 	cid = update.message.chat_id
@@ -1110,7 +1125,7 @@ def command_grimoire(update: Update, context: CallbackContext):
 	elif len(games_with_me_as_storyteller) == 1:
 		game = games_with_me_as_storyteller[0]
 		message = game.board.print_grimoire(game)
-		bot.send_message(cid, message, ParseMode.MARKDOWN)	
+		bot.send_message(uid, message, ParseMode.MARKDOWN)	
 	else:
 		btnMarkup = create_choose_buttons(uid, "", "print_grimoire", games_with_me_as_storyteller, context)
 		bot.send_message(uid, "En cual de estos grupos quieres hacer la acción?", reply_markup=btnMarkup)

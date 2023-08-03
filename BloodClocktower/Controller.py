@@ -93,6 +93,7 @@ def main():
     dp.add_handler(CommandHandler("setrole", Commands.command_setrole))
     dp.add_handler(CommandHandler("readgamejson", Commands.command_readgamejson))    
     dp.add_handler(CommandHandler('getreminders', Commands.command_getreminders))
+    dp.add_handler(CommandHandler('getjsondata', Commands.command_getjsondata))
 
     #Comandos utiles para jugadores
     dp.add_handler(CommandHandler('timer', Commands.callback_timer))    
