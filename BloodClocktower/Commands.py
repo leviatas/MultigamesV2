@@ -73,12 +73,20 @@ commands = [  # command description used in the "help" command
     '/vote - Vota al jugador nominado actualmente.',
     '/clearvote - Limpia el voto actual',
 	'/notes [notas]- (Solo en privado) Escribe notas, o las visualiza',
+	'/glosary - Palabras comunes que se usan en el juego',
     '',
 	'Comandos Miscelaneos'
     '/refresh - Refresca la info de nombre y nick del jugador que lo ejecuta',
     '/info - Muestra informacion en privado al jugador actual sobre su rol y que hace',    
     '/id - Muestra el id de quien hace el comando',
     '/travel - Agrega al jugador actual a la partida',
+]
+
+glosario = [
+	'*Top 4* - Los roles de arriba del todo de la lista, normalmente son buenos para matar temprano porque un malo no se va a dejar nomalmente matar al principio, y ayuda a que luego te den info porque podes ser bueno.',
+	'*3x3 2X2 1x1 (o Hard Claim)* - cuando se hace whisper con otro se pasan 3 roles, 2 roles o 1 rol, y el otro hace lo mismo. Se puede mentir pero normalmente los malos mienten más',
+	'*Bluffs* - El demonio comienza sabiendo 3 roles que no estan en la partida, normalmente habla con su minion para que este los use tambien.',
+	'*Starpass* - Habilidad del demonio de matarse en la noche y convertir a un minion en demonio.'
 ]
 
 def storyteller(func):
@@ -187,15 +195,21 @@ def command_commands(update: Update, context: CallbackContext):
 	args = context.args
 	cid = update.message.chat_id
 
-
-
-
 def command_help(update: Update, context: CallbackContext):
 	bot = context.bot
 	args = context.args
 	cid = update.message.chat_id
 	help_text = "Los siguientes comandos están disponibles:\n"
 	for i in commands:
+		help_text += i + "\n"
+	bot.send_message(cid, help_text, ParseMode.MARKDOWN)
+
+def command_glosary(update: Update, context: CallbackContext):
+	bot = context.bot
+	args = context.args
+	cid = update.message.chat_id
+	help_text = "*Glosario*\n"
+	for i in glosario:
 		help_text += i + "\n"
 	bot.send_message(cid, help_text, ParseMode.MARKDOWN)
 
@@ -1111,9 +1125,6 @@ def command_getjsondata(update: Update, context: CallbackContext):
 
 	json = f'{{"bluffs":[],"edition":{{"id":"tb"}},"roles":"","fabled":[],"players":[{playersjsonTxt[:-1]}]}}'
 	bot.send_message(cid, json)
-
-	
-
 
 def command_grimoire(update: Update, context: CallbackContext):
 	bot = context.bot

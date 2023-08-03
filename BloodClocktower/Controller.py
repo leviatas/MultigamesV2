@@ -116,6 +116,7 @@ def main():
     dp.add_handler(CommandHandler("id", Commands.command_id))
     dp.add_handler(CommandHandler("travel", Commands.command_travel))
     dp.add_handler(CommandHandler("grimoire", Commands.command_grimoire))
+    dp.add_handler(CommandHandler("glosary", Commands.command_glosary))
 
     # DEveloper commands
     dp.add_handler(CommandHandler("fix", Commands.command_fix))
