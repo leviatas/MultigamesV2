@@ -58,6 +58,7 @@ commands = [  # command description used in the "help" command
     '/getreminders - Obtiene los recordatorios de los jugadores que tenga el ST',
 	'/timer - Crea un timer de X cantidad de minutos, puede ser usado por cualquiera',
 	'/grimoire - Muestra el grimorio en privado al ST',
+	'/getjsondata - Obtiene json data para grimorio de https://clocktower.online/',
 	'',
     '*Comandos utiles para jugadores*',
 	'/call - Avisa a los jugadores que se tiene que actuar',
@@ -1108,7 +1109,7 @@ def command_getjsondata(update: Update, context: CallbackContext):
 	for player in game.player_sequence:
 		playersjsonTxt += f'{{"name":"{player.name}","id":"","role":"","reminders":[],"isVoteless":false,"isDead":false,"pronouns":""}},'
 
-	json = f'{{"bluffs":[],"edition":{"id":"tb"},"roles":"","fabled":[],"players":[{playersjsonTxt[:-1]}]}}'
+	json = f'{{"bluffs":[],"edition":{{"id":"tb"}},"roles":"","fabled":[],"players":[{playersjsonTxt[:-1]}]}}'
 	bot.send_message(cid, json)
 
 	
