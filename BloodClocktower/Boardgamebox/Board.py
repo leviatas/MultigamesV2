@@ -124,14 +124,14 @@ class Board(BaseBoard):
         
         for index, player in enumerate(lista):
             nombre = player.name.replace("_", " ") if state.clock is not index else self.player_call(player)
-            num_whisper = "" if player.whispering_count == 0 else player.whispering_count
+            num_whisper = "" if player.whispering_count == 0 or state.can_nominate else f"{player.whispering_count}/{game.whisper_max}"
 
             chop = f"🪓 {state.chopping_block_votes}" if state.chopping_block is not None and state.chopping_block.uid == player.uid else ""
             clock = "➡️ " if state.clock == index else ""
             accuser = "🫵" if state.accuser != None and player.uid == state.accuser.uid else "" 
             dead = ('💀' if player.has_last_vote else '☠️') if player.dead else ""
             voted = "✋" if player.uid in state.votes and state.votes[player.uid] == "si" else ""
-            board += f"{clock}{nombre} {chop}{dead}{accuser} {voted}\n"
+            board += f"{clock}{nombre} {num_whisper}{chop}{dead}{accuser} {voted}\n"
         
         # Si estan abiertas la snominaciones y nadie acuso
         if state.can_nominate and state.accuser is None:
