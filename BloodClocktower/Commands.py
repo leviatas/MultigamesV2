@@ -68,7 +68,7 @@ commands = [  # command description used in the "help" command
     '/whisper - Comando para comenzar un whisper con alguien /whisper @participant1, @participant2',
     '/endwhisper - Comando para terminar el whisper actual',    
     '/defense - Comando para dictar la defensa contra la nominacion actual',
-    '/nominate - Comando para nominar a una persona uso: /nominate @nick,MOTIVO',
+    '/nominate - Comando para nominar a una persona uso: /nominate @nick;MOTIVO',
     '/tick - Pasa el reloj al siguiente jugador',
     '/vote - Vota al jugador nominado actualmente.',
     '/clearvote - Limpia el voto actual',
