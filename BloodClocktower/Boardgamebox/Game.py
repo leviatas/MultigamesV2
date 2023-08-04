@@ -171,6 +171,7 @@ class Game(BaseGame):
 
 	def add_traveller(self, uid):
 		player = self.find_player_by_id(uid)
+		player.townfolk_Outsider_Minion_Demon_Traveller = "traveller"
 		self.player_sequence.insert(randint(0, len(self.player_sequence)), player)
 
 	def get_call_message(self):
