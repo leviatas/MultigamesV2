@@ -297,7 +297,6 @@ def load_game(cid):
 		conn.close()
 		return None
 
-@player
 def command_board(update: Update, context: CallbackContext):
 	bot = context.bot
 	cid = update.message.chat_id
@@ -1243,9 +1242,11 @@ def command_fix(update: Update, context: CallbackContext):
 	game = get_game(cid)
 	state = game.board.state
 
-	game.whisper_max = 3
-	for player in game.player_sequence:
-		player.whispering_count = 0
+	player_puyi = game.find_player('Puyi')
+	player_puyi.has_last_vote = True
+	# game.whisper_max = 3
+	# for player in game.player_sequence:
+	# 	player.whispering_count = 0
 	
 	bot.send_message(cid, "Fixed")
 	save_game(cid, "Fix", game)
