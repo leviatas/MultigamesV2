@@ -211,8 +211,9 @@ class Game(BaseGame):
 		return self.playerlist[uid]
 
 	def set_defense(self, defensa):
-		defender = self.state.defender
-		accuser = self.state.accuser
+		state = self.board.state
+		defender = state.defender
+		accuser = state.accuser
 				
 		txt_defensa = f"Entonces {player_call(defender)} mira a los ojos a {player_call(accuser)} y dice a todo el pueblo: {defensa}"
 		first_defense = False
@@ -220,10 +221,10 @@ class Game(BaseGame):
 		self.history.append(txt_defensa)
 		
 		# Si es la primera que se hace defense se avanza el reloj
-		if self.state.defense == None:
+		if state.defense == None:
 			clock_msg = self.advance_clock("")
 			first_defense = True
-		self.state.defense = txt_defensa
+		state.defense = txt_defensa
 
 		return (txt_defensa, first_defense, clock_msg)
 		
