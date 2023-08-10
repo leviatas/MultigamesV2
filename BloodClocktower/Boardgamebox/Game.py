@@ -13,6 +13,8 @@ from BloodClocktower.Boardgamebox.Reminder import Reminder
 from BloodClocktower.Constants import roles
 
 from typing import Tuple, AnyStr
+
+from Utils import player_call
 class Game(BaseGame):
 	def __init__(self, cid, initiator, groupName):
 		BaseGame.__init__(self, cid, initiator, groupName, None, None)		
@@ -208,7 +210,32 @@ class Game(BaseGame):
 	def find_player_by_id(self, uid) -> Player:
 		return self.playerlist[uid]
 
+	def set_defense(self, defensa):
+		defender = self.state.defender
+		accuser = self.state.accuser
+				
+		txt_defensa = f"Entonces {player_call(defender)} mira a los ojos a {player_call(accuser)} y dice a todo el pueblo: {defensa}"
+		first_defense = False
+		clock_msg = ""
+		self.history.append(txt_defensa)
+		
+		# Si es la primera que se hace defense se avanza el reloj
+		if self.state.defense == None:
+			clock_msg = self.advance_clock("")
+			first_defense = True
+		self.state.defense = txt_defensa
+
+		return (txt_defensa, first_defense, clock_msg)
+		
+		
 	def clear_nomination(self):
+		state = self.board.state
+
+		# Si limpio una acusacion entera entonces grabo los votos en el historial
+		if state.accuser is not None and state.defense is not None:
+			vote_state = self.board.print_vote_state(self)
+			self.history.append(vote_state)
+			
 		state = self.board.state
 		state.accuser = None # Jugador que acuso
 		state.defender = None # Jugador que fue acusado
