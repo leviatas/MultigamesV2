@@ -793,9 +793,12 @@ def command_tick(update: Update, context: CallbackContext):
 def update_board(bot, game, cid):
 	board_text = game.board.print_board(game)
 	# Si hay un board anterior lo borro
-	if game.board_message_id:
-		bot.deleteMessage(chat_id = cid, message_id = game.board_message_id)
-		# bot.edit_message_text(board_text, cid, game.board_message_id, parse_mode=ParseMode.MARKDOWN)
+	try:
+		if game.board_message_id:
+			bot.deleteMessage(chat_id = cid, message_id = game.board_message_id)
+			# bot.edit_message_text(board_text, cid, game.board_message_id, parse_mode=ParseMode.MARKDOWN)
+	except:
+		log.info("No se pudo borrar mensaje anterior asi que se pone el nuevo")
 	board_msg = bot.send_message(cid, board_text, ParseMode.MARKDOWN)
 	game.board_message_id = board_msg.message_id
 
