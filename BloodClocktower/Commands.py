@@ -735,8 +735,7 @@ def command_defense(update: Update, context: CallbackContext):
 		if state.defender.uid != uid:
 			bot.send_message(game.cid, f"El mensaje debe ser enviado por {player_call(state.defender)}")
 		defensa = " ".join(args)
-		result_text_defensa = game.set_defense(defensa)
-		game.history.append(defensa)
+		result_text_defensa = game.set_defense(defensa)		
 		bot.send_message(game.cid, result_text_defensa[0], ParseMode.MARKDOWN)		
 		# Si es la primera que se hace defense se avanza el reloj
 		if result_text_defensa[1]:
