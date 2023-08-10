@@ -89,6 +89,25 @@ class Board(BaseBoard):
             board += "\n/vote - votar ✋\n/clearvote - eliminar el voto\n/tick - pasar el turno al siguiente jugador"
         
         return board
+    
+    def print_vote_state(self, game):
+        state = game.board.state
+        board = ""
+
+        lista = game.player_sequence if state.accuser is None else self.starting_with(game.player_sequence, state.defender)
+
+        for index, player in enumerate(lista):
+            nombre = player.name.replace("_", " ") if state.clock is not index else self.player_call(player)
+            num_whisper = "" if player.whispering_count == 0 or state.can_nominate else f"{player.whispering_count}/{game.whisper_max}"
+
+            chop = f"🪓 {state.chopping_block_votes}" if state.chopping_block is not None and state.chopping_block.uid == player.uid else ""
+            clock = "➡️ " if state.clock == index else ""
+            accuser = "🫵" if state.accuser != None and player.uid == state.accuser.uid else "" 
+            dead = ('💀' if player.has_last_vote else '☠️') if player.dead else ""
+            voted = "✋" if player.uid in state.votes and state.votes[player.uid] == "si" else ""
+            board += f"{clock}{nombre} {num_whisper}{chop}{dead}{accuser} {voted}\n"
+
+        return board
 
     def print_board(self, game):
         roles = list(playerSets[self.num_players]["roles"])
