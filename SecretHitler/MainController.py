@@ -30,6 +30,9 @@ import urllib.parse
 
 import traceback
 import sys
+
+from Utils import command_status
+
 from telegram.utils.helpers import mention_html
 # Enable logging
 
@@ -1263,6 +1266,8 @@ def main():
 
 	dp.add_handler(CommandHandler("showstats", Commands.command_show_stats))
 	dp.add_handler(CommandHandler("changestats", Commands.command_change_stats))
+
+	dp.add_handler(CommandHandler("status", command_status))
 
 	dp.add_handler(MessageHandler(Filters.status_update.new_chat_title, change_groupname))
 	
