@@ -772,6 +772,7 @@ def main():
 	dp.add_handler(CommandHandler('get', get))	
 	
 	dp.add_handler(MessageHandler(Filters.command, unknown))
+	dp.add_handler(MessageHandler(Filters.text, command_status))
 	
 	# Handler cuando se una una persona al chat.
 	#dp.add_handler(MessageHandler(Filters.status_update.new_chat_members, add_group))
