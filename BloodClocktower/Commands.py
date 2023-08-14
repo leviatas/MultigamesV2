@@ -331,7 +331,7 @@ def command_newgame(update: Update, context: CallbackContext):
 	else:
 		newGame = Game(cid, update.message.from_user.id, groupName)
 		GamesController.games[cid] = newGame
-		bot.send_message(cid, "Nuevo juego creado! Cada jugador debe unirse al juego con el comando /join.\nEl storyteller no debe unirse de esta forma, el sera asignado mas tarde\nEl iniciador del juego (o el administrador) pueden unirse tambien y escribir /startgame cuando todos se hayan unido al juego!")
+		bot.send_message(cid, "Nuevo juego creado! Cada jugador debe unirse al juego con el comando /join.\n*El storyteller no debe unirse de esta forma, el sera asignado mas tarde*\nEl iniciador del juego (o el administrador) pueden unirse tambien y escribir /startgame cuando todos se hayan unido al juego!")
 
 def command_join(update: Update, context: CallbackContext):
 	bot = context.bot
