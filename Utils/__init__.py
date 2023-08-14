@@ -366,4 +366,4 @@ def command_status(update: Update, context: CallbackContext):
 	bot = context.bot
 	# cid = update.message.chat_id
 	cid = update.channel_post.chat_id
-	bot.send_message(cid, f'Status OK {cid}')
+	# bot.send_message(cid, f'Status OK {cid}')
