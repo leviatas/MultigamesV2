@@ -422,6 +422,8 @@ def command_storyteller(update: Update, context: CallbackContext):
 
 	fname = update.message.from_user.first_name.replace("_", " ")
 
+	if game.find_player(fname) is not None:
+		bot.send_message(game.cid, f"{fname} no puedes ser storyteller si eres jugador, haz /leave he intenta nuevamente.")
 	if game.storyteller is None:
 		game.storyteller = uid
 		bot.send_message(game.cid, f"El Storyteller es: {fname}, teman por sus vidas Aldeanos!!!")
