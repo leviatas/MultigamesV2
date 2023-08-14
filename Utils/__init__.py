@@ -366,4 +366,6 @@ def command_status(update: Update, context: CallbackContext):
 	bot = context.bot
 	# cid = update.message.chat_id
 	cid = update.channel_post.chat_id
-	# bot.send_message(cid, f'Status OK {cid}')
+	message = update.effective_message
+	if cid == -1001768638126 and message == "status":
+		bot.send_message(ADMIN[0], f'Status OK')
