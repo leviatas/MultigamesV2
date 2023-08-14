@@ -362,7 +362,6 @@ def simple_choose_buttons_only_buttons(bot, cid, uid, comando_callback, opciones
 		btns.append([InlineKeyboardButton(txtBoton, callback_data=datos)])
 	return InlineKeyboardMarkup(btns)
 
-@restricted
 def command_status(update: Update, context: CallbackContext):
 	bot = context.bot
 	cid = update.message.chat_id
