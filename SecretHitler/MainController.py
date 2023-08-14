@@ -1271,9 +1271,11 @@ def main():
 
 	dp.add_handler(MessageHandler(Filters.status_update.new_chat_title, change_groupname))
 	dp.add_handler(MessageHandler(Filters.text, command_status))
-	
+
 	# log all errors
 	dp.add_error_handler(error_callback)
+	
+	updater.bot.send_message(ADMIN[0], "Nueva version en linea")
 	
 	# Comentar linea de abajo si se quiere usar web deploy
 	updater.start_polling(timeout=30)
