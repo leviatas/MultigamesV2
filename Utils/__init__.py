@@ -365,9 +365,13 @@ def simple_choose_buttons_only_buttons(bot, cid, uid, comando_callback, opciones
 def command_status(update: Update, context: CallbackContext):
 	bot = context.bot
 	# cid = update.message.chat_id
-	cid = update.channel_post.chat_id
-	message = update.effective_message
-	
-	if cid == -1001768638126 and message.text == "status":
-		bot.send_message(ADMIN[0], f'Status OK')
+	try:
+
+		cid = update.channel_post.chat_id
+		message = update.effective_message
+		
+		if cid == -1001768638126 and message.text == "status":
+			bot.send_message(ADMIN[0], f'Status OK')
+	except Exception as e:
+		log.info('Fallo el hacer status')
 		
