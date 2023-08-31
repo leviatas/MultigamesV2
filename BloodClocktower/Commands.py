@@ -696,6 +696,7 @@ def command_nominate(update: Update, context: CallbackContext):
 	# Si no hay suficentes parametros para nominar (jugador y acusacion)
 	if len(data) != 2:
 		bot.send_message(game.cid, "Debes ingresar /nominate [Nombre jugador en Board];Texto Acusación")
+		return
 		
 	# Busco el jugador a acusar
 	player_name = data[0].strip()
@@ -1157,6 +1158,33 @@ def command_feature(update: Update, context: CallbackContext):
 	args = " ".join(context.args)
 	result = create_github_issue(args, "enhancement")
 	bot.send_message(cid, result)
+
+@restricted
+def command_reload(update: Update, context: CallbackContext):
+	bot = context.bot
+	cid = update.message.chat_id
+	uid = update.message.from_user.id
+	args = " ".join(context.args)
+	result = reload_last_workflow(args, "enhancement")
+	bot.send_message(cid, result)
+
+def reload_last_workflow():
+	github_token_workflow = os.environ.get('github_token_workflow', None)
+	endpoint = "https://api.github.com/repos/leviatas/MultiGamesV2/actions/runs"
+	headers = {"Authorization": f"Bearer {github_token_workflow}"}
+	result = requests.get(endpoint, data={}, headers=headers)
+	# Si se consigue el ultimo run lo re ejecuto.
+	if result.status_code == 200:
+		result_json = result.json()
+		endpoint = f"https://api.github.com/repos/leviatas/MultiGamesV2/actions/runs/{result_json['workflow_runs'][0]['id']}/rerun"
+		result = requests.post(endpoint, data={}, headers=headers)
+		if result.status_code == 201:
+			return "Se esta comenzando a recarga los bots"
+		else:
+			return f"El servicio de github retorno codigo: {result.status_code} y el json es: {result.json()}"
+	else:
+		return f"El servicio de github retorno codigo: {result.status_code} y el json es: {result.json()}"
+
 
 def create_github_issue(args, tipo):
 	github_token = os.environ.get('github_token', None)
