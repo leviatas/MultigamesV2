@@ -124,6 +124,7 @@ def main():
     dp.add_handler(CommandHandler("fix", Commands.command_fix))
     dp.add_handler(CommandHandler("bug", Commands.command_bug))
     dp.add_handler(CommandHandler("feature", Commands.command_feature))
+    dp.add_handler(CommandHandler("reload", Commands.command_reload))
     
 
     dp.add_handler(CallbackQueryHandler(pattern=r"(-[0-9]*)\*choosegameblood\*(.*)\*([0-9]*)", callback=Commands.callback_choose_game_blood))
