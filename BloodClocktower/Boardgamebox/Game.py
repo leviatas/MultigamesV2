@@ -90,6 +90,14 @@ class Game(BaseGame):
 			for	member_w in members_whispering:
 				txt_members_whispering += f'Jugador {member_w.name} ya esta hablando con {self.dictate_members(member_w.whispering)} que lo finalice con /endwhisper\n'
 			return (False, txt_members_whispering)
+		# Si algun miembro ya hizo todos sus whispers del dia...
+		elif [member for member in members if len(member.whispering_count) == self.whisper_max]:
+			# Si algun miembro ya hizo todos sus whispers
+			members_whispering = [member for member in members if len(member.whispering_count) == self.whisper_max]
+			txt_members_whispering = ""
+			for	member_w in members_whispering:
+				txt_members_whispering += f'Jugador {member_w.name} ya ha usado todos sus whispers\n'
+			return (False, txt_members_whispering)
 		else:
 			# Creo el whispering
 			for member in members:
