@@ -6,7 +6,7 @@ class Player(BasePlayer):
         self.nick = nick # Nick del usuario (El @leviatas por ej)
         self.role = "" # Ej: Drunk
         self.afiliation = "" # Good or Evil
-        self.townfolk_Outsider_Minion_Demon_Traveller = "" # Indica cual de los subgrupos es el jugador
+        self.team = "" # Indica cual de los subgrupos es el jugador townfolk_Outsider_Minion_Demon_Traveller
         self.poisoned = False # Indica si el jugador esta envenenado
         self.drunk = False # Indica si el jugador esta borracho
         self.nominated_someone = False # Indica si nominaste a alguien esta ronda

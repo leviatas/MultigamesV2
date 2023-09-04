@@ -23,7 +23,11 @@ class Game(BaseGame):
 		self.board_message_id = None
 		self.tipo = "blood"
 		self.whisper_max = 3
+		self.script = ""
 	
+	def set_script(self, script):
+		self.script = script
+
 	def load_json_data(self, game_data):
 		response_msg = ""
 		# Agrego roles del ST
@@ -181,7 +185,7 @@ class Game(BaseGame):
 
 	def add_traveller(self, uid):
 		player = self.find_player_by_id(uid)
-		player.townfolk_Outsider_Minion_Demon_Traveller = "traveller"
+		player.team = "traveler"
 		self.player_sequence.insert(randint(0, len(self.player_sequence)), player)
 		self.history.append(f"Todos observan como *{player.name}* llega al pueblo")
 
@@ -271,6 +275,19 @@ class Game(BaseGame):
 			player.was_nominated = False # ITodos pueden ser nominados
 			player.whispering_count = 0 # reseteo los whispers
 
+	def validate_end_of_game(self):
+		# Verifico fin de partida
+		# Si no hay demonios, ganaron los buenos directamente
+		if self.count_alive_demons() < 1:
+			return "El equipo de los buenos ha ganado"
+		# Si hay 3 o menos jugadores y hay un demonio vivo (valide los demonios antes)
+		if self.count_alive_without_travelers() == 2:
+			return "El equipo de los malos ha ganado"
+		return None
+
+	def get_good_players(self):
+		return [p.afiliation == "good" for p in self.player_sequence]
+
 	def set_day(self):
 		state = self.board.state
 		state.phase = "Día"
@@ -324,9 +341,15 @@ class Game(BaseGame):
 				return self.advance_clock(message)
 			else:
 				return f"The clock goes forward {self.player_call(current_voter)} te toca!"
-									
+
+	def count_alive_demons(self):
+		return sum(not p.dead and p.team == "demon" for p in self.player_sequence)								
+	
 	def count_alive(self):
 		return sum(not p.dead for p in self.player_sequence)
+	
+	def count_alive_without_travelers(self):
+		return sum(not p.dead and p.team != "traveler" for p in self.player_sequence)
 	
 	def count_votes(self):
 		return sum(not p.dead or p.has_last_vote for p in self.player_sequence)
