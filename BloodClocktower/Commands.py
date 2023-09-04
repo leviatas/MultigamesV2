@@ -362,7 +362,7 @@ def command_join(update: Update, context: CallbackContext):
 	elif not game:
 		bot.send_message(cid, "No hay juego en este chat. Crea un nuevo juego con /newgame")
 	elif game.board:
-		bot.send_message(cid, "El juego ha comenzado. Por favor espera el proximo juego!")
+		bot.send_message(cid, "El juego ha comenzado. Si quieres unirte haz /travel")
 	elif uid in game.playerlist:
 		bot.send_message(game.cid, f"Ya te has unido al juego, {fname}!")
 	elif len(game.playerlist) >= 10:
