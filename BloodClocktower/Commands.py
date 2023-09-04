@@ -1182,7 +1182,7 @@ def command_list_issues(update: Update, context: CallbackContext):
 	# uid = update.message.from_user.id
 	# args = " ".join(context.args)
 	result = get_github_issues()
-	bot.send_message(cid, result)
+	bot.send_message(cid, result, ParseMode.HTML)
 
 def reload_last_workflow():
 	github_token_workflow = os.environ.get('github_token_workflow', None)
@@ -1212,7 +1212,7 @@ def get_github_issues():
 		result_json = result.json()
 		txt_issues = ""	
 		for issue in result_json:
-			txt_issues += f"- {issue['title']}\n"
+			txt_issues += f"<b>- {issue['title']}</b>\n\n"
 		return txt_issues
 	else:
 		return f"El servicio de github get issues retorno codigo: {result.status_code} y el json es: {result.json()}"
