@@ -1212,7 +1212,7 @@ def get_github_issues():
 		result_json = result.json()
 		txt_issues = ""	
 		for issue in result_json:
-			txt_issues += f"{txt_issues['title']}\n"
+			txt_issues += f"{issue['title']}\n"
 		return txt_issues
 	else:
 		return f"El servicio de github get issues retorno codigo: {result.status_code} y el json es: {result.json()}"
