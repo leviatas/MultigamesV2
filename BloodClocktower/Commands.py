@@ -1172,7 +1172,16 @@ def command_reload(update: Update, context: CallbackContext):
 	cid = update.message.chat_id
 	uid = update.message.from_user.id
 	args = " ".join(context.args)
-	result = reload_last_workflow(args, "enhancement")
+	result = reload_last_workflow()
+	bot.send_message(cid, result)
+
+@restricted
+def command_list_issues(update: Update, context: CallbackContext):
+	bot = context.bot
+	cid = update.message.chat_id
+	# uid = update.message.from_user.id
+	# args = " ".join(context.args)
+	result = get_github_issues()
 	bot.send_message(cid, result)
 
 def reload_last_workflow():
@@ -1191,6 +1200,22 @@ def reload_last_workflow():
 			return f"El servicio de github retorno codigo: {result.status_code} y el json es: {result.json()}"
 	else:
 		return f"El servicio de github retorno codigo: {result.status_code} y el json es: {result.json()}"
+
+def get_github_issues():
+	github_token = os.environ.get('github_token', None)
+	endpoint = "https://api.github.com/repos/leviatas/multigamesv2/issues"
+	headers = {"Authorization": f"Bearer {github_token}"}
+	result = requests.get(endpoint, data={}, headers=headers)
+	
+	# Si se consiguen los listo
+	if result.status_code == 200:
+		result_json = result.json()
+		txt_issues = ""	
+		for issue in result_json:
+			txt_issues += f"{txt_issues['title']}\n"
+		return txt_issues
+	else:
+		return f"El servicio de github get issues retorno codigo: {result.status_code} y el json es: {result.json()}"
 
 
 def create_github_issue(args, tipo):
