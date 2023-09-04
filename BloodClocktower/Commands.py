@@ -428,6 +428,7 @@ def command_storyteller(update: Update, context: CallbackContext):
 		game.storyteller = uid
 		bot.send_message(game.cid, f"El Storyteller es: {fname}, teman por sus vidas Aldeanos!!!")
 		game.shuffle_player_sequence()
+		game.set_script("Trouble Brewing")
 		bot.send_message(game.cid, f"Jugaremos Trouble Brewing, ya que es el unico modulo que tengo XD")
 		bot.send_message(uid, "Eres el storyteller, prepara los roles y cuando quieras reparte los roles")
 		bot.send_message(uid, "Con /firstnight en el grupo se hará la primera noche (No hace nada actualmente)")
@@ -481,7 +482,8 @@ def command_night(update: Update, context: CallbackContext):
 	game = get_game(cid)
 	game.set_night()	
 	bot.send_message(game.cid, "Todos, cierren los ojos...")
-	save_game(cid, "Night", game)
+	save_game(cid, "Night", game)	
+	
 
 @storyteller
 def command_kill(update: Update, context: CallbackContext):
@@ -507,18 +509,23 @@ def command_kill(update: Update, context: CallbackContext):
 				save_game(cid, f"Matamos a {player_name}", game)
 			# Me lo mando en privado porque la intencion fue hacerlo en privado		
 			bot.send_message(uid, result_kill[1], ParseMode.MARKDOWN)
+			result_validate_end_game = game.validate_end_of_game()
+			if result_validate_end_game:
+				bot.send_message(game.storyteller, result_validate_end_game)
 		else:
 			# More than one game
 			btnMarkup = create_choose_buttons(uid, ' '.join(args), "kill_player", games_with_me_as_storyteller, context)
 			bot.send_message(uid, "En cual de estos grupos quieres hacer la acción?", reply_markup=btnMarkup)
-			return
 	else:
 		# Busco el jugador a matar
 		player_name = ' '.join(args)		
 		result_kill = game.kill_player(player_name)
 		if result_kill[0]:
-			save_game(cid, f"Matamos a {player_name}", game)			
+			save_game(cid, f"Matamos a {player_name}", game)
 		bot.send_message(game.cid, result_kill[1], ParseMode.MARKDOWN)
+		result_validate_end_game = game.validate_end_of_game()
+		if result_validate_end_game:
+			bot.send_message(game.storyteller, result_validate_end_game)
 
 def get_games_with_me_as_storyteller(uid):
 	games = load_and_get_games()
@@ -1252,6 +1259,9 @@ def callback_choose_game_blood(update: Update, context: CallbackContext):
 		if result_kill[0]:
 			save_game(cid, f"Matamos a {player_name}", game)			
 		bot.send_message(uid, result_kill[1], ParseMode.MARKDOWN)
+		result_validate_end_game = game.validate_end_of_game()
+		if result_validate_end_game:
+			bot.send_message(game.storyteller, result_validate_end_game)
 	elif accion == "load_json_data":
 		context.user_data[uid]
 		message = game.load_json_data(informacion)
