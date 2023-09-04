@@ -1038,7 +1038,7 @@ def command_travel(update: Update, context: CallbackContext):
 	game.add_player(uid, fname, nick)
 	game.add_traveller(uid)
 	save_game(cid, "Notes", game)
-	bot.send_message(cid, f"Todos observan como *{fname}* llaga al pueblo", ParseMode.MARKDOWN)
+	bot.send_message(cid, f"Todos observan como *{fname}* llega al pueblo", ParseMode.MARKDOWN)
 
 
 def callback_timer(update: Update, context: CallbackContext):
