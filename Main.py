@@ -15,6 +15,7 @@ import discordBot.main as discordBot
 
 import functools
 import requests
+import resource
 
 log.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s MultigamesV2',
@@ -50,8 +51,23 @@ def loop_e():
         sleep(0.01)
         discordBot.run()
 
+def memory_limit(percentage: float):
+    """Limit max memory usage to half."""
+    soft, hard = resource.getrlimit(resource.RLIMIT_AS)
+    # Convert KiB to bytes, and divide in two to half
+    resource.setrlimit(resource.RLIMIT_AS, (get_memory() * 1024 * percentage, hard))
+
+def get_memory():
+    with open('/proc/meminfo', 'r') as mem:
+        free_memory = 0
+        for i in mem:
+            sline = i.split()
+            if str(sline[0]) in ('MemFree:', 'Buffers:', 'Cached:'):
+                free_memory += int(sline[1])
+    return free_memory
 
 if __name__ == '__main__':
+    memory_limit(0.9)
     # Multigames
     p1 = Process(target=loop_a).start()
     # Report Bot
