@@ -80,11 +80,11 @@ if __name__ == '__main__':
     p5 = Process(target=loop_e).start()
 
     # Verificador que el proceso de multigames siga activo
-    while 1:
-        sleep(1)
-        if not p1.is_alive():
-            report_bot_token = os.environ.get('TOKEN_REPORT', None)
-            report_chat_id = os.environ.get('CHAT_REPORT', None)
-            x = requests.get(f'https://api.telegram.org/bot{report_bot_token}/sendMessage?chat_id=-{report_chat_id}&text=ERROR:%20Multigames2Bot:%20{p1.exitcode}')
-            # Si el proceso no esta vivo entonces lo revivo 
-            p1 = Process(target=loop_a).start()
+    # while 1:
+    #     sleep(1)
+    #     if not p1.is_alive():
+    #         report_bot_token = os.environ.get('TOKEN_REPORT', None)
+    #         report_chat_id = os.environ.get('CHAT_REPORT', None)
+    #         x = requests.get(f'https://api.telegram.org/bot{report_bot_token}/sendMessage?chat_id=-{report_chat_id}&text=ERROR:%20Multigames2Bot:%20{p1.exitcode}')
+    #         # Si el proceso no esta vivo entonces lo revivo 
+    #         p1 = Process(target=loop_a).start()
