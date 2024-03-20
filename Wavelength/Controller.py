@@ -83,7 +83,7 @@ def send_wavelength(bot, game):
 		game.groupName, call_other_players, active_wave_card["Izquierda"], active_wave_card["Derecha"])
 	bot.send_message(game.board.state.active_team.active_player.uid, msg, ParseMode.MARKDOWN)
 	bio = "https://ssl.hq063.com.ar/pbt/imagen.php?angle={}&size=th&text={}|{}&v=201903131425".format(game.board.state.wavelength, active_wave_card["Izquierda"], active_wave_card["Derecha"])
-	bot.send_photo(game.board.state.active_team.active_player.uid, photo=bio, caption="{}-----------------------{}".format(active_wave_card["Izquierda"], active_wave_card["Derecha"]))
+	send_photo(bot, game.board.state.active_team.active_player.uid, photo=bio, caption="{}-----------------------{}".format(active_wave_card["Izquierda"], active_wave_card["Derecha"]))
 	save(bot, game.cid)
 
 #Active player send reference of wavelength
@@ -127,7 +127,7 @@ def draw_choose_needle(bot, game, message_id = None):
 				       reply_markup=btnMarkup)
 	# Draw again
 	else:
-		bot.send_photo(cid, photo=bio,
+		send_photo(bot, cid, photo=bio,
 			       reply_markup=btnMarkup,
 			       parse_mode=ParseMode.MARKDOWN,
 			       caption=caption)
@@ -152,7 +152,7 @@ def send_guess(bot, game):
 	save(bot, game.cid)
 	bio = "https://ssl.hq063.com.ar/pbt/imagen.php?needle={}&size=th&text={}|{}&v={}".format(game.board.state.team_choosen_grade, active_wave_card["Izquierda"], active_wave_card["Derecha"], datetime.datetime.now().strftime("%Y%m%d"))
 	btnMarkup = create_choose_buttons(game.cid, "LeftRightWave", RIGHTLEFT, True)
-	bot.send_photo(game.cid, photo=bio, reply_markup=btnMarkup,
+	send_photo(bot, game.cid, photo=bio, reply_markup=btnMarkup,
 		       parse_mode=ParseMode.MARKDOWN,
 		       caption="{}-----------------------{}\n\nLa referencia es: *{}*".format(
 			       active_wave_card["Izquierda"],
@@ -170,7 +170,7 @@ def resolve(bot, game, args = []):
 	textCache = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
 	bio = "https://ssl.hq063.com.ar/pbt/imagen.php?needle={}&angle={}&size=th&text={}|{}&v={}".format(game.board.state.team_choosen_grade, game.board.state.wavelength, active_wave_card["Izquierda"], active_wave_card["Derecha"], textCache)
 	log.info(bio)
-	bot.send_photo(game.cid, photo=bio, caption="{}-----------------------{}".format(active_wave_card["Izquierda"], active_wave_card["Derecha"]))
+	send_photo(bot, game.cid, photo=bio, caption="{}-----------------------{}".format(active_wave_card["Izquierda"], active_wave_card["Derecha"]))
 	msg = "La carta que ha tocado es:\n*{}*------------*{}*.\n\nLa referencia dada fue: *{}*.\n\nEl equipo contrario dijo que estaba: *{}*\n".format(
 		active_wave_card["Izquierda"],
 		active_wave_card["Derecha"],
@@ -327,3 +327,10 @@ def create_choose_buttons(cid, accion, opciones_botones, one_line = True):
 		return InlineKeyboardMarkup([btns])
 	else:
 		return InlineKeyboardMarkup(btns)
+
+def send_photo(bot, chat_id, photo, caption = None, reply_markup = None, parse_mode = None):
+	try:
+		bot.send_photo(chat_id, photo = photo, caption = caption, reply_markup = reply_markup, parse_mode = parse_mode)
+	except Exception as e:
+		bot.send_message(chat_id, "Error sending photo: " + photo + "\n Error Message: " + str(e))
+		bot.send_message(chat_id, text = caption, reply_markup = reply_markup, parse_mode = parse_mode)
