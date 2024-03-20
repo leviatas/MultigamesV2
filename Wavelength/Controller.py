@@ -190,7 +190,7 @@ def resolve(bot, game, args = []):
 		game.board.state.inactive_team.score += 1
 		msg += "\nEl equipo inactivo ha correctamente si estaba a la derecha o izquierda del bulls eye. Ha ganado *1 punto*!"
 
-	if game.board.state.active_team.score < game.board.state.active_team.score:
+	if game.board.state.active_team.score < game.board.state.inactive_team.score:
 		msg += "\n\nEl equipo activo ha hecho bullseye y sigue teniendo menor puntaje, se activa la regla de compensación."
 		msg += "\nEl equipo activo tiene otro turno."
 		catchup_rule = True
