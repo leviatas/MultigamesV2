@@ -179,6 +179,10 @@ def resolve(bot, game, args = []):
 	if abs_diff <= 3:
 		game.board.state.active_team.score += 4
 		msg += "\n*BULLSEYE!!!! 4 PUNTOS!!!*"
+		if  game.board.state.active_team.score < game.board.state.inactive_team.score:
+			msg += "\n\nEl equipo activo ha hecho bullseye y sigue teniendo menor puntaje, se activa la regla de compensación."
+			msg += "\nEl equipo activo tiene otro turno."
+			catchup_rule = True
 	elif abs_diff <= 9:
 		game.board.state.active_team.score += 3
 		msg += "\nEl equipo activo ha adivinado en la franja verde, ha ganado *3 puntos*!"
@@ -189,11 +193,6 @@ def resolve(bot, game, args = []):
 	if ((diff > 0 and opp_choose_l_r == 1) or (diff < 0 and opp_choose_l_r == 0)) and abs_diff > 3:
 		game.board.state.inactive_team.score += 1
 		msg += "\nEl equipo inactivo ha correctamente si estaba a la derecha o izquierda del bulls eye. Ha ganado *1 punto*!"
-
-	if game.board.state.active_team.score < game.board.state.inactive_team.score:
-		msg += "\n\nEl equipo activo ha hecho bullseye y sigue teniendo menor puntaje, se activa la regla de compensación."
-		msg += "\nEl equipo activo tiene otro turno."
-		catchup_rule = True
 
 	bot.send_message(game.cid, msg, ParseMode.MARKDOWN)
 	msg = "*(Debug data)*\nEl grado elegido es *{}*\nEl equipo contrario eligio *{}*.\n\nEl grado real era *{}*".format(
@@ -231,7 +230,7 @@ def start_next_round(bot, game, catchup_rule):
 	else:
 		# El juego continua
 		if catchup_rule == True:
-			game.board.state.increment_player_counter()
+			game.board.state.active_team.increment_player_counter()
 		else:
 			game.board.state.increment_team_counter()
 		start_round(bot, game)
