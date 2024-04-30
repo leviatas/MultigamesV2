@@ -67,7 +67,7 @@ def get_memory():
     return free_memory
 
 if __name__ == '__main__':
-    memory_limit(0.9)
+    #memory_limit(0.9)
     # Multigames
     p1 = Process(target=loop_a).start()
     # Report Bot
