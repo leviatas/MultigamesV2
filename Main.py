@@ -17,6 +17,7 @@ import functools
 import requests
 import resource
 
+
 log.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s MultigamesV2',
     level=log.INFO)
