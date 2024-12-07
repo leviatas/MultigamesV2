@@ -1,4 +1,4 @@
 # MultigamesV2
 
-Proyecto de Juwgos de mesa nbot Telegram
+Proyecto de Juegos de mesa bot Telegram
 
