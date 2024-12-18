@@ -17,7 +17,6 @@ import functools
 import requests
 import resource
 
-
 log.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s MultigamesV2',
     level=log.INFO)
@@ -27,14 +26,30 @@ logger = log.getLogger(__name__)
 from multiprocessing import Process
 """ import psutil """
 
-def run_loop(target_function):
-    """Reusable loop to repeatedly call a target function with a sleep interval."""
-    while True:
-        try:
-            sleep(0.01)
-            target_function()
-        except Exception as e:
-            logger.error(f"An error occurred in {target_function.__name__}: {e}")
+def loop_a():
+    while 1:
+        sleep(0.01)
+        MainController.main()
+
+def loop_b():
+    while 1:
+        sleep(0.01)
+        reportBot.main()
+
+def loop_c():
+    while 1:
+        sleep(0.01)
+        secretHitlerBot.main()
+
+def loop_d():
+    while 1:
+        sleep(0.01)
+        bloodClocktowerBot.main()
+
+def loop_e():
+    while 1:
+        sleep(0.01)
+        discordBot.run()
 
 def memory_limit(percentage: float):
     """Limit max memory usage to half."""
@@ -52,20 +67,17 @@ def get_memory():
     return free_memory
 
 if __name__ == '__main__':
-    functions = [
-        ("MainController", MainController.main),
-        #("reportBot", reportBot.main),
-        ("secretHitlerBot", secretHitlerBot.main),
-        ("bloodClocktowerBot", bloodClocktowerBot.main),
-        #("discordBot", discordBot.run)
-    ]
-
     #memory_limit(0.9)
-    processes = []
-    for name, func in functions:
-        p = Process(target=run_loop, args=(func,), name=f"Process-{name}")
-        p.start()
-        processes.append(p)
+    # Multigames
+    p1 = Process(target=loop_a).start()
+    # Report Bot
+    #p2 = Process(target=loop_b).start()
+    # Secret Hitler
+    p3 = Process(target=loop_c).start()
+    #bot on the clocktower
+    p4 = Process(target=loop_d).start()
+    #bot de discord
+    #p5 = Process(target=loop_e).start()
 
     # Verificador que el proceso de multigames siga activo
     # while 1:
