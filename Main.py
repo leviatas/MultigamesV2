@@ -70,13 +70,13 @@ def get_memory():
 if __name__ == '__main__':
     #memory_limit(0.9)
     # Multigames
-    p1 = Process(target=loop_a).start()
+    #p1 = Process(target=loop_a).start()
     # Report Bot
     #p2 = Process(target=loop_b).start()
     # Secret Hitler
     p3 = Process(target=loop_c).start()
     #bot on the clocktower
-    p4 = Process(target=loop_d).start()
+    #p4 = Process(target=loop_d).start()
     #bot de discord
     #p5 = Process(target=loop_e).start()
 
