@@ -84,7 +84,7 @@ if __name__ == '__main__':
     #bot3 = threading.Thread(target=run_bot, args=(token3,), daemon=True, name="Bot3")
     #memory_limit(0.9)
     # Multigames
-    p1 = Process(target=loop_a).start()
+    #p1 = Process(target=loop_a).start()
     # Report Bot
     #p2 = Process(target=loop_b).start()
     # Secret Hitler
