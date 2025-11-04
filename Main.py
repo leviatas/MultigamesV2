@@ -80,7 +80,8 @@ def main():
     
 
 if __name__ == '__main__':
-    MainController.main()
+    #MainController.main()
+    secretHitlerBot.main()
     #main()
     #bot3 = threading.Thread(target=run_bot, args=(token3,), daemon=True, name="Bot3")
     #memory_limit(0.9)
