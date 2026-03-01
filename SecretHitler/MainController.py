@@ -9,8 +9,9 @@ import re
 from random import randrange
 from time import sleep
 
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ParseMode, Update
-from telegram.ext import (Updater, CommandHandler, CallbackQueryHandler, MessageHandler, Filters, CallbackContext)
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
+from telegram.constants import ParseMode
+from telegram.ext import (CommandHandler, CallbackQueryHandler, MessageHandler, filters, CallbackContext)
 
 
 import SecretHitler.Commands as Commands
@@ -24,8 +25,8 @@ import SecretHitler.GamesController as GamesController
 import datetime
 import jsonpickle
 import os
-import psycopg2
-from psycopg2 import sql
+import psycopg
+from psycopg import sql
 import urllib.parse
 
 import traceback
@@ -33,7 +34,7 @@ import sys
 
 from Utils import command_status
 
-from telegram.utils.helpers import mention_html
+from telegram.helpers import mention_html
 # Enable logging
 
 log.basicConfig(
@@ -785,8 +786,8 @@ def count_votes_anarquia(bot, game):
 ##
 
 def get_stats(bot, cid):
-	conn = psycopg2.connect(
-		database=url.path[1:],
+	conn = psycopg.connect(
+		dbname=url.path[1:],
 		user=url.username,
 		password=url.password,
 		host=url.hostname,
@@ -801,8 +802,8 @@ def get_stats(bot, cid):
 	
 
 def set_stats(column_name, value, bot, cid):
-	conn = psycopg2.connect(
-		database=url.path[1:],
+	conn = psycopg.connect(
+		dbname=url.path[1:],
 		user=url.username,
 		password=url.password,
 		host=url.hostname,
@@ -820,8 +821,8 @@ def set_stats(column_name, value, bot, cid):
 	conn.close()
 		
 def save_game_details(bot, print_roles, game_endcode, liberal_track, fascist_track, num_players):
-	conn = psycopg2.connect(
-		database=url.path[1:],
+	conn = psycopg.connect(
+		dbname=url.path[1:],
 		user=url.username,
 		password=url.password,
 		host=url.hostname,
@@ -847,8 +848,8 @@ def change_stats(uid, tipo_juego, stat_name, amount):
 	save_player_stats(uid, user_stats)	
 
 def save_player_stats(uid, data):
-	conn = psycopg2.connect(
-		database=url.path[1:],
+	conn = psycopg.connect(
+		dbname=url.path[1:],
 		user=url.username,
 		password=url.password,
 		host=url.hostname,
@@ -879,8 +880,8 @@ def save_player_stats(uid, data):
 	conn.close()
 
 def load_player_stats(uid):
-	conn = psycopg2.connect(
-		database=url.path[1:],
+	conn = psycopg.connect(
+		dbname=url.path[1:],
 		user=url.username,
 		password=url.password,
 		host=url.hostname,
@@ -1082,8 +1083,8 @@ def shuffle_policy_pile(bot, game):
 			"No habia cartas suficientes en el mazo de políticas asi que he mezclado el resto con el mazo de descarte!")
 
 def getGamesByTipo(opcion):
-	conn = psycopg2.connect(
-		database=url.path[1:],
+	conn = psycopg.connect(
+		dbname=url.path[1:],
 		user=url.username,
 		password=url.password,
 		host=url.hostname,
@@ -1152,8 +1153,8 @@ def change_groupname(bot, update):
 	bot.send_message(ADMIN, text="El group en {cid} ha cambiado de nombre a {groupname}".format(groupname=groupname, cid=cid))
 
 def get_TOKEN():
-	conn = psycopg2.connect(
-		database=url.path[1:],
+	conn = psycopg.connect(
+		dbname=url.path[1:],
 		user=url.username,
 		password=url.password,
 		host=url.hostname,
@@ -1169,8 +1170,8 @@ def get_TOKEN():
 	
 def main():
 	GamesController.init() #Call only once
-	conn = psycopg2.connect(
-		database=url.path[1:],
+	conn = psycopg.connect(
+		dbname=url.path[1:],
 		user=url.username,
 		password=url.password,
 		host=url.hostname,
@@ -1269,8 +1270,8 @@ def main():
 
 	dp.add_handler(CommandHandler("status", command_status))
 
-	dp.add_handler(MessageHandler(Filters.status_update.new_chat_title, change_groupname))
-	dp.add_handler(MessageHandler(Filters.text, command_status))
+	dp.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_TITLE, change_groupname))
+	dp.add_handler(MessageHandler(filters.TEXT, command_status))
 
 	# log all errors
 	dp.add_error_handler(error_callback)

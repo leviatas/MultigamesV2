@@ -8,15 +8,15 @@ from time import sleep
 from telethon.sessions import StringSession
 
 import MainController
-import reportBot.main as reportBot
-import SecretHitler.MainController as secretHitlerBot
-import BloodClocktower.Controller as bloodClocktowerBot
-import discordBot.main as discordBot
+# import reportBot.main as reportBot
+# import SecretHitler.MainController as secretHitlerBot
+# import BloodClocktower.Controller as bloodClocktowerBot
+# import discordBot.main as discordBot
 
 
 import functools
 import requests
-import resource
+# import resource
 import threading
 
 log.basicConfig(
@@ -53,11 +53,11 @@ def loop_e():
         sleep(0.01)
         discordBot.run()
 
-def memory_limit(percentage: float):
-    """Limit max memory usage to half."""
-    soft, hard = resource.getrlimit(resource.RLIMIT_AS)
-    # Convert KiB to bytes, and divide in two to half
-    resource.setrlimit(resource.RLIMIT_AS, (get_memory() * 1024 * percentage, hard))
+# def memory_limit(percentage: float):
+#     """Limit max memory usage to half."""
+#     soft, hard = resource.getrlimit(resource.RLIMIT_AS)
+#     # Convert KiB to bytes, and divide in two to half
+#     resource.setrlimit(resource.RLIMIT_AS, (get_memory() * 1024 * percentage, hard))
 
 def get_memory():
     with open('/proc/meminfo', 'r') as mem:
@@ -80,8 +80,10 @@ def main():
     
 
 if __name__ == '__main__':
-    #MainController.main()
-    secretHitlerBot.main()
+    print("Iniciando MultigamesV2...")
+    log.info("Iniciando MultigamesV2...")
+    MainController.main()
+    #secretHitlerBot.main()
     #main()
     #bot3 = threading.Thread(target=run_bot, args=(token3,), daemon=True, name="Bot3")
     #memory_limit(0.9)

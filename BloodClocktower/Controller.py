@@ -3,11 +3,12 @@ import os
 import traceback
 import sys
 
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ParseMode, Update, \
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update, \
 	InlineQueryResultArticle, InputTextMessageContent
+from telegram.constants import ParseMode
 from telegram.ext import (InlineQueryHandler, Updater, CommandHandler, \
-	CallbackQueryHandler, MessageHandler, Filters, CallbackContext)
-from telegram.utils.helpers import mention_html, escape_markdown
+	CallbackQueryHandler, MessageHandler, filters, CallbackContext)
+from telegram.helpers import mention_html, escape_markdown
 
 from Constants.Config import ADMIN
 import BloodClocktower.Commands as Commands
@@ -132,12 +133,13 @@ def main():
 
     dp.add_handler(CallbackQueryHandler(pattern=r"(-[0-9]*)\*choosegameblood\*(.*)\*([0-9]*)", callback=Commands.callback_choose_game_blood))
 
-    dp.add_handler(MessageHandler(Filters.text, command_status))
+    dp.add_handler(MessageHandler(filters.TEXT, command_status))
 
     job_que = updater.job_queue
     morning = datetime.time(13, 15, 0, 0, tzinfo=pytz.timezone("America/Argentina/Buenos_Aires"))
     
-    job_que.run_daily(Commands.reload_last_workflow, morning, context="Mensaje programado")
+    # JobQueue.run_daily no longer accepts a `context` kwarg; schedule without extra data
+    job_que.run_daily(Commands.reload_last_workflow, morning)
     
     job_que.start()
 

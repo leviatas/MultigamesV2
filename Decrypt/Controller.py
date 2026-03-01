@@ -9,8 +9,9 @@ from random import randrange, choice, shuffle
 from time import sleep
 import datetime
 
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ParseMode, Update, ForceReply, Update
-from telegram.ext import (Updater, CommandHandler, CallbackQueryHandler, CallbackContext)
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update, ForceReply
+from telegram.constants import ParseMode
+from telegram.ext import (CommandHandler, CallbackQueryHandler, CallbackContext)
 
 from Utils import get_game, save
 from Constants.Cards import playerSets, actions
@@ -27,7 +28,7 @@ import GamesController
 import datetime
 
 import os
-import psycopg2
+import psycopg
 import urllib.parse
 
 # Enable logging

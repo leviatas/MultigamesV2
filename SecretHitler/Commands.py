@@ -5,11 +5,12 @@ import datetime
 #import ast
 import jsonpickle
 import os
-import psycopg2
-from psycopg2 import sql
+import psycopg
+from psycopg import sql
 import urllib.parse
 
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ParseMode, Update
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
+from telegram.constants import ParseMode
 from telegram.ext import (CallbackContext)
 import re
 from collections import namedtuple
@@ -149,8 +150,8 @@ def command_ping(update: Update, context: CallbackContext):
 
 
 def get_stat_query(query, partidas_totales, partidas_fascista, partidas_hitler, partidas_liberal, partidas_murio, partidas_fascista_gano, partidas_hitler_gano, partidas_liberal_gano):
-	conn = psycopg2.connect(
-		database=url.path[1:],
+	conn = psycopg.connect(
+		dbname=url.path[1:],
 		user=url.username,
 		password=url.password,
 		host=url.hostname,
@@ -231,8 +232,8 @@ def command_stats(update: Update, context: CallbackContext):
 			if partidas_totales > 0:											
 				query = "select count(*) FROM stats_detail_secret_hitler x where x.playerlist like '%%{0} (dead)%%' or x.playerlist like '%%{0} (muerto)%%'".format(jugador)
 				
-				conn = psycopg2.connect(
-					database=url.path[1:],
+				conn = psycopg.connect(
+					dbname=url.path[1:],
 					user=url.username,
 					password=url.password,
 					host=url.hostname,
@@ -583,8 +584,8 @@ def command_claim_oculto(update: Update, context: CallbackContext):
 		
 def save_game(cid, groupName, game):
 	#Check if game is in DB first
-	conn = psycopg2.connect(
-		database=url.path[1:],
+	conn = psycopg.connect(
+		dbname=url.path[1:],
 		user=url.username,
 		password=url.password,
 		host=url.hostname,
@@ -614,8 +615,8 @@ def save_game(cid, groupName, game):
 	conn.close()
 
 def load_game(cid):
-	conn = psycopg2.connect(
-				database=url.path[1:],
+	conn = psycopg.connect(
+				dbname=url.path[1:],
 				user=url.username,
 				password=url.password,
 				host=url.hostname,
@@ -654,8 +655,8 @@ def load_game(cid):
 		return None
 
 def delete_game(cid):
-	conn = psycopg2.connect(
-		database=url.path[1:],
+	conn = psycopg.connect(
+		dbname=url.path[1:],
 		user=url.username,
 		password=url.password,
 		host=url.hostname,
@@ -840,8 +841,8 @@ def command_jugadores(update: Update, context: CallbackContext):
 	bot.send_message(game.cid, jugadoresActuales, ParseMode.MARKDOWN)	
 		
 def command_newgame_sql_command(update: Update, context: CallbackContext):
-	conn = psycopg2.connect(
-		database=url.path[1:],
+	conn = psycopg.connect(
+		dbname=url.path[1:],
 		user=url.username,
 		password=url.password,
 		host=url.hostname,

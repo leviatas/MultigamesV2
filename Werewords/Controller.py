@@ -9,7 +9,8 @@ import re
 import math
 from random import randrange, shuffle
 from time import sleep
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ParseMode, Update
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
+from telegram.constants import ParseMode
 from telegram.ext import (CallbackContext)
 
 from Utils import (player_call, showFirstLetter, next_player_certain_player, previous_player_after_certain_player, simple_choose_buttons, get_game, save)

@@ -4,7 +4,7 @@ import datetime
 #import ast
 import jsonpickle
 import os
-import psycopg2
+import psycopg
 import urllib.parse
 import sys
 from time import sleep
@@ -12,7 +12,8 @@ from time import sleep
 import Decrypt.Controller as DecryptController
 from Utils import get_game, save
 
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ParseMode, Update, ForceReply, Update
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update, ForceReply
+from telegram.constants import ParseMode
 from telegram.ext import CallbackContext
 import MainController
 from Constants.Config import STATS
@@ -53,16 +54,16 @@ log.basicConfig(
 logger = log.getLogger(__name__)
 
 #DB Connection I made a Haroku Postgres database first
-urllib.parse.uses_netloc.append("postgres")
-url = urllib.parse.urlparse(os.environ["DATABASE_URL"])
-
-conn = psycopg2.connect(
-    database=url.path[1:],
-    user=url.username,
-    password=url.password,
-    host=url.hostname,
-    port=url.port
-)
+#urllib.parse.uses_netloc.append("postgres")
+#url = urllib.parse.urlparse(os.environ["DATABASE_URL"])
+#
+#conn = psycopg.connect(
+#    dbname=url.path[1:],
+#    user=url.username,
+#    password=url.password,
+#    host=url.hostname,
+#    port=url.port
+#)
 	
 def command_call(bot, game):	
 	#try:		
@@ -118,7 +119,7 @@ def callback_choose_game_prop(update: Update, context: CallbackContext):
 	user_data = context.user_data
 	callback = update.callback_query
 	log.info('callback_choose_game_prop called: %s' % callback.data)	
-	regex = re.search("(-[0-9]*)\*choosegamerefDE\*(.*)\*([0-9]*)", callback.data)
+	regex = re.search(r"(-[0-9]*)\*choosegamerefDE\*(.*)\*([0-9]*)", callback.data)
 	cid, strcid, opcion, uid, struid = int(regex.group(1)), regex.group(1), regex.group(2), int(regex.group(3)), regex.group(3)	
 	
 	if cid == -1:
@@ -136,7 +137,7 @@ def callback_choose_game_inter(update: Update, context: CallbackContext):
 	user_data = context.user_data
 	callback = update.callback_query
 	log.info('callback_choose_game_prop called: %s' % callback.data)	
-	regex = re.search("(-[0-9]*)\*choosegameintDE\*(.*)\*([0-9]*)", callback.data)
+	regex = re.search(r"(-[0-9]*)\*choosegameintDE\*(.*)\*([0-9]*)", callback.data)
 	cid, strcid, opcion, uid, struid = int(regex.group(1)), regex.group(1), regex.group(2), int(regex.group(3)), regex.group(3)	
 	
 	if cid == -1:
@@ -154,7 +155,7 @@ def callback_choose_game_dec(update: Update, context: CallbackContext):
 	user_data = context.user_data
 	callback = update.callback_query
 	log.info('callback_choose_game_prop called: %s' % callback.data)	
-	regex = re.search("(-[0-9]*)\*choosegamedecDE\*(.*)\*([0-9]*)", callback.data)
+	regex = re.search(r"(-[0-9]*)\*choosegamedecDE\*(.*)\*([0-9]*)", callback.data)
 	cid, strcid, opcion, uid, struid = int(regex.group(1)), regex.group(1), regex.group(2), int(regex.group(3)), regex.group(3)	
 	
 	if cid == -1:

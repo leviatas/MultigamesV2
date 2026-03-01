@@ -4,11 +4,12 @@ import datetime
 #import ast
 import jsonpickle
 import os
-import psycopg2
+import psycopg
 import urllib.parse
 
 	
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ParseMode, Update, Update
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
+from telegram.constants import ParseMode
 from telegram.ext import (CallbackContext)
 from Werewords.Boardgamebox.Pregunta import Pregunta as Pregunta
 

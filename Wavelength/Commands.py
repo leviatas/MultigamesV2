@@ -4,7 +4,7 @@ import datetime
 #import ast
 import jsonpickle
 import os
-import psycopg2
+import psycopg
 import urllib.parse
 import sys
 from time import sleep
@@ -12,7 +12,8 @@ from time import sleep
 import Wavelength.Controller as WavelengthController
 from Utils import get_game, save
 
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ParseMode, Update, ForceReply, Update
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update, ForceReply
+from telegram.constants import ParseMode
 from telegram.ext import (CallbackContext)
 import MainController
 from Constants.Config import STATS, ADMIN

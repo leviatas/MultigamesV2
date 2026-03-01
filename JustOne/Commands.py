@@ -4,7 +4,7 @@ import datetime
 #import ast
 import jsonpickle
 import os
-import psycopg2
+import psycopg
 import urllib.parse
 import sys
 from time import sleep
@@ -12,7 +12,8 @@ from time import sleep
 import JustOne.Controller as JustOneController
 from Utils import get_game, save
 
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ParseMode, Update, ForceReply, Update
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update, ForceReply
+from telegram.constants import ParseMode
 from telegram.ext import (CallbackContext)
 
 import MainController
@@ -58,8 +59,8 @@ logger = log.getLogger(__name__)
 urllib.parse.uses_netloc.append("postgres")
 url = urllib.parse.urlparse(os.environ["DATABASE_URL"])
 
-# conn = psycopg2.connect(
-#     database=url.path[1:],
+# conn = psycopg.connect(
+#     dbname=url.path[1:],
 #     user=url.username,
 #     password=url.password,
 #     host=url.hostname,
@@ -211,8 +212,8 @@ def command_clue(update: Update, context: CallbackContext):
 	if len(args) > 0:
 		# Obtengo todos los juegos de base de datos de los que usan clue
 		mensaje_error = ""
-		conn = psycopg2.connect(
-			database=url.path[1:],
+		conn = psycopg.connect(
+			dbname=url.path[1:],
 			user=url.username,
 			password=url.password,
 			host=url.hostname,

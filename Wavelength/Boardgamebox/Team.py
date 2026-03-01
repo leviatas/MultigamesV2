@@ -2,7 +2,8 @@ import logging as log
 
 import copy
 import random
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ParseMode, Update, ForceReply
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update, ForceReply
+from telegram.constants import ParseMode
 
 from Boardgamebox.Team import Team as BaseTeam
 

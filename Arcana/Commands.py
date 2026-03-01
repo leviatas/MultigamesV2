@@ -3,7 +3,7 @@ import datetime
 #import ast
 import jsonpickle
 import os
-import psycopg2
+import psycopg
 import urllib.parse
 import sys
 from time import sleep
@@ -11,7 +11,8 @@ from time import sleep
 import Arcana.Controller as ArcanaController
 from Utils import get_game, save
 
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ParseMode, Update, Update
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
+from telegram.constants import ParseMode
 from telegram.ext import (CallbackContext)
 import MainController
 from SayAnything.Boardgamebox.Board import Board

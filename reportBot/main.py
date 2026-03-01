@@ -1,9 +1,11 @@
 
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ParseMode, Update, \
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update, \
 	InlineQueryResultArticle, InputTextMessageContent
+from telegram.constants import ParseMode
 from telegram.ext import (InlineQueryHandler, Updater, CommandHandler, \
-	CallbackQueryHandler, MessageHandler, Filters, CallbackContext)
-from telegram.utils.helpers import mention_html, escape_markdown
+    from telegram.ext import (InlineQueryHandler, CommandHandler, \
+	CallbackQueryHandler, MessageHandler, filters, CallbackContext)
+from telegram.helpers import mention_html, escape_markdown
 
 import os
 import configparser

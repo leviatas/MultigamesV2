@@ -2,7 +2,8 @@ import logging as log
 
 import copy
 import random
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ParseMode, Update, ForceReply, Update
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update, ForceReply
+from telegram.constants import ParseMode
 from Utils import player_call
 log.basicConfig(
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',

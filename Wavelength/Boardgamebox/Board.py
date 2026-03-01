@@ -4,7 +4,8 @@ import logging as log
 
 import copy
 import random
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ParseMode, Update, ForceReply, Update
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update, ForceReply
+from telegram.constants import ParseMode
 
 from Wavelength.Boardgamebox.State import State
 from Boardgamebox.Board import Board as BaseBoard

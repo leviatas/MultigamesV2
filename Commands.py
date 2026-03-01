@@ -2,7 +2,7 @@ import json
 import logging as log
 import datetime
 import os
-import psycopg2
+import psycopg
 import urllib.parse
 import sys
 from time import sleep
@@ -13,7 +13,8 @@ import Werewords.Controller as WerewordsController
 import Unanimo.Controller as UnanimoController
 
 from Utils import restricted, player_call, send_typing_action, get_game, delete_game, save, load_game, save_game
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ParseMode, Update, ForceReply, Update
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update, ForceReply
+from telegram.constants import ParseMode
 from telegram.ext import (CallbackContext)
 import MainController
 import GamesController
@@ -83,8 +84,8 @@ def command_newgame_sql_command(update: Update, context: CallbackContext):
 	if uid in ADMIN:
 		try:
 			#Check if game is in DB first
-			conn = psycopg2.connect(
-				database=url.path[1:],
+			conn = psycopg.connect(
+				dbname=url.path[1:],
 				user=url.username,
 				password=url.password,
 				host=url.hostname,
@@ -1150,8 +1151,8 @@ def call_players_group(update: Update, context: CallbackContext):
 	call_text = "Despierten!: "
 	try:
 		#Check if game is in DB first
-		conn = psycopg2.connect(
-				database=url.path[1:],
+		conn = psycopg.connect(
+				dbname=url.path[1:],
 				user=url.username,
 				password=url.password,
 				host=url.hostname,
@@ -1232,7 +1233,7 @@ def command_leave(update: Update, context: CallbackContext):
 			del game.playerlist[uid]
 			bot.send_message(cid, '‼‼*Has salido exitosamente del juego*‼‼', ParseMode.MARKDOWN)
 
-def command_noticias(update: Update, context: CallbackContext):
+async def command_noticias(update: Update, context: CallbackContext):
 	bot = context.bot
 	log.info('command_noticias called')
 	cid = update.message.chat_id
@@ -1260,11 +1261,11 @@ def command_noticias(update: Update, context: CallbackContext):
 	# 	else:
 	# 		textContinue += producto + "\n"
 
-	bot.send_message(cid, text, ParseMode.MARKDOWN)
+	await bot.send_message(cid, text, ParseMode.MARKDOWN)
 	if len(textContinue) > 0:
-		bot.send_message(cid, textContinue, ParseMode.MARKDOWN)
+		await bot.send_message(cid, textContinue, ParseMode.MARKDOWN)
 
-def command_image(update: Update, context: CallbackContext):
+async def command_image(update: Update, context: CallbackContext):
 	bot = context.bot
 	cid = update.message.chat_id
 
@@ -1274,7 +1275,7 @@ def command_image(update: Update, context: CallbackContext):
 	path_saved = hti.screenshot(html_str=html, css_str=css, save_as='red_page.png')
 	log.info(path_saved)
 	log.info(os.listdir('/'))
-	bot.send_photo(cid, photo=open(path_saved[0], 'rb'))
+	await bot.send_photo(cid, photo=open(path_saved[0], 'rb'))
 
 @restricted
 def command_admin_games(update: Update, context: CallbackContext):

@@ -1,4 +1,4 @@
-import psycopg2
+import psycopg
 import urllib.parse
 import os
 import logging as log
@@ -19,8 +19,8 @@ logger = log.getLogger(__name__)
 def save_report(report : ReporteModel):
 
     try:
-        conn = psycopg2.connect(
-            database=url.path[1:],
+        conn = psycopg.connect(
+            dbname=url.path[1:],
             user=url.username,
             password=url.password,
             host=url.hostname,
@@ -58,8 +58,8 @@ def save_report(report : ReporteModel):
 def get_reports(report_date = "", chat_wars_name = ""):
     try:
         reportes = []
-        conn = psycopg2.connect(
-            database=url.path[1:],
+        conn = psycopg.connect(
+            dbname=url.path[1:],
             user=url.username,
             password=url.password,
             host=url.hostname,

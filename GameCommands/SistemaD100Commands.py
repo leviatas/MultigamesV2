@@ -3,12 +3,13 @@ import logging as log
 import datetime
 import jsonpickle
 import os
-import psycopg2
+import psycopg
 import urllib.parse
 import sys
 from time import sleep
 
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ParseMode, Update, ForceReply, Update
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update, ForceReply
+from telegram.constants import ParseMode
 from telegram.ext import (CallbackContext)
 
 from Boardgamebox.Board import Board
@@ -28,16 +29,16 @@ log.basicConfig(
 logger = log.getLogger(__name__)
 
 #DB Connection I made a Haroku Postgres database first
-urllib.parse.uses_netloc.append("postgres")
-url = urllib.parse.urlparse(os.environ["DATABASE_URL"])
-
-conn = psycopg2.connect(
-    database=url.path[1:],
-    user=url.username,
-    password=url.password,
-    host=url.hostname,
-    port=url.port
-)
+#urllib.parse.uses_netloc.append("postgres")
+#url = urllib.parse.urlparse(os.environ["DATABASE_URL"])
+#
+#conn = psycopg.connect(
+#    dbname=url.path[1:],
+#    user=url.username,
+#    password=url.password,
+#    host=url.hostname,
+#    port=url.port
+#)
 
 # Secret Moon
 secret_moon_cid = '-1001206290323'

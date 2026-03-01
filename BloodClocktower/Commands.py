@@ -1,4 +1,5 @@
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ParseMode, Update
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
+from telegram.constants import ParseMode
 from telegram.ext import (CallbackContext)
 import GamesController
 
@@ -6,8 +7,8 @@ from functools import wraps
 import requests
 import jsonpickle
 import os
-import psycopg2
-from psycopg2 import sql
+import psycopg
+from psycopg import sql
 import urllib.parse
 import logging as log
 
@@ -232,8 +233,8 @@ def get_game(cid) -> Game:
 def load_and_get_games() -> List[Game]:
 	games = []
 
-	conn = psycopg2.connect(
-		database=url.path[1:],
+	conn = psycopg.connect(
+		dbname=url.path[1:],
 		user=url.username,
 		password=url.password,
 		host=url.hostname,
@@ -252,8 +253,8 @@ def load_and_get_games() -> List[Game]:
 	return list(GamesController.games.values())
 
 def load_game(cid):
-	conn = psycopg2.connect(
-				database=url.path[1:],
+	conn = psycopg.connect(
+				dbname=url.path[1:],
 				user=url.username,
 				password=url.password,
 				host=url.hostname,
@@ -1315,8 +1316,8 @@ def command_fix(update: Update, context: CallbackContext):
 
 def save_game(cid, groupName, game):
 	#Check if game is in DB first
-	conn = psycopg2.connect(
-		database=url.path[1:],
+	conn = psycopg.connect(
+		dbname=url.path[1:],
 		user=url.username,
 		password=url.password,
 		host=url.hostname,
@@ -1346,8 +1347,8 @@ def save_game(cid, groupName, game):
 	conn.close()
 
 def delete_game(cid):
-	conn = psycopg2.connect(
-		database=url.path[1:],
+	conn = psycopg.connect(
+		dbname=url.path[1:],
 		user=url.username,
 		password=url.password,
 		host=url.hostname,

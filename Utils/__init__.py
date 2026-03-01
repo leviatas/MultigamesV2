@@ -2,21 +2,27 @@ from functools import wraps
 from Constants.Config import ADMIN
 from PIL import Image
 from io import BytesIO
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ChatAction, ParseMode, Update
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
+from telegram.constants import ParseMode, ChatAction
 from telegram.ext import CallbackContext
 from random import randrange
 
-import psycopg2
+import psycopg
 import urllib.parse
 import os
 import jsonpickle
 import logging as log
-import GamesController
+from dotenv import load_dotenv
+
+# import GamesController
 
 log.basicConfig(
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
         level=log.INFO)
 logger = log.getLogger(__name__)
+
+# Load environment variables from .env file
+load_dotenv()
 
 
 
@@ -216,8 +222,8 @@ def get_game(cid):
 			None
 
 def load_game(cid):
-	conn = psycopg2.connect(
-		database=url.path[1:],
+	conn = psycopg.connect(
+		dbname=url.path[1:],
 		user=url.username,
 		password=url.password,
 		host=url.hostname,
@@ -264,8 +270,8 @@ def load_game(cid):
 		return None
 
 def delete_game(cid):
-	conn = psycopg2.connect(
-		database=url.path[1:],
+	conn = psycopg.connect(
+		dbname=url.path[1:],
 		user=url.username,
 		password=url.password,
 		host=url.hostname,
@@ -281,8 +287,8 @@ def delete_game(cid):
 def save_game(cid, groupName, game, gameType):
 	try:
 		#Check if game is in DB first
-		conn = psycopg2.connect(
-		database=url.path[1:],
+		conn = psycopg.connect(
+		dbname=url.path[1:],
 		user=url.username,
 		password=url.password,
 		host=url.hostname,
