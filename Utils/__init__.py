@@ -24,11 +24,11 @@ logger = log.getLogger(__name__)
 # Load environment variables from .env file
 load_dotenv()
 
-
-
 urllib.parse.uses_netloc.append("postgres")
-#url = urllib.parse.urlparse('postgres://osawfnidytbmgi:126714f9f3157ee10baa8046e48d287872788c8d1349ddba5dfd2a85de82d2a6@ec2-174-129-192-200.compute-1.amazonaws.com:5432/d79l0ugjdnfiac')
-url = urllib.parse.urlparse(os.environ["DATABASE_URL"])
+
+def _get_db_url():
+    """Parse DATABASE_URL lazily (not at module import time)."""
+    return urllib.parse.urlparse(os.environ.get("DATABASE_URL", ""))
 
 def restricted(func):
 	@wraps(func)
@@ -222,6 +222,7 @@ def get_game(cid):
 			None
 
 def load_game(cid):
+	url = _get_db_url()
 	conn = psycopg.connect(
 		dbname=url.path[1:],
 		user=url.username,
@@ -270,6 +271,7 @@ def load_game(cid):
 		return None
 
 def delete_game(cid):
+	url = _get_db_url()
 	conn = psycopg.connect(
 		dbname=url.path[1:],
 		user=url.username,
@@ -287,6 +289,7 @@ def delete_game(cid):
 def save_game(cid, groupName, game, gameType):
 	try:
 		#Check if game is in DB first
+		url = _get_db_url()
 		conn = psycopg.connect(
 		dbname=url.path[1:],
 		user=url.username,

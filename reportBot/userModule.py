@@ -6,8 +6,10 @@ import logging as log
 from reportBot.Models.UserModel import UserModel
 
 urllib.parse.uses_netloc.append("postgres")
-#url = urllib.parse.urlparse('postgres://osawfnidytbmgi:126714f9f3157ee10baa8046e48d287872788c8d1349ddba5dfd2a85de82d2a6@ec2-174-129-192-200.compute-1.amazonaws.com:5432/d79l0ugjdnfiac')
-url = urllib.parse.urlparse(os.environ["DATABASE_URL"])
+
+def _get_db_url():
+    """Parse DATABASE_URL lazily (not at module import time)."""
+    return urllib.parse.urlparse(os.environ.get("DATABASE_URL", ""))
 
 
 
@@ -18,6 +20,7 @@ logger = log.getLogger(__name__)
 
 def save_user(user : UserModel):
     try:
+        url = _get_db_url()
         conn = psycopg.connect(
             dbname=url.path[1:],
             user=url.username,
@@ -48,6 +51,7 @@ def save_user(user : UserModel):
 def get_users(uid = ""):
     try:
         users = []
+        url = _get_db_url()
         conn = psycopg.connect(
             dbname=url.path[1:],
             user=url.username,
@@ -108,6 +112,7 @@ def get_users_with_missing_last_report(date = ""):
         log.info(date)
         string_date = date.strftime("%H:%M %d.%m")
         users = []
+        url = _get_db_url()
         conn = psycopg.connect(
             dbname=url.path[1:],
             user=url.username,
@@ -139,6 +144,7 @@ def get_users_with_missing_last_report(date = ""):
 
 def delete_user(user : UserModel):
     try:
+        url = _get_db_url()
         conn = psycopg.connect(
             dbname=url.path[1:],
             user=url.username,
