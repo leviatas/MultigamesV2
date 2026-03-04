@@ -631,7 +631,7 @@ async def callback_choose_swap(update: Update, context: CallbackContext):
 	log.info('callback_choose_swap called: %s' % callback.data)	
 	regex = re.search(r"(-[0-9]*)\*commando\*([^_]*)\*swap\*([0-9]*)", callback.data)
 	cid, strcid, opcion, uid, struid = int(regex.group(1)), regex.group(1), regex.group(2), int(regex.group(3)), regex.group(3)
-	bot.edit_message_text("Has elegido la carta: %s" % opcion, cid, callback.message.message_id)
+	await bot.edit_message_text("Has elegido la carta: %s" % opcion, cid, callback.message.message_id)
 	game = get_game(cid)
 	game.board.state.swap_cards.append(int(opcion))
 	command_swap_exploration(bot, ["Sí", cid, uid])
@@ -1237,7 +1237,7 @@ async def elegir_opcion_comando(update: Update, context: CallbackContext):
 	game.board.state.index_opcion_actual = int(opcion)
 	
 	#bot.delete_message(callback.chat.id, callback.message.message_id)
-	bot.edit_message_text("Has elegido la opcion: %s" % opcion, cid, callback.message.message_id)
+	await bot.edit_message_text("Has elegido la opcion: %s" % opcion, cid, callback.message.message_id)
 	execute_actions(bot, cid, uid)
 	#except Exception as e:
 	#		await bot.send_message(cid, 'No se ejecuto el elegir_opcion_comando debido a: '+str(e))
@@ -1255,7 +1255,7 @@ async def elegir_opcion_skill(update: Update, context: CallbackContext):
 	
 	index_player_skill = player.skills.index(int(opcion))
 	#bot.delete_message(callback.chat.id, callback.message.message_id)
-	bot.edit_message_text("Has elegido la carta: %s" % opcion, cid, callback.message.message_id)
+	await bot.edit_message_text("Has elegido la carta: %s" % opcion, cid, callback.message.message_id)
 	command_use_skill(bot, [index_player_skill, cid, uid])
 	#except Exception as e:
 	#		await bot.send_message(cid, 'No se ejecuto el elegir_opcion_comando debido a: '+str(e))
@@ -1432,14 +1432,14 @@ async def execute_command(update: Update, context: CallbackContext):
 	bot = context.bot
 	callback = update.callback_query
 	#log.info('execute_command called: %s' % callback.data)
-	regex = re.search("(-[0-9]*)\*exe\*([^_]*)\*(.*)\*([0-9]*)", callback.data)
+	regex = re.search(r"(-[0-9]*)\*exe\*([^_]*)\*(.*)\*([0-9]*)", callback.data)
 	cid = int(regex.group(1))
 	strcid = regex.group(1)	
 	opcion = regex.group(2)
 	comando = regex.group(3)
 	uid = int(regex.group(4))
 	struid = regex.group(4)	
-	bot.edit_message_text("Has elegido la opcion: %s" % opcion, cid, callback.message.message_id)
+	await bot.edit_message_text("Has elegido la opcion: %s" % opcion, cid, callback.message.message_id)
 	#ot.send_message(cid, "%s %s %s %s" % (strcid, opcion, comando, struid ))
 	# Directamente lo ejecuto ya que tengo el argumento.
 	resultado = getattr(sys.modules[__name__], comando)(bot, update, [opcion, cid, uid])

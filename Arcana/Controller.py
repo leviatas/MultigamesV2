@@ -69,9 +69,9 @@ async def callback_finish_config(update: Update, context: CallbackContext):
 		#update.callback_query.answer(text="Si ningún destino visible es exactamente 1 más o 1 menos que cualquiera de tus destinos, jugá uno de ellos aquí.", show_alert=False)
 		
 		try:
-			bot.edit_message_text(mensaje_edit, cid, callback.message.message_id)
+			await bot.edit_message_text(mensaje_edit, cid, callback.message.message_id)
 		except Exception as e:
-			bot.edit_message_text(mensaje_edit, uid, callback.message.message_id)			
+			await bot.edit_message_text(mensaje_edit, uid, callback.message.message_id)			
 		game = get_game(cid)
 		game.configs['difficultad'] = opcion
 		finish_config(bot, game, opcion)
@@ -177,7 +177,7 @@ async def show_player_fate_tokens_active_player(bot, game, message_id = None):
 		index += 1
 	btnMarkup = InlineKeyboardMarkup([btns])	
 	if message_id:
-		bot.edit_message_text(mensaje, chat_id=cid, message_id=message_id, 
+		await bot.edit_message_text(mensaje, chat_id=cid, message_id=message_id, 
 				      parse_mode=ParseMode.MARKDOWN, reply_markup=btnMarkup)
 	else:
 		await bot.send_message(cid, mensaje, parse_mode=ParseMode.MARKDOWN, reply_markup=btnMarkup, timeout=30)
@@ -217,7 +217,7 @@ async def callback_choose_fate(update: Update, context: CallbackContext):
 		
 		#update.callback_query.answer(text="{} ({})".format(texto, horas), show_alert=False)
 		
-		bot.edit_message_text("Partida: {}\nHas elegido el destino *{}*".format(game.groupName, texto), uid, callback.message.message_id, parse_mode=ParseMode.MARKDOWN)
+		await bot.edit_message_text("Partida: {}\nHas elegido el destino *{}*".format(game.groupName, texto), uid, callback.message.message_id, parse_mode=ParseMode.MARKDOWN)
 		
 		#"Elige en que Arcana quieres ponerlo."
 		btns = []
@@ -241,7 +241,7 @@ async def callback_choose_arcana(update: Update, context: CallbackContext):
 	callback = update.callback_query
 			
 	#log.info('callback_finish_game_buttons called: %s' % callback.data)	
-	regex = re.search("(-[0-9]*)\*chooseArcanaAR\*(.*)\*(-?[0-9]*)", callback.data)
+	regex = re.search(r"(-[0-9]*)\*chooseArcanaAR\*(.*)\*(-?[0-9]*)", callback.data)
 	cid, strcid, opcion, index = int(regex.group(1)), regex.group(1), regex.group(2), int(regex.group(3))
 	#await bot.send_message(ADMIN[0], struid)
 
@@ -252,7 +252,7 @@ async def callback_choose_arcana(update: Update, context: CallbackContext):
 			await bot.send_message(cid, "No es el momento de jugar destino o no eres el que tiene que jugar el fate", ParseMode.MARKDOWN)
 
 		if index == -1:
-			bot.edit_message_text("Accion cancelada se vuelven a enviar destinos\n", uid, callback.message.message_id)
+			await bot.edit_message_text("Accion cancelada se vuelven a enviar destinos\n", uid, callback.message.message_id)
 			show_fates_active_player(bot, game)
 			return
 
@@ -283,7 +283,7 @@ async def callback_choose_arcana(update: Update, context: CallbackContext):
 				is_legal_arcana = False
 				
 		if not is_legal_arcana:
-			bot.edit_message_text("No puedes jugar ese destino en esa arcana, se vuelven a enviar destinos\n", uid, callback.message.message_id)
+			await bot.edit_message_text("No puedes jugar ese destino en esa arcana, se vuelven a enviar destinos\n", uid, callback.message.message_id)
 			show_fates_active_player(bot, game)
 			return
 
@@ -292,7 +292,7 @@ async def callback_choose_arcana(update: Update, context: CallbackContext):
 
 		update.callback_query.answer(text="Se puso en la arcana {} el destino {}".format(arcana["Título"], chosen_fate["Texto"]), show_alert=False)
 
-		bot.edit_message_text("Partida: {}\nHas elegido la Arcana *{}: {}*.\nTe queda en la mano el token *{}*\n".format(game.groupName, titulo, texto, user_data['unchosen']["Texto"]), uid, callback.message.message_id, parse_mode=ParseMode.MARKDOWN)
+		await bot.edit_message_text("Partida: {}\nHas elegido la Arcana *{}: {}*.\nTe queda en la mano el token *{}*\n".format(game.groupName, titulo, texto, user_data['unchosen']["Texto"]), uid, callback.message.message_id, parse_mode=ParseMode.MARKDOWN)
 
 		mensaje_final = "El jugador *{}* ha puesto el destino *{}* en la Arcana *{}*.".format(
 			game.board.state.active_player.name, chosen_fate["Texto"], arcana["Título"])
@@ -441,9 +441,9 @@ async def callback_finish_game_buttons(update: Update, context: CallbackContext)
 		cid, strcid, opcion, uid, struid = int(regex.group(1)), regex.group(1), regex.group(2), int(regex.group(3)), regex.group(3)
 		mensaje_edit = "Has elegido: {0}".format(opcion)
 		try:
-			bot.edit_message_text(mensaje_edit, cid, callback.message.message_id)
+			await bot.edit_message_text(mensaje_edit, cid, callback.message.message_id)
 		except Exception as e:
-			bot.edit_message_text(mensaje_edit, uid, callback.message.message_id)				
+			await bot.edit_message_text(mensaje_edit, uid, callback.message.message_id)				
 		game = get_game(cid)
 		
 		# Obtengo el diccionario actual, primero casos no tendre el config y pondre el community
@@ -612,11 +612,11 @@ async def callback_reubicar_origen_action(bot, cid, opcion, index, uid, message_
 	if index != -1:
 		arcana = game.board.state.arcanasOnTable[index]
 		btnMarkup = create_fate_buttons(bot, game, 'ReubicarOrigen', uid, arcana, index, 0, 8)		
-		bot.edit_message_text("Partida {}\n*Elige Token a reubicar.*:".format(game.groupName), 
+		await bot.edit_message_text("Partida {}\n*Elige Token a reubicar.*:".format(game.groupName), 
 				      chat_id=uid, message_id=message_id, 
 				      parse_mode=ParseMode.MARKDOWN, reply_markup=btnMarkup)
 	else:
-		bot.edit_message_text("*Accion cancelada*", chat_id=uid, message_id=message_id, parse_mode=ParseMode.MARKDOWN)
+		await bot.edit_message_text("*Accion cancelada*", chat_id=uid, message_id=message_id, parse_mode=ParseMode.MARKDOWN)
 
 async def callback_reubicar_destino_action(bot, cid, opcion, index, uid, message_id):
 	game = get_game(cid)	
@@ -636,7 +636,7 @@ async def callback_reubicar_destino_action(bot, cid, opcion, index, uid, message
 		msg = "*Se ha pasado el token {} de la arcana {} a la arcana {}*:".format(fate_movido["Texto"],
 											  arcanaOrigen['Título'],
 											  arcanaDestino['Título'])
-		bot.edit_message_text(msg, chat_id=uid, message_id=message_id, parse_mode=ParseMode.MARKDOWN)
+		await bot.edit_message_text(msg, chat_id=uid, message_id=message_id, parse_mode=ParseMode.MARKDOWN)
 		await bot.send_message(cid, msg, parse_mode=ParseMode.MARKDOWN)
 		game.history.append(msg)
 		
@@ -650,7 +650,7 @@ async def callback_reubicar_destino_action(bot, cid, opcion, index, uid, message
 		game.board.print_board(bot, game)
 		
 	else:
-		bot.edit_message_text("*Accion cancelada*", chat_id=uid, message_id=message_id, parse_mode=ParseMode.MARKDOWN)
+		await bot.edit_message_text("*Accion cancelada*", chat_id=uid, message_id=message_id, parse_mode=ParseMode.MARKDOWN)
 
 # El jugador eligio arcana para sacar tokens de destino
 async def callback_ciclar_action(bot, cid, opcion, index, uid, message_id):
@@ -672,10 +672,10 @@ async def callback_ciclar_action(bot, cid, opcion, index, uid, message_id):
 		game.board.state.used_fate_power = True
 		msg = "Se ha cambiado la arcana {} por {}".format(opcion, game.board.state.arcanasOnTable[index]['Título'])
 		game.history.append(msg)
-		bot.edit_message_text(msg, chat_id=uid, message_id=message_id, parse_mode=ParseMode.MARKDOWN)
+		await bot.edit_message_text(msg, chat_id=uid, message_id=message_id, parse_mode=ParseMode.MARKDOWN)
 		game.board.print_board(bot, game)
 	else:
-		bot.edit_message_text("*Accion cancelada*", chat_id=uid, message_id=message_id, parse_mode=ParseMode.MARKDOWN)
+		await bot.edit_message_text("*Accion cancelada*", chat_id=uid, message_id=message_id, parse_mode=ParseMode.MARKDOWN)
 
 async def callback_descartarmenor_elegir_destino(bot, cid, opcion, index, uid, message_id):
 	game = get_game(cid)
@@ -685,11 +685,11 @@ async def callback_descartarmenor_elegir_destino(bot, cid, opcion, index, uid, m
 		fate_quedaba = int(game.board.state.active_player.fateTokens[0]["Texto"])
 		arcana = game.board.state.arcanasOnTable[index]
 		btnMarkup = create_fate_buttons(bot, game, 'DescartarMenor', uid, arcana, index, 0, fate_quedaba)		
-		bot.edit_message_text("Partida {}\n*Elige Token a descartar.*:".format(game.groupName), 
+		await bot.edit_message_text("Partida {}\n*Elige Token a descartar.*:".format(game.groupName), 
 				      chat_id=uid, message_id=message_id, 
 				      parse_mode=ParseMode.MARKDOWN, reply_markup=btnMarkup)
 	else:
-		bot.edit_message_text("*Accion cancelada*", chat_id=uid, message_id=message_id, parse_mode=ParseMode.MARKDOWN)
+		await bot.edit_message_text("*Accion cancelada*", chat_id=uid, message_id=message_id, parse_mode=ParseMode.MARKDOWN)
 
 async def callback_descartarmenor_descartar_destino(bot, cid, arcana_index, fate_index, uid, message_id):
 	game = get_game(cid)
@@ -706,12 +706,12 @@ async def callback_descartarmenor_descartar_destino(bot, cid, arcana_index, fate
 		#game.board.arcanaCards.append(faded_arcana)
 		game.board.state.discardedArcanas.append(faded_arcana)
 		game.board.state.used_fate_power = True
-		bot.edit_message_text(msg, chat_id=uid, message_id=message_id, parse_mode=ParseMode.MARKDOWN)
+		await bot.edit_message_text(msg, chat_id=uid, message_id=message_id, parse_mode=ParseMode.MARKDOWN)
 		game.history.append(msg)
 		game.board.print_board(bot, game)
 		await bot.send_message(cid, msg, parse_mode=ParseMode.MARKDOWN)		
 	else:
-		bot.edit_message_text("*Accion cancelada*", chat_id=uid, message_id=message_id, parse_mode=ParseMode.MARKDOWN)	
+		await bot.edit_message_text("*Accion cancelada*", chat_id=uid, message_id=message_id, parse_mode=ParseMode.MARKDOWN)	
 
 # Cuando una arcana es elegida en un boton de accion termina aca.
 async def callback_choose_arcana_action(update: Update, context: CallbackContext):
@@ -749,7 +749,7 @@ async def callback_reubicar_fate(bot, cid, arcana_index, fate_index, uid, messag
 		btnMarkup = create_arcanas_buttons(bot, game, "ReubicarDestino", uid, restrict = restringir_arcanas)
 		await bot.send_message(game.board.state.active_player.uid, "Seleccione la arcana de destino", parse_mode=ParseMode.MARKDOWN, reply_markup=btnMarkup)		
 	else:
-		bot.edit_message_text("*Accion cancelada*", chat_id=uid, message_id=message_id, parse_mode=ParseMode.MARKDOWN)
+		await bot.edit_message_text("*Accion cancelada*", chat_id=uid, message_id=message_id, parse_mode=ParseMode.MARKDOWN)
 	
 	#await bot.send_message(ADMIN[0], "No esta async definida la funcion".format(cid, accion, opcion, index))
 		

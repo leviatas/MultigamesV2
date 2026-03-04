@@ -57,13 +57,13 @@ async def callback_finish_config_werewords(update: Update, context: CallbackCont
 	log.info('callback_finish_config_werewords called')
 	callback = update.callback_query
 	#try:
-	regex = re.search("(-[0-9]*)\*choosediccWW\*(.*)\*([0-9]*)", callback.data)
+	regex = re.search(r"(-[0-9]*)\*choosediccWW\*(.*)\*([0-9]*)", callback.data)
 	cid, strcid, opcion, uid, struid = int(regex.group(1)), regex.group(1), regex.group(2), int(regex.group(3)), regex.group(3)
 	mensaje_edit = "Has elegido el diccionario: {0}".format(opcion)
 	try:
-		bot.edit_message_text(mensaje_edit, cid, callback.message.message_id)
+		await bot.edit_message_text(mensaje_edit, cid, callback.message.message_id)
 	except Exception as e:
-		bot.edit_message_text(mensaje_edit, uid, callback.message.message_id)
+		await bot.edit_message_text(mensaje_edit, uid, callback.message.message_id)
 		
 	game = get_game(cid)
 	game.configs['diccionario'] = opcion
@@ -131,10 +131,10 @@ async def incluir_modulo(update: Update, context: CallbackContext):
 		# Si se ha terminado de configurar los modulos...		
 		
 		if modulo_elegido == "Fin":
-			bot.edit_message_text("Gracias por configurar el juego.", cid, callback.message.message_id)
+			await bot.edit_message_text("Gracias por configurar el juego.", cid, callback.message.message_id)
 		else:
 			game.modulos.append(modulo_elegido)
-			bot.edit_message_text("Se ha incluido el modulo %s" % (modulo_elegido), cid, callback.message.message_id)
+			await bot.edit_message_text("Se ha incluido el modulo %s" % (modulo_elegido), cid, callback.message.message_id)
 			configurar_partida(bot, game)
 	except AttributeError as e:
 		log.error("incluir_modulo: " + str(e))
@@ -283,15 +283,15 @@ async def callback_choose_magic_word(update: Update, context: CallbackContext):
 	log.info('callback_choose_magic_word called')
 	callback = update.callback_query
 	
-	regex = re.search("(-[0-9]*)\*choosemagicwordWW\*(.*)\*([0-9]*)", callback.data)
+	regex = re.search(r"(-[0-9]*)\*choosemagicwordWW\*(.*)\*([0-9]*)", callback.data)
 	cid, opcion, uid = int(regex.group(1)), regex.group(2), int(regex.group(3)),
 	mensaje_edit = "Has elegido la palabra: {0}".format(opcion)
 	game = get_game(cid)
 	try:
-		bot.edit_message_text(mensaje_edit, cid, callback.message.message_id)
+		await bot.edit_message_text(mensaje_edit, cid, callback.message.message_id)
 	except Exception as e:
 		uid = ADMIN[0] if game.is_debugging else uid
-		bot.edit_message_text(mensaje_edit, uid, callback.message.message_id)
+		await bot.edit_message_text(mensaje_edit, uid, callback.message.message_id)
 		
 	
 	#game.configs['magicword'] = opcion
@@ -344,7 +344,7 @@ async def callback_choose_dople(update: Update, context: CallbackContext):
 	log.info('callback_choose_dople called')
 	callback = update.callback_query
 	#try:
-	regex = re.search("(-?[0-9]*)\*choosedopleWW\*(.*)\*(-?[0-9]*)", callback.data)
+	regex = re.search(r"(-?[0-9]*)\*choosedopleWW\*(.*)\*(-?[0-9]*)", callback.data)
 	cid, opcion, uid = int(regex.group(1)), regex.group(2), int(regex.group(3))
 
 	game = get_game(cid)
@@ -354,14 +354,14 @@ async def callback_choose_dople(update: Update, context: CallbackContext):
 	valid_callback = game.validate_call_choose_poke(uid)
 	if not valid_callback:
 		mensaje_edit = "No puedes o no es el momento para usar esta botonera"
-		bot.edit_message_text(mensaje_edit, uid, callback.message.message_id)
+		await bot.edit_message_text(mensaje_edit, uid, callback.message.message_id)
 		return
 
 	mensaje_edit = "Has duplicado al jugador: {0}".format(jugador_elegido.name)
 	try:
-		bot.edit_message_text(mensaje_edit, cid, callback.message.message_id)
+		await bot.edit_message_text(mensaje_edit, cid, callback.message.message_id)
 	except Exception as e:
-		bot.edit_message_text(mensaje_edit, uid, callback.message.message_id)
+		await bot.edit_message_text(mensaje_edit, uid, callback.message.message_id)
 	
 	dople = game.get_rol("Dopleganger")
 	dople.dople_rol = jugador_elegido.rol
@@ -518,7 +518,7 @@ async def callback_choose_poke(update: Update, context: CallbackContext):
 	log.info('callback_choose_vidente called')
 	callback = update.callback_query
 	try:
-		regex = re.search("(-?[0-9]*)\*choosepokeWW\*(.*)\*(-?[0-9]*)", callback.data)
+		regex = re.search(r"(-?[0-9]*)\*choosepokeWW\*(.*)\*(-?[0-9]*)", callback.data)
 		cid, opcion, uid = int(regex.group(1)), regex.group(2), int(regex.group(3))
 
 		game = get_game(cid)
@@ -528,14 +528,14 @@ async def callback_choose_poke(update: Update, context: CallbackContext):
 		valid_callback = game.validate_call_choose_poke(uid)
 		if not valid_callback:
 			mensaje_edit = "No puedes o no es el momento para usar esta botonera"
-			bot.edit_message_text(mensaje_edit, uid, callback.message.message_id)
+			await bot.edit_message_text(mensaje_edit, uid, callback.message.message_id)
 			return
 
 		mensaje_edit = "Has molestado al jugador: {0}".format(jugador_elegido.name)
 		try:
-			bot.edit_message_text(mensaje_edit, cid, callback.message.message_id)
+			await bot.edit_message_text(mensaje_edit, cid, callback.message.message_id)
 		except Exception as e:
-			bot.edit_message_text(mensaje_edit, uid, callback.message.message_id)
+			await bot.edit_message_text(mensaje_edit, uid, callback.message.message_id)
 		
 		msg = "El jugador *{}* te ha molestado, *es la COSA*!".format(jugador_ejecutor.name)
 		send_message(bot, game, jugador_elegido, msg)
@@ -579,7 +579,7 @@ async def callback_ask(update: Update, context: CallbackContext):
 	callback = update.callback_query
 	uid = update.effective_user.id
 	#try:
-	regex = re.search("(-[0-9]*)\*askWW\*(.*)\*([0-9]*)", callback.data)
+	regex = re.search(r"(-[0-9]*)\*askWW\*(.*)\*([0-9]*)", callback.data)
 	cid, opcion, index = int(regex.group(1)), regex.group(2), int(regex.group(3)),
 	
 	game = get_game(cid)
@@ -587,7 +587,7 @@ async def callback_ask(update: Update, context: CallbackContext):
 	pregunta = game.board.state.preguntas_pendientes[index]
 	
 	if pregunta.respuesta is not None:
-		bot.edit_message_text("Pregunta ya respondida", cid, callback.message.message_id, parse_mode=ParseMode.MARKDOWN)
+		await bot.edit_message_text("Pregunta ya respondida", cid, callback.message.message_id, parse_mode=ParseMode.MARKDOWN)
 		return
 	
 	if uid != game.board.state.mayor.uid and not game.is_debugging:
@@ -607,9 +607,9 @@ async def callback_ask(update: Update, context: CallbackContext):
 
 	mensaje_edit = "Gracias por responder"
 	try:
-		bot.edit_message_text(mensaje_edit, cid, callback.message.message_id, parse_mode=ParseMode.MARKDOWN)
+		await bot.edit_message_text(mensaje_edit, cid, callback.message.message_id, parse_mode=ParseMode.MARKDOWN)
 	except Exception as e:
-		bot.edit_message_text(mensaje_edit, index, callback.message.message_id, parse_mode=ParseMode.MARKDOWN)
+		await bot.edit_message_text(mensaje_edit, index, callback.message.message_id, parse_mode=ParseMode.MARKDOWN)
 		
 	jugador_pregunton = game.playerlist[pregunta.uid]
 	game.history.append("{}: {}".format(jugador_pregunton.name, pregunta_respuesta))
@@ -707,7 +707,7 @@ async def callback_choose_vidente(update: Update, context: CallbackContext):
 	log.info('callback_choose_vidente called')
 	callback = update.callback_query
 	try:
-		regex = re.search("(-[0-9]*)\*choosevidenteWW\*(.*)\*([0-9]*)", callback.data)
+		regex = re.search(r"(-[0-9]*)\*choosevidenteWW\*(.*)\*([0-9]*)", callback.data)
 		cid, opcion, uid = int(regex.group(1)), regex.group(2), int(regex.group(3))
 
 		game = get_game(cid)
@@ -716,14 +716,14 @@ async def callback_choose_vidente(update: Update, context: CallbackContext):
 		valid_callback = game.validate_call_choose_vidente(uid)
 		if not valid_callback:
 			mensaje_edit = "No puedes o no es el momento para usar esta botonera"
-			bot.edit_message_text(mensaje_edit, uid, callback.message.message_id)
+			await bot.edit_message_text(mensaje_edit, uid, callback.message.message_id)
 			return
 
 		mensaje_edit = "Has elegido al jugador: {0}".format(jugador_elegido.name)
 		try:
-			bot.edit_message_text(mensaje_edit, cid, callback.message.message_id)
+			await bot.edit_message_text(mensaje_edit, cid, callback.message.message_id)
 		except Exception as e:
-			bot.edit_message_text(mensaje_edit, uid, callback.message.message_id)
+			await bot.edit_message_text(mensaje_edit, uid, callback.message.message_id)
 		
 		game.board.state.last_votes[uid] = jugador_elegido		
 		await save(bot, game.cid)
@@ -750,15 +750,15 @@ async def callback_choose_lobo(update: Update, context: CallbackContext):
 
 		if not valid_callback:
 			mensaje_edit = "No puedes o no es el momento para usar esta botonera"
-			bot.edit_message_text(mensaje_edit, uid, callback.message.message_id)
+			await bot.edit_message_text(mensaje_edit, uid, callback.message.message_id)
 			return
 
 		jugador_elegido = game.playerlist[int(opcion)]
 		mensaje_edit = "Has elegido al jugador: {0}".format(jugador_elegido.name)
 		try:
-			bot.edit_message_text(mensaje_edit, cid, callback.message.message_id)
+			await bot.edit_message_text(mensaje_edit, cid, callback.message.message_id)
 		except Exception as e:
-			bot.edit_message_text(mensaje_edit, uid, callback.message.message_id)
+			await bot.edit_message_text(mensaje_edit, uid, callback.message.message_id)
 		
 		game.board.state.last_votes[uid] = jugador_elegido
 		await save(bot, game.cid)
@@ -841,13 +841,13 @@ async def callback_finish_game_buttons(update: Update, context: CallbackContext)
 	callback = update.callback_query
 	try:		
 		log.info('callback_finish_game_buttons called: %s' % callback.data)	
-		regex = re.search("(-[0-9]*)\*chooseendWW\*(.*)\*([0-9]*)", callback.data)
+		regex = re.search(r"(-[0-9]*)\*chooseendWW\*(.*)\*([0-9]*)", callback.data)
 		cid, strcid, opcion, uid, struid = int(regex.group(1)), regex.group(1), regex.group(2), int(regex.group(3)), regex.group(3)
 		mensaje_edit = "Has elegido: {0}".format(opcion)
 		try:
-			bot.edit_message_text(mensaje_edit, cid, callback.message.message_id)
+			await bot.edit_message_text(mensaje_edit, cid, callback.message.message_id)
 		except Exception as e:
-			bot.edit_message_text(mensaje_edit, uid, callback.message.message_id)				
+			await bot.edit_message_text(mensaje_edit, uid, callback.message.message_id)				
 		
 		game = get_game(cid)
 		

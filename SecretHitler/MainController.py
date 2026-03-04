@@ -138,14 +138,14 @@ async def nominate_chosen_chancellor(update: Update, context: CallbackContext):
 		game = Commands.get_game(cid)
 
 		if callback.from_user.id != game.board.state.nominated_president.uid:
-			bot.edit_message_text("No eres el presidente actual, no puedes nominar!", callback.from_user.id, callback.message.message_id)
+			await bot.edit_message_text("No eres el presidente actual, no puedes nominar!", callback.from_user.id, callback.message.message_id)
 			return
 
 		game.board.state.nominated_chancellor = game.playerlist[chosen_uid]
 		log.info("El Presidente %s (%d) nominó a %s (%d)" % (
 					game.board.state.nominated_president.name, game.board.state.nominated_president.uid,
 					game.board.state.nominated_chancellor.name, game.board.state.nominated_chancellor.uid))
-		bot.edit_message_text("Tú nominaste a %s como canciller!" % game.board.state.nominated_chancellor.name,
+		await bot.edit_message_text("Tú nominaste a %s como canciller!" % game.board.state.nominated_chancellor.name,
 					callback.from_user.id, callback.message.message_id)
 		await bot.send_message(game.cid,
 					"El presidente %s nominó a %s como canciller. Por favor, vota ahora!" % (
@@ -194,10 +194,10 @@ async def handle_voting(update: Update, context: CallbackContext):
 		uid = callback.from_user.id
 		#
 		if game.dateinitvote is None:
-			bot.edit_message_text("No es el momento de votar!", uid, callback.message.message_id)
+			await bot.edit_message_text("No es el momento de votar!", uid, callback.message.message_id)
 			return
 
-		bot.edit_message_text("Gracias por tu voto: %s para el Presidente %s y el canciller %s" % (
+		await bot.edit_message_text("Gracias por tu voto: %s para el Presidente %s y el canciller %s" % (
 			answer, game.board.state.nominated_president.name, game.board.state.nominated_chancellor.name), uid,
 			callback.message.message_id)
 		log.info("Player %s (%d) voted %s" % (callback.from_user.first_name, uid, answer))
@@ -329,14 +329,14 @@ async def choose_policy(update: Update, context: CallbackContext):
 		# Solo el presidente y el canciller pueden elegir politica.
 		if uid not in [game.board.state.chancellor.uid, game.board.state.president.uid]:
 			msg = "No eres ni el presidente ni el canciller actual!"
-			bot.edit_message_text(msg, uid,	callback.message.message_id)
+			await bot.edit_message_text(msg, uid,	callback.message.message_id)
 			return
 
 		# Si hay 3 politicas veo que sea el presidente el que descarte.
 		if len(game.board.state.drawn_policies) == 3 and uid == game.board.state.president.uid:
 			log.info("Player %s (%d) discarded %s" % (callback.from_user.first_name, uid, answer))
 			politics = ','.join(game.board.state.drawn_policies)
-			bot.edit_message_text("Robaste %s. La política %s va a ser descartada!" % (politics , answer), uid,
+			await bot.edit_message_text("Robaste %s. La política %s va a ser descartada!" % (politics , answer), uid,
 			callback.message.message_id)
 			# remove policy from drawn cards and add to discard pile, pass the other two policies
 			# Grabo en Hidden History que descarta el presidente.
@@ -350,7 +350,7 @@ async def choose_policy(update: Update, context: CallbackContext):
 			# Si el canciller elije el boton de veto
 			if answer == "veto" :
 				log.info("Player %s (%d) suggested a veto" % (callback.from_user.first_name, uid))
-				bot.edit_message_text("Has sugerido vetar al Presidente %s" % game.board.state.president.name, uid,
+				await bot.edit_message_text("Has sugerido vetar al Presidente %s" % game.board.state.president.name, uid,
 					callback.message.message_id)
 				await bot.send_message(game.cid,
 					"El canciller %s sugirío Vetar al Presidente %s." % (
@@ -366,7 +366,7 @@ async def choose_policy(update: Update, context: CallbackContext):
 			else:
 				# Si el canciller promulga...
 				log.info("Player %s (%d) chose a %s policy" % (callback.from_user.first_name, uid, answer))
-				bot.edit_message_text("La politica %s será promulgada!" % answer, uid,
+				await bot.edit_message_text("La politica %s será promulgada!" % answer, uid,
 				callback.message.message_id)
 				# remove policy from drawn cards and enact, discard the other card
 				for i in range(2):
@@ -497,7 +497,7 @@ async def choose_veto(update: Update, context: CallbackContext):
 	uid = callback.from_user.id
 	if answer == "yesveto":
 		log.info("Player %s (%d) accepted the veto" % (callback.from_user.first_name, uid))
-		bot.edit_message_text("Has aceptado el Veto!", uid, callback.message.message_id)
+		await bot.edit_message_text("Has aceptado el Veto!", uid, callback.message.message_id)
 		await bot.send_message(game.cid,
 							"El Presidente %s ha aceptado el Veto del Canciller %s. No se ha promulgado una politíca pero esto cuenta como una elección fallida." % (
 								game.board.state.president.name, game.board.state.chancellor.name))
@@ -512,7 +512,7 @@ async def choose_veto(update: Update, context: CallbackContext):
 	elif answer == "noveto":
 		log.info("Player %s (%d) declined the veto" % (callback.from_user.first_name, uid))
 		game.board.state.veto_refused = True
-		bot.edit_message_text("Has rechazado el Veto!", uid, callback.message.message_id)
+		await bot.edit_message_text("Has rechazado el Veto!", uid, callback.message.message_id)
 		await bot.send_message(game.cid,
 							"El Presidente %s ha rechazado el Veto del Canciller %s. El Canciller debe ahora elegir una política!" % (
 								game.board.state.president.name, game.board.state.chancellor.name))
@@ -577,7 +577,7 @@ async def choose_kill(update: Update, context: CallbackContext):
         game.board.state.dead += 1
         log.info("El jugador %s (%d) mató a %s (%d)" % (
             callback.from_user.first_name, callback.from_user.id, chosen.name, chosen.uid))
-        bot.edit_message_text("Has matado a %s!" % chosen.name, callback.from_user.id, callback.message.message_id)
+        await bot.edit_message_text("Has matado a %s!" % chosen.name, callback.from_user.id, callback.message.message_id)
         if chosen.role == "Hitler":
             await bot.send_message(game.cid, "El Presidente " + game.board.state.president.name + " ha matado a " + chosen.name + ". ")
             end_game(bot, game, 2)
@@ -623,7 +623,7 @@ async def choose_choose(update: Update, context: CallbackContext):
         log.info(
             "El jugador %s (%d) ha elegido a %s (%d) como próximo Presidente" % (
                 callback.from_user.first_name, callback.from_user.id, chosen.name, chosen.uid))
-        bot.edit_message_text("Has elegido a %s como el próximo presidente!" % chosen.name, callback.from_user.id,
+        await bot.edit_message_text("Has elegido a %s como el próximo presidente!" % chosen.name, callback.from_user.id,
                               callback.message.message_id)
         await bot.send_message(game.cid,
                          "El Presidente %s ha elegido a %s como próximo presidente." % (
@@ -664,7 +664,7 @@ async def choose_inspect(update: Update, context: CallbackContext):
             "Player %s (%d) inspects %s (%d)'s party membership (%s)" % (
                 callback.from_user.first_name, callback.from_user.id, chosen.name, chosen.uid,
                 chosen.party))
-        bot.edit_message_text("La afiliación política de %s es %s" % (chosen.name, chosen.party),
+        await bot.edit_message_text("La afiliación política de %s es %s" % (chosen.name, chosen.party),
                               callback.from_user.id,
                               callback.message.message_id)
         chosen.was_investigated = True
@@ -716,7 +716,7 @@ async def handle_voting_anarquia(update: Update, context: CallbackContext):
 		game = Commands.get_game(cid)
 		uid = callback.from_user.id
 		answer = answer.replace("Ana", "")
-		bot.edit_message_text("Gracias por tu voto: %s para la anarquia" % (answer), uid, callback.message.message_id)
+		await bot.edit_message_text("Gracias por tu voto: %s para la anarquia" % (answer), uid, callback.message.message_id)
 		log.info("Player %s (%d) voted %s" % (callback.from_user.first_name, uid, answer))
 
 		#if uid not in game.board.state.last_votes:

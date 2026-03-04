@@ -105,11 +105,11 @@ async def command_votes(update: Update, context: CallbackContext):
 async def command_call(bot, game):
 	# Verifico en mi maquina de estados que comando deberia usar para el estado(fase) actual
 	if game.board.state.fase_actual == "Proponiendo Pistas":
-		call_proponiendo_pistas(bot, game)
+		await call_proponiendo_pistas(bot, game)
 	elif game.board.state.fase_actual == "Revisando Pistas":
 		reviewer_player = game.board.state.reviewer_player
 		await bot.send_message(game.cid, "Revisor {0} recorda que tenes que verificar las pistas".format(player_call(reviewer_player)), ParseMode.MARKDOWN)
-		JustOneController.send_reviewer_buttons(bot, game)
+		await JustOneController.send_reviewer_buttons(bot, game)
 	elif game.board.state.fase_actual == "Adivinando":
 		active_player = game.board.state.active_player
 		await bot.send_message(game.cid, "{0} estamos esperando para que hagas /guess EJEMPLO o /pass".format(player_call(active_player)), ParseMode.MARKDOWN)
@@ -140,10 +140,10 @@ async def call_proponiendo_pistas(bot, game):
 				await bot.send_message(game.cid, history_text, ParseMode.MARKDOWN)
 			# Se pone >= ya que si un jugador se va del partido y ya puso pista entonces vale
 			if game.board.num_players != 3 and len(game.board.state.last_votes) >= len(game.player_sequence)-1:
-				JustOneController.review_clues(bot, game)
+				await JustOneController.review_clues(bot, game)
 			elif len(game.board.state.last_votes) == len(game.player_sequence)+1:
 				# De a 3 jugadores exigo que pongan 2 pistas cada uno son 4 de a 3 jugadores
-				JustOneController.review_clues(bot, game)
+				await JustOneController.review_clues(bot, game)
 		else:
 			await bot.send_message(game.cid, "5 minutos deben pasar para llamar a call") 
 
@@ -178,11 +178,11 @@ async def set_clue(bot, args):
 			
 			if game.board.num_players != 3:
 				if len(game.board.state.last_votes) == len(game.player_sequence)-1:
-					JustOneController.review_clues(bot, game)
+					await JustOneController.review_clues(bot, game)
 			else:
 				# De a 3 jugadores exigo que pongan 2 pistas cada uno son 4 de a 3 jugadores
 				if len(game.board.state.last_votes) == len(game.player_sequence)+1:
-					JustOneController.review_clues(bot, game)
+					await JustOneController.review_clues(bot, game)
 		else:
 			await bot.send_message(uid, "No puedes hacer dar clue si vos tenes que adivinar o ya ha pasado la fase de poner pistas.")
 	else:
@@ -258,7 +258,7 @@ async def command_clue(update: Update, context: CallbackContext):
 			if len(btns) != 0:
 				if len(btns) == 1:
 					#Si es solo 1 juego lo hago automatico
-					set_clue(bot, [' '.join(args), cid, uid])
+					await set_clue(bot, [' '.join(args), cid, uid])
 				else:
 					txtBoton = "Cancel"
 					datos = "-1*choosegameclue*" + clue_text + "*" + str(uid)
@@ -289,14 +289,14 @@ async def callback_choose_game_clue(update: Update, context: CallbackContext):
 	cid, opcion, uid = int(regex.group(1)), regex.group(2), int(regex.group(3)),
 	
 	if cid == -1:
-		bot.edit_message_text("Cancelado", uid, callback.message.message_id)
+		await bot.edit_message_text("Cancelado", uid, callback.message.message_id)
 		return
 	
 	game = get_game(cid)
 	mensaje_edit = "Has elegido el grupo {0}".format(game.groupName)
 	
-	bot.edit_message_text(mensaje_edit, uid, callback.message.message_id)
-	set_clue(bot, [opcion, cid, uid])
+	await bot.edit_message_text(mensaje_edit, uid, callback.message.message_id)
+	await set_clue(bot, [opcion, cid, uid])
 
 async def command_pass(update: Update, context: CallbackContext):
 	bot = context.bot
@@ -311,7 +311,7 @@ async def command_pass(update: Update, context: CallbackContext):
 	if game.modo == 'Extreme':
 		await bot.send_message(game.cid, "No se puede hacer /pass en modo extremo *COBARDE*!\nHace /guess como se debe!.", ParseMode.MARKDOWN)
 		return
-	JustOneController.pass_just_one(bot, game)
+	await JustOneController.pass_just_one(bot, game)
 
 async def replace_accent(txt):
 	acentos = [("á", "a"),("é", "e"),("í", "i"),("ó","o"),("ú","u")]
@@ -338,7 +338,7 @@ async def command_guess(update: Update, context: CallbackContext):
 			game.board.state.progreso += 1
 			await bot.send_message(game.cid, "*CORRECTO!!!*", ParseMode.MARKDOWN)			
 			game.board.discards.append(game.board.state.acciones_carta_actual)			
-			JustOneController.start_next_round(bot, game)			
+			await JustOneController.start_next_round(bot, game)			
 		else:
 			#Preguntar al revisor
 			mensaje = "*Revisor* {0} confirme por favor!".format(player_call(game.board.state.reviewer_player))
@@ -347,7 +347,7 @@ async def command_guess(update: Update, context: CallbackContext):
 				"correcto" : "Si",
 				"incorrecto" : "No"
 			}
-			simple_choose_buttons(bot, cid, game.board.state.reviewer_player.uid, game.board.state.reviewer_player.uid, "reviewerconfirm", "Partida {2}\n¿Es correcto lo que se adivinó ({1})? Palabra: {0}".format(game.board.state.acciones_carta_actual, args_text, game.groupName), opciones_botones)
+			await simple_choose_buttons(bot, cid, game.board.state.reviewer_player.uid, game.board.state.reviewer_player.uid, "reviewerconfirm", "Partida {2}\n¿Es correcto lo que se adivinó ({1})? Palabra: {0}".format(game.board.state.acciones_carta_actual, args_text, game.groupName), opciones_botones)
 			
 	except Exception as e:
 		await bot.send_message(uid, str(e))
@@ -359,13 +359,13 @@ async def command_continue(bot, game, uid):
 		# Verifico en mi maquina de estados que comando deberia usar para el estado(fase) actual
 		if game.board.state.fase_actual == "Proponiendo Pistas":
 			# Vuelvo a mandar la pista
-			JustOneController.call_players_to_clue(bot, game)
+			await JustOneController.call_players_to_clue(bot, game)
 		elif game.board.state.fase_actual == "Revisando Pistas":
-			JustOneController.review_clues(bot, game)
+			await JustOneController.review_clues(bot, game)
 		elif game.board.state.fase_actual == "Adivinando":
 			active_player = game.board.state.active_player
 			await bot.send_message(game.cid, "{0} estamos esperando para que hagas /guess EJEMPLO o /pass".format(player_call(active_player)), ParseMode.MARKDOWN)
 		elif game.board.state.fase_actual == "Finalizado":
-			JustOneController.continue_playing(bot, game)
+			await JustOneController.continue_playing(bot, game)
 	except Exception as e:
 		await bot.send_message(game.cid, str(e))

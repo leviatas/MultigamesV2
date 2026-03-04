@@ -122,7 +122,7 @@ async def draw_choose_needle(bot, game, message_id = None):
 						caption=caption,
 						parse_mode=ParseMode.MARKDOWN)
 		#InputMediaPhoto(media=TestInputMediaPhoto.media, caption=TestInputMediaPhoto.caption, parse_mode=TestInputMediaPhoto.parse_mode)
-		bot.edit_message_media(chat_id=cid,
+		await bot.edit_message_media(chat_id=cid,
 				       message_id=message_id,
 				       media=bioInputMedia,
 				       reply_markup=btnMarkup)
@@ -249,9 +249,9 @@ async def callback_finish_game_buttons(update: Update, context: CallbackContext)
 		cid, opcion, uid  = int(regex.group(1)), regex.group(2), int(regex.group(3))
 		mensaje_edit = "Has elegido: {0}".format(opcion)
 		try:
-			bot.edit_message_text(mensaje_edit, cid, callback.message.message_id)
+			await bot.edit_message_text(mensaje_edit, cid, callback.message.message_id)
 		except Exception as e:
-			bot.edit_message_text(mensaje_edit, uid, callback.message.message_id)
+			await bot.edit_message_text(mensaje_edit, uid, callback.message.message_id)
 		game = get_game(cid)
 
 		# Obtengo el diccionario actual, primero casos no tendre el config y pondre el community
@@ -292,7 +292,7 @@ async def callback_finish_game_buttons(update: Update, context: CallbackContext)
 		await bot.send_message(ADMIN[0], callback.data)
 
 # Return two lines of buttons
-async def create_choose_buttons2(cid, accion, opciones_botones, opciones_botones2):
+def create_choose_buttons2(cid, accion, opciones_botones, opciones_botones2):
 	#sleep(3)
 	btnsResult = []
 	btns = []
@@ -312,7 +312,7 @@ async def create_choose_buttons2(cid, accion, opciones_botones, opciones_botones
 
 	return InlineKeyboardMarkup(btnsResult)
 
-async def create_choose_buttons(cid, accion, opciones_botones, one_line = True):
+def create_choose_buttons(cid, accion, opciones_botones, one_line = True):
 	#sleep(3)
 	btns = []
 	# Creo los botones para elegir al usuario

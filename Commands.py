@@ -434,7 +434,7 @@ async def command_call(update: Update, context: CallbackContext):
 	
 	if game:
 		if getattr(game, "call", None):
-			log.info("Se llamo por el medio del game")
+			# log.info("Se llamo por el medio del game")
 			# Si game tiene atributo call lo utilizo
 			await game.call(context)
 		else:

@@ -67,9 +67,9 @@ async def callback_finish_config_unanimo(update: Update, context: CallbackContex
 		cid, opcion, uid,  = int(regex.group(1)), regex.group(2), int(regex.group(3))
 		mensaje_edit = "Has elegido el diccionario: {0}".format(opcion)
 		try:
-			bot.edit_message_text(mensaje_edit, cid, callback.message.message_id)
+			await bot.edit_message_text(mensaje_edit, cid, callback.message.message_id)
 		except Exception as e:
-			bot.edit_message_text(mensaje_edit, uid, callback.message.message_id)
+			await bot.edit_message_text(mensaje_edit, uid, callback.message.message_id)
 			
 		game = get_game(cid)
 		game.configs['diccionario'] = opcion
@@ -245,9 +245,9 @@ async def callback_finish_game_buttons(update: Update, context: CallbackContext)
 	cid, opcion, uid = int(regex.group(1)), regex.group(2), int(regex.group(3))
 	mensaje_edit = "Has elegido el diccionario: {0}".format(opcion)
 	try:
-		bot.edit_message_text(mensaje_edit, cid, callback.message.message_id)
+		await bot.edit_message_text(mensaje_edit, cid, callback.message.message_id)
 	except Exception as e:
-		bot.edit_message_text(mensaje_edit, uid, callback.message.message_id)				
+		await bot.edit_message_text(mensaje_edit, uid, callback.message.message_id)				
 	game = get_game(cid)
 	
 	# Obtengo el diccionario actual, primero casos no tendre el config y pondre el community

@@ -10,10 +10,10 @@ from telethon.sessions import StringSession
 import MainController
 # import reportBot.main as reportBot
 # import SecretHitler.MainController as secretHitlerBot
-# import BloodClocktower.Controller as bloodClocktowerBot
+import BloodClocktower.Controller as bloodClocktowerBot
 # import discordBot.main as discordBot
 
-
+import time
 import functools
 import requests
 # import resource
@@ -71,33 +71,50 @@ def get_memory():
                 free_memory += int(sline[1])
     return free_memory
 
-def main():
-    bot1 = threading.Thread(target=MainController.main, daemon=True, name="Bot1")
-    bot2 = threading.Thread(target=secretHitlerBot.main, daemon=True, name="Bot2")
-    bot1.start(); print("Bot1 iniciado")
-    bot2.start(); print("Bot2 iniciado")
+stop_event = threading.Event()
 
-    # mantener el programa vivo
+def run_main_controller():
+    MainController.main(stop_event)  # pass the stop_event to your bot
+
+def run_blood_bot():
+    bloodClocktowerBot.main(stop_event)
+
+def main():
+    bot1 = threading.Thread(target=run_main_controller, name="Bot1")
+    bot2 = threading.Thread(target=run_blood_bot, name="Bot2")
+    bot1.start(); log.info("Iniciando MultigamesV2...")
+    bot2.start(); log.info("Iniciando BloodBot...")
+
+    try:
+        while bot1.is_alive() or bot2.is_alive():
+            time.sleep(0.5)  # keep main thread alive
+    except KeyboardInterrupt:
+        log.info("Ctrl+C detected, shutting down...")
+        stop_event.set()  # signal threads to stop
+
     bot1.join()
     bot2.join()
-    
+    log.info("Bots stopped cleanly.")
 
 if __name__ == '__main__':
-    print("Iniciando MultigamesV2...")
-    log.info("Iniciando MultigamesV2...")
-    MainController.main()
+    main()  
+    # print("Iniciando MultigamesV2...")
+    # log.info("Iniciando MultigamesV2...")
+    
+    # MainController.main()
+    # bloodClocktowerBot.main()
     #secretHitlerBot.main()
-    #main()
+    # main()
     #bot3 = threading.Thread(target=run_bot, args=(token3,), daemon=True, name="Bot3")
     #memory_limit(0.9)
     # Multigames
-    #p1 = Process(target=loop_a).start()
+    # p1 = Process(target=loop_a).start()
     # Report Bot
     #p2 = Process(target=loop_b).start()
     # Secret Hitler
     #p3 = Process(target=loop_c).start()
     #bot on the clocktower
-    #p4 = Process(target=loop_d).start()
+    # p4 = Process(target=loop_d).start()
     #bot de discord
     #p5 = Process(target=loop_e).start()
 
@@ -110,3 +127,4 @@ if __name__ == '__main__':
     #         x = requests.get(f'https://api.telegram.org/bot{report_bot_token}/sendMessage?chat_id=-{report_chat_id}&text=ERROR:%20Multigames2Bot:%20{p1.exitcode}')
     #         # Si el proceso no esta vivo entonces lo revivo 
     #         p1 = Process(target=loop_a).start()
+

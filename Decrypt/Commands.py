@@ -70,13 +70,13 @@ async def command_call(bot, game):
 	# Verifico en mi maquina de estados que comando deberia usar para el estado(fase) actual
 	log.info("Call en {} fase {}".format(game.groupName, game.board.state.fase_actual))
 	if game.board.state.fase_actual == "Intercept/Decrypt":
-		DecryptController.inform_teams(bot, game)
+		await DecryptController.inform_teams(bot, game)
 	if game.board.state.fase_actual == "Set_Reference":
-		DecryptController.send_codes(bot, game)	
+		await DecryptController.send_codes(bot, game)	
 	#except Exception as e:
 	#	await bot.send_message(game.cid, str(e))
 		
-async def create_choose_buttons(cid, accion, opciones_botones, one_line = True):
+def create_choose_buttons(cid, accion, opciones_botones, one_line = True):
 	#sleep(3)
 	btns = []
 	# Creo los botones para elegir al usuario
@@ -92,7 +92,7 @@ async def create_choose_buttons(cid, accion, opciones_botones, one_line = True):
 	else:
 		return InlineKeyboardMarkup(btns)
 
-async def create_choose_buttons2(cid, accion, opciones_botones, opciones_botones2):
+def create_choose_buttons2(cid, accion, opciones_botones, opciones_botones2):
 	#sleep(3)
 	btnsResult = []
 	btns = []
@@ -123,14 +123,14 @@ async def callback_choose_game_prop(update: Update, context: CallbackContext):
 	cid, strcid, opcion, uid, struid = int(regex.group(1)), regex.group(1), regex.group(2), int(regex.group(3)), regex.group(3)	
 	
 	if cid == -1:
-		bot.edit_message_text("Cancelado", uid, callback.message.message_id)
+		await bot.edit_message_text("Cancelado", uid, callback.message.message_id)
 		return	
 	game = get_game(cid)
 	mensaje_edit = "Has elegido el grupo {0}".format(game.groupName)	
-	bot.edit_message_text(mensaje_edit, uid, callback.message.message_id)	
+	await bot.edit_message_text(mensaje_edit, uid, callback.message.message_id)	
 	propuesta = user_data[uid]	
 	# Obtengo el juego y le agrego la pista
-	add_propose(bot, game, uid, propuesta)
+	await add_propose(bot, game, uid, propuesta)
 
 async def callback_choose_game_inter(update: Update, context: CallbackContext):
 	bot = context.bot
@@ -141,14 +141,14 @@ async def callback_choose_game_inter(update: Update, context: CallbackContext):
 	cid, strcid, opcion, uid, struid = int(regex.group(1)), regex.group(1), regex.group(2), int(regex.group(3)), regex.group(3)	
 	
 	if cid == -1:
-		bot.edit_message_text("Cancelado", uid, callback.message.message_id)
+		await bot.edit_message_text("Cancelado", uid, callback.message.message_id)
 		return	
 	game = get_game(cid)
 	mensaje_edit = "Has elegido el grupo {0}".format(game.groupName)	
-	bot.edit_message_text(mensaje_edit, uid, callback.message.message_id)	
+	await bot.edit_message_text(mensaje_edit, uid, callback.message.message_id)	
 	propuesta = user_data[uid]	
 	# Obtengo el juego y le agrego la pista
-	add_intercept(bot, game, uid, propuesta)
+	await add_intercept(bot, game, uid, propuesta)
 
 async def callback_choose_game_dec(update: Update, context: CallbackContext):
 	bot = context.bot
@@ -159,21 +159,21 @@ async def callback_choose_game_dec(update: Update, context: CallbackContext):
 	cid, strcid, opcion, uid, struid = int(regex.group(1)), regex.group(1), regex.group(2), int(regex.group(3)), regex.group(3)	
 	
 	if cid == -1:
-		bot.edit_message_text("Cancelado", uid, callback.message.message_id)
+		await bot.edit_message_text("Cancelado", uid, callback.message.message_id)
 		return	
 	game = get_game(cid)
 	mensaje_edit = "Has elegido el grupo {0}".format(game.groupName)	
-	bot.edit_message_text(mensaje_edit, uid, callback.message.message_id)	
+	await bot.edit_message_text(mensaje_edit, uid, callback.message.message_id)	
 	propuesta = user_data[uid]	
 	# Obtengo el juego y le agrego la pista
-	add_decrypt(bot, game, uid, propuesta)
+	await add_decrypt(bot, game, uid, propuesta)
 
 async def add_intercept(bot, game, uid, propuesta):
 	if game.board.state.fase_actual == "Intercept/Decrypt" and game.board.state.inactive_team.belongs(uid) and game.turncount != 1:
 		
 		game.board.state.active_team.opponent_team_choosen_code = "".join(x for x in propuesta if x.isdigit())
 		await save(bot, game.cid)
-		DecryptController.inform_teams(bot, game)
+		await DecryptController.inform_teams(bot, game)
 	else:
 		if not game.board.state.inactive_team.belongs(uid):
 			await bot.send_message(game.cid, "No pertences al equipo que tiene que interceptar")
@@ -185,7 +185,7 @@ async def add_decrypt(bot, game, uid, propuesta):
 		
 		game.board.state.active_team.team_choosen_code = "".join(x for x in propuesta if x.isdigit())
 		await save(bot, game.cid)
-		DecryptController.inform_teams(bot, game)
+		await DecryptController.inform_teams(bot, game)
 	else:
 		if not game.board.state.active_team.belongs(uid):
 			await bot.send_message(game.cid, "No pertences al equipo que tiene que desencriptar")
@@ -209,7 +209,7 @@ async def add_propose(bot, game, uid, propuesta):
 			if None not in [team.clue for team in game.board.state.teams]:
 				game.board.state.fase_actual = 'Intercept/Decrypt'
 				await save(bot, game.cid)
-				DecryptController.inform_teams(bot, game)
+				await DecryptController.inform_teams(bot, game)
 			else:
 				# Se avisa en vivo que falta que el otro jugador ponga su pista
 				for player in [team.active_player for team in game.board.state.teams if team.clue == None]:
@@ -260,7 +260,7 @@ async def command_code(update: Update, context: CallbackContext):
 		uid = update.message.from_user.id
 		
 		if update.message.chat.type in ['group', 'supergroup']:
-			bot.delete_message(cid, update.message.message_id)
+			await bot.delete_message(cid, update.message.message_id)
 			return
 		
 		if len(args) > 0:
@@ -305,7 +305,7 @@ async def command_intercept(update: Update, context: CallbackContext):
 		uid = update.message.from_user.id
 		
 		if update.message.chat.type in ['group', 'supergroup']:
-			bot.delete_message(cid, update.message.message_id)
+			await bot.delete_message(cid, update.message.message_id)
 			return
 		
 		if len(args) > 0:
@@ -322,7 +322,7 @@ async def command_intercept(update: Update, context: CallbackContext):
 				if len(btns) == 0:
 					#Si es solo 1 juego lo hago automatico
 					game = get_game(cid)
-					add_intercept(bot, game, uid, ' '.join(args))
+					await add_intercept(bot, game, uid, ' '.join(args))
 				else:
 					txtBoton = "Cancel"
 					datos = "-1*choosegameintDE*" + "prop" + "*" + str(uid)
@@ -345,7 +345,7 @@ async def command_decrypt(update: Update, context: CallbackContext):
 		uid = update.message.from_user.id
 		
 		if update.message.chat.type in ['group', 'supergroup']:
-			bot.delete_message(cid, update.message.message_id)
+			await bot.delete_message(cid, update.message.message_id)
 			return
 		
 		if len(args) > 0:
@@ -362,7 +362,7 @@ async def command_decrypt(update: Update, context: CallbackContext):
 				if len(btns) == 0:
 					#Si es solo 1 juego lo hago automatico
 					game = get_game(cid)
-					add_decrypt(bot, game, uid, ' '.join(args))
+					await add_decrypt(bot, game, uid, ' '.join(args))
 				else:
 					txtBoton = "Cancel"
 					datos = "-1*choosegamedecDE*" + "prop" + "*" + str(uid)

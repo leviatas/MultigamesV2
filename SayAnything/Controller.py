@@ -60,13 +60,13 @@ async def callback_finish_config(update: Update, context: CallbackContext):
 	log.info('callback_finish_config_sayanything called')
 	callback = update.callback_query
 	try:
-		regex = re.search("(-[0-9]*)\*choosediccSA\*(.*)\*([0-9]*)", callback.data)
+		regex = re.search(r"(-[0-9]*)\*choosediccSA\*(.*)\*([0-9]*)", callback.data)
 		cid, strcid, opcion, uid, struid = int(regex.group(1)), regex.group(1), regex.group(2), int(regex.group(3)), regex.group(3)
 		mensaje_edit = "Has elegido el diccionario: {0}".format(opcion)
 		try:
-			bot.edit_message_text(mensaje_edit, cid, callback.message.message_id)
+			await bot.edit_message_text(mensaje_edit, cid, callback.message.message_id)
 		except Exception as e:
-			bot.edit_message_text(mensaje_edit, uid, callback.message.message_id)
+			await bot.edit_message_text(mensaje_edit, uid, callback.message.message_id)
 			
 		game = get_game(cid)
 		game.configs['diccionario'] = opcion
@@ -124,7 +124,7 @@ async def start_round_say_anything(bot, game):
 	await bot.send_message(cid, game.board.print_board(game), ParseMode.MARKDOWN)
 	game.dateinitvote = datetime.datetime.now()
 	game.board.state.fase_actual = "Proponiendo Pistas"
-	call_players_to_clue(bot, game)
+	await call_players_to_clue(bot, game)
 	await save(bot, game.cid)
 	'''	
 	game.dateinitvote = datetime.datetime.now()
@@ -181,7 +181,7 @@ async def call_players_to_vote(bot, game):
 		game.board.state.votes_on_votes = []
 	for uid in game.playerlist:
 		if uid != game.board.state.active_player.uid:					
-			send_vote_buttons(bot, game, uid)			
+			await send_vote_buttons(bot, game, uid)			
 
 async def send_vote_buttons(bot, game, uid, message_id = None):
 	mensaje = "Debes votar sobre las respuestas en el grupo *{1}*.\nEl jugado activo es: *{2}*\nLa frase es: *{0}*".format(
@@ -199,7 +199,7 @@ async def send_vote_buttons(bot, game, uid, message_id = None):
 	btnMarkup = simple_choose_buttons_only_buttons(bot, game.cid, uid, "voteRespuestaSA", opciones_botones)
 	
 	if message_id:
-		bot.edit_message_text("{0}\n*Ingresa/Modifica* tus votos".format(mensaje), chat_id=uid, message_id=message_id, 
+		await bot.edit_message_text("{0}\n*Ingresa/Modifica* tus votos".format(mensaje), chat_id=uid, message_id=message_id, 
 				      parse_mode=ParseMode.MARKDOWN, reply_markup=btnMarkup)
 	else:
 		await bot.send_message(uid, "{0}*Ingresa/Modifica* tus votos".format(mensaje), parse_mode=ParseMode.MARKDOWN, reply_markup=btnMarkup)
@@ -210,13 +210,13 @@ async def callback_put_vote(update: Update, context: CallbackContext):
 	callback = update.callback_query
 	try:		
 		#log.info('callback_finish_game_buttons called: %s' % callback.data)	
-		regex = re.search("(-[0-9]*)\*voteRespuestaSA\*(.*)\*([0-9]*)", callback.data)
+		regex = re.search(r"(-[0-9]*)\*voteRespuestaSA\*(.*)\*([0-9]*)", callback.data)
 		cid, strcid, opcion, uid, struid = int(regex.group(1)), regex.group(1), regex.group(2), int(regex.group(3)), regex.group(3)
 		game = get_game(cid)
 		
 		# Si alguien quiere votar antes de tiempo o el jugador activo quiere hacerlo...
 		if game.board.state.fase_actual == "Proponiendo Pistas" or uid == game.board.state.active_player.uid:
-			bot.edit_message_text("*No es momento de votar!*", chat_id=uid, message_id=callback.message.message_id, 
+			await bot.edit_message_text("*No es momento de votar!*", chat_id=uid, message_id=callback.message.message_id, 
 					      parse_mode=ParseMode.MARKDOWN)
 		# Si decidio terminar le doy las gracias y continuo.
 		if not hasattr(game.board.state, 'votes_on_votes'):
@@ -226,7 +226,7 @@ async def callback_put_vote(update: Update, context: CallbackContext):
 		
 		if opcion == "-1":
 			if game.board.state.fase_actual != "Votando Frases" or len(lista_votos_usuario) == 2:
-				bot.edit_message_text("*Muchas Gracias!*", chat_id=uid, 
+				await bot.edit_message_text("*Muchas Gracias!*", chat_id=uid, 
 						      message_id=callback.message.message_id, parse_mode=ParseMode.MARKDOWN)
 			else:
 				await bot.send_message(uid, "Debes ingresar al tus *2 votos*", parse_mode=ParseMode.MARKDOWN)
@@ -240,10 +240,10 @@ async def callback_put_vote(update: Update, context: CallbackContext):
 		player = game.playerlist[uid]
 		game.board.state.votes_on_votes.append((player, 1, int(opcion)))		
 		await save(bot, game.cid)		
-		send_vote_buttons(bot, game, uid, message_id = callback.message.message_id)
+		await send_vote_buttons(bot, game, uid, message_id = callback.message.message_id)
 		# Si ya todos hicieron sus 2 votos (menos el jugador activo) cuento puntos
 		if (len(game.board.state.votes_on_votes) == (len(game.player_sequence)-1)*2) and game.board.state.index_pick_resp != -1:
-			count_points(bot, game)		
+			await count_points(bot, game)		
 	except Exception as e:
 		aux = ""
 		# Se comenta ya que el error que tira es cuando se manda a edit y no se ha modificado nada. 
@@ -300,12 +300,12 @@ async def count_points(bot, game):
 		len(votos_dif_jugadores)), ParseMode.MARKDOWN)
 	await bot.send_message(game.cid, mensaje, ParseMode.MARKDOWN)
 	#await save(bot, game.cid)
-	start_next_round(bot, game)
+	await start_next_round(bot, game)
 		
 async def pass_say_anything(bot, game):
 	await bot.send_message(game.cid, "La frase era: *{0}*. El jugador activo no le gusto ninguna respuesta.".format(
 		game.board.state.acciones_carta_actual), ParseMode.MARKDOWN)
-	start_next_round(bot, game)
+	await start_next_round(bot, game)
 
 async def start_next_round(bot, game):
 	log.info('Verifing End_Game called')
@@ -315,7 +315,7 @@ async def start_next_round(bot, game):
 		game.board.state.fase_actual = "Finalizado"
 		await save(bot, game.cid)
 		await bot.send_message(game.cid, mensaje, ParseMode.MARKDOWN)
-		continue_playing(bot, game)
+		await continue_playing(bot, game)
 		#await bot.send_message(game.cid, "Para comenzar un juego nuevo pon el comando /delete y luego /newgame", ParseMode.MARKDOWN)
 		return
 	increment_player_counter(game)
@@ -325,20 +325,20 @@ async def continue_playing(bot, game):
 	opciones_botones = { "Nuevo" : "(Beta) Nuevo Partido", 
 			    "Mismo Diccionario" : "(Beta) Nuevo Partido, mismos jugadores, mismo diccionario", 
 			    "Otro Diccionario" : "(Beta) Nuevo Partido, mismos jugadores, diferente diccionario"}
-	simple_choose_buttons(bot, game.cid, 1, game.cid, "chooseendSA", "¿Quieres continuar jugando?", opciones_botones)
+	await simple_choose_buttons(bot, game.cid, 1, game.cid, "chooseendSA", "¿Quieres continuar jugando?", opciones_botones)
 	
 async def callback_finish_game_buttons(update: Update, context: CallbackContext):
 	bot = context.bot
 	callback = update.callback_query
 	try:		
 		#log.info('callback_finish_game_buttons called: %s' % callback.data)	
-		regex = re.search("(-[0-9]*)\*chooseendSA\*(.*)\*([0-9]*)", callback.data)
+		regex = re.search(r"(-[0-9]*)\*chooseendSA\*(.*)\*([0-9]*)", callback.data)
 		cid, strcid, opcion, uid, struid = int(regex.group(1)), regex.group(1), regex.group(2), int(regex.group(3)), regex.group(3)
 		mensaje_edit = "Has elegido el diccionario: {0}".format(opcion)
 		try:
-			bot.edit_message_text(mensaje_edit, cid, callback.message.message_id)
+			await bot.edit_message_text(mensaje_edit, cid, callback.message.message_id)
 		except Exception as e:
-			bot.edit_message_text(mensaje_edit, uid, callback.message.message_id)				
+			await bot.edit_message_text(mensaje_edit, uid, callback.message.message_id)				
 		game = get_game(cid)
 		
 		# Obtengo el diccionario actual, primero casos no tendre el config y pondre el community

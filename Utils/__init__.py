@@ -214,9 +214,9 @@ def get_game(cid):
 		return game
 	else:
 		# Si no esta lo busco en BD y lo pongo en GamesController.games
-		log.info('get_game called in chat {}'.format(cid))
+		# log.info('get_game called in chat {}'.format(cid))
 		game = load_game(cid)
-		log.info('Termino de cargar game')
+		# log.info('Termino de cargar game')
 		if game:
 			GamesController.games[cid] = game
 			return game

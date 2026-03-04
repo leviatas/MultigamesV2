@@ -1,0 +1,3 @@
+# PostgreSQL Password for the database container
+# Use a strong password for production environments
+POSTGRES_PASSWORD=YOUR_SECURE_DATABASE_PASSWORD_HERE

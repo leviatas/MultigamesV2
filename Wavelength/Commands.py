@@ -168,7 +168,7 @@ async def create_choose_buttons(cid, accion, opciones_botones, one_line = True):
 	else:
 		return InlineKeyboardMarkup(btns)
 
-async def create_choose_buttons2(cid, accion, opciones_botones, opciones_botones2):
+def create_choose_buttons2(cid, accion, opciones_botones, opciones_botones2):
 	#sleep(3)
 	btnsResult = []
 	btns = []
@@ -199,11 +199,11 @@ async def callback_choose_game_prop(update: Update, context: CallbackContext):
 	cid, strcid, opcion, uid, struid = int(regex.group(1)), regex.group(1), regex.group(2), int(regex.group(3)), regex.group(3)	
 	
 	if cid == -1:
-		bot.edit_message_text("Cancelado", uid, callback.message.message_id)
+		await bot.edit_message_text("Cancelado", uid, callback.message.message_id)
 		return	
 	game = get_game(cid)
 	mensaje_edit = "Has elegido el grupo {0}".format(game.groupName)	
-	bot.edit_message_text(mensaje_edit, uid, callback.message.message_id)	
+	await bot.edit_message_text(mensaje_edit, uid, callback.message.message_id)	
 	propuesta = user_data[uid]	
 	# Obtengo el juego y le agrego la pista
 	await add_propose(bot, game, uid, propuesta)
@@ -219,7 +219,7 @@ async def add_propose(bot, game, uid, propuesta):
 			await bot.send_message(uid, "Tu referencia: {} fue agregada.".format(propuesta))			
 			game.board.state.reference = propuesta			
 			await save(bot, game.cid)
-			WavelengthController.send_ref(bot, game)			
+			await WavelengthController.send_ref(bot, game)			
 		else:
 			await bot.send_message(uid, "No puedes poner referencia si NO sos el jugador activo o no es la fase correcta")
 	else:
@@ -267,7 +267,7 @@ async def command_left_right(bot, args):
 	if(check_valid_pick(args, 0, 1)):
 		game.board.state.opponent_team_choosen_left_right = int(args[0])
 		await save(bot, game.cid)
-		WavelengthController.resolve(bot, game)
+		await WavelengthController.resolve(bot, game)
 	else:
 		await bot.send_message(uid, "El grado elegido ({}) es invalido (NO pasara con botonera)".format(args[0]))
 		
@@ -296,7 +296,7 @@ async def command_reference(update: Update, context: CallbackContext):
 				if len(btns) == 1:
 					#Si es solo 1 juego lo hago automatico
 					game = get_game(cid)
-					add_propose(bot, game, uid, ' '.join(args))
+					await add_propose(bot, game, uid, ' '.join(args))
 				else:
 					txtBoton = "Cancel"
 					datos = "-1*choosegameclue*" + "prop" + "*" + str(uid)

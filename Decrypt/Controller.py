@@ -46,31 +46,31 @@ async def init_game(bot, game):
 	log.info('Decrypt init called')	
 	game.shuffle_player_sequence()
 	game.create_teams(2)		
-	call_dicc_buttons(bot, game)
+	await call_dicc_buttons(bot, game)
 	#start_round(bot, game)
 	
 async def call_dicc_buttons(bot, game):
 	#log.info('call_dicc_buttons called')
 #	opciones_botones = { "original" : "Español Nuestro", "ficus" : "Español Ficus", "community" : "Español Community", "edespañola"  : "Original Ed Española"}
 	opciones_botones = { "original" : "Español original", "community" : "Español Community"}
-	simple_choose_buttons(bot, game.cid, 1234, game.cid, "choosediccDE", "¿Elija un diccionario para jugar?", opciones_botones)
+	await simple_choose_buttons(bot, game.cid, 1234, game.cid, "choosediccDE", "¿Elija un diccionario para jugar?", opciones_botones)
 		
 async def callback_finish_config_decrypt(update: Update, context: CallbackContext):
 	bot = context.bot
 	log.info('callback_finish_config_justone called')
 	callback = update.callback_query
 	try:
-		regex = re.search("(-[0-9]*)\*choosediccDE\*(.*)\*([0-9]*)", callback.data)
+		regex = re.search(r"(-[0-9]*)\*choosediccDE\*(.*)\*([0-9]*)", callback.data)
 		cid, strcid, opcion, uid, struid = int(regex.group(1)), regex.group(1), regex.group(2), int(regex.group(3)), regex.group(3)
 		mensaje_edit = "Has elegido el diccionario: {0}".format(opcion)
 		try:
-			bot.edit_message_text(mensaje_edit, cid, callback.message.message_id)
+			await bot.edit_message_text(mensaje_edit, cid, callback.message.message_id)
 		except Exception as e:
-			bot.edit_message_text(mensaje_edit, uid, callback.message.message_id)
+			await bot.edit_message_text(mensaje_edit, uid, callback.message.message_id)
 			
 		game = get_game(cid)
 		game.configs['diccionario'] = opcion
-		finish_config(bot, game, opcion)
+		await finish_config(bot, game, opcion)
 	except Exception as e:
 		await bot.send_message(ADMIN[0], 'No se ejecuto el comando debido a: '+str(e))
 		await bot.send_message(ADMIN[0], callback.data)
@@ -101,7 +101,7 @@ async def finish_config(bot, game, opcion):
 		game.board.state.teams[0].cards = game.board.cards[0:4]
 		game.board.state.teams[1].cards = game.board.cards[4:8]
 	
-	start_round(bot, game)
+	await start_round(bot, game)
 	
 # Objetivo
 # start_round/send_codes -> Set reference -> send_ref ->  send_guess/resolve/start_next_round
@@ -115,7 +115,7 @@ async def start_round(bot, game):
 	game.board.state.fase_actual = "Set_Reference"
 	# The board gets both teams a card to decrypt
 	game.board.new_round(game)
-	send_codes(bot, game)
+	await send_codes(bot, game)
 	
 async def send_codes(bot, game):
 	game.board.print_board(bot, game)
@@ -136,7 +136,7 @@ async def inform_teams(bot, game):
 	
 	if codigo_equipo is not None and ((codigo_oponente is not None) or game.turncount == 1):
 		await save(bot, game.cid)
-		resolve(bot, game)
+		await resolve(bot, game)
 		return
 	# imprimo el tablero
 	if codigo_equipo is None and codigo_oponente is None:
@@ -194,13 +194,13 @@ async def resolve(bot, game):
 	active_team.saveHistory(active_team.clue, active_team.code)	
 	
 	if (desencriptacion != None and game.board.state.inactive_team.team_choosen_code != None):
-		start_next_round(bot, game)
+		await start_next_round(bot, game)
 	else:
 		game.board.state.swap_team()
-		inform_teams(bot, game)
+		await inform_teams(bot, game)
 		await save(bot, game.cid)
 
-async def verify_endgame(game):
+def verify_endgame(game):
 	# Verifico si alguno de los dos equipos ha llegado a los puntos para ganar o perder.
 	active_team_won = game.board.state.active_team.interceptions == 2
 	inactive_team_won = game.board.state.inactive_team.interceptions == 2
@@ -243,30 +243,30 @@ async def start_next_round(bot, game):
 			print("{}".format(verify_end[1]))
 		game.board.state.fase_actual = "Finalizado"
 		await save(bot, game.cid)
-		continue_playing(bot, game)		
+		await continue_playing(bot, game)		
 	else:
 		# El juego continua se hace swap para que siempre empiece el mismo equiposwap_team
 		game.board.state.swap_team()
 		for team in game.board.state.teams:
 			team.increment_player_counter()
-		start_round(bot, game)
+		await start_round(bot, game)
 
 async def continue_playing(bot, game):
 	opciones_botones = { "Mismo Diccionario" : "Mismo Diccionario"}
-	simple_choose_buttons(bot, game.cid, 1, game.cid, "chooseendDE", "¿Quieres continuar jugando?", opciones_botones)
+	await simple_choose_buttons(bot, game.cid, 1, game.cid, "chooseendDE", "¿Quieres continuar jugando?", opciones_botones)
 	
 async def callback_finish_game_buttons(update: Update, context: CallbackContext):
 	bot = context.bot
 	callback = update.callback_query
 	try:		
 		log.info('callback_finish_game_buttons called: %s' % callback.data)	
-		regex = re.search("(-[0-9]*)\*chooseendDE\*(.*)\*([0-9]*)", callback.data)
+		regex = re.search(r"(-[0-9]*)\*chooseendDE\*(.*)\*([0-9]*)", callback.data)
 		cid, strcid, opcion, uid, struid = int(regex.group(1)), regex.group(1), regex.group(2), int(regex.group(3)), regex.group(3)
 		mensaje_edit = "Has elegido el diccionario: {0}".format(opcion)
 		try:
-			bot.edit_message_text(mensaje_edit, cid, callback.message.message_id)
+			await bot.edit_message_text(mensaje_edit, cid, callback.message.message_id)
 		except Exception as e:
-			bot.edit_message_text(mensaje_edit, uid, callback.message.message_id)				
+			await bot.edit_message_text(mensaje_edit, uid, callback.message.message_id)				
 		game = get_game(cid)
 		
 		# Obtengo el diccionario actual, primero casos no tendre el config y pondre el community
@@ -294,9 +294,7 @@ async def callback_finish_game_buttons(update: Update, context: CallbackContext)
 		# StartGame
 		player_number = len(game.playerlist)
 		game.board = Board(player_number, game)		
-		init_game(bot, game)
-					
-		    			
+		await init_game(bot, game)
 	except Exception as e:
 		await bot.send_message(ADMIN[0], 'No se ejecuto el comando debido a: '+str(e))
 		await bot.send_message(ADMIN[0], callback.data)
@@ -320,7 +318,7 @@ async def create_choose_buttons2(cid, accion, opciones_botones, opciones_botones
 		btns2.append(InlineKeyboardButton(txtBoton, callback_data=datos))
 	btnsResult.append(btns2)
 	
-	return InlineKeyboardMarkup(btnsResult)	
+	return InlineKeyboardMarkup(btnsResult)
 		
 async def create_choose_buttons(cid, accion, opciones_botones, one_line = True):
 	#sleep(3)

@@ -188,7 +188,7 @@ O sea que hablar con otras 2 personas constaría 2 whispers y con 3 usarías 3 w
 Por otro lado mientras se está en whisper con alguien se puede hablar con los vecinos.
 
 También se puede usar un whisper para hablar más de 15 palabras con un vecino cada día.""", ParseMode.MARKDOWN)
-	command_help(update, context)
+	await command_help(update, context)
 
 async def command_commands(update: Update, context: CallbackContext):
 	bot = context.bot
@@ -213,7 +213,7 @@ async def command_glosary(update: Update, context: CallbackContext):
 		help_text += i + "\n"
 	await bot.send_message(cid, help_text, ParseMode.MARKDOWN)
 
-async def get_game(cid) -> Game:
+def get_game(cid) -> Game:
 	# Busco el juego actual
 	game = GamesController.games.get(cid, None)	
 	if game:
@@ -230,7 +230,7 @@ async def get_game(cid) -> Game:
 
 
 
-async def load_and_get_games() -> List[Game]:
+def load_and_get_games() -> List[Game]:
 	games = []
 
 	conn = psycopg.connect(
@@ -252,7 +252,7 @@ async def load_and_get_games() -> List[Game]:
 	conn.close()
 	return list(GamesController.games.values())
 
-async def load_game(cid):
+def load_game(cid):
 	conn = psycopg.connect(
 				dbname=url.path[1:],
 				user=url.username,
@@ -447,7 +447,7 @@ async def command_delete(update: Update, context: CallbackContext):
 	if len(args) > 0 and uid == ADMIN[0]:
 		cid = int(args[0])	
 	try:
-		delete_game(cid)
+		await delete_game(cid)
 		if cid in GamesController.games.keys():
 			del GamesController.games[cid]
 		await bot.send_message(cid, "Borrado exitoso.")
@@ -533,7 +533,7 @@ async def get_games_with_me_as_storyteller(uid):
 	games_with_me_as_storyteller = [game for game in games if game.storyteller == uid and game.board != None]
 	return games_with_me_as_storyteller
 
-async def create_choose_buttons(uid, data, action, game_list, context):
+def create_choose_buttons(uid, data, action, game_list, context):
 	btns = []
 	for game in game_list:
 		cid = game.cid
@@ -807,7 +807,7 @@ async def update_board(bot, game, cid):
 	try:
 		if game.board_message_id:
 			bot.deleteMessage(chat_id = cid, message_id = game.board_message_id)
-			# bot.edit_message_text(board_text, cid, game.board_message_id, parse_mode=ParseMode.MARKDOWN)
+			# await bot.edit_message_text(board_text, cid, game.board_message_id, parse_mode=ParseMode.MARKDOWN)
 	except:
 		log.info("No se pudo borrar mensaje anterior asi que se pone el nuevo")
 	board_msg = await bot.send_message(cid, board_text, ParseMode.MARKDOWN)
@@ -834,7 +834,7 @@ async def command_vote(update: Update, context: CallbackContext):
 				voter.has_last_vote = False
 			save_game(cid, "Vote", game)
 			board_text = game.board.print_board(game)
-			update_board(bot, game, cid)
+			await update_board(bot, game, cid)
 			if game.get_current_voter().uid == uid:
 				await bot.send_message(cid, "Has votado, puedes pasar al proximo jugador con /tick", ParseMode.MARKDOWN)
 		else:
@@ -891,7 +891,7 @@ async def command_clearvote(update: Update, context: CallbackContext):
 			voter.has_last_vote = True
 		save_game(cid, "Clear Vote", game)
 		board_text = game.board.print_board(game)
-		update_board(bot, game, cid)
+		await update_board(bot, game, cid)
 		if game.get_current_voter().uid == uid:
 			await bot.send_message(cid, "Has eliminado tu voto, puedes pasar al proximo jugador con /tick o votar con /vote", ParseMode.MARKDOWN)
 	else:
@@ -910,7 +910,7 @@ async def command_chopping(update: Update, context: CallbackContext):
 		state.chopping_block = state.defender
 		state.chopping_block_votes = list(state.votes.values()).count("si")
 		save_game(cid, "Chopping block", game)
-		update_board(bot, game, cid)
+		await update_board(bot, game, cid)
 	else:
 		await bot.send_message(cid, "No hay acusado para mandar al chopping block")
 	# pone al defender actuan en el chopping block
@@ -950,7 +950,7 @@ async def command_notes(update: Update, context: CallbackContext):
 			await bot.send_message(cid, f"{notes} fue agregada a la partida {first.groupName}", ParseMode.MARKDOWN)
 		else:
 			# Show notes
-			print_notes(first, uid, bot)
+			await print_notes(first, uid, bot)
 	else:
 		btns = []
 		for game in games_with_the_player:
@@ -1185,7 +1185,7 @@ async def command_list_issues(update: Update, context: CallbackContext):
 	result = get_github_issues()
 	await bot.send_message(cid, result, ParseMode.HTML)
 
-async def reload_last_workflow():
+def reload_last_workflow():
 	github_token_workflow = os.environ.get('github_token_workflow', None)
 	endpoint = "https://api.github.com/repos/leviatas/MultiGamesV2/actions/runs"
 	headers = {"Authorization": f"Bearer {github_token_workflow}"}
@@ -1202,7 +1202,7 @@ async def reload_last_workflow():
 	else:
 		return f"El servicio de github retorno codigo: {result.status_code} y el json es: {result.json()}"
 
-async def get_github_issues():
+def get_github_issues():
 	github_token = os.environ.get('github_token', None)
 	endpoint = "https://api.github.com/repos/leviatas/multigamesv2/issues"
 	headers = {"Authorization": f"Bearer {github_token}"}
@@ -1219,7 +1219,7 @@ async def get_github_issues():
 		return f"El servicio de github get issues retorno codigo: {result.status_code} y el json es: {result.json()}"
 
 
-async def create_github_issue(args, tipo):
+def create_github_issue(args, tipo):
 	github_token = os.environ.get('github_token', None)
 
 	if len(args) == 0:
@@ -1254,7 +1254,7 @@ async def callback_choose_game_blood(update: Update, context: CallbackContext):
 	cid, uid = int(regex.group(1)), int(regex.group(3)),
 	
 	if cid == -1:
-		bot.edit_message_text("Cancelado", uid, callback.message.message_id)
+		await bot.edit_message_text("Cancelado", uid, callback.message.message_id)
 		return
 	
 	game = get_game(cid)
@@ -1262,7 +1262,7 @@ async def callback_choose_game_blood(update: Update, context: CallbackContext):
 	
 	informacion = context.user_data[uid]
 	accion = context.user_data["accion"]
-	bot.edit_message_text(mensaje_edit, uid, callback.message.message_id)
+	await bot.edit_message_text(mensaje_edit, uid, callback.message.message_id)
 	
 	if accion == "notas":
 		if len(informacion) > 0 :
@@ -1314,7 +1314,7 @@ async def command_fix(update: Update, context: CallbackContext):
 	await bot.send_message(cid, "Fixed")
 	save_game(cid, "Fix", game)
 
-async def save_game(cid, groupName, game):
+def save_game(cid, groupName, game):
 	#Check if game is in DB first
 	conn = psycopg.connect(
 		dbname=url.path[1:],

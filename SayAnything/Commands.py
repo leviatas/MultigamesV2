@@ -53,14 +53,14 @@ async def command_call(bot, game):
 	try:
 		# Verifico en mi maquina de estados que comando deberia usar para el estado(fase) actual
 		if game.board.state.fase_actual == "Proponiendo Pistas":
-			call_proponiendo_pistas(bot, game)
+			await call_proponiendo_pistas(bot, game)
 		elif game.board.state.fase_actual == "Adivinando":			
 			await bot.send_message(game.cid, SayAnythingController.get_respuestas(bot, game), ParseMode.MARKDOWN)
 		elif game.board.state.fase_actual == "Votando Frases":
 			if len(game.board.state.votes_on_votes) >= (len(game.player_sequence)-1)*2:
-				SayAnythingController.count_points(bot, game)
+				await SayAnythingController.count_points(bot, game)
 			else:
-				call_to_vote_respeustas(bot, game)
+				await call_to_vote_respeustas(bot, game)
 			
 	except Exception as e:
 		await bot.send_message(game.cid, str(e))
@@ -72,10 +72,10 @@ async def call_to_vote_respeustas(bot, game):
 			lista_votos_usuario = [(index, val[2]) for index, val in 
 					       enumerate(game.board.state.votes_on_votes) if val[0].uid==player.uid]
 			call_text += 'Te faltan *{0}* votos {1}.\n'.format(2-len(lista_votos_usuario), player_call(player))
-			SayAnythingController.send_vote_buttons(bot, game, player.uid)		
+			await SayAnythingController.send_vote_buttons(bot, game, player.uid)		
 	await bot.send_message(game.cid, call_text, ParseMode.MARKDOWN)	
 
-async def verify_missing_votes_user(game, uid):
+def verify_missing_votes_user(game, uid):
 	lista_votos_usuario = [(index, val[2]) for index, val in enumerate(game.board.state.votes_on_votes) if val[0].uid==uid]
 	return len(lista_votos_usuario) != 2 and uid != game.board.state.active_player.uid
 	
@@ -103,10 +103,10 @@ async def call_proponiendo_pistas(bot, game):
 					await bot.send_message(player.uid, mensaje)
 			await bot.send_message(game.cid, history_text, ParseMode.MARKDOWN)
 			if game.board.num_players != 3 and len(game.board.state.ordered_votes) == len(game.player_sequence)-1:
-				SayAnythingController.send_prop(bot, game)
+				await SayAnythingController.send_prop(bot, game)
 			elif len(game.board.state.ordered_votes) == len(game.player_sequence)+1:
 				# De a 3 jugadores exigo que pongan 2 pistas cada uno son 4 de a 3 jugadores
-				SayAnythingController.send_prop(bot, game)
+				await SayAnythingController.send_prop(bot, game)
 		else:
 			await bot.send_message(game.cid, "5 minutos deben pasar para llamar a call") 
 		
@@ -134,7 +134,7 @@ async def command_propose(update: Update, context: CallbackContext):
 				if len(btns) == 1:
 					#Si es solo 1 juego lo hago automatico
 					game = get_game(cid)
-					add_propose(bot, game, uid, ' '.join(args))
+					await add_propose(bot, game, uid, ' '.join(args))
 				else:
 					txtBoton = "Cancel"
 					datos = "-1*choosegameclue*" + "prop" + "*" + str(uid)
@@ -179,14 +179,14 @@ async def callback_choose_game_prop(update: Update, context: CallbackContext):
 	cid, uid = int(regex.group(1)), int(regex.group(3))
 	
 	if cid == -1:
-		bot.edit_message_text("Cancelado", uid, callback.message.message_id)
+		await bot.edit_message_text("Cancelado", uid, callback.message.message_id)
 		return	
 	game = get_game(cid)
 	mensaje_edit = "Has elegido el grupo {0}".format(game.groupName)	
-	bot.edit_message_text(mensaje_edit, uid, callback.message.message_id)	
+	await bot.edit_message_text(mensaje_edit, uid, callback.message.message_id)	
 	propuesta = user_data[uid]	
 	# Obtengo el juego y le agrego la pista
-	add_propose(bot, game, uid, propuesta)
+	await add_propose(bot, game, uid, propuesta)
 
 async def add_propose(bot, game, uid, propuesta):
 	# Se verifica igual en caso de que quede una botonera perdida
@@ -225,7 +225,7 @@ async def command_next_turn(update: Update, context: CallbackContext):
 	uid = update.message.from_user.id
 	cid = update.message.chat_id
 	game = get_game(cid)	
-	SayAnythingController.start_next_round(bot, game)
+	await SayAnythingController.start_next_round(bot, game)
 
 async def command_pass(update: Update, context: CallbackContext):
 	bot = context.bot
@@ -237,7 +237,7 @@ async def command_pass(update: Update, context: CallbackContext):
 	if game.board.state.fase_actual != "Adivinando" or uid != game.board.state.active_player.uid:
 		await bot.send_message(game.cid, "No es el momento de adivinar o no eres el que tiene que adivinar", ParseMode.MARKDOWN)
 		return
-	SayAnythingController.pass_say_anything(bot, game)
+	await SayAnythingController.pass_say_anything(bot, game)
 	
 async def command_pick(update: Update, context: CallbackContext):
 	bot = context.bot
@@ -265,7 +265,7 @@ async def command_pick(update: Update, context: CallbackContext):
 			if len(btns) == 0:
 				#Si es solo 1 juego lo hago automatico
 				game = get_game(cid)
-				pick_resp(bot, game, uid, elegido)
+				await pick_resp(bot, game, uid, elegido)
 			else:
 				txtBoton = "Cancel"
 				datos = "-1*choosegameclue*" + "prop" + "*" + str(uid)
@@ -284,21 +284,21 @@ async def callback_choose_game_pick(update: Update, context: CallbackContext):
 	bot = context.bot
 	callback = update.callback_query
 	log.info('callback_choose_game_prop called: %s' % callback.data)	
-	regex = re.search("(-[0-9]*)\*choosegamepickSA\*(.*)\*([0-9]*)", callback.data)
+	regex = re.search(r"(-[0-9]*)\*choosegamepickSA\*(.*)\*([0-9]*)", callback.data)
 	cid, strcid, opcion, uid, struid = int(regex.group(1)), regex.group(1), regex.group(2), int(regex.group(3)), regex.group(3)	
 	
 	if cid == -1:
-		bot.edit_message_text("Cancelado", uid, callback.message.message_id)
+		await bot.edit_message_text("Cancelado", uid, callback.message.message_id)
 		return	
 	game = get_game(cid)
 	mensaje_edit = "Has elegido el grupo {0}".format(game.groupName)	
-	bot.edit_message_text(mensaje_edit, uid, callback.message.message_id)	
+	await bot.edit_message_text(mensaje_edit, uid, callback.message.message_id)	
 	
 	# Obtengo el juego y le agrego la pista
-	pick_resp(bot, game, uid, opcion)
+	await pick_resp(bot, game, uid, opcion)
 		
 # Verifica si el pick es invalido
-async def check_invalid_pick(args):
+def check_invalid_pick(args):
 	return (len(args) < 1 or (not args[0].isdigit()) or args[0] == '0')
 		
 async def pick_resp(bot, game, uid, opcion):
@@ -315,7 +315,7 @@ async def pick_resp(bot, game, uid, opcion):
 		await bot.send_message(game.cid, "El jugador activo ha elegido la frase! A votar!")
 		game.board.state.fase_actual = "Votando Frases"		
 		if len(game.board.state.votes_on_votes) == (len(game.player_sequence)-1)*2:
-			SayAnythingController.count_points(bot, game)
+			await SayAnythingController.count_points(bot, game)
 		else:
 			command_call(bot, game)	
 	except Exception as e:

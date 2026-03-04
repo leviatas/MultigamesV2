@@ -251,7 +251,7 @@ async def callback_choose_game_clue(update: Update, context: CallbackContext):
 	cid, uid = int(regex.group(1)), int(regex.group(3)),
 	
 	if cid == -1:
-		bot.edit_message_text("Cancelado", uid, callback.message.message_id)
+		await bot.edit_message_text("Cancelado", uid, callback.message.message_id)
 		return
 	
 	game = get_game(cid)
@@ -259,7 +259,7 @@ async def callback_choose_game_clue(update: Update, context: CallbackContext):
 	
 	opcion = context.user_data[uid]
 
-	bot.edit_message_text(mensaje_edit, uid, callback.message.message_id)
+	await bot.edit_message_text(mensaje_edit, uid, callback.message.message_id)
 	set_words(bot, [opcion, cid, uid])
 
 async def replace_accent(txt):

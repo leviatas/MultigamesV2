@@ -907,7 +907,7 @@ def callback_choose_posible_role(update: Update, context: CallbackContext):
 	cid, strcid, opcion, uid, struid = int(regex.group(1)), regex.group(1), regex.group(2), int(regex.group(3)), regex.group(3)
 	
 	# Busco el juego actual y le pongo al jugador su preferencia, solamente si el juego no empezo hago el seteo de preferencia
-	#bot.edit_message_text("Mensaje Editado: Has elegido el Rol: %s" % opcion, cid, callback.message.message_id)
+	#await bot.edit_message_text("Mensaje Editado: Has elegido el Rol: %s" % opcion, cid, callback.message.message_id)
 	mensaje_edit = ''
 	
 	game = get_game(cid)
@@ -926,9 +926,9 @@ def callback_choose_posible_role(update: Update, context: CallbackContext):
 		mensaje_edit = 'No hay juego creado, intentalo cuando el juego este creado'		
 	
 	try:
-		bot.edit_message_text(mensaje_edit, cid, callback.message.message_id)
+		await bot.edit_message_text(mensaje_edit, cid, callback.message.message_id)
 	except Exception as e:
-		bot.edit_message_text(mensaje_edit, uid, callback.message.message_id)
+		await bot.edit_message_text(mensaje_edit, uid, callback.message.message_id)
 	
 	#await bot.send_message(cid, "Ventana Juego: Has elegido el Rol %s" % opcion)
 	#await bot.send_message(uid, "Ventana Usuario: Has elegido el Rol %s" % opcion)	

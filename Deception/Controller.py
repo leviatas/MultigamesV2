@@ -39,7 +39,7 @@ async def init_game(bot, game):
 
 
 	# SE comienza eligiendo el diccionario antes de que se elija al mayor
-	call_dicc_buttons(bot, game)
+	await call_dicc_buttons(bot, game)
 
 '''	
 async def start_next_round(bot, game):
@@ -49,7 +49,7 @@ async def start_next_round(bot, game):
 
 async def call_dicc_buttons(bot, game):
 	opciones_botones = { "facil" : "Facil", "medio" : "Medio", "dificil" : "Difícil"}
-	simple_choose_buttons(bot, game.cid, 1234, game.cid, "choosediffDC", "Elija una dificultad para jugar", opciones_botones)
+	await simple_choose_buttons(bot, game.cid, 1234, game.cid, "choosediffDC", "Elija una dificultad para jugar", opciones_botones)
 
 
 # Mix and send roles, inform about them.
@@ -57,7 +57,7 @@ async def night_phase(bot, game):
 	dificultad = game.configs['dificultad']
 	player_number = len(game.playerlist)
 
-	inform_players(bot, game, game.cid, player_number)	
+	await inform_players(bot, game, game.cid, player_number)	
 	#log.info(game.board)
 	game.shuffle_player_sequence()
 
@@ -74,9 +74,9 @@ async def night_phase(bot, game):
 	
 
 	# Reparto cartas
-	give_players_means_evidence(bot, game, dificultad)
+	await give_players_means_evidence(bot, game, dificultad)
 	# Pregunto al asesino 
-	ask_choose_mean_evidence(bot, game, dificultad)
+	await ask_choose_mean_evidence(bot, game, dificultad)
 	game.board.print_board(bot, game)
 
 async def give_players_means_evidence(bot, game, dificultad):
@@ -99,7 +99,7 @@ async def give_players_means_evidence(bot, game, dificultad):
 		player.means = posible_means[i : i+cantidad]
 		i += cantidad
 		msg = player.get_str_means_clues()
-		send_message(bot, game, player, msg)
+		await send_message(bot, game, player, msg)
 
 async def ask_choose_mean_evidence(bot, game, opcion):
 	log.info('ask_choose_mean_evidence called')
@@ -117,14 +117,14 @@ async def ask_choose_mean_evidence(bot, game, opcion):
 	
 	msg_medio = "Partida en el grupo *{}*\nElegi tu medio de asesinato".format(game.groupName)
 	msg_pista = "Partida en el grupo *{}*\nElegi tu pista vital del asesinato".format(game.groupName)
-	simple_choose_buttons(bot, game.cid, asesino.uid, asesino.uid, "choosemotivoDC", msg_medio, dict_motivo)
-	simple_choose_buttons(bot, game.cid, asesino.uid, asesino.uid, "choosepistaDC", msg_pista, dict_pista)
+	await simple_choose_buttons(bot, game.cid, asesino.uid, asesino.uid, "choosemotivoDC", msg_medio, dict_motivo)
+	await simple_choose_buttons(bot, game.cid, asesino.uid, asesino.uid, "choosepistaDC", msg_pista, dict_pista)
 
 async def continue_night_phase(bot, game):
 	log.info('continue_night_phase called')
 	# Si hay complice le digo quien es el asesino y sus objetos correspondientes.
-	inform_forense_testigo_complice(bot, game)
-	forense_choose_location(bot, game)
+	await inform_forense_testigo_complice(bot, game)
+	await forense_choose_location(bot, game)
 
 async def forense_choose_location(bot, game):
 	localizaciones = {}
@@ -134,7 +134,7 @@ async def forense_choose_location(bot, game):
 		msg_descrp_loca += "*{}*: {}\n".format(nombre, ', '.join(str(list(x.keys())[0]) for x in [x for x in valores.values()]))
 	msg_descrp_loca = msg_descrp_loca[:-1]
 	forense = game.board.state.forense
-	simple_choose_buttons(bot, game.cid, forense.uid, forense.uid, "choosecontinueDayDC", msg_descrp_loca, localizaciones)
+	await simple_choose_buttons(bot, game.cid, forense.uid, forense.uid, "choosecontinueDayDC", msg_descrp_loca, localizaciones)
 
 async def get_inicial_cards(bot, game, localizacion):
 	game.board.state.forensic_cards.append({ "Causa de la muerte" :  copy.deepcopy(FORENSIC_CARDS["causa de la muerte"])})
@@ -148,7 +148,7 @@ async def get_inicial_cards(bot, game, localizacion):
 		scene_desc = scene_event_cards.pop(random_index)
 		game.board.state.forensic_cards.append({ scene_desc : copy.deepcopy(FORENSIC_CARDS["scene"][scene_desc]) })
 	# Que el forense elija la primera carta.	
-	start_round(bot, game)
+	await start_round(bot, game)
 
 async def choose_forensic_card_menu(bot, game, check_has_bullet = True, only_scenes = False):
 	# Si esta en la fase evidence_collection cambio el texto que muestro.
@@ -163,7 +163,7 @@ async def choose_forensic_card_menu(bot, game, check_has_bullet = True, only_sce
 					cards[idx] = nombre
 	msg_descrp_loca += game.board.get_forensic_cards_description(True, check_has_bullet, only_scenes)
 	forense = game.board.state.forense
-	simple_choose_buttons(bot, game.cid, forense.uid, forense.uid, "chooseforensicDC", msg_descrp_loca, cards)
+	await simple_choose_buttons(bot, game.cid, forense.uid, forense.uid, "chooseforensicDC", msg_descrp_loca, cards)
 
 async def choose_forensic_card_detail_menu(bot, game, card_index):
 	msg_descrp_detail = "*Elija una carta donde poner la bala*\n"
@@ -175,7 +175,7 @@ async def choose_forensic_card_detail_menu(bot, game, card_index):
 	msg_descrp_detail = msg_descrp_detail[:-1]
 	cards_detail["Volver"] = "🔙 Volver"
 	forense = game.board.state.forense
-	simple_choose_buttons(bot, game.cid, forense.uid, forense.uid, "chooseforensicdetailDC", msg_descrp_detail, cards_detail)
+	await simple_choose_buttons(bot, game.cid, forense.uid, forense.uid, "chooseforensicdetailDC", msg_descrp_detail, cards_detail)
 
 
 # Relacionado a todo lo que es informar roles, medios y pistas
@@ -183,23 +183,23 @@ async def inform_forense_testigo_complice(bot, game):
 	asesino = game.board.state.asesino
 	forense = game.board.state.forense
 	msg = "El asesino es *{}*. Su pista clave es *{}* y su medio es *{}*".format(asesino.name, asesino.clue, asesino.mean)
-	send_message(bot, game, forense, msg)
+	await send_message(bot, game, forense, msg)
 	if game.get_complice():
 		complice = game.get_complice()
-		send_message(bot, game, complice, msg)
+		await send_message(bot, game, complice, msg)
 		msg = "Asesino, el complice es *{}*".format(complice.name)
-		send_message(bot, game, asesino, msg)
+		await send_message(bot, game, asesino, msg)
 	if game.get_testigo():
 		testigo = game.get_testigo()
 		msg = "Forense, *el testigo* es: *{}*".format(testigo.name)
-		send_message(bot, game, forense, msg)
+		await send_message(bot, game, forense, msg)
 		# Hago random a quien muestro primero al testigo para que no haya una seguridad
 		zar  = random.randint(1,2)
 		if zar == 1:
 			msg = "Los sospechosos son: *{}* *{}*".format(asesino.name, complice.name)
 		else:
 			msg = "Los sospechosos son: *{}* *{}*".format(complice.name, asesino.name)
-		send_message(bot, game, testigo, msg)
+		await send_message(bot, game, testigo, msg)
 
 async def inform_players(bot, game, cid, player_number):
 	log.info('inform_players called')	
@@ -243,7 +243,7 @@ async def inform_players(bot, game, cid, player_number):
 	game.board.state.asesino = game.get_asesino()
 	for uid, player in game.playerlist.items():	
 		msg = "Tu rol secreto es: {}\nTu afiliación es: {}.".format(player.rol, player.afiliacion)
-		send_message(bot, game, player, msg)
+		await send_message(bot, game, player, msg)
 
 async def set_roles(bot, game, lista_a_modificar):
 	# Me fijo en cada modulo que roles hay y de que afiliacion son, cambio uno por uno.
@@ -293,7 +293,7 @@ async def start_round(bot, game):
 	# Dar menu al forense para que ponga una pista.
 	game.board.state.check_has_bullet = True
 	game.board.state.only_scenes = False
-	choose_forensic_card_menu(bot, game)
+	await choose_forensic_card_menu(bot, game)
 
 async def accuse(bot, game, uid):
 	forense_uid = game.board.state.forense.uid
@@ -301,7 +301,7 @@ async def accuse(bot, game, uid):
 		# No te podes acusar a vos mismo, ni al forense
 		opciones_botones = { player.uid : player.name  for player in game.player_sequence if player.uid not in [uid, forense_uid] }
 	opciones_botones["Volver"] = "🔙 Volver"
-	simple_choose_buttons(bot, game.cid, uid, uid, "chooseAccuseDE", "¿Quien crees que es el asesino?", opciones_botones, False, 2)
+	await simple_choose_buttons(bot, game.cid, uid, uid, "chooseAccuseDE", "¿Quien crees que es el asesino?", opciones_botones, False, 2)
 
 async def accuse_choose_clue(bot, game, accuser, accused):
 	# Pongo el id del acusado
@@ -319,15 +319,15 @@ async def accuse_choose_clue(bot, game, accuser, accused):
 	
 	msg_medio = "Partida en el grupo *{}*\nElegi el medio de {} que sospechas".format(game.groupName, accused.name)
 	msg_pista = "Partida en el grupo *{}*\nElegi la pista de {} que sospechas".format(game.groupName, accused.name)
-	simple_choose_buttons(bot, game.cid, accuser.uid, accuser.uid, "choosemotivoDC", msg_medio, dict_motivo)
-	simple_choose_buttons(bot, game.cid, accuser.uid, accuser.uid, "choosepistaDC", msg_pista, dict_pista)
+	await simple_choose_buttons(bot, game.cid, accuser.uid, accuser.uid, "choosemotivoDC", msg_medio, dict_motivo)
+	await simple_choose_buttons(bot, game.cid, accuser.uid, accuser.uid, "choosepistaDC", msg_pista, dict_pista)
 
 async def resolve_acusacion(bot, game, accuser):
 	msg = "De repente el jugador *{}* se levanta y señala a *{}*.\nHas sido tú lo se por esta pista *{}* y que has usado este medio *{}*".format(accuser.name, accuser.accused_player.name, accuser.accused_clue, accuser.accused_mean)	
 	await bot.send_message(game.cid, msg, parse_mode=ParseMode.MARKDOWN)
 	# accuser.accused_player.name, accuser.accused_clue, accuser.accused_mean)	
 	if accuser.accused_player.is_accusation_true(accuser.accused_clue, accuser.accused_mean):
-		end_game(bot, game)
+		await end_game(bot, game)
 	else:
 		msg = "*El mudo forense niega con la cabeza. Has fallado {}.*".format(accuser.name)
 		await bot.send_message(game.cid, msg, parse_mode=ParseMode.MARKDOWN)
@@ -339,11 +339,11 @@ async def end_game(bot, game):
 	await bot.send_message(game.cid, msn, ParseMode.MARKDOWN)	
 	await save(bot, game.cid)
 	await bot.send_message(game.cid, game.print_roles(), parse_mode=ParseMode.MARKDOWN)
-	continue_playing(bot, game)
+	await continue_playing(bot, game)
 
 async def continue_playing(bot, game):
 	opciones_botones = { "Nuevo" : "Nuevo Partido con nuevos jugadores", "Mismo Diccionario" : "Mismos jugadores, mismo Diccionario", "Otro Diccionario" : "Mismos jugadores, diferente diccionario"}
-	simple_choose_buttons(bot, game.cid, 1, game.cid, "chooseendDC", "¿Quieres continuar jugando?", opciones_botones, False, 1)
+	await simple_choose_buttons(bot, game.cid, 1, game.cid, "chooseendDC", "¿Quieres continuar jugando?", opciones_botones, False, 1)
 
 # Metodos de configuracion / Inicio
 async def configurar_partida(bot, game):
@@ -381,11 +381,11 @@ async def incluir_modulo(update: Update, context: CallbackContext):
 		# Si se ha terminado de configurar los modulos...		
 		
 		if modulo_elegido == "Fin":
-			bot.edit_message_text("Gracias por configurar el juego.", cid, callback.message.message_id)
+			await bot.edit_message_text("Gracias por configurar el juego.", cid, callback.message.message_id)
 		else:
 			game.modulos.append(modulo_elegido)
-			bot.edit_message_text("Se ha incluido el modulo %s" % (modulo_elegido), cid, callback.message.message_id)
-			configurar_partida(bot, game)
+			await bot.edit_message_text("Se ha incluido el modulo %s" % (modulo_elegido), cid, callback.message.message_id)
+			await configurar_partida(bot, game)
 	except AttributeError as e:
 		log.error("incluir_modulo: " + str(e))
 	except Exception as e:
@@ -404,13 +404,13 @@ async def callback_finish_config_werewords(update: Update, context: CallbackCont
 	cid, opcion, uid = int(regex.group(1)), regex.group(2), update.effective_user.id
 	mensaje_edit = "Has elegido la dificultad: {0}".format(opcion)
 	try:
-		bot.edit_message_text(mensaje_edit, cid, callback.message.message_id)
+		await bot.edit_message_text(mensaje_edit, cid, callback.message.message_id)
 	except Exception as e:
-		bot.edit_message_text(mensaje_edit, uid, callback.message.message_id)
+		await bot.edit_message_text(mensaje_edit, uid, callback.message.message_id)
 		
 	game = get_game(cid)
 	game.configs['dificultad'] = opcion
-	night_phase(bot, game)
+	await night_phase(bot, game)
 		
 	#except Exception as e:
 	#	await bot.send_message(ADMIN[0], 'No se ejecuto el comando debido a: '+str(e))
@@ -434,23 +434,23 @@ async def callback_choose_motivo(update: Update, context: CallbackContext):
 		asesino.mean = asesino.means[int(opcion)]
 		mensaje_edit = "Partida en el grupo *{}*\n*Has elegido el medio: {}*".format(game.groupName, asesino.mean)
 		try:
-			bot.edit_message_text(mensaje_edit, cid, callback.message.message_id, parse_mode=ParseMode.MARKDOWN)
+			await bot.edit_message_text(mensaje_edit, cid, callback.message.message_id, parse_mode=ParseMode.MARKDOWN)
 		except Exception as e:
 			uid = ADMIN[0] if game.is_debugging else uid
-			bot.edit_message_text(mensaje_edit, uid, callback.message.message_id, parse_mode=ParseMode.MARKDOWN)
+			await bot.edit_message_text(mensaje_edit, uid, callback.message.message_id, parse_mode=ParseMode.MARKDOWN)
 						
 		#game.configs['magicword'] = opcion
 		
 		if asesino.mean is not None and asesino.clue is not None:
-			continue_night_phase(bot, game)
+			await continue_night_phase(bot, game)
 	else:
 		accused = jugador_ejecutor.accused_player
 		jugador_ejecutor.accused_mean = accused.means[int(opcion)]
 		mensaje_edit = "Partida en el grupo *{}*\n*Has elegido el medio: {}*".format(game.groupName, jugador_ejecutor.accused_mean)
 		uid = ADMIN[0] if game.is_debugging else uid
-		bot.edit_message_text(mensaje_edit, uid, callback.message.message_id, parse_mode=ParseMode.MARKDOWN)
+		await bot.edit_message_text(mensaje_edit, uid, callback.message.message_id, parse_mode=ParseMode.MARKDOWN)
 		if jugador_ejecutor.accused_mean is not None and jugador_ejecutor.accused_clue is not None:
-			resolve_acusacion(bot, game, jugador_ejecutor)
+			await resolve_acusacion(bot, game, jugador_ejecutor)
 
 
 async def callback_choose_pista(update: Update, context: CallbackContext):
@@ -469,21 +469,21 @@ async def callback_choose_pista(update: Update, context: CallbackContext):
 		asesino.clue = asesino.clues[int(opcion)]
 		mensaje_edit = "Partida en el grupo *{}*\n*Has elegido la pista: {}*".format(game.groupName, asesino.clue)
 		try:
-			bot.edit_message_text(mensaje_edit, cid, callback.message.message_id, parse_mode=ParseMode.MARKDOWN)
+			await bot.edit_message_text(mensaje_edit, cid, callback.message.message_id, parse_mode=ParseMode.MARKDOWN)
 		except Exception as e:
 			uid = ADMIN[0] if game.is_debugging else uid
-			bot.edit_message_text(mensaje_edit, uid, callback.message.message_id, parse_mode=ParseMode.MARKDOWN)
+			await bot.edit_message_text(mensaje_edit, uid, callback.message.message_id, parse_mode=ParseMode.MARKDOWN)
 				
 		if asesino.mean is not None and asesino.clue is not None:
-			continue_night_phase(bot, game)
+			await continue_night_phase(bot, game)
 	else:
 		accused = jugador_ejecutor.accused_player
 		jugador_ejecutor.accused_clue = accused.clues[int(opcion)]
 		mensaje_edit = "Partida en el grupo *{}*\n*Has elegido la pista: {}*".format(game.groupName, jugador_ejecutor.accused_clue)
 		uid = ADMIN[0] if game.is_debugging else uid
-		bot.edit_message_text(mensaje_edit, uid, callback.message.message_id, parse_mode=ParseMode.MARKDOWN)
+		await bot.edit_message_text(mensaje_edit, uid, callback.message.message_id, parse_mode=ParseMode.MARKDOWN)
 		if jugador_ejecutor.accused_mean is not None and jugador_ejecutor.accused_clue is not None:
-			resolve_acusacion(bot, game, jugador_ejecutor)
+			await resolve_acusacion(bot, game, jugador_ejecutor)
 
 
 async def callback_choose_continue(update: Update, context: CallbackContext):
@@ -501,18 +501,18 @@ async def callback_choose_continue(update: Update, context: CallbackContext):
 		valid_callback = game.validate_call_choose_continue(jugador_ejecutor)
 		if not valid_callback:
 			mensaje_edit = "No puedes o no es el momento para usar esta botonera"
-			bot.edit_message_text(mensaje_edit, uid, callback.message.message_id)
+			await bot.edit_message_text(mensaje_edit, uid, callback.message.message_id)
 			return
 		'''
 		mensaje_edit = "*Haz elegido la localización {}*".format(localizacion)
 		try:
-			bot.edit_message_text(mensaje_edit, cid, callback.message.message_id, parse_mode=ParseMode.MARKDOWN)
+			await bot.edit_message_text(mensaje_edit, cid, callback.message.message_id, parse_mode=ParseMode.MARKDOWN)
 		except Exception as e:
-			bot.edit_message_text(mensaje_edit, uid, callback.message.message_id, parse_mode=ParseMode.MARKDOWN)
+			await bot.edit_message_text(mensaje_edit, uid, callback.message.message_id, parse_mode=ParseMode.MARKDOWN)
 		
 		await save(bot, game.cid)
 
-		get_inicial_cards(bot, game, localizacion)
+		await get_inicial_cards(bot, game, localizacion)
 		#continue_night_phase(bot, game)	
 
 	except Exception as e:
@@ -534,7 +534,7 @@ async def callback_choose_forensic(update: Update, context: CallbackContext):
 		valid_callback = game.validate_call_choose_continue(jugador_ejecutor)
 		if not valid_callback:
 			mensaje_edit = "No puedes o no es el momento para usar esta botonera"
-			bot.edit_message_text(mensaje_edit, uid, callback.message.message_id)
+			await bot.edit_message_text(mensaje_edit, uid, callback.message.message_id)
 			return
 		'''
 		current_cards = game.board.state.forensic_cards
@@ -542,16 +542,16 @@ async def callback_choose_forensic(update: Update, context: CallbackContext):
 
 		mensaje_edit = "Haz elegido la carta *{}*".format(carta)
 		try:
-			bot.edit_message_text(mensaje_edit, cid, callback.message.message_id, parse_mode=ParseMode.MARKDOWN)
+			await bot.edit_message_text(mensaje_edit, cid, callback.message.message_id, parse_mode=ParseMode.MARKDOWN)
 		except Exception as e:
-			bot.edit_message_text(mensaje_edit, uid, callback.message.message_id, parse_mode=ParseMode.MARKDOWN)
+			await bot.edit_message_text(mensaje_edit, uid, callback.message.message_id, parse_mode=ParseMode.MARKDOWN)
 		
 		await save(bot, game.cid)
 
 		fase_actual = game.board.state.fase_actual
 		# Si es
 		if fase_actual != "evidence_collection":
-			choose_forensic_card_detail_menu(bot, game, card_index)
+			await choose_forensic_card_detail_menu(bot, game, card_index)
 		else:
 			# Reemplazo la carta elegida por la nueva.
 			game.board.state.forensic_cards[card_index] = game.board.state.new_scene_event_card.pop()
@@ -560,7 +560,7 @@ async def callback_choose_forensic(update: Update, context: CallbackContext):
 			game.board.state.only_scenes = True
 			game.board.state.fase_actual = "set_new_evidence"
 			await save(bot, game.cid)	
-			choose_forensic_card_menu(bot, game, game.board.state.check_has_bullet, game.board.state.only_scenes)			
+			await choose_forensic_card_menu(bot, game, game.board.state.check_has_bullet, game.board.state.only_scenes)			
 
 	except Exception as e:
 		await bot.send_message(ADMIN[0], 'No se ejecuto el comando debido a: '+str(e))
@@ -583,7 +583,7 @@ async def callback_choose_forensic_detail(update: Update, context: CallbackConte
 		valid_callback = game.validate_call_choose_continue(jugador_ejecutor)
 		if not valid_callback:
 			mensaje_edit = "No puedes o no es el momento para usar esta botonera"
-			bot.edit_message_text(mensaje_edit, uid, callback.message.message_id)
+			await bot.edit_message_text(mensaje_edit, uid, callback.message.message_id)
 			return
 		'''
 
@@ -592,10 +592,10 @@ async def callback_choose_forensic_detail(update: Update, context: CallbackConte
 		if (card_index == "Volver"):
 			mensaje_edit = "Volviendo atras."
 			try:
-				bot.edit_message_text(mensaje_edit, cid, callback.message.message_id, parse_mode=ParseMode.MARKDOWN)
+				await bot.edit_message_text(mensaje_edit, cid, callback.message.message_id, parse_mode=ParseMode.MARKDOWN)
 			except Exception as e:
-				bot.edit_message_text(mensaje_edit, uid, callback.message.message_id, parse_mode=ParseMode.MARKDOWN)
-				choose_forensic_card_menu(bot, game, game.board.state.check_has_bullet, game.board.state.only_scenes)
+				await bot.edit_message_text(mensaje_edit, uid, callback.message.message_id, parse_mode=ParseMode.MARKDOWN)
+				await choose_forensic_card_menu(bot, game, game.board.state.check_has_bullet, game.board.state.only_scenes)
 			return
 
 		indices = card_index.split('_')
@@ -612,9 +612,9 @@ async def callback_choose_forensic_detail(update: Update, context: CallbackConte
 
 		mensaje_edit = "Haz elegido la carta *{}* y el detalle *{}*".format(carta, detalle)
 		try:
-			bot.edit_message_text(mensaje_edit, cid, callback.message.message_id, parse_mode=ParseMode.MARKDOWN)
+			await bot.edit_message_text(mensaje_edit, cid, callback.message.message_id, parse_mode=ParseMode.MARKDOWN)
 		except Exception as e:
-			bot.edit_message_text(mensaje_edit, uid, callback.message.message_id, parse_mode=ParseMode.MARKDOWN)
+			await bot.edit_message_text(mensaje_edit, uid, callback.message.message_id, parse_mode=ParseMode.MARKDOWN)
 		
 		try:
 			list(current_cards[int(indices[0])].values())[0][int(indices[1])][detalle] = True
@@ -632,7 +632,7 @@ async def callback_choose_forensic_detail(update: Update, context: CallbackConte
 		await bot.send_message(game.cid, game.board.get_forensic_cards_description(True, False, False), ParseMode.MARKDOWN)
 		# Le doy el menu al forense para que continue.
 		if jugador_ejecutor.bullet_marker > 0:
-			choose_forensic_card_menu(bot, game)
+			await choose_forensic_card_menu(bot, game)
 		else:
 			await bot.send_message(game.cid, "*El forense ha puesto su ultima bala*\nCuando quieras hacen exposicion y /newevidence", ParseMode.MARKDOWN)
 
@@ -654,8 +654,8 @@ async def callback_accuse(update: Update, context: CallbackContext):
 
 	if (opcion == "Volver"):
 		mensaje_edit = "Volviendo atras."
-		bot.edit_message_text(mensaje_edit, uid, callback.message.message_id, parse_mode=ParseMode.MARKDOWN)
-		accuse(bot, game, uid)
+		await bot.edit_message_text(mensaje_edit, uid, callback.message.message_id, parse_mode=ParseMode.MARKDOWN)
+		await accuse(bot, game, uid)
 		return
 
 	jugador_elegido = game.playerlist[int(opcion)]
@@ -664,12 +664,12 @@ async def callback_accuse(update: Update, context: CallbackContext):
 	mensaje_edit = "Partida en el grupo *{}*\n*Has elegido para accusar a: {}*".format(game.groupName, jugador_elegido.name)
 	
 	try:
-		bot.edit_message_text(mensaje_edit, cid, callback.message.message_id, parse_mode=ParseMode.MARKDOWN)
+		await bot.edit_message_text(mensaje_edit, cid, callback.message.message_id, parse_mode=ParseMode.MARKDOWN)
 	except Exception as e:
 		uid = ADMIN[0] if game.is_debugging else uid
-		bot.edit_message_text(mensaje_edit, uid, callback.message.message_id, parse_mode=ParseMode.MARKDOWN)
+		await bot.edit_message_text(mensaje_edit, uid, callback.message.message_id, parse_mode=ParseMode.MARKDOWN)
 	
-	accuse_choose_clue(bot, game, jugador_ejecutor, jugador_elegido)
+	await accuse_choose_clue(bot, game, jugador_ejecutor, jugador_elegido)
 
 async def callback_finish_game_buttons(update: Update, context: CallbackContext):
 	bot = context.bot
@@ -680,9 +680,9 @@ async def callback_finish_game_buttons(update: Update, context: CallbackContext)
 		cid, strcid, opcion, uid, struid = int(regex.group(1)), regex.group(1), regex.group(2), int(regex.group(3)), regex.group(3)
 		mensaje_edit = "Has elegido: {0}".format(opcion)
 		try:
-			bot.edit_message_text(mensaje_edit, cid, callback.message.message_id)
+			await bot.edit_message_text(mensaje_edit, cid, callback.message.message_id)
 		except Exception as e:
-			bot.edit_message_text(mensaje_edit, uid, callback.message.message_id)				
+			await bot.edit_message_text(mensaje_edit, uid, callback.message.message_id)				
 		
 		game = get_game(cid)
 		
@@ -725,10 +725,10 @@ async def callback_finish_game_buttons(update: Update, context: CallbackContext)
 
 		if opcion == "Mismo Diccionario":
 			game.configs['dificultad'] = dicc
-			night_phase(bot, game)
+			await night_phase(bot, game)
 			return
 		elif opcion == "Otro Diccionario":
-			init_game(bot, game)
+			await init_game(bot, game)
 			
 	except Exception as e:
 		await bot.send_message(ADMIN[0], 'No se ejecuto el comando debido a: '+str(e))

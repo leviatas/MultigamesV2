@@ -62,7 +62,7 @@ import asyncio
 # Enable logging
 
 log.basicConfig(
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        format='%(asctime)s - Multigames - %(levelname)s - %(message)s',
         level=log.INFO)
 
 
@@ -155,16 +155,16 @@ async def callback_announce(update: Update, context: CallbackContext):
 		
 		if (opcion == "Cancel"):
 			mensaje_edit = "Has cancelado el anuncio."
-			bot.edit_message_text(mensaje_edit, uid, callback.message.message_id)
+			await bot.edit_message_text(mensaje_edit, uid, callback.message.message_id)
 			return
 		
 		
 		mensaje_edit = "Has elegido anunciar en partidos de: {0}".format(opcion)
 		
 		try:
-			bot.edit_message_text(mensaje_edit, cid, callback.message.message_id)
+			await bot.edit_message_text(mensaje_edit, cid, callback.message.message_id)
 		except Exception as e:
-			bot.edit_message_text(mensaje_edit, uid, callback.message.message_id)				
+			await bot.edit_message_text(mensaje_edit, uid, callback.message.message_id)				
 		
 
 		games = getGamesByTipo(opcion)
@@ -518,7 +518,7 @@ def inlinequery(update: Update, context: CallbackContext):
 			parse_mode=ParseMode.MARKDOWN))]
 	update.inline_query.answer(results)
 
-def main():
+def main(stop_event):
 #def main():
 	GamesController.init() #Call only once
 	#initialize_testdata()
@@ -803,7 +803,10 @@ def main():
 	app.post_init = notify_startup
 
 	# Start the Bot
-	app.run_polling(timeout=30)
+	# app.run_polling(timeout=30)
+
+	while not stop_event.is_set():
+		app.run_polling(timeout=5, stop_signals=None)  # short timeout so loop checks stop_event often
 
 	#asyncio.run(app.bot.send_message(ADMIN[0], "Nueva version en linea"))
 

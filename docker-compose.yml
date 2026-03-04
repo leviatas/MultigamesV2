@@ -1,0 +1,38 @@
+services:
+  pg-multigames:
+    image: postgres:16
+    container_name: pg-multigames
+    networks:
+      - multigames-net
+    env_file:
+      - .env
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+  multigames-bot:
+    build:
+      context: .
+      dockerfile: Dockerfile2
+    container_name: multigamesv2-multigames-bot-1
+    networks:
+      - multigames-net
+    env_file:
+      - .env
+    depends_on:
+      pg-multigames:
+        condition: service_healthy
+    restart: unless-stopped
+
+networks:
+  multigames-net:
+    driver: bridge
+
+volumes:
+  pgdata:
+    external: true

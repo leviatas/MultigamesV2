@@ -60,7 +60,7 @@ async def command_evidence_collection(update: Update, context: CallbackContext):
 		game.board.state.new_scene_event_card.append({ scene_desc : copy.deepcopy(FORENSIC_CARDS["scene"][scene_desc]) })
 		msg = "La nueva carta es:\n{}".format(game.board.get_forensic_cards_description(False, False, False))
 		# Le muestro al forense la nueva carta
-		DeceptionController.send_message(bot, game, forense, msg)
+		await DeceptionController.send_message(bot, game, forense, msg)
 
 		DeceptionController.choose_forensic_card_menu(bot, game, False, True)
 	except Exception as e:
@@ -92,7 +92,7 @@ async def callback_timer(update: Update, context: CallbackContext):
 	if len(args) == 0:
 		args = ["8","28"]
 
-	await send_message(chat_id=cid, text='Comienzen a preguntar hay {} minutos y {} preguntas!'.format(args[0], args[1]))
+	await bot.send_message(chat_id=cid, text='Comienzen a preguntar hay {} minutos y {} preguntas!'.format(args[0], args[1]))
 	
 	game.using_timer = True
 
