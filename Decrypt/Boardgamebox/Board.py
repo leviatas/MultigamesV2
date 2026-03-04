@@ -23,7 +23,7 @@ class Board(BaseBoard):
 		# Se seteara en difficultad el doom inicial
 		self.state = State()
 	
-	def print_board(self, bot, game):
+	async def print_board(self, bot, game):
 		#import Arcana.Controller as ArcanaController
 		board = ""
 		board += "--- *Estado de Partida Turno {}* ---\n".format(game.turncount)		
@@ -44,7 +44,7 @@ class Board(BaseBoard):
 			board += "\n\n"
 		if game.turncount == 8:
 			board += "‼️Este es el ultimo turno‼️\n\n"
-		bot.send_message(game.cid, board, parse_mode=ParseMode.MARKDOWN)
+		await bot.send_message(game.cid, board, parse_mode=ParseMode.MARKDOWN)
 	
 	def new_round(self, game):
 		# Create Decrypt card for both teams and set choosen variables to none

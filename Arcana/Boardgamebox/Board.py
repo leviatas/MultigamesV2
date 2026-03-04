@@ -32,15 +32,15 @@ class Board(BaseBoard):
 		random.shuffle(self.fateTokens)
 		return self.fateTokens.pop()
 	
-	def print_board(self, bot, game):
+	async def print_board(self, bot, game):
 		#import Arcana.Controller as ArcanaController
 		
-		bot.send_message(game.cid, "--- *Estado de Partida* ---\nCondena: {}/7.\nPuntaje {}/7\nCartas en mazo/descarte {}/{}"
+		await bot.send_message(game.cid, "--- *Estado de Partida* ---\nCondena: {}/7.\nPuntaje {}/7\nCartas en mazo/descarte {}/{}"
 				 .format(self.state.doom, self.state.score, len(self.arcanaCards), len(self.state.discardedArcanas)), parse_mode=ParseMode.MARKDOWN, timeout=30)
 		btns = []
 		btns.append([self.create_arcana_button(game.cid, self.arcanaCards[len(self.arcanaCards)-1])])
 		btnMarkup = InlineKeyboardMarkup(btns)
-		bot.send_message(game.cid, "*Arcana de arriba del mazo:*", 
+		await bot.send_message(game.cid, "*Arcana de arriba del mazo:*", 
 				 parse_mode=ParseMode.MARKDOWN, reply_markup=btnMarkup, timeout=30)
 		board = "*Arcanas Activas*:\n"
 		btns = []
@@ -49,7 +49,7 @@ class Board(BaseBoard):
 			btns.append([self.create_arcana_button(game.cid, arcana_on_table, i)])
 			i += 1
 		btnMarkup = InlineKeyboardMarkup(btns)
-		bot.send_message(game.cid, "*Arcanas Activas*:", parse_mode=ParseMode.MARKDOWN, reply_markup=btnMarkup, timeout=30)
+		await bot.send_message(game.cid, "*Arcanas Activas*:", parse_mode=ParseMode.MARKDOWN, reply_markup=btnMarkup, timeout=30)
 		
 		if len(game.board.state.fadedarcanasOnTable) > 0:
 			btns = []
@@ -58,8 +58,7 @@ class Board(BaseBoard):
 				btns.append([self.create_arcana_button(game.cid, arcana_on_table, -2)])
 				i += 1
 			btnMarkup = InlineKeyboardMarkup(btns)
-			bot.send_message(game.cid, "*Arcanas desvanecidas* para usar /remove N:", 
-					 parse_mode=ParseMode.MARKDOWN, reply_markup=btnMarkup, timeout=30)
+			await bot.send_message(game.cid, "*Arcanas desvanecidas* para usar /remove N:", parse_mode=ParseMode.MARKDOWN, reply_markup=btnMarkup, timeout=30)
 		
 		board = ""		
 		board += "--- *Orden de jugadores* ---\n"
@@ -73,7 +72,7 @@ class Board(BaseBoard):
 		board = board[:-3]
 		board += u"\U0001F501"
 		board += "\n\nEl jugador *{0}* es el jugador activo".format(game.board.state.active_player.name)
-		bot.send_message(game.cid, board, parse_mode=ParseMode.MARKDOWN, timeout=30)
+		await bot.send_message(game.cid, board, parse_mode=ParseMode.MARKDOWN, timeout=30)
 		#ArcanaController.show_player_fate_tokens_active_player(bot, game)
 	
 	def create_arcana_button(self, cid, arcana, index = '-1', comando_callback = 'txtArcanaAR'):

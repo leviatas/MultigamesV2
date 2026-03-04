@@ -38,10 +38,10 @@ log.basicConfig(
         level=log.INFO)
 logger = log.getLogger(__name__)
 
-def check_invalid_pick(args):
+async def check_invalid_pick(args):
 	return ((not args[0].isdigit()) or (args[0] == '0'))
 
-def command_guess(update: Update, context: CallbackContext):
+async def command_guess(update: Update, context: CallbackContext):
 	bot = context.bot
 	args = context.args
 	cid = update.message.chat_id
@@ -53,8 +53,8 @@ def command_guess(update: Update, context: CallbackContext):
 		game.board.state.extraGuess = 0
 	
 	if game.board.state.fase_actual != "Predecir" or uid == game.board.state.active_player.uid:	
-		bot.send_message(game.cid, "Fase actual *{}*".format(game.board.state.fase_actual), ParseMode.MARKDOWN)
-		bot.send_message(game.cid, "No es el momento de adivinar o no eres el que tiene que adivinar", ParseMode.MARKDOWN)
+		await bot.send_message(game.cid, "Fase actual *{}*".format(game.board.state.fase_actual), ParseMode.MARKDOWN)
+		await bot.send_message(game.cid, "No es el momento de adivinar o no eres el que tiene que adivinar", ParseMode.MARKDOWN)
 		return
 	
 	# Acepto 1 o 2 guess
@@ -66,15 +66,15 @@ def command_guess(update: Update, context: CallbackContext):
 	
 	if continue_resolve:
 		if (game.board.state.extraGuess+1) != len(args):
-			bot.send_message(game.cid, "Tienes que poner {} numero/s para adivinar."
+			await bot.send_message(game.cid, "Tienes que poner {} numero/s para adivinar."
 					 .format(2 if game.board.state.extraGuess else 1), ParseMode.MARKDOWN)
 			return
 			
 		ArcanaController.resolve(bot, game, [int(s) for s in args])
 	else:
-		bot.send_message(game.cid, "El número debe ser entre 1 y 7 o estas intentado adivinar más números de los permitidos", ParseMode.MARKDOWN)
+		await bot.send_message(game.cid, "El número debe ser entre 1 y 7 o estas intentado adivinar más números de los permitidos", ParseMode.MARKDOWN)
 	
-def command_pass(update: Update, context: CallbackContext):
+async def command_pass(update: Update, context: CallbackContext):
 	bot = context.bot
 	log.info('command_pass called')
 	uid = update.message.from_user.id
@@ -83,12 +83,12 @@ def command_pass(update: Update, context: CallbackContext):
 	
 	# TODO poner restriccion del jugador activo
 	if game.board.state.fase_actual != "Predecir" or uid == game.board.state.active_player.uid:	
-		bot.send_message(game.cid, "Fase actual *{}*".format(game.board.state.fase_actual), ParseMode.MARKDOWN)
-		bot.send_message(game.cid, "No es el momento de adivinar o no eres el que tiene que adivinar", ParseMode.MARKDOWN)
+		await bot.send_message(game.cid, "Fase actual *{}*".format(game.board.state.fase_actual), ParseMode.MARKDOWN)
+		await bot.send_message(game.cid, "No es el momento de adivinar o no eres el que tiene que adivinar", ParseMode.MARKDOWN)
 		return
 	ArcanaController.resolve(bot, game)
 
-def command_remove(update: Update, context: CallbackContext):
+async def command_remove(update: Update, context: CallbackContext):
 	bot = context.bot
 	args = context.args
 	log.info('command_pass called')
@@ -97,25 +97,25 @@ def command_remove(update: Update, context: CallbackContext):
 	game = get_game(cid)
 	
 	if uid not in game.playerlist:
-		bot.send_message(game.cid, "No perteneces a esta partida.", ParseMode.MARKDOWN)
+		await bot.send_message(game.cid, "No perteneces a esta partida.", ParseMode.MARKDOWN)
 		return
 
 	elegido = -1 if (check_invalid_pick(args) or len(args) != 1) else int(args[0])
 	
-	#bot.send_message(game.cid, "{} {}".format(elegido, len(game.board.state.fadedarcanasOnTable)+1))
+	#await bot.send_message(game.cid, "{} {}".format(elegido, len(game.board.state.fadedarcanasOnTable)+1))
 	fadeded_on_table = len(game.board.state.fadedarcanasOnTable)+1
 	if (elegido > 0) and (elegido < fadeded_on_table):
 		ArcanaController.use_fadded_action(bot, game, uid, elegido-1)		
 	else:
-		bot.send_message(game.cid, "Debes ingresar un numero del 1 a {} (incluido)".format(fadeded_on_table-1), ParseMode.MARKDOWN)
+		await bot.send_message(game.cid, "Debes ingresar un numero del 1 a {} (incluido)".format(fadeded_on_table-1), ParseMode.MARKDOWN)
 
-def command_call(bot, game):
+async def command_call(bot, game):
 	try:
 		# Verifico en mi maquina de estados que comando deberia usar para el estado(fase) actual
 		if game.board.state.fase_actual == "Jugar Fate":
 			game.board.print_board(bot, game)
 			msg = "{} tienes que poner un destino sobre alguna Arcana!".format(player_call(game.board.state.active_player))
-			bot.send_message(game.cid, msg, ParseMode.MARKDOWN)
+			await bot.send_message(game.cid, msg, ParseMode.MARKDOWN)
 			ArcanaController.show_fates_active_player(bot, game)
 			ArcanaController.show_player_fate_tokens_active_player(bot, game)
 		elif game.board.state.fase_actual == "Predecir":
@@ -124,12 +124,12 @@ def command_call(bot, game):
 			for uid, player in game.playerlist.items():
 				call_other_players += "{} ".format(player_call(player)) if uid != game.board.state.active_player.uid else ""
 			mensaje_final = "\n{}Hagan /guess N para adivinar destino o /pass para pasar!".format(call_other_players)			
-			bot.send_message(game.cid, mensaje_final, ParseMode.MARKDOWN)
+			await bot.send_message(game.cid, mensaje_final, ParseMode.MARKDOWN)
 			ArcanaController.show_player_fate_tokens_active_player(bot, game)			
 	except Exception as e:
-		bot.send_message(game.cid, str(e))		
+		await bot.send_message(game.cid, str(e))		
 
-def command_discard(update: Update, context: CallbackContext):
+async def command_discard(update: Update, context: CallbackContext):
 	bot = context.bot
 	log.info('command_pass called')
 	uid = update.message.from_user.id
@@ -144,6 +144,6 @@ def command_discard(update: Update, context: CallbackContext):
 	if uid in game.playerlist and len(game.playerlist[uid].fateTokens ) == 1 and all_tokens.count(int(game.playerlist[uid].fateTokens[0]['Texto'])) == 2:
 		discarded_fate = game.playerlist[uid].fateTokens.pop()
 		game.board.fateTokens.append(discarded_fate)
-		bot.send_message(game.cid, "El jugador se ha descartado del token: {} ({}).".format(discarded_fate["Texto"], discarded_fate["TimeSymbols"]), ParseMode.MARKDOWN)
+		await bot.send_message(game.cid, "El jugador se ha descartado del token: {} ({}).".format(discarded_fate["Texto"], discarded_fate["TimeSymbols"]), ParseMode.MARKDOWN)
 	else:
-		bot.send_message(game.cid, "No estas en esta partida o tienes más de un token o no tienes tokens en la mano.", ParseMode.MARKDOWN)
+		await bot.send_message(game.cid, "No estas en esta partida o tienes más de un token o no tienes tokens en la mano.", ParseMode.MARKDOWN)

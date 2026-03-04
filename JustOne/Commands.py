@@ -67,18 +67,18 @@ url = urllib.parse.urlparse(os.environ["DATABASE_URL"])
 #     port=url.port
 # )
 	
-def command_votes(update: Update, context: CallbackContext):
+async def command_votes(update: Update, context: CallbackContext):
 	bot = context.bot
 	try:
 		#Send message of executing command   
 		cid = update.message.chat_id
-		#bot.send_message(cid, "Looking for history...")
+		#await bot.send_message(cid, "Looking for history...")
 		#Check if there is a current game 
 		if cid in GamesController.games.keys():
 			game = GamesController.games.get(cid, None)
 			if not game.dateinitvote:
 				# If date of init vote is null, then the voting didnt start          
-				bot.send_message(cid, "The voting didn't start yet.")
+				await bot.send_message(cid, "The voting didn't start yet.")
 			else:
 				#If there is a time, compare it and send history of votes.
 				start = game.dateinitvote
@@ -92,33 +92,33 @@ def command_votes(update: Update, context: CallbackContext):
 							history_text += "%s ha dado pista.\n" % (game.playerlist[player.uid].name)
 						else:
 							history_text += "%s *no* ha dado pista.\n" % (game.playerlist[player.uid].name)
-					bot.send_message(cid, history_text, ParseMode.MARKDOWN)
+					await bot.send_message(cid, history_text, ParseMode.MARKDOWN)
 					
 				else:
-					bot.send_message(cid, "Five minutes must pass to see the votes") 
+					await bot.send_message(cid, "Five minutes must pass to see the votes") 
 		else:
-			bot.send_message(cid, "There is no game in this chat. Create a new game with /newgame")
+			await bot.send_message(cid, "There is no game in this chat. Create a new game with /newgame")
 	except Exception as e:
-		bot.send_message(cid, str(e))
+		await bot.send_message(cid, str(e))
 
 		
-def command_call(bot, game):
+async def command_call(bot, game):
 	# Verifico en mi maquina de estados que comando deberia usar para el estado(fase) actual
 	if game.board.state.fase_actual == "Proponiendo Pistas":
 		call_proponiendo_pistas(bot, game)
 	elif game.board.state.fase_actual == "Revisando Pistas":
 		reviewer_player = game.board.state.reviewer_player
-		bot.send_message(game.cid, "Revisor {0} recorda que tenes que verificar las pistas".format(player_call(reviewer_player)), ParseMode.MARKDOWN)
+		await bot.send_message(game.cid, "Revisor {0} recorda que tenes que verificar las pistas".format(player_call(reviewer_player)), ParseMode.MARKDOWN)
 		JustOneController.send_reviewer_buttons(bot, game)
 	elif game.board.state.fase_actual == "Adivinando":
 		active_player = game.board.state.active_player
-		bot.send_message(game.cid, "{0} estamos esperando para que hagas /guess EJEMPLO o /pass".format(player_call(active_player)), ParseMode.MARKDOWN)
+		await bot.send_message(game.cid, "{0} estamos esperando para que hagas /guess EJEMPLO o /pass".format(player_call(active_player)), ParseMode.MARKDOWN)
 	
 
-def call_proponiendo_pistas(bot, game):
+async def call_proponiendo_pistas(bot, game):
 	if not game.dateinitvote:
 		# If date of init vote is null, then the voting didnt start          
-		bot.send_message(game.cid, "No es momento de dar pista.")
+		await bot.send_message(game.cid, "No es momento de dar pista.")
 	else:
 		#If there is a time, compare it and send history of votes.
 		start = game.dateinitvote
@@ -133,11 +133,11 @@ def call_proponiendo_pistas(bot, game):
 					history_text += "Tienes que dar una pista {0}.\n".format(player_call(player))
 					# Envio mensaje inicial de pistas para recordarle al jugador la pista y el grupo
 					mensaje = "Palabra en el grupo {1}.\nAdivina el jugador: *{2}*\nLa palabra es: *{0}*, propone tu pista!".format(game.board.state.acciones_carta_actual, game.group_link_name(), game.board.state.active_player.name)
-					bot.send_message(player.uid, mensaje, ParseMode.MARKDOWN)
+					await bot.send_message(player.uid, mensaje, ParseMode.MARKDOWN)
 					mensaje = "/clue Ejemplo" if game.board.num_players != 3 else "/clue Ejemplo Ejemplo2"
-					bot.send_message(player.uid, mensaje)
+					await bot.send_message(player.uid, mensaje)
 			if len(history_text) > 0:
-				bot.send_message(game.cid, history_text, ParseMode.MARKDOWN)
+				await bot.send_message(game.cid, history_text, ParseMode.MARKDOWN)
 			# Se pone >= ya que si un jugador se va del partido y ya puso pista entonces vale
 			if game.board.num_players != 3 and len(game.board.state.last_votes) >= len(game.player_sequence)-1:
 				JustOneController.review_clues(bot, game)
@@ -145,22 +145,22 @@ def call_proponiendo_pistas(bot, game):
 				# De a 3 jugadores exigo que pongan 2 pistas cada uno son 4 de a 3 jugadores
 				JustOneController.review_clues(bot, game)
 		else:
-			bot.send_message(game.cid, "5 minutos deben pasar para llamar a call") 
+			await bot.send_message(game.cid, "5 minutos deben pasar para llamar a call") 
 
-def set_clue(bot, args):
+async def set_clue(bot, args):
 	game = get_game(int(args[1]))
 	uid = args[2]
 	if uid in game.playerlist:
 		#Check if there is a current game
 		if game.board == None:
-			bot.send_message(game.cid, "El juego no ha comenzado!")
+			await bot.send_message(game.cid, "El juego no ha comenzado!")
 			return					
 		if uid != game.board.state.active_player.uid and game.board.state.fase_actual == "Proponiendo Pistas":
 			#Data is being claimed
 			# TODO Verificar que el usuario no mande pistas con espacios.
 			claimtext = args[0]
 			#claimtexttohistory = "El jugador %s declara: %s" % (game.playerlist[uid].name, claimtext)
-			bot.send_message(uid, "Tu pista: %s fue agregada a las pistas." % (claimtext))
+			await bot.send_message(uid, "Tu pista: %s fue agregada a las pistas." % (claimtext))
 			
 			# Si son 3 jugadores se agregan dos pistas 
 			if game.board.num_players == 3:
@@ -172,9 +172,9 @@ def set_clue(bot, args):
 			else:
 				game.board.state.last_votes[uid] = claimtext
 			
-			save(bot, game.cid)
+			await save(bot, game.cid)
 			# Verifico si todos los jugadores -1 pusieron pista
-			bot.send_message(game.cid, "El jugador *%s* ha puesto una pista." % game.playerlist[uid].name, ParseMode.MARKDOWN)
+			await bot.send_message(game.cid, "El jugador *%s* ha puesto una pista." % game.playerlist[uid].name, ParseMode.MARKDOWN)
 			
 			if game.board.num_players != 3:
 				if len(game.board.state.last_votes) == len(game.player_sequence)-1:
@@ -184,12 +184,12 @@ def set_clue(bot, args):
 				if len(game.board.state.last_votes) == len(game.player_sequence)+1:
 					JustOneController.review_clues(bot, game)
 		else:
-			bot.send_message(uid, "No puedes hacer dar clue si vos tenes que adivinar o ya ha pasado la fase de poner pistas.")
+			await bot.send_message(uid, "No puedes hacer dar clue si vos tenes que adivinar o ya ha pasado la fase de poner pistas.")
 	else:
-		bot.send_message(uid, "No puedes hacer clue si no estas en ningun partido.")
+		await bot.send_message(uid, "No puedes hacer clue si no estas en ningun partido.")
 
 
-def command_clue(update: Update, context: CallbackContext):
+async def command_clue(update: Update, context: CallbackContext):
 	bot = context.bot
 	args = context.args
 	# try:		
@@ -227,18 +227,18 @@ def command_clue(update: Update, context: CallbackContext):
 		if cursor.rowcount > 0:					
 			for table in cursor.fetchall():
 				# Por cada partida encontrada la cargo en games si no esta en el controller.
-				#bot.send_message(uid, table[0])
+				#await bot.send_message(uid, table[0])
 				if table[0] not in GamesController.games.keys():
-					#bot.send_message(uid, "Cargando el juego {0}".format(table[0]))
+					#await bot.send_message(uid, "Cargando el juego {0}".format(table[0]))
 					get_game(table[0])
 			clue_games_restriction = ['JustOne']
-			#bot.send_message(uid, "Obtuvo esta cantidad de juegos: {0}".format(len(GamesController.games)))
+			#await bot.send_message(uid, "Obtuvo esta cantidad de juegos: {0}".format(len(GamesController.games)))
 			clue_games = {key:val for key, val in GamesController.games.items() if val.tipo in clue_games_restriction}
 			btns = []
-			#bot.send_message(uid, len(clue_games))rdd
+			#await bot.send_message(uid, len(clue_games))rdd
 			
 			for game_chat_id, game in clue_games.items():
-				#bot.send_message(uid, "Creando boton para el juego {0}".format(game_chat_id))
+				#await bot.send_message(uid, "Creando boton para el juego {0}".format(game_chat_id))
 				# try:
 				if uid in game.playerlist and game.board != None:
 					if uid != game.board.state.active_player.uid and game.board.state.fase_actual == "Proponiendo Pistas":
@@ -251,9 +251,9 @@ def command_clue(update: Update, context: CallbackContext):
 						btns.append([InlineKeyboardButton(txtBoton, callback_data=datos)])
 				# except Exception as e:
 				# 	game.groupName
-				# 	bot.send_message(ADMIN[0], f"En el juego [{game.groupName}] ha habido un error")
-				# 	bot.send_message(ADMIN[0], str(e))
-			#bot.send_message(uid, "Llego a botones")
+				# 	await bot.send_message(ADMIN[0], f"En el juego [{game.groupName}] ha habido un error")
+				# 	await bot.send_message(ADMIN[0], str(e))
+			#await bot.send_message(uid, "Llego a botones")
 			# Despues de recorrer los partidos y verificar si el usuario puede poner pista le pregunto
 			if len(btns) != 0:
 				if len(btns) == 1:
@@ -264,24 +264,24 @@ def command_clue(update: Update, context: CallbackContext):
 					datos = "-1*choosegameclue*" + clue_text + "*" + str(uid)
 					btns.append([InlineKeyboardButton(txtBoton, callback_data=datos)])
 					btnMarkup = InlineKeyboardMarkup(btns)
-					bot.send_message(uid, "En cual de estos grupos queres mandar la pista?", reply_markup=btnMarkup)
+					await bot.send_message(uid, "En cual de estos grupos queres mandar la pista?", reply_markup=btnMarkup)
 			else:
 				mensaje_error = "No hay partidas en las que puedas hacer /clue"
-				bot.send_message(uid, mensaje_error)
+				await bot.send_message(uid, mensaje_error)
 					
 		else:
 			mensaje_error = "No hay partidas vivas en las que puedas hacer /clue"
-			bot.send_message(cid, mensaje_error)
+			await bot.send_message(cid, mensaje_error)
 		conn.close()
 	else:
-		bot.send_message(cid, "Le faltan/sobran argumentos recuerde que es /clue [PISTA]. Ej: /clue Alto")
+		await bot.send_message(cid, "Le faltan/sobran argumentos recuerde que es /clue [PISTA]. Ej: /clue Alto")
 	# except Exception as e:
 	# 	game.groupName
-	# 	bot.send_message(ADMIN[0], f"En el juego {game.groupName} ha habido un error")
-	# 	bot.send_message(ADMIN[0], str(e))
+	# 	await bot.send_message(ADMIN[0], f"En el juego {game.groupName} ha habido un error")
+	# 	await bot.send_message(ADMIN[0], str(e))
 	# 	#raise
 
-def callback_choose_game_clue(update: Update, context: CallbackContext):
+async def callback_choose_game_clue(update: Update, context: CallbackContext):
 	bot = context.bot
 	callback = update.callback_query
 	log.info('callback_choose_mode called: %s' % callback.data)	
@@ -298,7 +298,7 @@ def callback_choose_game_clue(update: Update, context: CallbackContext):
 	bot.edit_message_text(mensaje_edit, uid, callback.message.message_id)
 	set_clue(bot, [opcion, cid, uid])
 
-def command_pass(update: Update, context: CallbackContext):
+async def command_pass(update: Update, context: CallbackContext):
 	bot = context.bot
 	log.info('command_pass called')
 	uid = update.message.from_user.id
@@ -306,20 +306,20 @@ def command_pass(update: Update, context: CallbackContext):
 	game = get_game(cid)
 	
 	if game.board.state.fase_actual != "Adivinando" or uid != game.board.state.active_player.uid:
-		bot.send_message(game.cid, "No es el momento de adivinar o no eres el que tiene que adivinar", ParseMode.MARKDOWN)
+		await bot.send_message(game.cid, "No es el momento de adivinar o no eres el que tiene que adivinar", ParseMode.MARKDOWN)
 		return
 	if game.modo == 'Extreme':
-		bot.send_message(game.cid, "No se puede hacer /pass en modo extremo *COBARDE*!\nHace /guess como se debe!.", ParseMode.MARKDOWN)
+		await bot.send_message(game.cid, "No se puede hacer /pass en modo extremo *COBARDE*!\nHace /guess como se debe!.", ParseMode.MARKDOWN)
 		return
 	JustOneController.pass_just_one(bot, game)
 
-def replace_accent(txt):
+async def replace_accent(txt):
 	acentos = [("á", "a"),("é", "e"),("í", "i"),("ó","o"),("ú","u")]
 	for acento in acentos:
 		txt = txt.replace(acento[0], acento[1])
 	return txt
 
-def command_guess(update: Update, context: CallbackContext):
+async def command_guess(update: Update, context: CallbackContext):
 	bot = context.bot
 	args = context.args
 	try:
@@ -329,20 +329,20 @@ def command_guess(update: Update, context: CallbackContext):
 		uid = update.message.from_user.id
 		game = get_game(cid)
 		if (len(args) < 1 or game.board.state.fase_actual != "Adivinando" or uid != game.board.state.active_player.uid):# and uid not in ADMIN:
-			bot.send_message(game.cid, "No es el momento de adivinar, no eres el que tiene que adivinar o no has ingresado algo para adivinar", ParseMode.MARKDOWN)
+			await bot.send_message(game.cid, "No es el momento de adivinar, no eres el que tiene que adivinar o no has ingresado algo para adivinar", ParseMode.MARKDOWN)
 			return
 		args_text = ' '.join(args)
 		
 		if replace_accent(args_text.lower()) == replace_accent(game.board.state.acciones_carta_actual.lower()):
 			#Adivino correctamente! Aumento el puntaje
 			game.board.state.progreso += 1
-			bot.send_message(game.cid, "*CORRECTO!!!*", ParseMode.MARKDOWN)			
+			await bot.send_message(game.cid, "*CORRECTO!!!*", ParseMode.MARKDOWN)			
 			game.board.discards.append(game.board.state.acciones_carta_actual)			
 			JustOneController.start_next_round(bot, game)			
 		else:
 			#Preguntar al revisor
 			mensaje = "*Revisor* {0} confirme por favor!".format(player_call(game.board.state.reviewer_player))
-			bot.send_message(game.cid, mensaje, ParseMode.MARKDOWN)
+			await bot.send_message(game.cid, mensaje, ParseMode.MARKDOWN)
 			opciones_botones = {
 				"correcto" : "Si",
 				"incorrecto" : "No"
@@ -350,10 +350,10 @@ def command_guess(update: Update, context: CallbackContext):
 			simple_choose_buttons(bot, cid, game.board.state.reviewer_player.uid, game.board.state.reviewer_player.uid, "reviewerconfirm", "Partida {2}\n¿Es correcto lo que se adivinó ({1})? Palabra: {0}".format(game.board.state.acciones_carta_actual, args_text, game.groupName), opciones_botones)
 			
 	except Exception as e:
-		bot.send_message(uid, str(e))
+		await bot.send_message(uid, str(e))
 		log.error("Unknown error: " + str(e))
 
-def command_continue(bot, game, uid):
+async def command_continue(bot, game, uid):
 	try:
 		
 		# Verifico en mi maquina de estados que comando deberia usar para el estado(fase) actual
@@ -364,8 +364,8 @@ def command_continue(bot, game, uid):
 			JustOneController.review_clues(bot, game)
 		elif game.board.state.fase_actual == "Adivinando":
 			active_player = game.board.state.active_player
-			bot.send_message(game.cid, "{0} estamos esperando para que hagas /guess EJEMPLO o /pass".format(player_call(active_player)), ParseMode.MARKDOWN)
+			await bot.send_message(game.cid, "{0} estamos esperando para que hagas /guess EJEMPLO o /pass".format(player_call(active_player)), ParseMode.MARKDOWN)
 		elif game.board.state.fase_actual == "Finalizado":
 			JustOneController.continue_playing(bot, game)
 	except Exception as e:
-		bot.send_message(game.cid, str(e))
+		await bot.send_message(game.cid, str(e))

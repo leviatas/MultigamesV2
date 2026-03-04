@@ -65,7 +65,7 @@ logger = log.getLogger(__name__)
 #    port=url.port
 #)
 	
-def command_call(bot, game):	
+async def command_call(bot, game):	
 	#try:		
 	# Verifico en mi maquina de estados que comando deberia usar para el estado(fase) actual
 	log.info("Call en {} fase {}".format(game.groupName, game.board.state.fase_actual))
@@ -74,9 +74,9 @@ def command_call(bot, game):
 	if game.board.state.fase_actual == "Set_Reference":
 		DecryptController.send_codes(bot, game)	
 	#except Exception as e:
-	#	bot.send_message(game.cid, str(e))
+	#	await bot.send_message(game.cid, str(e))
 		
-def create_choose_buttons(cid, accion, opciones_botones, one_line = True):
+async def create_choose_buttons(cid, accion, opciones_botones, one_line = True):
 	#sleep(3)
 	btns = []
 	# Creo los botones para elegir al usuario
@@ -92,7 +92,7 @@ def create_choose_buttons(cid, accion, opciones_botones, one_line = True):
 	else:
 		return InlineKeyboardMarkup(btns)
 
-def create_choose_buttons2(cid, accion, opciones_botones, opciones_botones2):
+async def create_choose_buttons2(cid, accion, opciones_botones, opciones_botones2):
 	#sleep(3)
 	btnsResult = []
 	btns = []
@@ -114,7 +114,7 @@ def create_choose_buttons2(cid, accion, opciones_botones, opciones_botones2):
 	
 
 
-def callback_choose_game_prop(update: Update, context: CallbackContext):
+async def callback_choose_game_prop(update: Update, context: CallbackContext):
 	bot = context.bot
 	user_data = context.user_data
 	callback = update.callback_query
@@ -132,7 +132,7 @@ def callback_choose_game_prop(update: Update, context: CallbackContext):
 	# Obtengo el juego y le agrego la pista
 	add_propose(bot, game, uid, propuesta)
 
-def callback_choose_game_inter(update: Update, context: CallbackContext):
+async def callback_choose_game_inter(update: Update, context: CallbackContext):
 	bot = context.bot
 	user_data = context.user_data
 	callback = update.callback_query
@@ -150,7 +150,7 @@ def callback_choose_game_inter(update: Update, context: CallbackContext):
 	# Obtengo el juego y le agrego la pista
 	add_intercept(bot, game, uid, propuesta)
 
-def callback_choose_game_dec(update: Update, context: CallbackContext):
+async def callback_choose_game_dec(update: Update, context: CallbackContext):
 	bot = context.bot
 	user_data = context.user_data
 	callback = update.callback_query
@@ -168,61 +168,61 @@ def callback_choose_game_dec(update: Update, context: CallbackContext):
 	# Obtengo el juego y le agrego la pista
 	add_decrypt(bot, game, uid, propuesta)
 
-def add_intercept(bot, game, uid, propuesta):
+async def add_intercept(bot, game, uid, propuesta):
 	if game.board.state.fase_actual == "Intercept/Decrypt" and game.board.state.inactive_team.belongs(uid) and game.turncount != 1:
 		
 		game.board.state.active_team.opponent_team_choosen_code = "".join(x for x in propuesta if x.isdigit())
-		save(bot, game.cid)
+		await save(bot, game.cid)
 		DecryptController.inform_teams(bot, game)
 	else:
 		if not game.board.state.inactive_team.belongs(uid):
-			bot.send_message(game.cid, "No pertences al equipo que tiene que interceptar")
+			await bot.send_message(game.cid, "No pertences al equipo que tiene que interceptar")
 		else:
-			bot.send_message(game.cid, "No es el momento de interceptar")
+			await bot.send_message(game.cid, "No es el momento de interceptar")
 
-def add_decrypt(bot, game, uid, propuesta):
+async def add_decrypt(bot, game, uid, propuesta):
 	if game.board.state.fase_actual == "Intercept/Decrypt" and game.board.state.active_team.belongs(uid):
 		
 		game.board.state.active_team.team_choosen_code = "".join(x for x in propuesta if x.isdigit())
-		save(bot, game.cid)
+		await save(bot, game.cid)
 		DecryptController.inform_teams(bot, game)
 	else:
 		if not game.board.state.active_team.belongs(uid):
-			bot.send_message(game.cid, "No pertences al equipo que tiene que desencriptar")
+			await bot.send_message(game.cid, "No pertences al equipo que tiene que desencriptar")
 		else:
-			bot.send_message(game.cid, "No es el momento de desencriptar")
+			await bot.send_message(game.cid, "No es el momento de desencriptar")
 
-def add_propose(bot, game, uid, propuesta):
+async def add_propose(bot, game, uid, propuesta):
 	# Se verifica igual en caso de que quede una botonera perdida
 	if uid in game.playerlist:
 		#Check if there is a current game
 		if game.board == None:
-			bot.send_message(game.cid, "El juego no ha comenzado!")
+			await bot.send_message(game.cid, "El juego no ha comenzado!")
 			return
 		# If player is any of the 
 		if uid == ADMIN[0] or (uid in [team.active_player.uid for team in game.board.state.teams]):
-			bot.send_message(uid, "Tu referencia: {} fue agregada.".format(propuesta))	
+			await bot.send_message(uid, "Tu referencia: {} fue agregada.".format(propuesta))	
 
 			game.getPlayerTeam(uid).clue = propuesta			
-			save(bot, game.cid)
+			await save(bot, game.cid)
 			# Si ambos encriptadores pusieron su pista entonces Sigue el juego.
 			if None not in [team.clue for team in game.board.state.teams]:
 				game.board.state.fase_actual = 'Intercept/Decrypt'
-				save(bot, game.cid)
+				await save(bot, game.cid)
 				DecryptController.inform_teams(bot, game)
 			else:
 				# Se avisa en vivo que falta que el otro jugador ponga su pista
 				for player in [team.active_player for team in game.board.state.teams if team.clue == None]:
 					msg = "{} falta tu codigo te estamos esperando!\n".format(player_call(player))
-					bot.send_message(player.uid, msg, ParseMode.MARKDOWN)
-					bot.send_message(game.cid, msg, ParseMode.MARKDOWN)
+					await bot.send_message(player.uid, msg, ParseMode.MARKDOWN)
+					await bot.send_message(game.cid, msg, ParseMode.MARKDOWN)
 		else:
-			bot.send_message(uid, "No puedes poner codigo si NO sos el jugador activo o no es la fase correcta")
+			await bot.send_message(uid, "No puedes poner codigo si NO sos el jugador activo o no es la fase correcta")
 	else:
-		bot.send_message(uid, "No puedes hacer code si no estas en el partido.")
+		await bot.send_message(uid, "No puedes hacer code si no estas en el partido.")
 		
-# Por defecto no hay restricciones
-def get_choose_game_buttons(games_tipo, uid, fase_actual, commando_origen, callback_command):	
+# Por async defecto no hay restricciones
+async def get_choose_game_buttons(games_tipo, uid, fase_actual, commando_origen, callback_command):	
 	btns = []
 	cid = None
 	for game_chat_id, game in games_tipo.items():
@@ -251,7 +251,7 @@ def get_choose_game_buttons(games_tipo, uid, fase_actual, commando_origen, callb
 				btns.append([InlineKeyboardButton(txtBoton, callback_data=datos)])
 	return btns, cid
 
-def command_code(update: Update, context: CallbackContext):
+async def command_code(update: Update, context: CallbackContext):
 	bot = context.bot
 	args = context.args
 	user_data = context.user_data
@@ -284,19 +284,19 @@ def command_code(update: Update, context: CallbackContext):
 						datos = "-1*choosegamerefDE*" + "prop" + "*" + str(uid)
 						btns.append([InlineKeyboardButton(txtBoton, callback_data=datos)])
 						btnMarkup = InlineKeyboardMarkup(btns)
-						bot.send_message(uid, "En cual de estos grupos queres mandar la referencia?", reply_markup=btnMarkup)
+						await bot.send_message(uid, "En cual de estos grupos queres mandar la referencia?", reply_markup=btnMarkup)
 				else:
 					mensaje_error = "No hay partidas en las que puedas hacer /code"
-					bot.send_message(uid, mensaje_error)
+					await bot.send_message(uid, mensaje_error)
 			else:
 				mensaje_error = "Debes poner 3 pistas, recuerda que cada uno se separa por coma (,) EJ: PISTA 1, *ONOMATOPEYA4*, FRASE FRASE 2"
-				bot.send_message(uid, mensaje_error)
+				await bot.send_message(uid, mensaje_error)
 
 	except Exception as e:
-		bot.send_message(uid, str(e))
+		await bot.send_message(uid, str(e))
 		log.error("Unknown error: " + str(e))
 
-def command_intercept(update: Update, context: CallbackContext):
+async def command_intercept(update: Update, context: CallbackContext):
 	bot = context.bot
 	args = context.args
 	user_data = context.user_data
@@ -328,15 +328,15 @@ def command_intercept(update: Update, context: CallbackContext):
 					datos = "-1*choosegameintDE*" + "prop" + "*" + str(uid)
 					btns.append([InlineKeyboardButton(txtBoton, callback_data=datos)])
 					btnMarkup = InlineKeyboardMarkup(btns)
-					bot.send_message(uid, "En cual de estos grupos la intercepción?", reply_markup=btnMarkup)
+					await bot.send_message(uid, "En cual de estos grupos la intercepción?", reply_markup=btnMarkup)
 			else:
 				mensaje_error = "No hay partidas en las que puedas hacer /intercept"
-				bot.send_message(uid, mensaje_error)
+				await bot.send_message(uid, mensaje_error)
 	except Exception as e:
-		bot.send_message(uid, str(e))
+		await bot.send_message(uid, str(e))
 		log.error("Unknown error: " + str(e))
 
-def command_decrypt(update: Update, context: CallbackContext):
+async def command_decrypt(update: Update, context: CallbackContext):
 	bot = context.bot
 	args = context.args
 	user_data = context.user_data
@@ -368,12 +368,12 @@ def command_decrypt(update: Update, context: CallbackContext):
 					datos = "-1*choosegamedecDE*" + "prop" + "*" + str(uid)
 					btns.append([InlineKeyboardButton(txtBoton, callback_data=datos)])
 					btnMarkup = InlineKeyboardMarkup(btns)
-					bot.send_message(uid, "En cual de estos grupo realizas la desencripción?", reply_markup=btnMarkup)
+					await bot.send_message(uid, "En cual de estos grupo realizas la desencripción?", reply_markup=btnMarkup)
 			else:
 				mensaje_error = "No hay partidas en las que puedas hacer /decrypt"
-				bot.send_message(uid, mensaje_error)
+				await bot.send_message(uid, mensaje_error)
 	except Exception as e:
-		bot.send_message(uid, str(e))
+		await bot.send_message(uid, str(e))
 		log.error("Unknown error: " + str(e))
 		raise e
 		

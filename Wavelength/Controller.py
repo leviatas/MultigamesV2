@@ -45,17 +45,17 @@ logger = log.getLogger(__name__)
 
 debugging = False
 
-def init_game(bot, game):
+async def init_game(bot, game):
 	log.info('wavelength init called')
 	game.shuffle_player_sequence()
 	game.create_teams(2)
-	start_round(bot, game)
+	await start_round(bot, game)
 
 # Objetivo
 # start_round/send_wavelength -> Set reference -> send_ref ->  send_guess/resolve/start_next_round
 #  ---------------Set_Reference----------------   Predict  ---   Predict_Opp_LR  -------------------
 
-def start_round(bot, game):
+async def start_round(bot, game):
 	log.info('start_round_Wave called')
 	cid = game.cid
 	# The board gets a new wave card
@@ -68,13 +68,13 @@ def start_round(bot, game):
 		game.suddenDeath += 1
 	game.board.state.fase_actual = "Set_Reference"
 	game.board.new_wave_card()
-	send_wavelength(bot, game)
+	await send_wavelength(bot, game)
 
 
-def send_wavelength(bot, game):
-	game.board.print_board(bot, game)
+async def send_wavelength(bot, game):
+	await game.board.print_board(bot, game)
 	msg = "{} tienes que poner una referencia!".format(player_call(game.board.state.active_team.active_player))
-	bot.send_message(game.cid, msg, ParseMode.MARKDOWN)
+	await bot.send_message(game.cid, msg, ParseMode.MARKDOWN)
 	active_wave_card = game.board.state.active_wave_card
 	call_other_players = ""
 	for player in game.board.state.active_team.player_sequence:
@@ -82,27 +82,27 @@ def send_wavelength(bot, game):
 
 	msg = "Partida en el grupo *{}* con tus compañeros {}\n\nLa carta que te ha tocado es: *{}*/*{}*.\nPone tu pista con /ref EJEMPLO EJEMPLO".format(
 		game.groupName, call_other_players, active_wave_card["Izquierda"], active_wave_card["Derecha"])
-	bot.send_message(game.board.state.active_team.active_player.uid, msg, ParseMode.MARKDOWN)
+	await bot.send_message(game.board.state.active_team.active_player.uid, msg, ParseMode.MARKDOWN)
 	bio = "https://ssl.hq063.com.ar/pbt/imagen.php?angle={}&size=th&text={}|{}&v=201903131425".format(game.board.state.wavelength, active_wave_card["Izquierda"], active_wave_card["Derecha"])
-	send_photo(bot, game.board.state.active_team.active_player.uid, photo=bio, caption="{}-----------------------{}".format(active_wave_card["Izquierda"], active_wave_card["Derecha"]))
-	save(bot, game.cid)
+	await send_photo(bot, game.board.state.active_team.active_player.uid, photo=bio, caption="{}-----------------------{}".format(active_wave_card["Izquierda"], active_wave_card["Derecha"]))
+	await save(bot, game.cid)
 
 #Active player send reference of wavelength
-def send_ref(bot, game):
-	game.board.print_board(bot, game)
+async def send_ref(bot, game):
+	await game.board.print_board(bot, game)
 	active_wave_card = game.board.state.active_wave_card
 	call_other_players = ""
 	for player in game.board.state.active_team.player_sequence:
 		call_other_players += "{} ".format(player_call(player)) if player.uid != game.board.state.active_team.active_player.uid else ""
 	msg = "La referencia es:\n*{}*. {}les toca adivinar!".format(game.board.state.reference, call_other_players)
-	bot.send_message(game.cid, msg, ParseMode.MARKDOWN)
+	await bot.send_message(game.cid, msg, ParseMode.MARKDOWN)
 	game.board.state.fase_actual = "Predict"
-	save(bot, game.cid)
+	await save(bot, game.cid)
 	game.board.state.team_choosen_grade = 90
-	draw_choose_needle(bot, game)
+	await draw_choose_needle(bot, game)
 
 #Draws the picture and the needle so the team can select it.
-def draw_choose_needle(bot, game, message_id = None):
+async def draw_choose_needle(bot, game, message_id = None):
 	cid = game.cid
 	active_wave_card = game.board.state.active_wave_card
 	needle = "&needle={}".format(game.board.state.team_choosen_grade)
@@ -128,40 +128,40 @@ def draw_choose_needle(bot, game, message_id = None):
 				       reply_markup=btnMarkup)
 	# Draw again
 	else:
-		send_photo(bot, cid, photo=bio,
+		await send_photo(bot, cid, photo=bio,
 			       reply_markup=btnMarkup,
 			       parse_mode=ParseMode.MARKDOWN,
 			       caption=caption)
-	save(bot, game.cid)
+	await save(bot, game.cid)
 
-def send_guess(bot, game):
+async def send_guess(bot, game):
 	# To improve game pace, we eagerly check if there is a bullseye and prevent
 	# the other team from having to do an useless left/right guess
 	diff = abs(game.board.state.wavelength - game.board.state.team_choosen_grade)
 	if diff <= 3:
-		resolve(bot, game)
+		await resolve(bot, game)
 		return
 
-	game.board.print_board(bot, game)
+	await game.board.print_board(bot, game)
 	active_wave_card = game.board.state.active_wave_card
 	call_other_players = ""
 	for player in game.board.state.inactive_team.player_sequence:
 		call_other_players += "{} ".format(player_call(player))
 	msg = "La referencia dada fue:\n*{}*\n\nEquipo contrario {} elija si la respuesta correcta esta a la izquierda o derecha.".format(game.board.state.reference, call_other_players)
-	bot.send_message(game.cid, msg, ParseMode.MARKDOWN)
+	await bot.send_message(game.cid, msg, ParseMode.MARKDOWN)
 	game.board.state.fase_actual = "Predict_Opp_LR"
-	save(bot, game.cid)
+	await save(bot, game.cid)
 	bio = "https://ssl.hq063.com.ar/pbt/imagen.php?needle={}&size=th&text={}|{}&v={}".format(game.board.state.team_choosen_grade, active_wave_card["Izquierda"], active_wave_card["Derecha"], datetime.datetime.now().strftime("%Y%m%d"))
 	btnMarkup = create_choose_buttons(game.cid, "LeftRightWave", RIGHTLEFT, True)
-	send_photo(bot, game.cid, photo=bio, reply_markup=btnMarkup,
+	await send_photo(bot, game.cid, photo=bio, reply_markup=btnMarkup,
 		       parse_mode=ParseMode.MARKDOWN,
 		       caption="{}-----------------------{}\n\nLa referencia es: *{}*".format(
 			       active_wave_card["Izquierda"],
 			       active_wave_card["Derecha"],
 			       game.board.state.reference))
-	save(bot, game.cid)
+	await save(bot, game.cid)
 
-def resolve(bot, game, args = []):
+async def resolve(bot, game, args = []):
 	log.info('resolve_Wave called')
 	# Resolvemos
 	catchup_rule = False
@@ -171,7 +171,7 @@ def resolve(bot, game, args = []):
 	textCache = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
 	bio = "https://ssl.hq063.com.ar/pbt/imagen.php?needle={}&angle={}&size=th&text={}|{}&v={}".format(game.board.state.team_choosen_grade, game.board.state.wavelength, active_wave_card["Izquierda"], active_wave_card["Derecha"], textCache)
 	log.info(bio)
-	send_photo(bot, game.cid, photo=bio, caption="{}-----------------------{}".format(active_wave_card["Izquierda"], active_wave_card["Derecha"]))
+	await send_photo(bot, game.cid, photo=bio, caption="{}-----------------------{}".format(active_wave_card["Izquierda"], active_wave_card["Derecha"]))
 	msg = "La carta que ha tocado es:\n*{}*------------*{}*.\n\nLa referencia dada fue: *{}*.\n\nEl equipo contrario dijo que estaba: *{}*\n".format(
 		active_wave_card["Izquierda"],
 		active_wave_card["Derecha"],
@@ -195,52 +195,52 @@ def resolve(bot, game, args = []):
 		game.board.state.inactive_team.score += 1
 		msg += "\nEl equipo inactivo ha correctamente si estaba a la derecha o izquierda del bulls eye. Ha ganado *1 punto*!"
 
-	bot.send_message(game.cid, msg, ParseMode.MARKDOWN)
+	await bot.send_message(game.cid, msg, ParseMode.MARKDOWN)
 	msg = "*(Debug data)*\nEl grado elegido es *{}*\nEl equipo contrario eligio *{}*.\n\nEl grado real era *{}*".format(
 		game.board.state.team_choosen_grade,
 		"a la Izquierda" if game.board.state.opponent_team_choosen_left_right == 0 else "a la Derecha",
 		game.board.state.wavelength)
 	game.history.append(msg)
-	start_next_round(bot, game, catchup_rule)
+	await start_next_round(bot, game, catchup_rule)
 
-def start_next_round(bot, game, catchup_rule):
+async def start_next_round(bot, game, catchup_rule):
 	# Verifico si alguno de los dos equipos ha llegado a los puntos para ganar.
 	# O si estan en muerte subita y jugaron una vez cada equipo
 	if (game.board.state.active_team.score >= 10
 	    or game.board.state.inactive_team.score >= 10) or (
 		game.getSuddenDeath() == 2):
 
-		game.board.print_board(bot, game)
+		await game.board.print_board(bot, game)
 
 		# El juego ha terminado!
 		team_diff = game.board.state.active_team.score - game.board.state.inactive_team.score
 		if team_diff > 0:
-			bot.send_message(game.cid, "El equipo: *{}* HA GANADO!".format(
+			await bot.send_message(game.cid, "El equipo: *{}* HA GANADO!".format(
 				game.board.state.active_team.name), ParseMode.MARKDOWN)
 		elif team_diff < 0:
-			bot.send_message(game.cid, "El equipo: *{}* HA GANADO!".format(
+			await bot.send_message(game.cid, "El equipo: *{}* HA GANADO!".format(
 				game.board.state.inactive_team.name), ParseMode.MARKDOWN)
 		elif team_diff == 0:
-			bot.send_message(game.cid, "El juego esta empatado! *MUERTE SUBITA!*", ParseMode.MARKDOWN)
+			await bot.send_message(game.cid, "El juego esta empatado! *MUERTE SUBITA!*", ParseMode.MARKDOWN)
 			game.suddenDeath = 0 # immediately after start_round will add 1
 			game.board.state.increment_team_counter()
-			start_round(bot, game)
+			await start_round(bot, game)
 			return
 		game.board.state.fase_actual = "Finalizado"
-		save(bot, game.cid)
+		await save(bot, game.cid)
 	else:
 		# El juego continua
 		if catchup_rule == True:
 			game.board.state.active_team.increment_player_counter()
 		else:
 			game.board.state.increment_team_counter()
-		start_round(bot, game)
+		await start_round(bot, game)
 
-def continue_playing(bot, game):
+async def continue_playing(bot, game):
 	opciones_botones = { "Nuevo" : "Cambiar jugadores", "Mantener" : "Mismos jugadores" }
-	simple_choose_buttons(bot, game.cid, 1, game.cid, "chooseendWL", "¿Quieres continuar jugando?", opciones_botones)
+	await simple_choose_buttons(bot, game.cid, 1, game.cid, "chooseendWL", "¿Quieres continuar jugando?", opciones_botones)
 
-def callback_finish_game_buttons(update: Update, context: CallbackContext):
+async def callback_finish_game_buttons(update: Update, context: CallbackContext):
 	bot = context.bot
 	callback = update.callback_query
 	try:
@@ -274,7 +274,7 @@ def callback_finish_game_buttons(update: Update, context: CallbackContext):
 		GamesController.games[cid] = game
 
 		if opcion == "Nuevo":
-			bot.send_message(cid, "Cada jugador puede unirse al juego con el comando /join.\nEl iniciador del juego (o el administrador) pueden unirse tambien y escribir /startgame cuando todos se hayan unido al juego!")
+			await bot.send_message(cid, "Cada jugador puede unirse al juego con el comando /join.\nEl iniciador del juego (o el administrador) pueden unirse tambien y escribir /startgame cuando todos se hayan unido al juego!")
 			return
 
 		# Si no es nuevo entonces los jugadores son agregados y los equipos crados
@@ -285,14 +285,14 @@ def callback_finish_game_buttons(update: Update, context: CallbackContext):
 		game.board = Board(player_number, game)
 		game.player_sequence = []
 
-		init_game(bot, game)
+		await init_game(bot, game)
 
 	except Exception as e:
-		bot.send_message(ADMIN[0], 'No se ejecuto el comando debido a: '+str(e))
-		bot.send_message(ADMIN[0], callback.data)
+		await bot.send_message(ADMIN[0], 'No se ejecuto el comando debido a: '+str(e))
+		await bot.send_message(ADMIN[0], callback.data)
 
 # Return two lines of buttons
-def create_choose_buttons2(cid, accion, opciones_botones, opciones_botones2):
+async def create_choose_buttons2(cid, accion, opciones_botones, opciones_botones2):
 	#sleep(3)
 	btnsResult = []
 	btns = []
@@ -312,7 +312,7 @@ def create_choose_buttons2(cid, accion, opciones_botones, opciones_botones2):
 
 	return InlineKeyboardMarkup(btnsResult)
 
-def create_choose_buttons(cid, accion, opciones_botones, one_line = True):
+async def create_choose_buttons(cid, accion, opciones_botones, one_line = True):
 	#sleep(3)
 	btns = []
 	# Creo los botones para elegir al usuario
@@ -328,9 +328,9 @@ def create_choose_buttons(cid, accion, opciones_botones, one_line = True):
 	else:
 		return InlineKeyboardMarkup(btns)
 
-def send_photo(bot, chat_id, photo, caption = None, reply_markup = None, parse_mode = None):
+async def send_photo(bot, chat_id, photo, caption = None, reply_markup = None, parse_mode = None):
 	try:
-		bot.send_photo(chat_id, photo = photo, caption = caption, reply_markup = reply_markup, parse_mode = parse_mode)
+		await bot.send_photo(chat_id, photo = photo, caption = caption, reply_markup = reply_markup, parse_mode = parse_mode)
 	except Exception as e:
-		bot.send_message(chat_id, "Error sending photo: " + photo + "\n Error Message: " + str(e))
-		bot.send_message(chat_id, text = caption, reply_markup = reply_markup, parse_mode = parse_mode)
+		await bot.send_message(chat_id, "Error sending photo: " + photo + "\n Error Message: " + str(e))
+		await bot.send_message(chat_id, text = caption, reply_markup = reply_markup, parse_mode = parse_mode)

@@ -57,12 +57,12 @@ def command_roll(update: Update, context: CallbackContext):
 	else:
 		text_tirada +=  ' es *%s!*' % (str(tirada))
 		
-	bot.send_message(cid, "%s" % (text_tirada), ParseMode.MARKDOWN)
+	await bot.send_message(cid, "%s" % (text_tirada), ParseMode.MARKDOWN)
 	
 	# Si hay un juego creado guardo en el historial
 	game = get_game(cid)
 	if game and uid in game.playerlist:
-		#bot.send_message(cid, "Grabo en base de datos", ParseMode.MARKDOWN)
+		#await bot.send_message(cid, "Grabo en base de datos", ParseMode.MARKDOWN)
 		player = game.playerlist[uid]
 		texthistory = "Jugador *%s* - %s" % (player.name, text_tirada)
 		game.history.append("%s" % (texthistory))

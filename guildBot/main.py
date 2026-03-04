@@ -32,12 +32,12 @@ if REPORT_BOT_TOKEN is None:
 def command_start(update: Update, context: CallbackContext):
 	bot = context.bot
 	cid = update.message.chat_id
-	bot.send_message(cid, "Bot mediocre para guild IVI")
+	await bot.send_message(cid, "Bot mediocre para guild IVI")
 
 def command_help(update: Update, context: CallbackContext):
 	bot = context.bot
 	cid = update.message.chat_id
-	bot.send_message(cid, """
+	await bot.send_message(cid, """
 Comandos disponibles:
 /start Comienza algo
 /melody Datos para el puesto de melody
@@ -55,7 +55,7 @@ def command_melody(update: Update, context: CallbackContext):
 def SendButtonURL(bot, cid, name, url, ownderCall):
     btn = [[InlineKeyboardButton(f"{name}'s", url=url)]]
     rulesMarkup = InlineKeyboardMarkup(btn)
-    bot.send_message(cid, f"Link to {name}'s crappy shop. {ownderCall} OPEN UP", reply_markup=rulesMarkup)
+    await bot.send_message(cid, f"Link to {name}'s crappy shop. {ownderCall} OPEN UP", reply_markup=rulesMarkup)
 
 def command_channels(update: Update, context: CallbackContext):
     bot = context.bot
@@ -70,7 +70,7 @@ def command_channels(update: Update, context: CallbackContext):
         btn.append([InlineKeyboardButton(channel[1], url=channel[0])])
 
     rulesMarkup = InlineKeyboardMarkup(btn)
-    bot.send_message(cid, f"Link to crappy IVI channels.", reply_markup=rulesMarkup)
+    await bot.send_message(cid, f"Link to crappy IVI channels.", reply_markup=rulesMarkup)
 
 def command_lancelot(update: Update, context: CallbackContext):
     bot = context.bot
@@ -80,12 +80,12 @@ def command_lancelot(update: Update, context: CallbackContext):
 def command_paralian(update: Update, context: CallbackContext):
     bot = context.bot
     cid = update.message.chat_id
-    bot.send_message(cid, f"**Bienvenida Paralian!!!**", parse_mode=ParseMode.MARKDOWN)
+    await bot.send_message(cid, f"**Bienvenida Paralian!!!**", parse_mode=ParseMode.MARKDOWN)
 
 def command_nixth_regala_pogs(update: Update, context: CallbackContext):
     bot = context.bot
     cid = update.message.chat_id
-    bot.send_message(cid, f"**¿Cómo? ¿Vos no recibiste el bono de navidad? A mi me dio 200 pogs...**", parse_mode=ParseMode.MARKDOWN)
+    await bot.send_message(cid, f"**¿Cómo? ¿Vos no recibiste el bono de navidad? A mi me dio 200 pogs...**", parse_mode=ParseMode.MARKDOWN)
 
 
 def pot_request(update: Update, context: CallbackContext):
@@ -97,9 +97,9 @@ def pot_request(update: Update, context: CallbackContext):
     m = re.search('Pot (rage|peace|morph) (\d+)', update.message.text)
     
     if m == None:
-        bot.send_message(cid, "No entendi tu pedido de potas, posiblemente sos malo escribiendo.")
+        await bot.send_message(cid, "No entendi tu pedido de potas, posiblemente sos malo escribiendo.")
 
-    bot.send_message(cid, f"Entonces necesitas pot de {m.group(1)} y en cantidad {m.group(2)}, estoy procesando. Leviatas es un genio. *Les recuerdo que el no me esta haciendo decir esto...*", parse_mode=ParseMode.MARKDOWN)
+    await bot.send_message(cid, f"Entonces necesitas pot de {m.group(1)} y en cantidad {m.group(2)}, estoy procesando. Leviatas es un genio. *Les recuerdo que el no me esta haciendo decir esto...*", parse_mode=ParseMode.MARKDOWN)
 
     if(m.group(1) == "rage"):
         cantidad = int(m.group(2))           
@@ -109,7 +109,7 @@ def pot_request(update: Update, context: CallbackContext):
         caveGarlic = 1 * cantidad
         cliffRue = 1 * cantidad
         sunTarragon = 1 * cantidad
-        bot.send_message(cid, f"""Not enough materials to craft crappy rage pots. @nixth @Cocytus0 @nick_the_dick
+        await bot.send_message(cid, f"""Not enough materials to craft crappy rage pots. @nixth @Cocytus0 @nick_the_dick
 Required:
  {white} x White Blossom
  {sanguine} x Sanguine Parsley
@@ -127,7 +127,7 @@ Required:
         storm = 1 * cantidad
         grass = 1 * cantidad
         
-        bot.send_message(cid, f"""Not enough materials to craft crapp peace pots. @nixth @Cocytus0 @nick_the_dick
+        await bot.send_message(cid, f"""Not enough materials to craft crapp peace pots. @nixth @Cocytus0 @nick_the_dick
 Required:
  {storm} x Storm Hyssop
  {ashRosemary} x Ash Rosemary
@@ -155,7 +155,7 @@ Required:
         
         queensPepper = 1 * cantidad
         
-        bot.send_message(cid, f"""Not enough materials to craft crappy morph pots. @nixth @Cocytus0 @nick_the_dick
+        await bot.send_message(cid, f"""Not enough materials to craft crappy morph pots. @nixth @Cocytus0 @nick_the_dick
 Required:
  {maccunut} x Maccunut
  {grass} x Tecceagrass
@@ -165,7 +165,7 @@ Required:
  {caveGarlic} x Cave Garlic
  {queensPepper} x Queen's Pepper""")
 
-        bot.send_message(cid, f"""Not enough materials to craft crappy morph pots. @Ale_Guetta @licuevas @nixth 
+        await bot.send_message(cid, f"""Not enough materials to craft crappy morph pots. @Ale_Guetta @licuevas @nixth 
 Required:
  {silverOre} x Silver Ore
  {powder} x Powder""")
@@ -179,9 +179,9 @@ def replace_request(update: Update, context: CallbackContext):
     m = re.search('\/s\/(.*)\/(.*)', update.message.text)    
     if m != None:
         if update.message.reply_to_message != None and update.message.reply_to_message.text != "":
-            bot.send_message(cid, update.message.reply_to_message.text.replace(m.group(1), m.group(2)))
+            await bot.send_message(cid, update.message.reply_to_message.text.replace(m.group(1), m.group(2)))
         else:
-            bot.send_message(cid, "Tenes que hacer reply a un mensaje para que funcione!")
+            await bot.send_message(cid, "Tenes que hacer reply a un mensaje para que funcione!")
 
 def main():
     updater = Updater(REPORT_BOT_TOKEN, use_context=True)

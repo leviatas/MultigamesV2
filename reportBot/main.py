@@ -33,7 +33,7 @@ if REPORT_BOT_TOKEN is None:
 def command_start(update: Update, context: CallbackContext):
 	bot = context.bot
 	cid = update.message.chat_id
-	bot.send_message(cid, "Space Explorer Companion bot.")
+	await bot.send_message(cid, "Space Explorer Companion bot.")
 
 def command_reports(update: Update, context: CallbackContext):
     bot = context.bot
@@ -43,7 +43,7 @@ def command_reports(update: Update, context: CallbackContext):
     txt = f"{reports[0]}\n"
     for reporte in reports[1]:
         txt += f"{reporte.get_formated_report()}\n"
-    bot.send_message(cid, txt)
+    await bot.send_message(cid, txt)
 
 def command_getme(update: Update, context: CallbackContext):
     uid = update.effective_user.id
@@ -54,7 +54,7 @@ def command_getme(update: Update, context: CallbackContext):
         mensaje = result[0]
     else:
         mensaje = result[1][0].get_call()
-    bot.send_message(cid, mensaje, ParseMode.MARKDOWN)
+    await bot.send_message(cid, mensaje, ParseMode.MARKDOWN)
 
 def command_getusers(update: Update, context: CallbackContext):
     uid = update.effective_user.id
@@ -66,7 +66,7 @@ def command_getusers(update: Update, context: CallbackContext):
     for reporte in usuarios:
         txt += f"{reporte.get_call()}\n"
     
-    bot.send_message(cid, txt, ParseMode.MARKDOWN)
+    await bot.send_message(cid, txt, ParseMode.MARKDOWN)
 
 
 
@@ -88,7 +88,7 @@ def command_last(update: Update, context: CallbackContext):
     txt = f"{users_with_missing_reports[0]}\n"
     for usuario in users_with_missing_reports[1]:
         txt += f"{usuario.get_call()}\n"
-    bot.send_message(cid, txt, ParseMode.MARKDOWN)
+    await bot.send_message(cid, txt, ParseMode.MARKDOWN)
 
 def report_added(update: Update, context: CallbackContext):
     bot = context.bot
@@ -103,7 +103,7 @@ def report_added(update: Update, context: CallbackContext):
     m = re.search('(?<!\n)(.+)(\[.+\])(.+) ⚔:(\d+).+🛡:(\d+).+Lvl: (\d+)\n.+\n🔥Exp: (\d+)\n💰Gold: (-?\d+)(?:\n📦Stock: (-?\d+)\n)?(?:❤️Hp: -?(\d+))?', update.message.text)
     
     if m == None:
-        bot.send_message(uid, "El reporte no es válido, posiblemente es un reporte de monstruo.")
+        await bot.send_message(uid, "El reporte no es válido, posiblemente es un reporte de monstruo.")
 
     fecha_batalla = 23 if (forward_date.time() < datetime.time(7,0,0) or forward_date.time() > datetime.time(23,0,0)) else \
                     (7 if forward_date.time() < datetime.time(15,0,0) else 15)
@@ -129,9 +129,9 @@ def report_added(update: Update, context: CallbackContext):
                 defense, player_level, experience, gold, stock, lost_hp)
     result = save_report(report)
 
-    bot.send_message(uid, result)
+    await bot.send_message(uid, result)
 
-    bot.send_message(uid, 
+    await bot.send_message(uid, 
 f"Reporte enviado del bot *{forward_from_name} Id: ({forward_from_id})*\n\
 Reporte de la batalla de las *{report_date}*\n\
 El usuario es del castillo {castle}\n\
@@ -150,7 +150,7 @@ El mensaje original es\n\
     # Obtengo el id del usuario que esta enviando el reporte
     # y lo asocio a la cuenta de CW que lo envia si todavia no esta agregado    
     result = save_user(UserModel(uid, chat_wars_name))
-    #bot.send_message(uid, result)
+    #await bot.send_message(uid, result)
 
 def reply_time(update: Update, context: CallbackContext):
     bot = context.bot
@@ -165,7 +165,7 @@ def reply_time(update: Update, context: CallbackContext):
 
     chat_data = context.chat_data
 
-    bot.send_message(cid, f"Forward from {forward_from_name} {forward_date}", ParseMode.MARKDOWN)
+    await bot.send_message(cid, f"Forward from {forward_from_name} {forward_date}", ParseMode.MARKDOWN)
 
 def begin_count(update: Update, context: CallbackContext):
     bot = context.bot
@@ -182,7 +182,7 @@ def begin_count(update: Update, context: CallbackContext):
 
     chat_data["begin"] = forward_date
 
-    bot.send_message(cid, f"Forward from {forward_from_name} {forward_date}", ParseMode.MARKDOWN)
+    await bot.send_message(cid, f"Forward from {forward_from_name} {forward_date}", ParseMode.MARKDOWN)
 
 def time_passed(update: Update, context: CallbackContext):
     bot = context.bot
@@ -194,9 +194,9 @@ def time_passed(update: Update, context: CallbackContext):
         now = update.message.date
         #nowapp = datetime.datetime.now(datetime.timezone.utc)
         diff = now - chat_data["begin"]
-        bot.send_message(cid, f"Time passed {diff}", ParseMode.MARKDOWN)
+        await bot.send_message(cid, f"Time passed {diff}", ParseMode.MARKDOWN)
     else:
-        bot.send_message(cid, f"You have to do /begin_time in a forwarded message", ParseMode.MARKDOWN)
+        await bot.send_message(cid, f"You have to do /begin_time in a forwarded message", ParseMode.MARKDOWN)
     
 
 def main():

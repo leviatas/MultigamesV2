@@ -27,7 +27,7 @@ class Board(BaseBoard):
 		# Se seteara en difficultad el doom inicial
 		self.state = State()
 	
-	def print_board(self, bot, game):
+	async def print_board(self, bot, game):
 		#import Arcana.Controller as ArcanaController
 		board = ""
 		board += "--- *Estado de Partida Turno {}* ---\n".format(game.turncount)		
@@ -46,7 +46,7 @@ class Board(BaseBoard):
 			board = board[:-3]
 			board += u"\U0001F501"
 			board += "\n\n"
-		bot.send_message(game.cid, board, parse_mode=ParseMode.MARKDOWN)
+		await bot.send_message(game.cid, board, parse_mode=ParseMode.MARKDOWN)
 	
 	def new_wave_card(self):
 		# I discard the previous wave_card

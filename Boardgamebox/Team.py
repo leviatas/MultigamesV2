@@ -36,8 +36,8 @@ class Team(object):
 				call_other_players += "{} ".format(player_call(player))
 		return call_other_players
 	
-	def communicate_team(self, bot, message, exclude = [], messanger = "", groupName = ""):		
+	async def communicate_team(self, bot, message, exclude = [], messanger = "", groupName = ""):		
 		final_message = "{}{}".format("*{} ({})*: ".format(messanger,groupName) if messanger != "" else "", message)
 		for player in self.player_sequence:
 			if player.uid not in exclude:
-				bot.send_message(player.uid, final_message, ParseMode.MARKDOWN)
+				await bot.send_message(player.uid, final_message, parse_mode=ParseMode.MARKDOWN)

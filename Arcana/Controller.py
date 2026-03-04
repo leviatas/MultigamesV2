@@ -43,21 +43,21 @@ logger = log.getLogger(__name__)
 
 debugging = False
 
-def init_game(bot, game):
+async def init_game(bot, game):
 	try:
 		log.info('init_say_anything called')	
 		game.shuffle_player_sequence()
 		# Seteo las palabras	
 		call_diff_buttons(bot, game)
 	except Exception as e:
-		bot.send_message(game.cid, 'No se ejecuto el comando debido a: '+str(e))
+		await bot.send_message(game.cid, 'No se ejecuto el comando debido a: '+str(e))
 
-def call_diff_buttons(bot, game):
+async def call_diff_buttons(bot, game):
 	#log.info('call_dicc_buttons called')
 	opciones_botones = DIFFICULTAD
 	simple_choose_buttons(bot, game.cid, 1234, game.cid, "choosediccAR", "Elija difficultad para jugar", opciones_botones)
 	
-def callback_finish_config(update: Update, context: CallbackContext):
+async def callback_finish_config(update: Update, context: CallbackContext):
 	bot = context.bot
 	log.info('callback_finish_config_sayanything called')
 	callback = update.callback_query
@@ -76,16 +76,16 @@ def callback_finish_config(update: Update, context: CallbackContext):
 		game.configs['difficultad'] = opcion
 		finish_config(bot, game, opcion)
 	except Exception as e:
-		bot.send_message(ADMIN[0], 'No se ejecuto el comando debido a: '+str(e))
-		bot.send_message(ADMIN[0], callback.data)
+		await bot.send_message(ADMIN[0], 'No se ejecuto el comando debido a: '+str(e))
+		await bot.send_message(ADMIN[0], callback.data)
 
 # list_total lista con todos los elementos
 # list_a_restar Elementos a restar a list_total
-def list_menos_list(list_total, list_a_restar):
+async def list_menos_list(list_total, list_a_restar):
 	return [x for x in list_total if x not in list_a_restar]
 
 
-def finish_config(bot, game, opcion):
+async def finish_config(bot, game, opcion):
 	log.info('finish_config called')
 	# Seteo la difficultad
 	# Si es modo Hardcore...
@@ -104,7 +104,7 @@ def finish_config(bot, game, opcion):
 # start_round / Draw Fates -> Play Fate -> Predict or Pass ->   Resolve  -> Fade
 #  ---------------"Jugar Fate"---------     --Predecir ---     ----Resolver------
 	
-def start_round(bot, game):
+async def start_round(bot, game):
 	log.info('start_round_Arcana called')
 	cid = game.cid	
 	# Se marca al jugador activo
@@ -120,32 +120,32 @@ def start_round(bot, game):
 	
 	draw_fates_player(bot, game, game.board.state.active_player)
 	game.board.state.fase_actual = "Jugar Fate"
-	save(bot, game.cid)
+	await save(bot, game.cid)
 	
 	show_fates_active_player(bot, game)	
 	#send_buttons_active_player(bot, game)
-	#bot.send_message(cid, game.board.print_board(game), ParseMode.MARKDOWN)
+	#await bot.send_message(cid, game.board.print_board(game), ParseMode.MARKDOWN)
 	game.board.print_board(bot, game)
 	msg = "{} tienes que poner un destino sobre alguna Arcana!".format(player_call(game.board.state.active_player))
-	bot.send_message(game.cid, msg, ParseMode.MARKDOWN)
+	await bot.send_message(game.cid, msg, ParseMode.MARKDOWN)
 	#print_board(bot, game)
 	
 	show_player_fate_tokens_active_player(bot, game)
 
-def show_board(bot, game):
+async def show_board(bot, game):
 	game.board.print_board(bot, game)
 	show_fates_active_player(bot, game)
 	
-def draw_fates_player(bot, game, player):
+async def draw_fates_player(bot, game, player):
 	# El jugador obtiene hasta 2 
 	draw_tokens = 2-len(player.fateTokens)	
 	for i in range(draw_tokens):
 		player.fateTokens.append(game.board.draw_fate_token())
 	player.amount_tokens_draw = draw_tokens
 	msg = "El jugador *{}* ha robado *{}* tokens de destino".format(player.name, draw_tokens)
-	bot.send_message(game.cid, msg, parse_mode=ParseMode.MARKDOWN)	
+	await bot.send_message(game.cid, msg, parse_mode=ParseMode.MARKDOWN)	
 	game.history.append(msg)
-def show_fates_active_player(bot, game):
+async def show_fates_active_player(bot, game):
 	log.info('show_fates_active_player called')
 	cid = game.cid
 	active_player = game.board.state.active_player
@@ -163,9 +163,9 @@ def show_fates_active_player(bot, game):
 		btns.append([create_fate_button(fate, cid, active_player.uid, index, "chooseFateAR", texto_alternativo)])
 		index += 1
 	btnMarkup = InlineKeyboardMarkup(btns)
-	bot.send_message(active_player.uid, mensaje, parse_mode=ParseMode.MARKDOWN, reply_markup=btnMarkup)
+	await bot.send_message(active_player.uid, mensaje, parse_mode=ParseMode.MARKDOWN, reply_markup=btnMarkup)
 
-def show_player_fate_tokens_active_player(bot, game, message_id = None):
+async def show_player_fate_tokens_active_player(bot, game, message_id = None):
 	log.info('show_player_fate_tokens_active_player called')
 	cid = game.cid
 	active_player = game.board.state.active_player
@@ -180,9 +180,9 @@ def show_player_fate_tokens_active_player(bot, game, message_id = None):
 		bot.edit_message_text(mensaje, chat_id=cid, message_id=message_id, 
 				      parse_mode=ParseMode.MARKDOWN, reply_markup=btnMarkup)
 	else:
-		bot.send_message(cid, mensaje, parse_mode=ParseMode.MARKDOWN, reply_markup=btnMarkup, timeout=30)
+		await bot.send_message(cid, mensaje, parse_mode=ParseMode.MARKDOWN, reply_markup=btnMarkup, timeout=30)
 
-def callback_toggle_fate_action(bot, cid, opcion, index, uid, message_id):
+async def callback_toggle_fate_action(bot, cid, opcion, index, uid, message_id):
 	game = get_game(cid)
 	active_player = game.board.state.active_player
 	# El active player no puede usar el comando.
@@ -191,7 +191,7 @@ def callback_toggle_fate_action(bot, cid, opcion, index, uid, message_id):
 		choose_fate["Enable"] = False if choose_fate["Enable"] else True
 		show_player_fate_tokens_active_player(bot, game, message_id)
 		
-def callback_choose_fate(update: Update, context: CallbackContext):
+async def callback_choose_fate(update: Update, context: CallbackContext):
 	bot = context.bot
 	user_data = context.user_data
 	callback = update.callback_query
@@ -205,7 +205,7 @@ def callback_choose_fate(update: Update, context: CallbackContext):
 		game = get_game(cid)
 		
 		if game.board.state.fase_actual != "Jugar Fate" or uid != game.board.state.active_player.uid:
-			bot.send_message(cid, "No es el momento de jugar destino o no eres el que tiene que jugar el fate", ParseMode.MARKDOWN)
+			await bot.send_message(cid, "No es el momento de jugar destino o no eres el que tiene que jugar el fate", ParseMode.MARKDOWN)
 				
 		active_player = game.board.state.active_player
 		fate = active_player.fateTokens[index]
@@ -229,13 +229,13 @@ def callback_choose_fate(update: Update, context: CallbackContext):
 		datos = str(cid) + "*chooseArcanaAR*Cancelar*" + str(-1)
 		btns.append([InlineKeyboardButton("Cancelar", callback_data=datos)])
 		btnMarkup = InlineKeyboardMarkup(btns)
-		bot.send_message(uid, "Partida {}\n*Elige en que Arcana quieres ponerlo.*:".format(game.groupName), parse_mode=ParseMode.MARKDOWN, reply_markup=btnMarkup)
+		await bot.send_message(uid, "Partida {}\n*Elige en que Arcana quieres ponerlo.*:".format(game.groupName), parse_mode=ParseMode.MARKDOWN, reply_markup=btnMarkup)
 		
 	except Exception as e:
-		bot.send_message(ADMIN[0], 'No se ejecuto el comando de callback_choose_fate debido a: '+str(e))
-		bot.send_message(ADMIN[0], callback.data)
+		await bot.send_message(ADMIN[0], 'No se ejecuto el comando de callback_choose_fate debido a: '+str(e))
+		await bot.send_message(ADMIN[0], callback.data)
 
-def callback_choose_arcana(update: Update, context: CallbackContext):
+async def callback_choose_arcana(update: Update, context: CallbackContext):
 	bot = context.bot
 	user_data = context.user_data
 	callback = update.callback_query
@@ -243,13 +243,13 @@ def callback_choose_arcana(update: Update, context: CallbackContext):
 	#log.info('callback_finish_game_buttons called: %s' % callback.data)	
 	regex = re.search("(-[0-9]*)\*chooseArcanaAR\*(.*)\*(-?[0-9]*)", callback.data)
 	cid, strcid, opcion, index = int(regex.group(1)), regex.group(1), regex.group(2), int(regex.group(3))
-	#bot.send_message(ADMIN[0], struid)
+	#await bot.send_message(ADMIN[0], struid)
 
 	uid = update.effective_user.id
 	game = get_game(cid)
 	try:	
 		if game.board.state.fase_actual != "Jugar Fate" or uid != game.board.state.active_player.uid:
-			bot.send_message(cid, "No es el momento de jugar destino o no eres el que tiene que jugar el fate", ParseMode.MARKDOWN)
+			await bot.send_message(cid, "No es el momento de jugar destino o no eres el que tiene que jugar el fate", ParseMode.MARKDOWN)
 
 		if index == -1:
 			bot.edit_message_text("Accion cancelada se vuelven a enviar destinos\n", uid, callback.message.message_id)
@@ -279,7 +279,7 @@ def callback_choose_arcana(update: Update, context: CallbackContext):
 				for valid_arcana_fates in valid_arcanas_fates:
 					msg += "Arcana: *{}*, Poner fate: *{}*.\n".format(
 						valid_arcana_fates[0]["Título"], valid_arcana_fates[1]["Texto"])									
-				bot.send_message(uid, msg, ParseMode.MARKDOWN)
+				await bot.send_message(uid, msg, ParseMode.MARKDOWN)
 				is_legal_arcana = False
 				
 		if not is_legal_arcana:
@@ -317,32 +317,32 @@ def callback_choose_arcana(update: Update, context: CallbackContext):
 		arcana['tokens'].append(chosen_fate)		
 		game.board.state.active_player.fateTokens.remove(chosen_fate)
 		game.board.state.fase_actual = "Predecir"
-		save(bot, game.cid)
+		await save(bot, game.cid)
 		game.board.print_board(bot, game)		
-		bot.send_message(cid, mensaje_final, ParseMode.MARKDOWN, timeout=30)
+		await bot.send_message(cid, mensaje_final, ParseMode.MARKDOWN, timeout=30)
 		show_player_fate_tokens_active_player(bot, game)
 	except Exception as e:
-		bot.send_message(ADMIN[0], 'No se ejecuto el comando de callback_choose_arcana debido a: '+str(e))
-		bot.send_message(ADMIN[0], callback.data)
+		await bot.send_message(ADMIN[0], 'No se ejecuto el comando de callback_choose_arcana debido a: '+str(e))
+		await bot.send_message(ADMIN[0], callback.data)
 
 # Acciones particulares de la Arcana Sacar.
-def aditional_actions_arcanas(bot, game, index, arcana, titulo, texto, uid, callback, mensaje, chosen_fate):
+async def aditional_actions_arcanas(bot, game, index, arcana, titulo, texto, uid, callback, mensaje, chosen_fate):
 	stop_flow = False
 	if arcana["Título"] == "Sacar":	
 		arcana['tokens'].append(chosen_fate)		
 		game.board.state.active_player.fateTokens.remove(chosen_fate)
 		game.history.append(mensaje)
-		bot.send_message(game.cid, mensaje, ParseMode.MARKDOWN)
+		await bot.send_message(game.cid, mensaje, ParseMode.MARKDOWN)
 		game.board.state.used_sacar = True
 		draw_fates_player(bot, game, game.board.state.active_player)
 		show_fates_active_player(bot, game)
-		save(bot, game.cid)
+		await save(bot, game.cid)
 		stop_flow = True
 	if arcana["Título"] == "Adivinar":
 		game.board.state.extraGuess += 1		
 	return stop_flow
 	
-def create_fate_button(fate, cid, uid, index, comando_callback = "chooseFateAR", alternative_text = None):
+async def create_fate_button(fate, cid, uid, index, comando_callback = "chooseFateAR", alternative_text = None):
 	texto = fate["Texto"]
 	horas = fate["TimeSymbols"]
 	# Los tokens de recordatorio de usuario tienen enable en ellos.
@@ -360,7 +360,7 @@ def create_fate_button(fate, cid, uid, index, comando_callback = "chooseFateAR",
 	else:
 		return InlineKeyboardButton(txtBoton, callback_data=datos)	
 	
-def resolve(bot, game, prediccion = []):	
+async def resolve(bot, game, prediccion = []):	
 	# Si los jugadores hicieron una prediccion (se pasa el argumento como string)
 	good_prediction = False
 	
@@ -370,11 +370,11 @@ def resolve(bot, game, prediccion = []):
 			# Si predicen bien el faden no aumenta el doom.
 			game.board.state.score += 1
 			good_prediction = True
-			bot.send_message(game.cid, "*Correcto!* El destino que tenia el jugador era {}, se gana 1 punto!"
+			await bot.send_message(game.cid, "*Correcto!* El destino que tenia el jugador era {}, se gana 1 punto!"
 					 .format(fate_quedaba["Texto"]), ParseMode.MARKDOWN)
 		else:			
 			game.board.state.doom  += 1
-			bot.send_message(game.cid, "*Incorrecto!* El destino que tenia el jugador era {}"
+			await bot.send_message(game.cid, "*Incorrecto!* El destino que tenia el jugador era {}"
 					 .format(fate_quedaba["Texto"]), ParseMode.MARKDOWN)	
 		game.board.fateTokens.append(fate_quedaba)
 		for fate in game.board.state.active_player.playerFateTokens:
@@ -390,10 +390,10 @@ def resolve(bot, game, prediccion = []):
 			fadding_arcana(arcanasOnTable, arcana_on_table, game, good_prediction)
 			msg = "La Arcana *{}* se ha desvanecido".format(arcana_on_table["Título"])
 			game.history.append(msg)
-			bot.send_message(game.cid, msg, ParseMode.MARKDOWN)
+			await bot.send_message(game.cid, msg, ParseMode.MARKDOWN)
 	start_next_round(bot, game)			
 	
-def fadding_arcana(arcanasOnTable, arcana_on_table, game, good_prediction):
+async def fadding_arcana(arcanasOnTable, arcana_on_table, game, good_prediction):
 	indice = arcanasOnTable.index(arcana_on_table)
 	# Regreso los tokens de destino a la bolsa
 	game.board.fateTokens.extend(arcana_on_table['tokens'])
@@ -411,7 +411,7 @@ def fadding_arcana(arcanasOnTable, arcana_on_table, game, good_prediction):
 		game.board.arcanaCards.extend(game.board.state.discardedArcanas)
 		game.board.state.discardedArcanas = []
 		
-def start_next_round(bot, game):
+async def start_next_round(bot, game):
 	log.info('Verifing End_Game called')
 	try:
 		diffMode = game.configs.get('difficultadNombre', "Normal")
@@ -421,18 +421,18 @@ def start_next_round(bot, game):
 		# Si no quedan cartas se termina el juego y se muestra el puntaje.
 		mensaje = "Juego finalizado!:\n*{0}*".format(game.board.print_result(game))
 		game.board.state.fase_actual = "Finalizado"
-		save(bot, game.cid)
-		bot.send_message(game.cid, mensaje, ParseMode.MARKDOWN)
+		await save(bot, game.cid)
+		await bot.send_message(game.cid, mensaje, ParseMode.MARKDOWN)
 		continue_playing(bot, game)
 		return
 	increment_player_counter(game)
 	start_round(bot, game)
 
-def continue_playing(bot, game):
+async def continue_playing(bot, game):
 	opciones_botones = { "Nuevo" : "Cambiar jugadores", "Misma Dificultad" : "Misma Dificultad", "Cambiar Dificultad" : "Cambiar Dificultad"}
 	simple_choose_buttons(bot, game.cid, 1, game.cid, "chooseendAR", "¿Quieres continuar jugando?", opciones_botones)
 	
-def callback_finish_game_buttons(update: Update, context: CallbackContext):
+async def callback_finish_game_buttons(update: Update, context: CallbackContext):
 	bot = context.bot
 	callback = update.callback_query
 	try:		
@@ -469,7 +469,7 @@ def callback_finish_game_buttons(update: Update, context: CallbackContext):
 		GamesController.games[cid] = game
 		
 		if opcion == "Nuevo":
-			bot.send_message(cid, "Cada jugador puede unirse al juego con el comando /join.\nEl iniciador del juego (o el administrador) pueden unirse tambien y escribir /startgame cuando todos se hayan unido al juego!")			
+			await bot.send_message(cid, "Cada jugador puede unirse al juego con el comando /join.\nEl iniciador del juego (o el administrador) pueden unirse tambien y escribir /startgame cuando todos se hayan unido al juego!")			
 			return
 		#log.info('Llego hasta la creacion')		
 		for uid in players:		
@@ -488,17 +488,17 @@ def callback_finish_game_buttons(update: Update, context: CallbackContext):
 			#(Beta) Nuevo Partido, mismos jugadores, diferente diccionario
 			call_diff_buttons(bot, game)				
 	except Exception as e:
-		bot.send_message(ADMIN[0], 'No se ejecuto el comando debido a: '+str(e))
-		bot.send_message(ADMIN[0], callback.data)
+		await bot.send_message(ADMIN[0], 'No se ejecuto el comando debido a: '+str(e))
+		await bot.send_message(ADMIN[0], callback.data)
 	
-def callback_txt_arcana(update: Update, context: CallbackContext):
+async def callback_txt_arcana(update: Update, context: CallbackContext):
 	bot = context.bot
 	callback = update.callback_query
 	try:		
 		#log.info('callback_txt_arcana called: %s' % callback.data)
 		regex = re.search(r"(-[0-9]*)\*txtArcanaAR\*(.*)\*(-?[0-9]*)", callback.data)
 		opcion, index = regex.group(2), int(regex.group(3))
-		#bot.send_message(ADMIN[0], struid)
+		#await bot.send_message(ADMIN[0], struid)
 		faded = False
 		if opcion == "Las horas":
 			arcana = LASHORAS
@@ -516,11 +516,11 @@ def callback_txt_arcana(update: Update, context: CallbackContext):
 			titulo = arcana["Título"]
 		update.callback_query.answer(text="{}: {}".format(titulo, texto), show_alert=True)
 	except Exception as e:
-		bot.send_message(ADMIN[0], 'No se ejecuto el comando de callback_txt_arcana debido a: '+str(e))
-		bot.send_message(ADMIN[0], callback.data)
+		await bot.send_message(ADMIN[0], 'No se ejecuto el comando de callback_txt_arcana debido a: '+str(e))
+		await bot.send_message(ADMIN[0], callback.data)
 
 # Si se usa la accion se descarta al final.
-def use_fadded_action(bot, game, uid, elegido):
+async def use_fadded_action(bot, game, uid, elegido):
 	arcana = game.board.state.fadedarcanasOnTable[elegido]
 	# Verifico que puede usarla y aparte no se haya usado una ya.
 	if can_use_fadded(bot, game, uid, arcana) and not game.board.state.used_fate_power:
@@ -547,11 +547,11 @@ def use_fadded_action(bot, game, uid, elegido):
 				game.board.state.discardedArcanas.append(arcana)
 				#game.board.arcanaCards.append(arcana)				
 				game.board.state.used_fate_power = True
-				bot.send_message(game.cid, "Se ha removido la arcana *{}* con habilidad *{}*".format(arcana["Título reverso"], arcana["Texto reverso"]), ParseMode.MARKDOWN)						
+				await bot.send_message(game.cid, "Se ha removido la arcana *{}* con habilidad *{}*".format(arcana["Título reverso"], arcana["Texto reverso"]), ParseMode.MARKDOWN)						
 			elif done == 0:
-				bot.send_message(game.cid, "Se esta ejecutandola arcana *{}*".format(arcana["Título reverso"]), ParseMode.MARKDOWN)						
+				await bot.send_message(game.cid, "Se esta ejecutandola arcana *{}*".format(arcana["Título reverso"]), ParseMode.MARKDOWN)						
 			else:
-				bot.send_message(game.cid, "No puedes usar esta arcana ahora o Funcionalidad de *{}* en *Construcción*".format(arcana["Título reverso"]), ParseMode.MARKDOWN)
+				await bot.send_message(game.cid, "No puedes usar esta arcana ahora o Funcionalidad de *{}* en *Construcción*".format(arcana["Título reverso"]), ParseMode.MARKDOWN)
 		else:
 			# Por el momento el resto se ejecutaran directamente.
 			game.board.state.used_fate_power = True
@@ -560,16 +560,16 @@ def use_fadded_action(bot, game, uid, elegido):
 			arcana['tokens'] = []
 			#game.board.arcanaCards.append(arcana)
 			game.board.state.discardedArcanas.append(arcana)
-			bot.send_message(game.cid, "Se ha removido la arcana *{}* con habilidad *{}*".format(arcana["Título reverso"], arcana["Texto reverso"]), ParseMode.MARKDOWN)		
-		save(bot, game.cid)
+			await bot.send_message(game.cid, "Se ha removido la arcana *{}* con habilidad *{}*".format(arcana["Título reverso"], arcana["Texto reverso"]), ParseMode.MARKDOWN)		
+		await save(bot, game.cid)
 	else:
-		bot.send_message(game.cid, "No se puede/No puedes usar este poder en este momento", ParseMode.MARKDOWN)
+		await bot.send_message(game.cid, "No se puede/No puedes usar este poder en este momento", ParseMode.MARKDOWN)
 
-def plusOneAction(bot, game, uid):
+async def plusOneAction(bot, game, uid):
 	game.board.state.plusOneEnable = True
 	game.history.append("Se ha usado +1 en la arcana no utilizada.")
 	return 1
-def ciclar_action(bot, game, uid):
+async def ciclar_action(bot, game, uid):
 	log.info('ciclar_action called')
 	arcanas_con_fate = [arcana["Título"] for arcana in game.board.state.arcanasOnTable if len(arcana['tokens']) > 0 ]
 	arcanas_con_fate.append("Las horas")
@@ -578,27 +578,27 @@ def ciclar_action(bot, game, uid):
 		return False
 				
 	btnMarkup = create_arcanas_buttons(bot, game, "Ciclar", uid, restrict = arcanas_con_fate)
-	bot.send_message(uid, "Partida {}\n*Elige Arcana a descartar:*".format(game.groupName), parse_mode=ParseMode.MARKDOWN, reply_markup=btnMarkup)
+	await bot.send_message(uid, "Partida {}\n*Elige Arcana a descartar:*".format(game.groupName), parse_mode=ParseMode.MARKDOWN, reply_markup=btnMarkup)
 	
 	return 0
 
 # Mostrar destinos Arcana (Cancel muestra arcanas)
 # Verificar que el destino a eliminar sea menor al destino restante
-def descartarmenor_action(bot, game, uid):
+async def descartarmenor_action(bot, game, uid):
 	log.info('descartarmenor_action called')
 	fate_quedaba = int(game.board.state.active_player.fateTokens[0]["Texto"])
 	# Se filtran arcanas que no tengan tokens o cuyos tokens sean todos mayores o iguales al restante.
 	restringir_arcanas = [arcana["Título"] for arcana in game.board.state.arcanasOnTable 
 			      if (len(arcana['tokens']) == 0 or all(fate_quedaba <= int(token["Texto"]) for token in arcana['tokens']))]	
 	btnMarkup = create_arcanas_buttons(bot, game, "DescartarMenor", uid, restrict = restringir_arcanas)
-	bot.send_message(uid, "Partida {}\n*Elige Arcana para sacar destino.*:".format(game.groupName), parse_mode=ParseMode.MARKDOWN, reply_markup=btnMarkup)
+	await bot.send_message(uid, "Partida {}\n*Elige Arcana para sacar destino.*:".format(game.groupName), parse_mode=ParseMode.MARKDOWN, reply_markup=btnMarkup)
 	return 0
 
-def reubicar_action(bot, game, uid):
+async def reubicar_action(bot, game, uid):
 	log.info('reubicar_action called')
 	restringir_arcanas = [arcana["Título"] for arcana in game.board.state.arcanasOnTable if len(arcana['tokens']) == 0]
 	btnMarkup = create_arcanas_buttons(bot, game, "ReubicarOrigen", uid, restrict = restringir_arcanas)
-	bot.send_message(uid, "Partida {}\n*Elige Arcana a la que quieres queitar un token*:".format(game.groupName), parse_mode=ParseMode.MARKDOWN, reply_markup=btnMarkup)
+	await bot.send_message(uid, "Partida {}\n*Elige Arcana a la que quieres queitar un token*:".format(game.groupName), parse_mode=ParseMode.MARKDOWN, reply_markup=btnMarkup)
 	return 0
 	# Botones Publicos
 	# El jugador mueve destino de una arcana a otra.
@@ -607,7 +607,7 @@ def reubicar_action(bot, game, uid):
 	# Mostrar arcanas posibles (Cancel muestra destinos de nuevo)
 	# Verificar que la arcana no sea la misma
 
-def callback_reubicar_origen_action(bot, cid, opcion, index, uid, message_id):
+async def callback_reubicar_origen_action(bot, cid, opcion, index, uid, message_id):
 	game = get_game(cid)
 	if index != -1:
 		arcana = game.board.state.arcanasOnTable[index]
@@ -618,7 +618,7 @@ def callback_reubicar_origen_action(bot, cid, opcion, index, uid, message_id):
 	else:
 		bot.edit_message_text("*Accion cancelada*", chat_id=uid, message_id=message_id, parse_mode=ParseMode.MARKDOWN)
 
-def callback_reubicar_destino_action(bot, cid, opcion, index, uid, message_id):
+async def callback_reubicar_destino_action(bot, cid, opcion, index, uid, message_id):
 	game = get_game(cid)	
 	# Chequeo que la arcana desvanecida sigue vigente
 	faded_arcana = next((x for x in game.board.state.fadedarcanasOnTable if x["Título reverso"] == 'Reubicar'), None)
@@ -637,7 +637,7 @@ def callback_reubicar_destino_action(bot, cid, opcion, index, uid, message_id):
 											  arcanaOrigen['Título'],
 											  arcanaDestino['Título'])
 		bot.edit_message_text(msg, chat_id=uid, message_id=message_id, parse_mode=ParseMode.MARKDOWN)
-		bot.send_message(cid, msg, parse_mode=ParseMode.MARKDOWN)
+		await bot.send_message(cid, msg, parse_mode=ParseMode.MARKDOWN)
 		game.history.append(msg)
 		
 		# Reseteo los valores de origen
@@ -653,7 +653,7 @@ def callback_reubicar_destino_action(bot, cid, opcion, index, uid, message_id):
 		bot.edit_message_text("*Accion cancelada*", chat_id=uid, message_id=message_id, parse_mode=ParseMode.MARKDOWN)
 
 # El jugador eligio arcana para sacar tokens de destino
-def callback_ciclar_action(bot, cid, opcion, index, uid, message_id):
+async def callback_ciclar_action(bot, cid, opcion, index, uid, message_id):
 	game = get_game(cid)
 	faded_arcana = next((x for x in game.board.state.fadedarcanasOnTable if x["Título reverso"] == 'Ciclar'), None)
 	
@@ -677,7 +677,7 @@ def callback_ciclar_action(bot, cid, opcion, index, uid, message_id):
 	else:
 		bot.edit_message_text("*Accion cancelada*", chat_id=uid, message_id=message_id, parse_mode=ParseMode.MARKDOWN)
 
-def callback_descartarmenor_elegir_destino(bot, cid, opcion, index, uid, message_id):
+async def callback_descartarmenor_elegir_destino(bot, cid, opcion, index, uid, message_id):
 	game = get_game(cid)
 	faded_arcana = next((x for x in game.board.state.fadedarcanasOnTable if x["Título reverso"] == 'Descartar menor'), None)
 	# Chequeo que la arcana desvanecida sigue vigente
@@ -691,7 +691,7 @@ def callback_descartarmenor_elegir_destino(bot, cid, opcion, index, uid, message
 	else:
 		bot.edit_message_text("*Accion cancelada*", chat_id=uid, message_id=message_id, parse_mode=ParseMode.MARKDOWN)
 
-def callback_descartarmenor_descartar_destino(bot, cid, arcana_index, fate_index, uid, message_id):
+async def callback_descartarmenor_descartar_destino(bot, cid, arcana_index, fate_index, uid, message_id):
 	game = get_game(cid)
 	faded_arcana = next((x for x in game.board.state.fadedarcanasOnTable if x["Título reverso"] == 'Descartar menor'), None)
 	# Verifico que la fadded este todavia
@@ -709,12 +709,12 @@ def callback_descartarmenor_descartar_destino(bot, cid, arcana_index, fate_index
 		bot.edit_message_text(msg, chat_id=uid, message_id=message_id, parse_mode=ParseMode.MARKDOWN)
 		game.history.append(msg)
 		game.board.print_board(bot, game)
-		bot.send_message(cid, msg, parse_mode=ParseMode.MARKDOWN)		
+		await bot.send_message(cid, msg, parse_mode=ParseMode.MARKDOWN)		
 	else:
 		bot.edit_message_text("*Accion cancelada*", chat_id=uid, message_id=message_id, parse_mode=ParseMode.MARKDOWN)	
 
 # Cuando una arcana es elegida en un boton de accion termina aca.
-def callback_choose_arcana_action(update: Update, context: CallbackContext):
+async def callback_choose_arcana_action(update: Update, context: CallbackContext):
 	bot = context.bot
 	callback = update.callback_query
 		
@@ -732,10 +732,10 @@ def callback_choose_arcana_action(update: Update, context: CallbackContext):
 	if callback_accion:
 		callback_accion(bot, cid, opcion, index, uid, callback.message.message_id)
 	else:
-		update.callback_query.answer(text="No esta definida la funcion", show_alert=True)		
+		update.callback_query.answer(text="No esta async definida la funcion", show_alert=True)		
 
 # Recibo la index de la arcana y el fate.
-def callback_reubicar_fate(bot, cid, arcana_index, fate_index, uid, message_id):
+async def callback_reubicar_fate(bot, cid, arcana_index, fate_index, uid, message_id):
 	# Recibo el id de la arcana y el token a reubicar y los guardo en el state.
 	game = get_game(cid)
 	# Chequeo que la arcana desvanecida sigue vigente
@@ -747,14 +747,14 @@ def callback_reubicar_fate(bot, cid, arcana_index, fate_index, uid, message_id):
 		# Se restrige la arcana de origen
 		restringir_arcanas = [arcana_index]
 		btnMarkup = create_arcanas_buttons(bot, game, "ReubicarDestino", uid, restrict = restringir_arcanas)
-		bot.send_message(game.board.state.active_player.uid, "Seleccione la arcana de destino", parse_mode=ParseMode.MARKDOWN, reply_markup=btnMarkup)		
+		await bot.send_message(game.board.state.active_player.uid, "Seleccione la arcana de destino", parse_mode=ParseMode.MARKDOWN, reply_markup=btnMarkup)		
 	else:
 		bot.edit_message_text("*Accion cancelada*", chat_id=uid, message_id=message_id, parse_mode=ParseMode.MARKDOWN)
 	
-	#bot.send_message(ADMIN[0], "No esta definida la funcion".format(cid, accion, opcion, index))
+	#await bot.send_message(ADMIN[0], "No esta async definida la funcion".format(cid, accion, opcion, index))
 		
 # Cuando un destino es elegido en una accion termina aca.
-def callback_choose_fate_action(update: Update, context: CallbackContext):
+async def callback_choose_fate_action(update: Update, context: CallbackContext):
 	bot = context.bot
 	callback = update.callback_query
 	try:		
@@ -775,31 +775,32 @@ def callback_choose_fate_action(update: Update, context: CallbackContext):
 		if callback_accion:
 			callback_accion(bot, cid, arcana_index, fate_index, uid, callback.message.message_id)
 		else:
-			update.callback_query.answer(text="No esta definida la funcion. Data cid {}, accion {}, opcion {}, fate_index {}, arcana_index {}"
+			update.callback_query.answer(text="No esta async definida la funcion. Data cid {}, accion {}, opcion {}, fate_index {}, arcana_index {}"
 					     .format(cid, accion, accion, fate_index, arcana_index), show_alert=True)		
 	except Exception as e:
-		bot.send_message(ADMIN[0], 'No se ejecuto el comando de callback_choose_fate_action debido a: '+str(e))
-		bot.send_message(ADMIN[0], callback.data)
-		bot.send_message(ADMIN[0], "No esta definida la funcion. Data cid {}, accion {}, opcion {}, fate_index {}, arcana_index {}".format(cid, accion, accion, fate_index, arcana_index))
+		await bot.send_message(ADMIN[0], 'No se ejecuto el comando de callback_choose_fate_action debido a: '+str(e))
+		await bot.send_message(ADMIN[0], callback.data)
+		await bot.send_message(ADMIN[0], "No esta async definida la funcion. Data cid {}, accion {}, opcion {}, fate_index {}, arcana_index {}".format(cid, accion, accion, fate_index, arcana_index))
 
 # Accion a realizar, usuario que llama a la accion, restricciones de arcanas a mostrar
-def create_arcanas_buttons(bot, game, action, uid, restrict = []):	
+async def create_arcanas_buttons(bot, game, action, uid, restrict = []):	
 	#(-?[0-9]*)\*([A-Za-z]*)ArcanaAR\*(.*)\*(-?[0-9]*)
 	#"Elige una Arcana:"
 	btns = []
 	i = 0
 	for arcana_on_table in game.board.state.arcanasOnTable:
 		if arcana_on_table["Título"] not in restrict:
- 			btns.append([game.board.create_arcana_button(
+			btns.append([game.board.create_arcana_button(
 				game.cid, arcana_on_table, i, comando_callback = "{}ArcanaAC".format(action))])
 		i += 1
+		
 	# Agrego boton cancelar
 	datos = str(game.cid) + "*{}ArcanaAC*Cancelar*".format(action) + str(-1)
 	btns.append([InlineKeyboardButton("Cancelar", callback_data=datos)])
 	return InlineKeyboardMarkup(btns)
 
 # Crea los botones de fate de una arcana
-def create_fate_buttons(bot, game, action, uid, arcana, arcana_index, greater_than, lower_than):	
+async def create_fate_buttons(bot, game, action, uid, arcana, arcana_index, greater_than, lower_than):	
 	#(-?[0-9]*)\*([A-Za-z]*)FateAR\*(.*)\*(-?[0-9]*)
 	#"Elige una Arcana:"
 	btns = []
@@ -817,14 +818,14 @@ def create_fate_buttons(bot, game, action, uid, arcana, arcana_index, greater_th
 	return InlineKeyboardMarkup(btns)
 
 
-def repetir_action(bot, game, uid):
+async def repetir_action(bot, game, uid):
 	log.info('repetir_action called')
 	# Verifico que el jugador no haya puesto en la arcana adivinar, sino
 	game.board.state.extraGuess += 1
 	game.history.append("Ahora pueden adivinar {} numeros.".format(game.board.state.extraGuess+1))
 	return 1		
 
-def action_123(bot, game, uid):
+async def action_123(bot, game, uid):
 	log.info('action_123 called')
 	fate_quedaba = game.board.state.active_player.fateTokens[0]
 	msg = ""
@@ -833,10 +834,10 @@ def action_123(bot, game, uid):
 	else:
 		msg = f"*NO*, el destino restante de {game.board.state.active_player.name} no es 1, 2 o 3"
 	game.history.append(msg)
-	bot.send_message(game.cid, msg, parse_mode=ParseMode.MARKDOWN)
+	await bot.send_message(game.cid, msg, parse_mode=ParseMode.MARKDOWN)
 	return 1
 
-def action_147(bot, game, uid):
+async def action_147(bot, game, uid):
 	log.info('action_147 called')
 	fate_quedaba = game.board.state.active_player.fateTokens[0]
 	msg = ""
@@ -845,10 +846,10 @@ def action_147(bot, game, uid):
 	else:
 		msg = f"*NO*, el destino restante de {game.board.state.active_player.name} no es 1, 4 o 7"
 	game.history.append(msg)
-	bot.send_message(game.cid, msg, parse_mode=ParseMode.MARKDOWN)
+	await bot.send_message(game.cid, msg, parse_mode=ParseMode.MARKDOWN)
 	return 1
 
-def action_345(bot, game, uid):
+async def action_345(bot, game, uid):
 	log.info('action_345 called')
 	fate_quedaba = game.board.state.active_player.fateTokens[0]
 	msg = ""
@@ -857,10 +858,10 @@ def action_345(bot, game, uid):
 	else:
 		msg = f"*NO*, el destino restante de {game.board.state.active_player.name} no es 3, 4 o 5"
 	game.history.append(msg)
-	bot.send_message(game.cid, msg, parse_mode=ParseMode.MARKDOWN)
+	await bot.send_message(game.cid, msg, parse_mode=ParseMode.MARKDOWN)
 	return 1
 
-def action_567(bot, game, uid):
+async def action_567(bot, game, uid):
 	log.info('action_567 called')
 	fate_quedaba = game.board.state.active_player.fateTokens[0]
 	msg = ""
@@ -869,10 +870,10 @@ def action_567(bot, game, uid):
 	else:
 		msg = f"*NO*, el destino restante de *{game.board.state.active_player.name}* no es 5, 6 o 7"
 	game.history.append(msg)
-	bot.send_message(game.cid, msg, parse_mode=ParseMode.MARKDOWN)
+	await bot.send_message(game.cid, msg, parse_mode=ParseMode.MARKDOWN)
 	return 1
 
-def dentroDe2_action(bot, game, uid):
+async def dentroDe2_action(bot, game, uid):
 	log.info('dentroDe2_action called')
 	fate_quedaba = int(game.board.state.active_player.fateTokens[0]["Texto"])
 	last_chosen_fate = int(game.board.state.active_player.last_chosen_fate["Texto"])
@@ -882,11 +883,11 @@ def dentroDe2_action(bot, game, uid):
 	else:
 		msg = f"*NO*, el destino restante de *{game.board.state.active_player.name}* no está dentro de 2"
 	game.history.append(msg)
-	bot.send_message(game.cid, msg, parse_mode=ParseMode.MARKDOWN)
+	await bot.send_message(game.cid, msg, parse_mode=ParseMode.MARKDOWN)
 	return 1
 
 # Acciones que se realizan al usar las fadded
-def can_use_fadded(bot, game, uid, arcana):
+async def can_use_fadded(bot, game, uid, arcana):
 	# Detecto el timing por el texto de la carta
 	texto = arcana["Texto reverso"]
 	titulo = arcana["Título reverso"]

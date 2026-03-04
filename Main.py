@@ -19,6 +19,9 @@ import requests
 # import resource
 import threading
 
+import tracemalloc
+tracemalloc.start()
+
 log.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s MultigamesV2',
     level=log.INFO)

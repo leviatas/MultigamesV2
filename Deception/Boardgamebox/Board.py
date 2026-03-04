@@ -25,7 +25,7 @@ class Board(BaseBoard):
         msg_descrp_loca = msg_descrp_loca[:-1]
         return msg_descrp_loca
 
-    def print_board(self, bot, game):
+    async def print_board(self, bot, game):
         board = "*Estado de partida:*\n"        
         for player in game.player_sequence:            
             if self.state.forense == player:
@@ -41,4 +41,4 @@ class Board(BaseBoard):
 
         board += "*Forense {} NO puedes hablar*".format(self.state.forense.name)
         board += "\nPara nueva evidencia usa /newevidence" if self.state.forense.bullet_marker == 0 else ""
-        bot.send_message(game.cid, board, parse_mode=ParseMode.MARKDOWN)
+        await bot.send_message(game.cid, board, parse_mode=ParseMode.MARKDOWN)

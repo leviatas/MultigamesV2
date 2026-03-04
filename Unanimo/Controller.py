@@ -42,23 +42,23 @@ logger = log.getLogger(__name__)
 
 debugging = False
 
-def init_game(bot, game):
+async def init_game(bot, game):
 	try:
 		log.info('init_unanimo called')		
 		game.shuffle_player_sequence()		
 		# Seteo las palabras	
 		call_dicc_buttons(bot, game)
 	except Exception as e:
-		bot.send_message(game.cid, 'No se ejecuto el comando debido a: '+str(e))
+		await bot.send_message(game.cid, 'No se ejecuto el comando debido a: '+str(e))
 
-def call_dicc_buttons(bot, game):
+async def call_dicc_buttons(bot, game):
 	#log.info('call_dicc_buttons called')
 	opciones_botones = { 
 		"original" : "Español Original"
 	}
 	simple_choose_buttons(bot, game.cid, 1234, game.cid, "choosediccUnanimo", "¿Elija un diccionario para jugar?", opciones_botones)
 		
-def callback_finish_config_unanimo(update: Update, context: CallbackContext):
+async def callback_finish_config_unanimo(update: Update, context: CallbackContext):
 	bot = context.bot
 	log.info('callback_finish_config_unanimo called')
 	callback = update.callback_query
@@ -75,15 +75,15 @@ def callback_finish_config_unanimo(update: Update, context: CallbackContext):
 		game.configs['diccionario'] = opcion
 		finish_config(bot, game)
 	except Exception as e:
-		bot.send_message(ADMIN[0], 'No se ejecuto el comando debido a: '+str(e))
-		bot.send_message(ADMIN[0], callback.data)
+		await bot.send_message(ADMIN[0], 'No se ejecuto el comando debido a: '+str(e))
+		await bot.send_message(ADMIN[0], callback.data)
 
 # list_total lista con todos los elementos
 # list_a_restar Elementos a restar a list_total
-def list_menos_list(list_total, list_a_restar):
+async def list_menos_list(list_total, list_a_restar):
 	return [x for x in list_total if x not in list_a_restar]
 		
-def finish_config(bot, game):
+async def finish_config(bot, game):
 	log.info('finish_config_unanimo called')
 	# Si vengo de un partido anterior agrego los descartes de la partida anterior.	
 	if game.configs.get('discards', None):
@@ -93,7 +93,7 @@ def finish_config(bot, game):
 	game.board.state.progreso = 0
 	start_round_unanimo(bot, game)
 
-def fill_cartas(game):
+async def fill_cartas(game):
 	opcion = game.configs['diccionario']
 	url_palabras_posibles = '/Unanimo/txt/spanish-{0}.txt'.format(opcion)	
 	with open(url_palabras_posibles, 'r') as f:
@@ -109,7 +109,7 @@ def fill_cartas(game):
 		game.board.cartas = palabras_posibles_no_repetidas[0:3]
 		game.board.cartas = [w.replace('\n', '') for w in game.board.cartas]
 
-def start_round_unanimo(bot, game):
+async def start_round_unanimo(bot, game):
 	log.info('start_round_unanimo called')
 	cid = game.cid	
 	# Se marca al jugador activo
@@ -127,22 +127,22 @@ def start_round_unanimo(bot, game):
 	palabra_elegida = game.board.cartas.pop(0)
 	game.board.state.acciones_carta_actual = palabra_elegida	
 	
-	bot.send_message(cid, game.board.print_board(game), ParseMode.MARKDOWN)	
+	await bot.send_message(cid, game.board.print_board(game), ParseMode.MARKDOWN)	
 	game.dateinitvote = datetime.datetime.now()
 	call_players_to_clue(bot, game)			
 	game.dateinitvote = datetime.datetime.now()
 	game.board.state.fase_actual = "Proponiendo Pistas"
-	save(bot, game.cid)
+	await save(bot, game.cid)
 
-def call_players_to_clue(bot, game):
+async def call_players_to_clue(bot, game):
 	for uid in game.playerlist:		
-		#bot.send_message(cid, "Enviando mensaje a: %s" % game.playerlist[uid].name)
+		#await bot.send_message(cid, "Enviando mensaje a: %s" % game.playerlist[uid].name)
 		mensaje = "Nueva palabra en el grupo {1}.\nLa palabra es: *{0}*, propone tus palabras representativas separadas por coma!".format(game.board.state.acciones_carta_actual, game.group_link_name())
-		bot.send_message(uid, mensaje, ParseMode.MARKDOWN)
+		await bot.send_message(uid, mensaje, ParseMode.MARKDOWN)
 		mensaje = "Ejemplo: Si la palabra fuese (Fiesta)\n/words Cumpleaños, Torta, Decoracion, Musica, Rock, Infantil, Luces, Velas"
-		bot.send_message(uid, mensaje, ParseMode.MARKDOWN)
+		await bot.send_message(uid, mensaje, ParseMode.MARKDOWN)
 
-def format_player_words_with_points(words, contador_filtrado):
+async def format_player_words_with_points(words, contador_filtrado):
 	formated_words = []
 	for word in words.split(","):
 		if word in contador_filtrado:
@@ -151,13 +151,13 @@ def format_player_words_with_points(words, contador_filtrado):
 			formated_words.append(f"{word}")
 	return ', '.join(formated_words)
 
-def review_clues(bot, game):
+async def review_clues(bot, game):
 	log.info('review_clues called')
 	game.dateinitvote = None
 	game.board.state.fase_actual = "Revisando Pistas"
 	# reviewer_player = game.board.state.reviewer_player
 	
-	# bot.send_message(game.cid, "El revisor {0} esta viendo las pistas".format(reviewer_player.name), ParseMode.MARKDOWN)
+	# await bot.send_message(game.cid, "El revisor {0} esta viendo las pistas".format(reviewer_player.name), ParseMode.MARKDOWN)
 		
 	# reviewer_player = game.board.state.reviewer_player
 	players_points, contador_filtrado = count_points(game.board.state.last_votes)
@@ -165,8 +165,8 @@ def review_clues(bot, game):
 	for uid_pista, words in game.board.state.last_votes.items():
 		player = game.playerlist[uid_pista]
 		txt_words += f"\n*{player.name}*:\n{format_player_words_with_points(words, contador_filtrado)}"
-	bot.send_message(game.cid, txt_words, ParseMode.MARKDOWN)
-	save(bot, game.cid)	
+	await bot.send_message(game.cid, txt_words, ParseMode.MARKDOWN)
+	await save(bot, game.cid)	
 	
 
 	text_points = ""
@@ -179,11 +179,11 @@ def review_clues(bot, game):
 	for key, value in contador_filtrado.items():
 		text_points_word += f"{key}: {value}\n"
 
-	bot.send_message(game.cid, text_points_word, ParseMode.MARKDOWN)
-	bot.send_message(game.cid, text_points, ParseMode.MARKDOWN)
+	await bot.send_message(game.cid, text_points_word, ParseMode.MARKDOWN)
+	await bot.send_message(game.cid, text_points, ParseMode.MARKDOWN)
 	start_next_round(bot, game, True)
 
-def count_points(last_votes):
+async def count_points(last_votes):
 	# lista para almacenar las palabras de todos los elementos
 	lista_palabras = []
 
@@ -210,20 +210,20 @@ def count_points(last_votes):
 	# imprimir el resultado
 	return dic_valores, contador_filtrado
 
-def calculate_winner( game):
+async def calculate_winner( game):
 	best_player = max(game.player_sequence, key=lambda x: x.points)
 	return best_player.name
 
-def start_next_round(bot, game, failed = False):
+async def start_next_round(bot, game, failed = False):
 	log.info('Verifing End_Game called')
 	if (not game.board.cartas and game.modo != 'Extreme') or (game.modo == 'Extreme' and failed):
 		# Si no quedan cartas se termina el juego y se muestra el puntaje.
 		mensaje = f"Juego finalizado! El ganador es {calculate_winner(game)}"		
 		game.board.state.fase_actual = "Finalizado"
-		save(bot, game.cid)
-		bot.send_message(game.cid, mensaje, ParseMode.MARKDOWN)
+		await save(bot, game.cid)
+		await bot.send_message(game.cid, mensaje, ParseMode.MARKDOWN)
 		continue_playing(bot, game)
-		#bot.send_message(game.cid, "Para comenzar un juego nuevo pon el comando /delete y luego /newgame", ParseMode.MARKDOWN)
+		#await bot.send_message(game.cid, "Para comenzar un juego nuevo pon el comando /delete y luego /newgame", ParseMode.MARKDOWN)
 		return
 	# Si se acabaron las cartas y esta en extreme agrego mas.
 	if not game.board.cartas:
@@ -231,12 +231,12 @@ def start_next_round(bot, game, failed = False):
 	increment_player_counter(game)
 	start_round_unanimo(bot, game)
 
-def continue_playing(bot, game):
+async def continue_playing(bot, game):
 	opciones_botones = { "Nuevo" : "Nuevo Partido con nuevos jugadores", "Mismo Diccionario" : "Mismo diccionario", "Otro Diccionario" : "Diferente diccionario"}
 	msg = "¿Quieres continuar jugando? *Modo actual {}*. Si quieres cambiar de modo debes elegir nuevo partido".format(game.modo)
 	simple_choose_buttons(bot, game.cid, 1, game.cid, "chooseendunanimo", msg, opciones_botones)
 	
-def callback_finish_game_buttons(update: Update, context: CallbackContext):
+async def callback_finish_game_buttons(update: Update, context: CallbackContext):
 	bot = context.bot
 	callback = update.callback_query
 			
@@ -274,7 +274,7 @@ def callback_finish_game_buttons(update: Update, context: CallbackContext):
 	game.configs['link'] = link
 
 	if opcion == "Nuevo":
-		bot.send_message(cid, "Cada jugador puede unirse al juego con el comando /join.\nEl iniciador del juego (o el administrador) pueden unirse tambien y escribir /startgame cuando todos se hayan unido al juego!")			
+		await bot.send_message(cid, "Cada jugador puede unirse al juego con el comando /join.\nEl iniciador del juego (o el administrador) pueden unirse tambien y escribir /startgame cuando todos se hayan unido al juego!")			
 		return
 	#log.info('Llego hasta la creacion')
 	game.playerlist = players

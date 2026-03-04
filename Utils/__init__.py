@@ -14,7 +14,7 @@ import jsonpickle
 import logging as log
 from dotenv import load_dotenv
 
-# import GamesController
+import GamesController
 
 log.basicConfig(
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -160,7 +160,7 @@ def get_config_data(game, config_name):
 	except Exception:
 		return None
 
-def simple_choose_buttons(bot, cid, uid, chat_donde_se_pregunta, comando_callback, mensaje_pregunta, opciones_botones, one_line = True, items_each_line = 3):
+async def simple_choose_buttons(bot, cid, uid, chat_donde_se_pregunta, comando_callback, mensaje_pregunta, opciones_botones, one_line = True, items_each_line = 3):
 	
 	#sleep(3)
 	btns = []
@@ -171,7 +171,7 @@ def simple_choose_buttons(bot, cid, uid, chat_donde_se_pregunta, comando_callbac
 			datos = str(cid) + "*" + comando_callback + "*" + str(key) + "*" + str(uid)
 			#log.info(datos)
 			#if comando_callback == "announce":
-			#	bot.send_message(ADMIN[0], datos)
+			#	await bot.send_message(ADMIN[0], datos)
 			btns.append([InlineKeyboardButton(txtBoton, callback_data=datos)])
 	else:
 		btn_group = []
@@ -180,7 +180,7 @@ def simple_choose_buttons(bot, cid, uid, chat_donde_se_pregunta, comando_callbac
 			datos = str(cid) + "*" + comando_callback + "*" + str(key) + "*" + str(uid)
 			
 			#if comando_callback == "announce":
-			#	bot.send_message(ADMIN[0], datos)
+			#	await bot.send_message(ADMIN[0], datos)
 			btn_group.append(InlineKeyboardButton(txtBoton, callback_data=datos))
 			if len(btn_group) == items_each_line:				
 				btns.append(btn_group)
@@ -195,16 +195,16 @@ def simple_choose_buttons(bot, cid, uid, chat_donde_se_pregunta, comando_callbac
 		game = get_game(cid)
 		if game is not None and game.is_debugging:
 			chat_donde_se_pregunta = ADMIN[0]
-		bot.send_message(chat_donde_se_pregunta, mensaje_pregunta, reply_markup=btnMarkup, parse_mode=ParseMode.MARKDOWN)
+		await bot.send_message(chat_donde_se_pregunta, mensaje_pregunta, reply_markup=btnMarkup, parse_mode=ParseMode.MARKDOWN)
 		GamesController.simple_choose_buttons_retry = False
 	except Exception as e:
 		# Si tira error y estoy debugeando intento mandar de nuevo pero si no intente anteriormente
 		game = get_game(cid)
 		if game is not None and game.is_debugging and not GamesController.simple_choose_buttons_retry:
 			GamesController.simple_choose_buttons_retry = True
-			simple_choose_buttons(bot, cid, ADMIN[0], ADMIN[0], comando_callback, mensaje_pregunta, opciones_botones, one_line, items_each_line)
+			await simple_choose_buttons(bot, cid, ADMIN[0], ADMIN[0], comando_callback, mensaje_pregunta, opciones_botones, one_line, items_each_line)
 		else:
-			bot.send_message(ADMIN[0], 'Error en simple_choose_buttons {}'.format(e))
+			await bot.send_message(ADMIN[0], 'Error en simple_choose_buttons {}'.format(e))
 
 def get_game(cid):
 	# Busco el juego actual
@@ -214,7 +214,9 @@ def get_game(cid):
 		return game
 	else:
 		# Si no esta lo busco en BD y lo pongo en GamesController.games
+		log.info('get_game called in chat {}'.format(cid))
 		game = load_game(cid)
+		log.info('Termino de cargar game')
 		if game:
 			GamesController.games[cid] = game
 			return game
@@ -325,16 +327,16 @@ def save_game(cid, groupName, game, gameType):
 		log.info('No se grabo debido al siguiente error: '+str(e))
 		conn.rollback()
 	
-def save(bot, cid, newGroupName = ''):
+async def save(bot, cid, newGroupName = ''):
 	try:		
 		#groupName = "Prueba"
 		game = GamesController.games.get(cid, None)
 		gameType = game.tipo
 		save_game(cid, game.groupName if newGroupName == '' else newGroupName , game, gameType )
-		#bot.send_message(cid, 'Se grabo correctamente.')
+		#await bot.send_message(cid, 'Se grabo correctamente.')
 		#log.info('Se grabo correctamente.')
 	except Exception as e:
-		bot.send_message(cid, 'Error al grabar '+str(e))
+		await bot.send_message(cid, 'Error al grabar '+str(e))
 
 def get_base_data2(cid, uid):
 	if uid in ADMIN:		
@@ -346,13 +348,13 @@ def get_base_data2(cid, uid):
 	else:
 		return None, None
 		
-def get_base_data(update: Update, context: CallbackContext):
+async def get_base_data(update: Update, context: CallbackContext):
 	bot = context.bot	
 	cid, uid = update.message.chat_id, update.message.from_user.id
 	if uid in ADMIN:		
 		game = get_game(cid)
 		if not game:
-			bot.send_message(cid, "No hay juego creado en este chat")
+			await bot.send_message(cid, "No hay juego creado en este chat")
 			return cid, uid, None, None
 		player = game.playerlist[uid]
 		return cid, uid, game, player
@@ -367,11 +369,11 @@ def simple_choose_buttons_only_buttons(bot, cid, uid, comando_callback, opciones
 		txtBoton = value
 		datos = str(cid) + "*" + comando_callback + "*" + str(key) + "*" + str(uid)
 		#if comando_callback == "announce":
-		#	bot.send_message(ADMIN[0], datos)
+		#	await bot.send_message(ADMIN[0], datos)
 		btns.append([InlineKeyboardButton(txtBoton, callback_data=datos)])
 	return InlineKeyboardMarkup(btns)
 
-def command_status(update: Update, context: CallbackContext):
+async def command_status(update: Update, context: CallbackContext):
 	bot = context.bot
 	# cid = update.message.chat_id
 	try:
@@ -380,7 +382,7 @@ def command_status(update: Update, context: CallbackContext):
 		message = update.effective_message
 		
 		if cid == -1001768638126 and message.text == "status":
-			bot.send_message(ADMIN[0], f'Status OK')
+			await bot.send_message(ADMIN[0], f'Status OK')
 	except Exception as e:
 		log.info('Fallo el hacer status')
 		

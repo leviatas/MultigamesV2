@@ -76,7 +76,7 @@ def get_reports(report_date = "", chat_wars_name = ""):
             log.info('Encontro resultados')
             # Si esta no se graba y retorno que que ya existe            
             for table in cur.fetchall():
-                #bot.send_message(cid, len(str(table)))
+                #await bot.send_message(cid, len(str(table)))
                 #tabla_str = str(table) 
                 #log.info(tabla_str)
                 # def __init__(self, report_date, chat_wars_name, castle, guild, attack, \

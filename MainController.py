@@ -58,6 +58,7 @@ import os
 import psycopg
 import urllib.parse
 
+import asyncio
 # Enable logging
 
 log.basicConfig(
@@ -89,52 +90,52 @@ debugging = False
 def player_call(player):
 	return "[{0}](tg://user?id={1})".format(player.name, player.uid)
 
-def init_game(bot, game):
+async def init_game(bot, game):
 	log.info('Game Init called')
 	player_number = len(game.playerlist)
 	game.board = Board(player_number, game)
-	bot.send_message(game.cid, "Juego iniciado")
+	await bot.send_message(game.cid, "Juego iniciado")
 	
 	if game.tipo == "LostExpedition":
 		game.create_board()
-		init_lost_expedition(bot, game, player_number)
+		await init_lost_expedition(bot, game, player_number)
 	elif game.tipo == "JustOne":
-		JustOneController.init_game(bot, game)
+		await JustOneController.init_game(bot, game)
 	elif game.tipo == "SayAnything":
 		game.create_board()
-		SayAnythingController.init_game(bot, game)
+		await SayAnythingController.init_game(bot, game)
 	elif game.tipo == "Arcana":
 		game.create_board()
-		ArcanaController.init_game(bot, game)
+		await ArcanaController.init_game(bot, game)
 	elif game.tipo == "Wavelength":
 		game.create_board()
-		WavelengthController.init_game(bot, game)
+		await WavelengthController.init_game(bot, game)
 	elif game.tipo == "Decrypt":
 		game.create_board()
-		DecryptController.init_game(bot, game)	
+		await DecryptController.init_game(bot, game)	
 	elif game.tipo == "Werewords":
 		game.create_board()
-		WerewordsController.init_game(bot, game)
+		await WerewordsController.init_game(bot, game)
 	elif game.tipo == "Deception":
 		game.create_board()
-		DeceptionController.init_game(bot, game)
+		await DeceptionController.init_game(bot, game)
 	elif game.tipo == "Unanimo":
 		game.create_board()
-		UnanimoController.init_game(bot, game)
+		await UnanimoController.init_game(bot, game)
 
 
-def init_lost_expedition(bot, game, player_number):
+async def init_lost_expedition(bot, game, player_number):
 	log.info('Game init_lost_expedition called')	
 	
 	if player_number == 1:		
-		bot.send_message(game.cid, "Vamos a llegar al dorado. Es un hermoso /dia!")
+		await bot.send_message(game.cid, "Vamos a llegar al dorado. Es un hermoso /dia!")
 		# Aca deberia preguntar dificultad y modulos a usar.
 		# Eso setearia la vida inicial y los personajes que tendria.
 	else:
 		# Se mezcla el orden de los jugadores.
 		game.shuffle_player_sequence()
 		# TODO Se deberia decir quien es el lider actual 
-		bot.send_message(game.cid, "Vamos a llegar al dorado. Es un hermoso /dia!")
+		await bot.send_message(game.cid, "Vamos a llegar al dorado. Es un hermoso /dia!")
  
 def increment_player_counter(game):
     log.info('increment_player_counter called')
@@ -143,7 +144,7 @@ def increment_player_counter(game):
     else:
         game.board.state.player_counter = 0
 
-def callback_announce(update: Update, context: CallbackContext):
+async def callback_announce(update: Update, context: CallbackContext):
 	bot = context.bot	
 	callback = update.callback_query
 	log.info('callback_announce called: %s' % callback.data)
@@ -179,12 +180,12 @@ def callback_announce(update: Update, context: CallbackContext):
 			
 		for uid in players.keys():
 			try:
-				bot.send_message(uid, mensaje, ParseMode.MARKDOWN)
+				await bot.send_message(uid, mensaje, ParseMode.MARKDOWN)
 			except Exception as e:
 				log.info(e)
 	except Exception as e:
-		bot.send_message(ADMIN[0], 'No se ejecuto el comando debido a: '+str(e))
-		bot.send_message(ADMIN[0], callback.data)
+		await bot.send_message(ADMIN[0], 'No se ejecuto el comando debido a: '+str(e))
+		await bot.send_message(ADMIN[0], callback.data)
 
 def getGamesByTipo(opcion):
 	games = None
@@ -210,7 +211,7 @@ def getGamesByTipo(opcion):
 				get_game(table[0])
 		# En el futuro hacer que pueda hacer anuncios globales a todos los juegos ?
 		games_restriction = [opcion]
-		#bot.send_message(uid, "Obtuvo esta cantidad de juegos: {0}".format(len(GamesController.games)))
+		#await bot.send_message(uid, "Obtuvo esta cantidad de juegos: {0}".format(len(GamesController.games)))
 		# Luego aplico
 		if opcion != "Todos":
 			games = {key:val for key, val in GamesController.games.items() if val.tipo in games_restriction}
@@ -273,9 +274,9 @@ def recover_lost_expedition(bot, update, game, uid):
 			elif game.board.state.fase_actual == "execute_actions":
 				Commands.command_continue(bot, [None, game.cid, uid])
 
-def unknown(update: Update, context: CallbackContext):
+async def unknown(update: Update, context: CallbackContext):
 	bot = context.bot
-	bot.send_message(chat_id=update.message.chat_id, text="No conozco ese comando")
+	await bot.send_message(chat_id=update.message.chat_id, text="No conozco ese comando")
 
 def add_group(update: Update, context: CallbackContext):
 	cid = update.message.chat.id
@@ -340,9 +341,9 @@ def add_user(uid, first_name):
 		conn.rollback()
 		conn.close()
 
-def remove_group(update: Update, context: CallbackContext):
+async def remove_group(update: Update, context: CallbackContext):
 	cid = update.message.chat.id
-	#bot.send_message(ADMIN[0], "Entro en remove member {}".format(groupname))
+	#await bot.send_message(ADMIN[0], "Entro en remove member {}".format(groupname))
 	member = update.message.left_chat_member	
 	bot = context.bot
 	# Cuando un miembro se va lo remuevo de la BD
@@ -354,11 +355,11 @@ def remove_group(update: Update, context: CallbackContext):
 		if uid in game.playerlist and hasattr(game, 'player_leaving'):
 			resultado = game.player_leaving(game.playerlist[uid])
 			if resultado:
-				bot.send_message(cid, text=resultado)
+				await bot.send_message(cid, text=resultado)
 
 
 	#for members in update.message.left_chat_member:
-        #	bot.send_message(ADMIN[0], text="{username} {id} add group".format(username=members.username, id=member.id))
+        #	await bot.send_message(ADMIN[0], text="{username} {id} add group".format(username=members.username, id=member.id))
 	
 def remove_member_group(cid, uid):
 	# Elimino al usuario al usuario en la tabla de usuario grupo
@@ -410,7 +411,7 @@ def get(update: Update, context: CallbackContext):
 	except KeyError:
 		update.message.reply_text('Not found')
 
-def change_groupname(update: Update, context: CallbackContext):
+async def change_groupname(update: Update, context: CallbackContext):
 	bot = context.bot
 	logger.info(update)
 	logger.info(context)
@@ -420,9 +421,9 @@ def change_groupname(update: Update, context: CallbackContext):
 	if game:
 		game.groupName = groupname
 	
-	bot.send_message(ADMIN[0], text="El group en {cid} ha cambiado de nombre a {groupname}".format(groupname=groupname, cid=cid))
+	await bot.send_message(ADMIN[0], text="El group en {cid} ha cambiado de nombre a {groupname}".format(groupname=groupname, cid=cid))
 
-def change_group_id(update: Update, context: CallbackContext):
+async def change_group_id(update: Update, context: CallbackContext):
 	bot = context.bot
 	logger.info(update)
 	logger.info(context)
@@ -432,12 +433,12 @@ def change_group_id(update: Update, context: CallbackContext):
 	if game:
 		game.groupName = groupname
 	
-	bot.send_message(ADMIN[0], text=f"El group llamado {groupname} cambio al id {cid}")
+	await bot.send_message(ADMIN[0], text=f"El group llamado {groupname} cambio al id {cid}")
 
 
-def repeat_test(context: CallbackContext):
+async def repeat_test(context: CallbackContext):
 	# Send a fixed scheduled message (JobQueue no longer accepts a `context` kwarg)
-	context.bot.send_message(chat_id=387393551, text="Mensaje programado")
+	await context.bot.send_message(chat_id=387393551, text="Mensaje programado")
 
 def get_TOKEN():	
 	conn = psycopg.connect(
@@ -790,21 +791,27 @@ def main():
 	job_que = app.job_queue
 	
 	if job_que is not None:
-		morning = datetime.time(13, 15, 0, 0, tzinfo=pytz.timezone("America/Argentina/Buenos_Aires"))
+		morning = datetime.time(14, 48, 0, 0, tzinfo=pytz.timezone("America/Argentina/Buenos_Aires"))
 		job_que.run_daily(repeat_test, morning)
-		job_que.start()
+		# job_que.start()
 	else:
 		log.warning('JobQueue not available. Install with: pip install "python-telegram-bot[job-queue]"')
 
 	# log all errors
-	app.add_error_handler(error)
-
-	app.bot.send_message(ADMIN[0], "Nueva version en linea")
+	# app.add_error_handler(error)
+	
+	app.post_init = notify_startup
 
 	# Start the Bot
 	app.run_polling(timeout=30)
 
+	#asyncio.run(app.bot.send_message(ADMIN[0], "Nueva version en linea"))
 
+async def notify_startup(application: Application):
+    await application.bot.send_message(
+        chat_id=ADMIN[0],
+        text="✅ Nueva versión en línea"
+    )
 
 
 if __name__ == '__main__':
