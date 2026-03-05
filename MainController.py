@@ -798,7 +798,7 @@ def main(stop_event):
 		log.warning('JobQueue not available. Install with: pip install "python-telegram-bot[job-queue]"')
 
 	# log all errors
-	# app.add_error_handler(error)
+	app.add_error_handler(error)
 	
 	app.post_init = notify_startup
 
