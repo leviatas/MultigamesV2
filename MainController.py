@@ -455,7 +455,7 @@ def get_TOKEN():
 	token = dbdata[1]
 	return token
 
-def inlinequery(update: Update, context: CallbackContext):
+async def inlinequery(update: Update, context: CallbackContext):
 	log.info(update)
 	log.info(CallbackContext)	
 	query = update.inline_query.query
@@ -516,7 +516,7 @@ def inlinequery(update: Update, context: CallbackContext):
 			input_message_content=InputTextMessageContent(
 			'▶️Fast fight',
 			parse_mode=ParseMode.MARKDOWN))]
-	update.inline_query.answer(results)
+	await update.inline_query.answer(results)
 
 def main(stop_event):
 #def main():
