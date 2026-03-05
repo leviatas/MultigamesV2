@@ -79,6 +79,8 @@ async def command_call(bot, game):
 			await WavelengthController.draw_choose_needle(bot, game)
 		elif game.board.state.fase_actual == "Predict_Opp_LR":
 			await WavelengthController.send_guess(bot, game)
+		elif game.board.state.fase_actual == "Finalizado":
+			await WavelengthController.continue_playing(bot, game)
 	except Exception as e:
 		await bot.send_message(game.cid, str(e))
 
@@ -140,7 +142,7 @@ async def callback_Wave(update: Update, context: CallbackContext):
 			refresh = True
 		elif dato1 == "confirm":
 			await command_pick(bot, update, ["{}".format(game.board.state.team_choosen_grade), cid, uid])
-			bot.delete_message(chat_id=cid, message_id=callback.message.message_id)
+			await bot.delete_message(chat_id=cid, message_id=callback.message.message_id)
 			return
 		
 		if game.board.state.team_choosen_grade > 180:
@@ -271,7 +273,7 @@ async def command_left_right(bot, args):
 	else:
 		await bot.send_message(uid, "El grado elegido ({}) es invalido (NO pasara con botonera)".format(args[0]))
 		
-async def check_valid_pick(args, min_value, max_calue):
+def check_valid_pick(args, min_value, max_calue):
 	return (args[0].isdigit() and (min_value <= int(args[0]) <= max_calue))
 
 async def command_reference(update: Update, context: CallbackContext):

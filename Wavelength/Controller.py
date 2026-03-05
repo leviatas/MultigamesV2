@@ -228,6 +228,7 @@ async def start_next_round(bot, game, catchup_rule):
 			return
 		game.board.state.fase_actual = "Finalizado"
 		await save(bot, game.cid)
+		await continue_playing(bot, game)
 	else:
 		# El juego continua
 		if catchup_rule == True:
