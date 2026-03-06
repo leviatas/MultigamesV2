@@ -51,7 +51,7 @@ log.basicConfig(
         level=log.INFO)
 logger = log.getLogger(__name__)
 
-def showImages(bot, cid, cartas, img_caption = ""):
+async def showImages(bot, cid, cartas, img_caption = ""):
 	images = []
 	for carta in cartas:
 		images.append(get_img_carta(carta))
@@ -72,7 +72,7 @@ def showImages(bot, cid, cartas, img_caption = ""):
 	bio.name = 'image.jpeg'
 	new_im.save(bio, 'JPEG')
 	bio.seek(0)
-	bot.send_photo(cid, photo=bio, caption=img_caption)
+	await bot.send_photo(cid, photo=bio, caption=img_caption)
 
 def get_img_carta(num_carta):
 	carta = cartas_aventura[num_carta]
@@ -572,7 +572,7 @@ async def command_show_exploration(update: Update, context: CallbackContext):
 			await bot.send_message(cid, "Exploracion Actual no tiene cartas")
 		else:
 			#ot.send_message(cid, "Exploracion Actual")
-			showImages(bot, cid, game.board.cartasExplorationActual, "Exploracion Actual")
+			await showImages(bot, cid, game.board.cartasExplorationActual, "Exploracion Actual")
 
 async def command_sort_exploration_rute(bot, args):
 	cid, uid = args[1], args[2]
@@ -607,7 +607,7 @@ async def command_swap_exploration(bot, args):
 					await bot.send_message(cid, "Elija la carta a cambiar", reply_markup=btnMarkup)
 					return "Esperar"
 				else:
-					command_swap_exploration(bot, ["Finalizado", cid, uid, game.board.state.swap_cards[0], game.board.state.swap_cards[1]])
+					await command_swap_exploration(bot, ["Finalizado", cid, uid, game.board.state.swap_cards[0], game.board.state.swap_cards[1]])
 			else:
 				await bot.send_message(cid, "Se ha decidido no hacer swap")
 				await after_command(bot, cid)
@@ -622,7 +622,7 @@ async def command_swap_exploration(bot, args):
 			await bot.send_message(cid, "Se han intercambiado las cartas %s y %s de la ruta" % (str(a), str(b)))
 			await after_command(bot, cid)			
 			if game.board.state.comando_pedido:
-				execute_actions(bot, cid, uid)
+				await execute_actions(bot, cid, uid)
 			#command_show_exploration(bot, update)
 
 async def callback_choose_swap(update: Update, context: CallbackContext):
@@ -724,7 +724,7 @@ async def command_use_skill(bot, args):
 			if not player.skills:
 				await bot.send_message(cid, "El jugador no tiene skills.")
 				if game.board.state.comando_pedido:
-					execute_actions(bot, cid, uid)
+					await execute_actions(bot, cid, uid)
 				# Si se esta ejecutando de forma automaticamente se vuelve
 			else:				
 				i = 1
@@ -755,7 +755,7 @@ async def command_use_skill(bot, args):
 			await bot.send_message(cid, "La carta de la skill ha sido utilizada y puesta en el descarte.")
 			await after_command(bot, cid)
 			if game.board.state.comando_pedido:
-				execute_actions(bot, cid, uid)
+				await execute_actions(bot, cid, uid)
 			
 		#command_show_exploration(bot, update)
 		
@@ -1019,7 +1019,7 @@ async def command_call(update: Update, context: CallbackContext):
 
 async def command_continue(bot, game, uid):		
 	if game.board.state.fase_actual == "execute_actions":
-		execute_actions(bot, game.cid, uid)
+		awaitexecute_actions(bot, game.cid, uid)
 	else:
 		await bot.send_message(game.cid, "No estas en fase de continue, prueba con /resolve")		
 	
@@ -1041,7 +1041,7 @@ async def command_worflow(update: Update, context: CallbackContext):
 		
 		await bot.send_message(cid, "Se inicia la ejecución del %s. Utilizar /continue en caso que se trabe." % tiempo_dia)
 		#showImages(bot, cid, [game.board.cartasExplorationActual[0]])
-		execute_actions(bot, cid, uid)
+		await execute_actions(bot, cid, uid)
 
 # Metodo que ira ejecutando las acciones.
 # Si una accion no tiene opciones comenzará a ejecutarla.
@@ -1078,7 +1078,7 @@ async def execute_actions(bot, cid, uid):
 				#ot.send_message(cid, "Entrado en elegir si se hace o no la accion opcional")
 				# Mando una pregunta para elegir accion.				
 				#await bot.send_message(opciones_opcional)
-				send_choose_buttons(bot, cid, uid, game, opciones_opcional)
+				await send_choose_buttons(bot, cid, uid, game, opciones_opcional)
 				return
 			elif index_opcion_actual == 2:
 				# Si es no pongo la primera opcion y comando ridiculamente alto para terminar la accion.
@@ -1121,7 +1121,7 @@ async def execute_actions(bot, cid, uid):
 						game.board.state.ejecutando_carta = False
 															
 						if game.board.state.adquirir_final:
-							command_gain_skill(bot, [0, cid, uid])
+							await command_gain_skill(bot, [0, cid, uid])
 							# Pongo en off el flag de adquirir final
 							game.board.state.adquirir_final = False
 						else:
@@ -1131,13 +1131,13 @@ async def execute_actions(bot, cid, uid):
 							await bot.send_message(cid, "Se ha terminado de resolver la carta. Continue con /resolve")
 						
 					else:
-						command_show_exploration(bot, [1,cid,uid])
+						await command_show_exploration(bot, [1,cid,uid])
 						await bot.send_message(cid, "Puede comenzar a resolver la ruta con /resolve")
 					game.board.state.fase_actual = "resolve"
 					await save(bot, cid)
 				else:
 					# Llamada recursiva con nuevo indice de accion actual
-					execute_actions(bot, cid, uid)		
+					await execute_actions(bot, cid, uid)		
 			else:
 				#Antes de comenzar a ejecutar comandos
 				# Ejecuto el proximo comando
@@ -1238,7 +1238,7 @@ async def elegir_opcion_comando(update: Update, context: CallbackContext):
 	
 	#bot.delete_message(callback.chat.id, callback.message.message_id)
 	await bot.edit_message_text("Has elegido la opcion: %s" % opcion, cid, callback.message.message_id)
-	execute_actions(bot, cid, uid)
+	await execute_actions(bot, cid, uid)
 	#except Exception as e:
 	#		await bot.send_message(cid, 'No se ejecuto el elegir_opcion_comando debido a: '+str(e))
 
@@ -1272,16 +1272,16 @@ async def ejecutar_comando(bot, cid, uid, comando, comando_argumentos, ejecutar_
 		# Si el command que quiero usar tiene args se los agrego.
 		# Le agrego los argumentos default en caso de que el metodo no me traiga algunos ya ingresados.
 		if "comando_argumentos" in comando and comando_argumentos is None:
-			getattr(sys.modules[__name__], comando["comando"])(bot, None, [comando["comando_argumentos"], cid, uid])										
+			await getattr(sys.modules[__name__], comando["comando"])(bot, None, [comando["comando_argumentos"], cid, uid])										
 		else:
 			if comando_argumentos is not None:
-				getattr(sys.modules[__name__], comando["comando"])(bot, None, [comando_argumentos, cid, uid])
+				await getattr(sys.modules[__name__], comando["comando"])(bot, None, [comando_argumentos, cid, uid])
 			else:
-				getattr(sys.modules[__name__], comando["comando"])(bot, None, [None, cid, uid])
+				await getattr(sys.modules[__name__], comando["comando"])(bot, None, [None, cid, uid])
 				
 		# Si tiene un comando a ejecutar al final del comando...
 		if ejecutar_al_final is not None:
-			getattr(sys.modules[__name__], ejecutar_al_final)(bot, game, player)		
+			await getattr(sys.modules[__name__], ejecutar_al_final)(bot, game, player)		
 	elif tipo_comando == "indicaciones":
 		# Genero los botones para preguntar al usuario.
 		strcid = str(game.cid)
@@ -1291,7 +1291,7 @@ async def ejecutar_comando(bot, cid, uid, comando, comando_argumentos, ejecutar_
 		if "player.hand" in comando["indicacion_argumentos"]:			
 			#btnMarkup = get_player_hand_buttons(player, comando, strcid)
 			btnMarkup = get_list_buttons(player.uid, player.hand, comando["comando"], strcid)
-			command_showhand(bot, [-1, cid, uid])
+			await command_showhand(bot, [-1, cid, uid])
 		elif "exploradores" in comando["indicacion_argumentos"]:
 			btns = get_player_exploradores_buttons(player, comando, strcid)
 			if "Usar carta skill" in comando["indicacion_argumentos"]:
@@ -1316,7 +1316,7 @@ async def ejecutar_comando(bot, cid, uid, comando, comando_argumentos, ejecutar_
 		await after_command(bot, cid)
 		# Si tiene un comando a ejecutar al final del comando...
 		if ejecutar_al_final is not None:
-			getattr(sys.modules[__name__], ejecutar_al_final)(bot, game, player)
+			await getattr(sys.modules[__name__], ejecutar_al_final)(bot, game, player)
 		
 	
 async def iniciar_ejecucion_comando(bot, cid, uid, comando, comando_argumentos, ejecutar_al_final):
@@ -1324,7 +1324,7 @@ async def iniciar_ejecucion_comando(bot, cid, uid, comando, comando_argumentos, 
 	# Despues de ejecutar continuo las ejecuciones si el comando no fue del tipo indicaciones
 	tipo_comando = comando["tipo"]
 	if tipo_comando != "indicaciones":
-		execute_actions(bot, cid, uid)
+		await execute_actions(bot, cid, uid)
 
 async def get_player_hand_buttons(player, comando, strcid):
 	return get_list_buttons(player.uid, player.hand, comando["comando"], strcid)
@@ -1402,7 +1402,7 @@ async def resolve(bot, cid, uid, game, player):
 			await bot.send_message(cid, "Se inicia la ejecución de proxima carta de ruta. Utilizar comando /continue en caso que se trabe. Al final se deberia resolver o adquirir la carta.")
 			showImages(bot, cid, [game.board.cartasExplorationActual[0]])
 			game.board.state.ejecutando_carta = True
-			execute_actions(bot, cid, uid)
+			await execute_actions(bot, cid, uid)
 			#except Exception as e:
 			#	await bot.send_message(cid, 'No se ejecuto el coommand_resolve_exploration2 debido a: '+str(e))
 
@@ -1422,7 +1422,7 @@ async def command_resolve_exploration2(update: Update, context: CallbackContext)
 	if game:
 		if game.board.state.index_accion_actual == 0 or game.board.state.fase_actual == "resolve":			
 			#player = game.playerlist[uid]
-			resolve(bot, cid, uid, game, player)		
+			await resolve(bot, cid, uid, game, player)		
 		else:
 			await bot.send_message(cid, "No estas en fase de resolve, prueba con /continue")
 	else:
@@ -1442,8 +1442,8 @@ async def execute_command(update: Update, context: CallbackContext):
 	await bot.edit_message_text("Has elegido la opcion: %s" % opcion, cid, callback.message.message_id)
 	#ot.send_message(cid, "%s %s %s %s" % (strcid, opcion, comando, struid ))
 	# Directamente lo ejecuto ya que tengo el argumento.
-	resultado = getattr(sys.modules[__name__], comando)(bot, update, [opcion, cid, uid])
+	resultado = await getattr(sys.modules[__name__], comando)(bot, update, [opcion, cid, uid])
 	#ot.send_message(cid, resultado)
 	# Despues de ejecutar continuo las ejecuciones. Solamente si el comando no tiene un retorno.
 	if resultado is None:
-		execute_actions(bot, cid, uid)
+		await execute_actions(bot, cid, uid)
