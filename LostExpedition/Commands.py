@@ -1019,7 +1019,7 @@ async def command_call(update: Update, context: CallbackContext):
 
 async def command_continue(bot, game, uid):		
 	if game.board.state.fase_actual == "execute_actions":
-		awaitexecute_actions(bot, game.cid, uid)
+		await execute_actions(bot, game.cid, uid)
 	else:
 		await bot.send_message(game.cid, "No estas en fase de continue, prueba con /resolve")		
 	
