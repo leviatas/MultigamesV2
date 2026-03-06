@@ -422,7 +422,7 @@ async def command_call(update: Update, context: CallbackContext):
 			if getattr(game, "call", None):
 				# Si game tiene atributo call lo utilizo
 				try:
-					game.call(context)
+					await game.call(context)
 				except Exception as e:
 					await bot.send_message(cid, "Chat {} Usuario {} Error:\n{}".format(game_chat_id, game.tipo, str(e)))
 				
