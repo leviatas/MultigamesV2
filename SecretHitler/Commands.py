@@ -756,55 +756,39 @@ def command_anarquia(update: Update, context: CallbackContext):
 		log.error("Unknown error: " + str(e))    
 		
 def command_fix(update: Update, context: CallbackContext):
-	bot = context.bot	
+	bot = context.bot
+	args = context.args
 	uid = update.message.from_user.id
 	log.info("Ingreso en FIX")
-	if uid == ADMIN:
-		cid = update.message.chat_id
-		game = get_game(cid)
+	if uid != ADMIN:
+		return
+	cid = update.message.chat_id
+	game = get_game(cid)
 
-		MainController.end_game(bot, game, 2)
+	if game is None or game.board is None:
+		bot.send_message(cid, "No hay una partida activa en este chat.")
+		return
 
+	if not args:
+		bot.send_message(cid, "Uso: /fix <3 letras> (F=Fascista, L=Liberal)\nEjemplo: /fix FFL")
+		return
 
-		# game.board.state.chosen_president = None
-		# game.board.state.player_counter = 2
-		# game.board.state.fascist_track = 4
-		# game.board.policies = ["fascista","fascista","fascista","fascista","fascista","fascista"]
-		'''
-		game.board.state.drawn_policies = []
-		
-		bot.send_message(game.cid, "Se ha vaciado el draw policies", ParseMode.MARKDOWN)
-		'''
-		
-		'''
-		game.board.state.fascist_track = 4
-		'''
-		
-		'''
-		
-		
-		game.board.state.president = game.playerlist[9280148] #Tucu
-		
-		game.board.state.chancellor = game.playerlist[377488610] #Xapi
-		
-		game.board.state.player_counter = 5
-		
-		MainController.enact_policy(bot, game, "fascista", False)
-		'''
-		
-		# save_game(cid, "Game conflict state", game)
-		
-		'''
-		for uid in game.playerlist:
-			game.playerlist[uid].name = game.playerlist[uid].name.replace("_", " ")
-		'''
-		#MainController.showHiddenhistory(bot, game)
-		'''game = GamesController.games.get(cid, None)
-		history_text = "Historial Oculto:\n\n" 
-		for x in game.hiddenhistory:				
-			history_text += x + "\n"
-		bot.send_message(ADMIN, history_text, ParseMode.MARKDOWN)
-		'''
+	# Acepta "FFL" como un arg o "F F L" como tres args separados
+	letters = "".join(args).upper()
+
+	if len(letters) != 3 or not all(c in "FL" for c in letters):
+		bot.send_message(cid, "Debes ingresar exactamente 3 letras usando solo F (Fascista) o L (Liberal).\nEjemplo: /fix FFL")
+		return
+
+	card_map = {"F": "fascista", "L": "liberal"}
+	new_cards = [card_map[c] for c in letters]
+
+	# Agrega las cartas al inicio del mazo para que salgan primero
+	game.board.policies = new_cards + game.board.policies
+	save_game(cid, game.groupName, game)
+
+	cards_text = ", ".join(new_cards)
+	bot.send_message(cid, f"Se agregaron al inicio del mazo: {cards_text}\nCartas totales en el mazo: {len(game.board.policies)}")
 
 def command_player_counter(update: Update, context: CallbackContext):
 	bot = context.bot
