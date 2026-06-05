@@ -896,7 +896,7 @@ def callback_fix2_chancellor(update: Update, context: CallbackContext):
 	if game.board.state.nominated_president is None:
 		game.board.state.nominated_president = game.board.state.president
 	if game.board.state.nominated_president is None:
-		for p in game.board.state.president, *game.player_sequence:
+		for p in (game.board.state.president, *game.player_sequence):
 			if p is not None and not p.is_dead:
 				game.board.state.nominated_president = p
 				break
