@@ -1242,6 +1242,8 @@ def main():
 	dp.add_handler(CommandHandler("fix2", Commands.command_fix2))
 	dp.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)\*chooseGameFix2\*(.*)\*(-?[0-9]*)", callback=Commands.callback_fix2_game))
 	dp.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)_fix2chan_(.*)", callback=Commands.callback_fix2_chancellor))
+	dp.add_handler(CommandHandler("fix3", Commands.command_fix3))
+	dp.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)\*chooseGameFix3\*(.*)\*(-?[0-9]*)", callback=Commands.callback_fix3_game))
 	dp.add_handler(CommandHandler("claimoculto", Commands.command_claim_oculto))
 	dp.add_handler(CommandHandler("info", Commands.command_info))
 	dp.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)\*chooseGameInfo\*(.*)\*(-?[0-9]*)", callback=Commands.callback_info))
