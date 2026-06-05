@@ -806,6 +806,77 @@ def command_fix(update: Update, context: CallbackContext):
 		bot.send_message(ADMIN, history_text, ParseMode.MARKDOWN)
 		'''
 
+def command_fix3(update: Update, context: CallbackContext):
+	bot = context.bot
+	uid = update.message.from_user.id
+	cid = update.message.chat_id
+	groupType = update.message.chat.type
+	log.info("Ingreso en FIX3")
+
+	if groupType in ['group', 'supergroup']:
+		game = get_game(cid)
+		if game is None or game.board is None:
+			bot.send_message(cid, "No hay una partida activa en este chat.")
+			return
+		_apply_fix3(bot, game, uid)
+	else:
+		all_games_unfiltered = MainController.getGamesByTipo("Todos")
+		all_games = {
+			key: "{}: {}".format(game.groupName, game.tipo)
+			for key, game in all_games_unfiltered.items()
+			if uid in game.playerlist and game.board is not None
+		}
+		if not all_games:
+			bot.send_message(cid, "No tienes partidas activas de Secret Hitler.")
+			return
+		if len(all_games) == 1:
+			game_cid = int(next(iter(all_games)))
+			game = get_game(game_cid)
+			_apply_fix3(bot, game, uid)
+		else:
+			msg = "Elige el juego donde quieres arreglar las cartas"
+			simple_choose_buttons(bot, cid, uid, uid, "chooseGameFix3", msg, all_games)
+
+def callback_fix3_game(update: Update, context: CallbackContext):
+	bot = context.bot
+	log.info('callback_fix3_game called')
+	callback = update.callback_query
+	regex = re.search(r"(-?[0-9]*)\*chooseGameFix3\*(.*)\*(-?[0-9]*)", callback.data)
+	game_cid = int(regex.group(2))
+	uid = int(regex.group(3))
+	game = get_game(game_cid)
+	if game is None or game.board is None:
+		bot.send_message(uid, "No hay una partida activa en ese chat.")
+		return
+	_apply_fix3(bot, game, uid)
+
+def _apply_fix3(bot, game, notify_uid):
+	drawn = game.board.state.drawn_policies
+	if len(drawn) <= 3:
+		bot.send_message(notify_uid, "Las cartas ya están bien ({} cartas en drawn_policies).".format(len(drawn)))
+		return
+	removed = drawn[3:]
+	game.board.state.drawn_policies = drawn[:3]
+	game.board.discards.extend(removed)
+	strcid = str(game.cid)
+	btns = []
+	for policy in game.board.state.drawn_policies:
+		btns.append([InlineKeyboardButton(policy, callback_data=strcid + "_" + policy)])
+	markup = InlineKeyboardMarkup(btns)
+	bot.send_message(notify_uid, "Se eliminaron {} cartas extra. Cartas restantes: {}".format(
+		len(removed), ", ".join(game.board.state.drawn_policies)))
+	president_uid = game.board.state.president.uid if game.board.state.president else None
+	if president_uid and not game.is_debugging:
+		bot.send_message(president_uid,
+			"Cartas corregidas. Por favor elige cuál descartar:",
+			reply_markup=markup)
+	else:
+		bot.send_message(notify_uid,
+			"Cartas corregidas. El presidente debe elegir cuál descartar:",
+			reply_markup=markup)
+	game.board.state.fase = "legislating president discard"
+	save_game(game.cid, "fix3 Round %d" % game.board.state.currentround, game)
+
 def command_player_counter(update: Update, context: CallbackContext):
 	bot = context.bot
 	args = context.args
