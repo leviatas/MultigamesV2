@@ -821,6 +821,96 @@ def callback_fix(update: Update, context: CallbackContext):
 		return
 	_apply_fix(bot, game, letters, uid)
 
+def command_fix2(update: Update, context: CallbackContext):
+	bot = context.bot
+	uid = update.message.from_user.id
+	cid = update.message.chat_id
+	groupType = update.message.chat.type
+	log.info("Ingreso en FIX2")
+
+	if groupType in ['group', 'supergroup']:
+		game = get_game(cid)
+		if game is None or game.board is None:
+			bot.send_message(cid, "No hay una partida activa en este chat.")
+			return
+		_send_fix2_buttons(bot, game, uid)
+	else:
+		all_games_unfiltered = MainController.getGamesByTipo("Todos")
+		all_games = {
+			key: "{}: {}".format(game.groupName, game.tipo)
+			for key, game in all_games_unfiltered.items()
+			if uid in game.playerlist and game.board is not None
+		}
+		if not all_games:
+			bot.send_message(cid, "No tienes partidas activas de Secret Hitler.")
+			return
+		if len(all_games) == 1:
+			game_cid = int(next(iter(all_games)))
+			game = get_game(game_cid)
+			_send_fix2_buttons(bot, game, uid)
+		else:
+			msg = "Elige el juego donde quieres cambiar el canciller"
+			simple_choose_buttons(bot, cid, uid, uid, "chooseGameFix2", msg, all_games)
+
+def _send_fix2_buttons(bot, game, notify_uid):
+	strcid = str(game.cid)
+	btns = []
+	for player_uid, player in game.playerlist.items():
+		if not player.is_dead:
+			btns.append([InlineKeyboardButton(player.name, callback_data=strcid + "_fix2chan_" + str(player_uid))])
+	if not btns:
+		bot.send_message(notify_uid, "No hay jugadores vivos en esta partida.")
+		return
+	markup = InlineKeyboardMarkup(btns)
+	bot.send_message(notify_uid, "Elige quién será el canciller (sin restricciones):", reply_markup=markup)
+
+def callback_fix2_game(update: Update, context: CallbackContext):
+	bot = context.bot
+	log.info('callback_fix2_game called')
+	callback = update.callback_query
+	regex = re.search(r"(-?[0-9]*)\*chooseGameFix2\*(.*)\*(-?[0-9]*)", callback.data)
+	game_cid = int(regex.group(2))
+	uid = int(regex.group(3))
+	game = get_game(game_cid)
+	if game is None or game.board is None:
+		bot.send_message(uid, "No hay una partida activa en ese chat.")
+		return
+	_send_fix2_buttons(bot, game, uid)
+
+def callback_fix2_chancellor(update: Update, context: CallbackContext):
+	bot = context.bot
+	log.info('callback_fix2_chancellor called')
+	callback = update.callback_query
+	regex = re.search(r"(-?[0-9]*)_fix2chan_(.*)", callback.data)
+	cid = int(regex.group(1))
+	chosen_uid = int(regex.group(2))
+	game = get_game(cid)
+	if game is None or game.board is None:
+		bot.send_message(callback.from_user.id, "No hay una partida activa.")
+		return
+	player = game.playerlist.get(chosen_uid)
+	if player is None:
+		bot.send_message(callback.from_user.id, "Jugador no encontrado.")
+		return
+	# Garantizar que nominated_president esté seteado para la fase de votación
+	if game.board.state.nominated_president is None:
+		game.board.state.nominated_president = game.board.state.president
+	if game.board.state.nominated_president is None:
+		for p in game.board.state.president, *game.player_sequence:
+			if p is not None and not p.is_dead:
+				game.board.state.nominated_president = p
+				break
+	game.board.state.nominated_chancellor = player
+	bot.edit_message_text(
+		f"Nominaste a {player.name} como canciller!",
+		callback.from_user.id, callback.message.message_id)
+	bot.send_message(game.cid,
+		"Se nominó a *{}* como canciller. ¡Por favor, voten ahora!".format(player.name),
+		parse_mode=ParseMode.MARKDOWN)
+	MainController.vote(bot, game)
+	game.board.state.fase = "vote"
+	save_game(game.cid, "vote Round %d" % game.board.state.currentround, game)
+
 def command_player_counter(update: Update, context: CallbackContext):
 	bot = context.bot
 	args = context.args
