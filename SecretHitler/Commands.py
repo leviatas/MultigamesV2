@@ -763,6 +763,8 @@ def command_fix(update: Update, context: CallbackContext):
 	cid = update.message.chat_id
 	groupType = update.message.chat.type
 	log.info("Ingreso en FIX")
+	if uid != ADMIN:
+		return
 
 	if not args:
 		bot.send_message(cid, "Uso: /fix <3 letras> (F=Fascista, L=Liberal)\nEjemplo: /fix FFL")
@@ -828,6 +830,8 @@ def command_fix2(update: Update, context: CallbackContext):
 	cid = update.message.chat_id
 	groupType = update.message.chat.type
 	log.info("Ingreso en FIX2")
+	if uid != ADMIN:
+		return
 
 	if groupType in ['group', 'supergroup']:
 		game = get_game(cid)
@@ -918,6 +922,8 @@ def command_fix3(update: Update, context: CallbackContext):
 	cid = update.message.chat_id
 	groupType = update.message.chat.type
 	log.info("Ingreso en FIX3")
+	if uid != ADMIN:
+		return
 
 	if groupType in ['group', 'supergroup']:
 		game = get_game(cid)
@@ -989,6 +995,8 @@ def command_fix4(update: Update, context: CallbackContext):
 	cid = update.message.chat_id
 	groupType = update.message.chat.type
 	log.info("Ingreso en FIX4")
+	if uid != ADMIN:
+		return
 
 	if groupType in ['group', 'supergroup']:
 		game = get_game(cid)
