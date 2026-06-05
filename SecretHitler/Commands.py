@@ -756,55 +756,70 @@ def command_anarquia(update: Update, context: CallbackContext):
 		log.error("Unknown error: " + str(e))    
 		
 def command_fix(update: Update, context: CallbackContext):
-	bot = context.bot	
+	bot = context.bot
+	args = context.args
 	uid = update.message.from_user.id
+	cid = update.message.chat_id
+	groupType = update.message.chat.type
 	log.info("Ingreso en FIX")
-	if uid == ADMIN:
-		cid = update.message.chat_id
+
+	if not args:
+		bot.send_message(cid, "Uso: /fix <3 letras> (F=Fascista, L=Liberal)\nEjemplo: /fix FFL")
+		return
+
+	letters = "".join(args).upper()
+
+	if len(letters) != 3 or not all(c in "FL" for c in letters):
+		bot.send_message(cid, "Debes ingresar exactamente 3 letras usando solo F (Fascista) o L (Liberal).\nEjemplo: /fix FFL")
+		return
+
+	if groupType in ['group', 'supergroup']:
 		game = get_game(cid)
+		if game is None or game.board is None:
+			bot.send_message(cid, "No hay una partida activa en este chat.")
+			return
+		_apply_fix(bot, game, letters, cid)
+	else:
+		all_games_unfiltered = MainController.getGamesByTipo("Todos")
+		all_games = {
+			f"{key}_{letters}": "{}: {}".format(game.groupName, game.tipo)
+			for key, game in all_games_unfiltered.items()
+			if uid in game.playerlist and game.board is not None
+		}
+		if not all_games:
+			bot.send_message(cid, "No tienes partidas activas de Secret Hitler.")
+			return
+		if len(all_games) == 1:
+			key = next(iter(all_games))
+			game_cid = int(key.rsplit("_", 1)[0])
+			game = get_game(game_cid)
+			_apply_fix(bot, game, letters, uid)
+		else:
+			msg = "Elige el juego donde quieres agregar las cartas"
+			simple_choose_buttons(bot, cid, uid, uid, "chooseGameFix", msg, all_games)
 
-		MainController.end_game(bot, game, 2)
+def _apply_fix(bot, game, letters, notify_cid):
+	card_map = {"F": "fascista", "L": "liberal"}
+	new_cards = [card_map[c] for c in letters]
+	game.board.policies = new_cards + game.board.policies
+	save_game(game.cid, game.groupName, game)
+	cards_text = ", ".join(new_cards)
+	bot.send_message(notify_cid, f"Se agregaron al inicio del mazo: {cards_text}\nCartas totales en el mazo: {len(game.board.policies)}")
 
-
-		# game.board.state.chosen_president = None
-		# game.board.state.player_counter = 2
-		# game.board.state.fascist_track = 4
-		# game.board.policies = ["fascista","fascista","fascista","fascista","fascista","fascista"]
-		'''
-		game.board.state.drawn_policies = []
-		
-		bot.send_message(game.cid, "Se ha vaciado el draw policies", ParseMode.MARKDOWN)
-		'''
-		
-		'''
-		game.board.state.fascist_track = 4
-		'''
-		
-		'''
-		
-		
-		game.board.state.president = game.playerlist[9280148] #Tucu
-		
-		game.board.state.chancellor = game.playerlist[377488610] #Xapi
-		
-		game.board.state.player_counter = 5
-		
-		MainController.enact_policy(bot, game, "fascista", False)
-		'''
-		
-		# save_game(cid, "Game conflict state", game)
-		
-		'''
-		for uid in game.playerlist:
-			game.playerlist[uid].name = game.playerlist[uid].name.replace("_", " ")
-		'''
-		#MainController.showHiddenhistory(bot, game)
-		'''game = GamesController.games.get(cid, None)
-		history_text = "Historial Oculto:\n\n" 
-		for x in game.hiddenhistory:				
-			history_text += x + "\n"
-		bot.send_message(ADMIN, history_text, ParseMode.MARKDOWN)
-		'''
+def callback_fix(update: Update, context: CallbackContext):
+	bot = context.bot
+	log.info('callback_fix called')
+	callback = update.callback_query
+	regex = re.search(r"(-?[0-9]*)\*chooseGameFix\*(.*)\*(-?[0-9]*)", callback.data)
+	opcion_raw = regex.group(2)
+	uid = int(regex.group(3))
+	game_cid_str, letters = opcion_raw.rsplit("_", 1)
+	game_cid = int(game_cid_str)
+	game = get_game(game_cid)
+	if game is None or game.board is None:
+		bot.send_message(uid, "No hay una partida activa en ese chat.")
+		return
+	_apply_fix(bot, game, letters, uid)
 
 def command_player_counter(update: Update, context: CallbackContext):
 	bot = context.bot
