@@ -31,6 +31,7 @@ import Decrypt.Controller as DecryptController
 import Werewords.Controller as WerewordsController
 import Deception.Controller as DeceptionController
 import Unanimo.Controller as UnanimoController
+import Codenames.Controller as CodenamesController
 
 # Importo los comandos de los juegos que vaya agregando
 import JustOne.Commands as JustoneCommands
@@ -42,6 +43,7 @@ import Decrypt.Commands as DecryptCommands
 import Werewords.Commands as WerewordsCommands
 import Deception.Commands as DeceptionCommands
 import Unanimo.Commands as UnanimoCommands
+import Codenames.Commands as CodenamesCommands
 
 from Constants.Cards import playerSets, actions
 from Constants.Config import TOKEN, STATS, ADMIN
@@ -122,6 +124,9 @@ async def init_game(bot, game):
 	elif game.tipo == "Unanimo":
 		game.create_board()
 		await UnanimoController.init_game(bot, game)
+	elif game.tipo == "Codenames":
+		game.create_board()
+		await CodenamesController.init_game(bot, game)
 
 
 async def init_lost_expedition(bot, game, player_number):
@@ -674,7 +679,7 @@ def main(stop_event):
 	
 	# Handlers de SayAnything
 	app.add_handler(CommandHandler("resp", SayAnythingCommands.command_propose))
-	app.add_handler(CommandHandler("pick", SayAnythingCommands.command_pick))
+	app.add_handler(CommandHandler("pick", Commands.command_pick))
 	# Say Anything Callbacks de botones
 	app.add_handler(CallbackQueryHandler(pattern=r"(-[0-9]*)\*choosediccSA\*(.*)\*([0-9]*)", callback=SayAnythingController.callback_finish_config))
 	app.add_handler(CallbackQueryHandler(pattern=r"(-[0-9]*)\*choosegamepropSA\*(.*)\*([0-9]*)", callback=SayAnythingCommands.callback_choose_game_prop))
@@ -759,6 +764,13 @@ def main(stop_event):
 	# app.add_handler(CallbackQueryHandler(pattern=r"(-[0-9]*)\*reviewerconfirm\*(.*)\*([0-9]*)", callback=JustOneController.callback_reviewer_confirm))
 	# app.add_handler(CallbackQueryHandler(pattern=r"(-[0-9]*)\*choosegameclue\*(.*)\*([0-9]*)", callback=JustoneCommands.callback_choose_game_clue))
 	app.add_handler(CallbackQueryHandler(pattern=r"(-[0-9]*)\*chooseendunanimo\*(.*)\*([0-9]*)", callback=UnanimoController.callback_finish_game_buttons))
+
+	# Handlers de Codenames
+	app.add_handler(CommandHandler("hint", CodenamesCommands.command_hint))
+	app.add_handler(CommandHandler("endturn", CodenamesCommands.command_endturn))
+	app.add_handler(CallbackQueryHandler(pattern=r"(-[0-9]*)\*choosediccCN\*(.*)\*([0-9]*)", callback=CodenamesController.callback_finish_config_cn))
+	app.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)\*choosegamehintCN\*(.*)\*([0-9]*)", callback=CodenamesCommands.callback_choose_game_hint_cn))
+	app.add_handler(CallbackQueryHandler(pattern=r"(-[0-9]*)\*chooseendCN\*(.*)\*([0-9]*)", callback=CodenamesController.callback_finish_game_buttons_cn))
 
 	app.add_handler(CommandHandler("status", command_status))
 

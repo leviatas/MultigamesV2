@@ -71,6 +71,11 @@ JUEGOS_DISPONIBLES = {
                 },
 		"permitir_ingreso_tardio" : True
         },
+	"Codenames" : {
+                "comandos" : {
+                    "Codenames" : "Codenames"
+                },
+        },
 }
 
 
@@ -213,12 +218,14 @@ MODULOS_DISPONIBES = {
                         "min_jugadores" : 3,
                         "max_jugadores" : 12
                 }
-                # "Extreme" : {
-                #         "comandos" : {
-                #             "Extreme" : "Extreme"
-                #         },
-                #         "min_jugadores" : 1,
-                #         "max_jugadores" : 15
-                # } 
+        },
+	"Codenames" : {
+                "Cooperativo" : {
+                        "comandos" : {
+                            "Cooperativo" : "Cooperativo"
+                        },
+                        "min_jugadores" : 4,
+                        "max_jugadores" : 20
+                }
         },
 }
