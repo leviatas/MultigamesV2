@@ -760,8 +760,6 @@ def command_fix(update: Update, context: CallbackContext):
 	args = context.args
 	uid = update.message.from_user.id
 	log.info("Ingreso en FIX")
-	if uid != ADMIN:
-		return
 	cid = update.message.chat_id
 	game = get_game(cid)
 
