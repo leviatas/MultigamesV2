@@ -2,6 +2,7 @@ from ast import arg
 import json
 import logging as log
 import datetime
+import random
 #import ast
 import jsonpickle
 import os
@@ -981,6 +982,57 @@ def _apply_fix3(bot, game, notify_uid):
 			reply_markup=markup)
 	game.board.state.fase = "legislating president discard"
 	save_game(game.cid, "fix3 Round %d" % game.board.state.currentround, game)
+
+def command_fix4(update: Update, context: CallbackContext):
+	bot = context.bot
+	uid = update.message.from_user.id
+	cid = update.message.chat_id
+	groupType = update.message.chat.type
+	log.info("Ingreso en FIX4")
+
+	if groupType in ['group', 'supergroup']:
+		game = get_game(cid)
+		if game is None or game.board is None:
+			bot.send_message(cid, "No hay una partida activa en este chat.")
+			return
+		_apply_fix4(bot, game, cid)
+	else:
+		all_games_unfiltered = MainController.getGamesByTipo("Todos")
+		all_games = {
+			key: "{}: {}".format(game.groupName, game.tipo)
+			for key, game in all_games_unfiltered.items()
+			if uid in game.playerlist and game.board is not None
+		}
+		if not all_games:
+			bot.send_message(cid, "No tienes partidas activas de Secret Hitler.")
+			return
+		if len(all_games) == 1:
+			game_cid = int(next(iter(all_games)))
+			game = get_game(game_cid)
+			_apply_fix4(bot, game, uid)
+		else:
+			msg = "Elige el juego donde quieres resetear el mazo"
+			simple_choose_buttons(bot, cid, uid, uid, "chooseGameFix4", msg, all_games)
+
+def callback_fix4_game(update: Update, context: CallbackContext):
+	bot = context.bot
+	log.info('callback_fix4_game called')
+	callback = update.callback_query
+	regex = re.search(r"(-?[0-9]*)\*chooseGameFix4\*(.*)\*(-?[0-9]*)", callback.data)
+	game_cid = int(regex.group(2))
+	uid = int(regex.group(3))
+	game = get_game(game_cid)
+	if game is None or game.board is None:
+		bot.send_message(uid, "No hay una partida activa en ese chat.")
+		return
+	_apply_fix4(bot, game, uid)
+
+def _apply_fix4(bot, game, notify_cid):
+	new_deck = ["liberal"] * 4 + ["fascista"] * 8
+	random.shuffle(new_deck)
+	game.board.policies = new_deck
+	save_game(game.cid, "fix4 Round %d" % game.board.state.currentround, game)
+	bot.send_message(notify_cid, "Mazo reseteado: 4 liberales y 8 fascistas mezclados.\nCartas totales en el mazo: {}".format(len(game.board.policies)))
 
 def command_player_counter(update: Update, context: CallbackContext):
 	bot = context.bot
