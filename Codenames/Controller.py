@@ -1,8 +1,11 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 import logging as log
+import os
 import random
 import re
+
+_TXT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'txt')
 
 from telegram import Update
 from telegram.constants import ParseMode
@@ -65,7 +68,7 @@ async def callback_finish_config_cn(update: Update, context: CallbackContext):
 async def finish_config(bot, game):
     log.info('Codenames finish_config called')
     opcion = game.configs.get('diccionario', 'original')
-    url_palabras = f'/Codenames/txt/spanish-{opcion}.txt'
+    url_palabras = os.path.join(_TXT_DIR, f'spanish-{opcion}.txt')
     with open(url_palabras, 'r') as f:
         palabras_posibles = [w.strip() for w in f.readlines() if w.strip()]
 
