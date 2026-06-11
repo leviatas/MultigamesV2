@@ -220,12 +220,19 @@ MODULOS_DISPONIBES = {
                 }
         },
 	"Codenames" : {
-                "Cooperativo" : {
+                "Competitivo" : {
                         "comandos" : {
-                            "Cooperativo" : "Cooperativo"
+                            "Competitivo" : "Competitivo"
                         },
                         "min_jugadores" : 4,
                         "max_jugadores" : 20
+                },
+                "Cooperativo" : {
+                        "comandos" : {
+                            "Cooperativo" : "Cooperativo (Dúo)"
+                        },
+                        "min_jugadores" : 2,
+                        "max_jugadores" : 2
                 }
         },
 }
