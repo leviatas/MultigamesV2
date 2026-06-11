@@ -13,22 +13,24 @@ _FONT_PATH = "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf"
 
 # (background_hex, text_hex)
 _PALETTE = {
-    # Competitivo — sin revelar
+    # Sin revelar
     "unrevealed":    ("#E8E8E8", "#1A1A1A"),
+    # Competitivo — tipo de carta sin revelar
     "rojo":          ("#C0392B", "#FFFFFF"),
     "azul":          ("#1A5276", "#FFFFFF"),
     "neutral":       ("#797D7F", "#FFFFFF"),
     "asesino":       ("#1C2833", "#FFFFFF"),
-    # Dúo — sin revelar
-    "agente":        ("#1E8449", "#FFFFFF"),       # mi agente (verde)
-    "partner_agente": ("#1A6B8A", "#FFFFFF"),      # mi gris, pero agente del compañero (teal)
-    # Reveladas — cualquier modo
+    # Dúo — clave privada (solo perspectiva propia)
+    "agente":        ("#1E8449", "#FFFFFF"),
+    # Reveladas — competitivo
     "revealed_rojo":     ("#F1948A", "#5D0000"),
     "revealed_azul":     ("#7FB3D3", "#0A2942"),
     "revealed_neutral":  ("#CACFD2", "#3D3D3D"),
     "revealed_asesino":  ("#4D5656", "#CCCCCC"),
-    "revealed_agente":   ("#27AE60", "#FFFFFF"),   # agente encontrado → verde sólido
-    "revealed_miss":     ("#95A5A6", "#FFFFFF"),   # neutral pisado → gris oscuro
+    # Reveladas — modo Dúo público
+    "revealed_agente":   ("#27AE60", "#FFFFFF"),   # agente encontrado → verde
+    "revealed_miss":     ("#C8C8C8", "#555555"),   # neutral pisado → gris con marca
+    "revealed_asesino_duo": ("#1C2833", "#FFFFFF"),
 }
 _BG = "#2C3E50"
 
@@ -62,7 +64,7 @@ def _fit_text(draw, text, font_size, max_w):
 
 def _draw_cell(draw, x, y, word, numero, bg_hex, fg_hex, mark=None):
     """
-    mark: None | "check" (agente encontrado) | "miss" (neutral pisado) | "partner" (agente compañero)
+    mark: None | "check" (agente encontrado) | "miss_corner" (neutral pisado)
     """
     bg = _hex_rgb(bg_hex)
     fg = _hex_rgb(fg_hex)
@@ -72,15 +74,12 @@ def _draw_cell(draw, x, y, word, numero, bg_hex, fg_hex, mark=None):
     num_font = _load_font(11)
     draw.text((x + 5, y + 4), str(numero), font=num_font, fill=fg)
 
-    # Marca arriba-derecha
     if mark == "check":
         draw.text((x + CELL_W - 18, y + 3), "✓", font=num_font, fill=fg)
-    elif mark == "miss":
-        draw.text((x + CELL_W - 14, y + 3), "✕", font=num_font, fill=fg)
-    elif mark == "partner":
-        # Pequeño triángulo de borde en la esquina superior derecha para indicar "del compañero"
-        pts = [(x + CELL_W - 14, y + 1), (x + CELL_W - 1, y + 1), (x + CELL_W - 1, y + 14)]
-        draw.polygon(pts, fill=_hex_rgb("#82E0AA"))
+    elif mark == "miss_corner":
+        # Triángulo naranja en esquina superior derecha para indicar "miss"
+        pts = [(x + CELL_W - 18, y + 1), (x + CELL_W - 1, y + 1), (x + CELL_W - 1, y + 18)]
+        draw.polygon(pts, fill=_hex_rgb("#E67E22"))
 
     # Palabra centrada
     font, label = _fit_text(draw, word.upper(), 17, CELL_W - 16)
@@ -96,7 +95,7 @@ def render_board(tablero, mode="public", key=None, partner_key=None):
     """
     mode        : "public" | "spymaster" | "duo_key" | "duo_public"
     key         : {numero: tipo_str} — clave del jugador (duo_key)
-    partner_key : {numero: tipo_str} — clave del compañero (duo_key), para marcar sus agentes
+    partner_key : ignorado (mantenido por compatibilidad)
     """
     canvas_w = COLS * CELL_W + (COLS + 1) * PAD
     canvas_h = ROWS * CELL_H + (ROWS + 1) * PAD
@@ -110,58 +109,57 @@ def render_board(tablero, mode="public", key=None, partner_key=None):
         x = PAD + col * (CELL_W + PAD)
         y = PAD + row * (CELL_H + PAD)
 
-        word    = card["word"]
-        numero  = card["numero"]
+        word     = card["word"]
+        numero   = card["numero"]
         revealed = card["revealed"]
-        tipo    = card.get("tipo") or "neutral"
-        mark    = None
+        tipo     = card.get("tipo") or "neutral"
+        mark     = None
 
-        if mode in ("public", "duo_public"):
-            if revealed:
-                if tipo == "agente":
-                    bg, fg = _PALETTE["revealed_agente"]
-                    mark = "check"
-                elif tipo == "asesino":
-                    bg, fg = _PALETTE["revealed_asesino"]
-                else:
-                    bg, fg = _PALETTE["revealed_miss"]
-                    mark = "miss"
-            else:
-                bg, fg = _PALETTE["unrevealed"]
-
-        elif mode == "spymaster":
+        if mode in ("public", "spymaster"):
             if revealed:
                 bg, fg = _PALETTE.get(f"revealed_{tipo}", _PALETTE["revealed_neutral"])
-                mark = "check" if tipo == "agente" else ("miss" if tipo == "neutral" else None)
+                mark = "check" if tipo in ("rojo", "azul", "agente") else None
             else:
-                bg, fg = _PALETTE.get(tipo, _PALETTE["unrevealed"])
+                if mode == "spymaster":
+                    bg, fg = _PALETTE.get(tipo, _PALETTE["unrevealed"])
+                else:
+                    bg, fg = _PALETTE["unrevealed"]
 
         elif mode == "duo_key" and key:
+            # Clave privada: solo verde/negro/gris — SIN información del compañero
             tipo_mine = key.get(numero, "neutral")
-            tipo_partner = partner_key.get(numero, "neutral") if partner_key else "neutral"
-
             if revealed:
-                # Verde si fue encontrado como agente, gris si fue un miss
                 if tipo == "agente":
                     bg, fg = _PALETTE["revealed_agente"]
                     mark = "check"
                 elif tipo == "asesino":
-                    bg, fg = _PALETTE["revealed_asesino"]
+                    bg, fg = _PALETTE["revealed_asesino_duo"]
                 else:
                     bg, fg = _PALETTE["revealed_miss"]
-                    mark = "miss"
+                    mark = "miss_corner"
             else:
                 if tipo_mine == "agente":
                     bg, fg = _PALETTE["agente"]
                 elif tipo_mine == "asesino":
                     bg, fg = _PALETTE["asesino"]
                 else:
-                    # neutral para mí — ¿es agente del compañero?
-                    if tipo_partner == "agente":
-                        bg, fg = _PALETTE["partner_agente"]
-                        mark = "partner"
-                    else:
-                        bg, fg = _PALETTE["neutral"]
+                    bg, fg = _PALETTE["unrevealed"]  # gris uniforme — sin distinción de compañero
+
+        elif mode == "duo_public":
+            # Tablero público: sin color por defecto; colores solo al revelar
+            if revealed:
+                if tipo == "agente":
+                    bg, fg = _PALETTE["revealed_agente"]
+                    mark = "check"
+                elif tipo == "asesino":
+                    bg, fg = _PALETTE["revealed_asesino_duo"]
+                else:
+                    # neutral pisado → gris con marca en esquina
+                    bg, fg = _PALETTE["revealed_miss"]
+                    mark = "miss_corner"
+            else:
+                bg, fg = _PALETTE["unrevealed"]  # todas iguales sin revelar
+
         else:
             bg, fg = _PALETTE["unrevealed"]
 

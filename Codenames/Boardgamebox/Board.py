@@ -100,8 +100,7 @@ class Board(BaseBoard):
 
     def render_key_image(self, game, jugador_label):
         key = self.state.key_a if jugador_label == "A" else self.state.key_b
-        partner_key = self.state.key_b if jugador_label == "A" else self.state.key_a
-        return render_board(self.state.tablero, mode="duo_key", key=key, partner_key=partner_key)
+        return render_board(self.state.tablero, mode="duo_key", key=key)
 
     def render_duo_board_image(self, game):
         return render_board(self.state.tablero, mode="duo_public")
