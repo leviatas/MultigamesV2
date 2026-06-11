@@ -33,7 +33,28 @@ class Game(BaseGame):
         players = self.get_team_players(team)
         return any(p.uid == uid for p in players) and (not sm or sm.uid != uid)
 
+    # --- Helpers del modo Cooperativo "Dúo" ---
+    def get_player_by_label(self, label: str):
+        if label == "A":
+            return self.board.state.jugador_a
+        if label == "B":
+            return self.board.state.jugador_b
+        return None
+
+    def get_label_by_uid(self, uid):
+        if self.board.state.jugador_a and self.board.state.jugador_a.uid == uid:
+            return "A"
+        if self.board.state.jugador_b and self.board.state.jugador_b.uid == uid:
+            return "B"
+        return None
+
+    def get_other_player_label(self, label: str) -> str:
+        return "B" if label == "A" else "A"
+
     def get_rules(self):
+        if self.modo == "Cooperativo":
+            return ["Codenames Dúo: trabajen juntos para encontrar los 15 agentes sin tocar al asesino ni quedarse sin pistas.\n"
+                    "Comandos: /hint PALABRA NUMERO (quien da la pista, en privado) | /pick NUMERO (quien adivina, en el grupo) | /endturn"]
         return ["Codenames: adivinen las palabras de su equipo con las pistas del espía.\nComandos: /hint PALABRA NUMERO (espía, en privado) | /pick NUMERO (agentes, en el grupo) | /endturn"]
 
     def call(self, context):

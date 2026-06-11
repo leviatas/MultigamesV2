@@ -21,3 +21,14 @@ class State(BaseState):
 
         self.equipo_rojo = []             # list[Player]
         self.equipo_azul = []             # list[Player]
+
+        # --- Modo Cooperativo "Dúo" (2 jugadores, mismo equipo) ---
+        self.jugador_a = None
+        self.jugador_b = None
+        self.key_a = {}                   # {numero: "agente"|"neutral"|"asesino"} — vista del jugador A
+        self.key_b = {}                   # {numero: "agente"|"neutral"|"asesino"} — vista del jugador B
+        self.dador_actual = None          # "A" | "B" — quien da la pista en este turno
+        self.agentes_revelados = 0
+        self.total_agentes_duo = 15
+        self.pistas_restantes = 9
+

@@ -76,21 +76,26 @@ async def command_hint(update: Update, context: CallbackContext):
     except Exception as e:
         log.error(f'DB error in command_hint: {e}')
 
-    valid_games = [
-        g for g in GamesController.games.values()
-        if g.tipo == "Codenames"
-        and uid in g.playerlist
-        and g.board is not None
-        and g.is_spymaster(uid)
-        and g.board.state.fase_actual in ("Turno Rojo - Pista", "Turno Azul - Pista")
-    ]
+    def _can_hint(g):
+        if g.tipo != "Codenames" or uid not in g.playerlist or g.board is None:
+            return False
+        if g.modo == "Cooperativo":
+            label = g.get_label_by_uid(uid)
+            return label is not None and g.board.state.fase_actual == f"Duo {label} - Pista"
+        return g.is_spymaster(uid) and g.board.state.fase_actual in ("Turno Rojo - Pista", "Turno Azul - Pista")
+
+    valid_games = [g for g in GamesController.games.values() if _can_hint(g)]
 
     if len(valid_games) == 0:
         await bot.send_message(uid, "No hay partida donde puedas dar pista ahora.")
         return
 
     if len(valid_games) == 1:
-        await CodenamesController.process_hint(bot, valid_games[0], uid, word, number)
+        g = valid_games[0]
+        if g.modo == "Cooperativo":
+            await CodenamesController.process_hint_duo(bot, g, uid, word, number)
+        else:
+            await CodenamesController.process_hint(bot, g, uid, word, number)
         return
 
     # Multiple eligible games — show selection buttons
@@ -120,7 +125,10 @@ async def callback_choose_game_hint_cn(update: Update, context: CallbackContext)
         parts = opcion.rsplit("_", 1)
         word = parts[0]
         number = int(parts[1])
-        await CodenamesController.process_hint(bot, game, uid, word, number)
+        if game.modo == "Cooperativo":
+            await CodenamesController.process_hint_duo(bot, game, uid, word, number)
+        else:
+            await CodenamesController.process_hint(bot, game, uid, word, number)
     except Exception as e:
         await bot.send_message(ADMIN[0], f'callback_choose_game_hint_cn error: {e}')
 
@@ -149,8 +157,29 @@ async def command_pick(update: Update, context: CallbackContext):
         await bot.send_message(cid, "El número debe ser entre 1 y 25.")
         return
 
-    team = game.board.state.turno_actual
     fase = game.board.state.fase_actual
+
+    if game.modo == "Cooperativo":
+        st = game.board.state
+        receptor_label = game.get_other_player_label(st.dador_actual)
+        receptor = game.get_player_by_label(receptor_label)
+
+        if fase != f"Duo {st.dador_actual} - Adivinar":
+            await bot.send_message(cid, "No es el momento de adivinar.")
+            return
+        if not receptor or receptor.uid != uid:
+            await bot.send_message(cid, "No eres quien debe adivinar ahora.")
+            return
+
+        card = next((c for c in game.board.state.tablero if c["numero"] == numero), None)
+        if card is None or card["revealed"]:
+            await bot.send_message(cid, "Carta inválida o ya revelada.")
+            return
+
+        await CodenamesController.process_pick_duo(bot, game, uid, numero)
+        return
+
+    team = game.board.state.turno_actual
 
     if fase != f"Turno {team} - Adivinar":
         await bot.send_message(cid, "No es el momento de adivinar.")
@@ -177,8 +206,25 @@ async def command_endturn(update: Update, context: CallbackContext):
     if not game or game.tipo != "Codenames" or not game.board:
         return
 
-    team = game.board.state.turno_actual
     fase = game.board.state.fase_actual
+
+    if game.modo == "Cooperativo":
+        st = game.board.state
+        receptor_label = game.get_other_player_label(st.dador_actual)
+        receptor = game.get_player_by_label(receptor_label)
+
+        if fase != f"Duo {st.dador_actual} - Adivinar":
+            await bot.send_message(cid, "No estás en fase de adivinar.")
+            return
+        if not receptor or receptor.uid != uid:
+            await bot.send_message(cid, "Solo quien debe adivinar puede terminar el turno.")
+            return
+
+        await bot.send_message(cid, f"*{receptor.name}* termina el turno voluntariamente.", parse_mode=ParseMode.MARKDOWN)
+        await CodenamesController.end_turn_duo(bot, game)
+        return
+
+    team = game.board.state.turno_actual
 
     if fase != f"Turno {team} - Adivinar":
         await bot.send_message(cid, "No estás en fase de adivinar.")
@@ -199,6 +245,30 @@ async def command_endturn(update: Update, context: CallbackContext):
 async def command_call(bot, game):
     fase = game.board.state.fase_actual
     if not fase:
+        return
+
+    if game.modo == "Cooperativo":
+        st = game.board.state
+        if not st.dador_actual:
+            return
+        dador = game.get_player_by_label(st.dador_actual)
+        receptor = game.get_player_by_label(game.get_other_player_label(st.dador_actual))
+
+        if "Pista" in fase:
+            await bot.send_message(
+                game.cid,
+                f"{player_call(dador)} es tu turno de dar la pista.\nUsa `/hint PALABRA NUMERO` en privado.",
+                parse_mode=ParseMode.MARKDOWN,
+            )
+            await bot.send_message(dador.uid, "Es tu turno de dar pista. Usa `/hint PALABRA NUMERO` aquí.", parse_mode=ParseMode.MARKDOWN)
+        elif "Adivinar" in fase:
+            await bot.send_message(
+                game.cid,
+                f"{player_call(receptor)}: pista *{st.pista_actual}* — {st.numero_pista}. "
+                f"Intentos restantes: {st.intentos_restantes}.\nUsa `/pick NUMERO` o `/endturn`.",
+                parse_mode=ParseMode.MARKDOWN,
+            )
+            await bot.send_message(game.cid, game.board.print_board_duo(game), parse_mode=ParseMode.MARKDOWN)
         return
 
     if "Pista" in fase:

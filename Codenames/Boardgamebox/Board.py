@@ -8,6 +8,11 @@ REVEAL_EMOJIS = {
     "neutral": "⬜",
     "asesino": "💀",
 }
+DUO_EMOJIS = {
+    "agente":  "🟩",
+    "neutral": "⬜",
+    "asesino": "💀",
+}
 KEYCAP = {i: f"{i}⃣" for i in range(1, 26)}
 
 
@@ -45,6 +50,40 @@ class Board(BaseBoard):
         for i, card in enumerate(self.state.tablero):
             prefix = "✅" if card["revealed"] else ""
             cell = f"{prefix}{REVEAL_EMOJIS[card['tipo']]}*{card['numero']}*"
+            board += cell + "  "
+            if (i + 1) % 5 == 0:
+                board = board.rstrip() + "\n"
+        return board
+
+    def print_board_duo(self, game):
+        st = self.state
+        board = ""
+        if game.is_debugging:
+            board += f"--- Fase: {st.fase_actual} ---\n"
+
+        board += "🤝 *Agentes encontrados:* {a}/{t}  |  ⏳ *Pistas restantes:* {p}\n".format(
+            a=st.agentes_revelados, t=st.total_agentes_duo, p=st.pistas_restantes,
+        )
+        if st.pista_actual:
+            board += f"*Pista:* `{st.pista_actual}` — {st.numero_pista}\n"
+            board += f"Intentos restantes: {st.intentos_restantes}\n"
+
+        board += "\n"
+        for i, card in enumerate(st.tablero):
+            cell = "✅" if card["revealed"] else KEYCAP[card["numero"]]
+            board += cell + "  "
+            if (i + 1) % 5 == 0:
+                board = board.rstrip() + "\n"
+        return board
+
+    def print_key(self, game, jugador_label):
+        st = self.state
+        key = st.key_a if jugador_label == "A" else st.key_b
+        board = f"*[TU CLAVE — Jugador {jugador_label}]*\n"
+        for i, card in enumerate(st.tablero):
+            numero = card["numero"]
+            prefix = "✅" if card["revealed"] else ""
+            cell = f"{prefix}{DUO_EMOJIS[key[numero]]}*{numero}*"
             board += cell + "  "
             if (i + 1) % 5 == 0:
                 board = board.rstrip() + "\n"
