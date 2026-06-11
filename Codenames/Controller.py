@@ -171,37 +171,50 @@ async def setup_duo(bot, game):
     game.board.state.jugador_b = jugador_b
 
     # Layout Codenames Dúo (25 cartas):
-    # 3 agentes compartidos  (verde A + verde B)
-    # 6 agentes solo A       (verde A + gris B)
-    # 6 agentes solo B       (gris A + verde B)
-    # 3 asesinos compartidos (negro A + negro B)  ← ambos ven 3 negros
-    # 7 neutrales            (gris A + gris B)
+    # 3 agentes compartidos          (verde A + verde B)
+    # 6 agentes solo A               (verde A + gris B)
+    # 6 agentes solo B               (gris A + verde B)
+    # 1 asesino compartido           (negro A + negro B)
+    # 1 asesino verde de A           (negro A + VERDE B) ← trampa: B lo ve como agente
+    # 1 asesino gris  de A           (negro A + gris B)
+    # 1 asesino verde de B           (VERDE A + negro B) ← trampa: A lo ve como agente
+    # 1 asesino gris  de B           (gris A  + negro B)
+    # 5 neutrales                    (gris A  + gris B)
+    # Cada jugador ve exactamente 3 negros en su clave.
     nums = list(range(1, 26))
     random.shuffle(nums)
 
     shared_agents    = set(nums[0:3])
     a_agents         = set(nums[3:9])
     b_agents         = set(nums[9:15])
-    assassins        = set(nums[15:18])   # 3 asesinos compartidos
+    shared_assassin  = nums[15]
+    a_verde_assassin = nums[16]   # negro A, verde B  (trampa para B)
+    a_gris_assassin  = nums[17]   # negro A, gris B
+    b_verde_assassin = nums[18]   # verde A, negro B  (trampa para A)
+    b_gris_assassin  = nums[19]   # gris A,  negro B
+    # nums[20:25] = 5 neutrales puros
 
     key_a = {}
     key_b = {}
     for n in range(1, 26):
         if n in shared_agents:
-            key_a[n] = "agente"
-            key_b[n] = "agente"
+            key_a[n] = "agente";  key_b[n] = "agente"
         elif n in a_agents:
-            key_a[n] = "agente"
-            key_b[n] = "neutral"
+            key_a[n] = "agente";  key_b[n] = "neutral"
         elif n in b_agents:
-            key_a[n] = "neutral"
-            key_b[n] = "agente"
-        elif n in assassins:
-            key_a[n] = "asesino"
-            key_b[n] = "asesino"
+            key_a[n] = "neutral"; key_b[n] = "agente"
+        elif n == shared_assassin:
+            key_a[n] = "asesino"; key_b[n] = "asesino"
+        elif n == a_verde_assassin:
+            key_a[n] = "asesino"; key_b[n] = "agente"   # B lo ve verde → trampa
+        elif n == a_gris_assassin:
+            key_a[n] = "asesino"; key_b[n] = "neutral"
+        elif n == b_verde_assassin:
+            key_a[n] = "agente";  key_b[n] = "asesino"  # A lo ve verde → trampa
+        elif n == b_gris_assassin:
+            key_a[n] = "neutral"; key_b[n] = "asesino"
         else:
-            key_a[n] = "neutral"
-            key_b[n] = "neutral"
+            key_a[n] = "neutral"; key_b[n] = "neutral"
 
     game.board.state.key_a = key_a
     game.board.state.key_b = key_b
@@ -310,9 +323,16 @@ async def process_pick_duo(bot, game, uid, numero: int):
     # Esto incluye la trampa: asesino de B que A ve como agente (verde)
     if tipo_a == "asesino" or tipo_b == "asesino":
         card["tipo"] = "asesino"
-        quien = "compartido" if tipo_a == "asesino" and tipo_b == "asesino" else (
-            "de A (B lo veía gris)" if tipo_a == "asesino" else "de B (A lo veía verde ⚠️)"
-        )
+        if tipo_a == "asesino" and tipo_b == "asesino":
+            quien = "compartido 💀"
+        elif tipo_a == "asesino" and tipo_b == "agente":
+            quien = "de A — ¡B lo veía verde y cayó en la trampa! ⚠️"
+        elif tipo_a == "asesino" and tipo_b == "neutral":
+            quien = "de A (B lo veía gris)"
+        elif tipo_a == "agente" and tipo_b == "asesino":
+            quien = "de B — ¡A lo veía verde y cayó en la trampa! ⚠️"
+        else:
+            quien = "de B (A lo veía gris)"
         await bot.send_message(
             game.cid,
             f"💀 *¡ASESINO!* *{word.upper()}* era el asesino {quien}. El equipo ha perdido.",

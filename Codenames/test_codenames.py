@@ -169,9 +169,24 @@ async def play_cooperativo():
                       and st.key_a[n] != "asesino" and st.key_b[n] != "asesino"}
     assert_true(len(agentes_reales) == 15, f"Debe haber 15 agentes reales, hay {len(agentes_reales)}")
 
-    # 3 asesinos compartidos — ambos jugadores ven exactamente 3 negros
-    assert_true(asesinos_a == asesinos_b, "Los 3 asesinos deben ser compartidos (iguales para A y B)")
-    assert_true(len(asesinos_a) == 3, f"Debe haber 3 asesinos, hay {len(asesinos_a)}")
+    # Cada jugador ve exactamente 3 negros en su clave
+    assert_true(len(asesinos_a) == 3, f"key_a debe tener 3 asesinos, tiene {len(asesinos_a)}")
+    assert_true(len(asesinos_b) == 3, f"key_b debe tener 3 asesinos, tiene {len(asesinos_b)}")
+    # 1 asesino compartido
+    shared = asesinos_a & asesinos_b
+    assert_true(len(shared) == 1, f"Debe haber 1 asesino compartido, hay {len(shared)}")
+    # 1 trampa de A: negro A + verde B
+    trap_a = [n for n in asesinos_a - shared if st.key_b[n] == "agente"]
+    assert_true(len(trap_a) == 1, "Debe haber 1 asesino trampa de A (verde para B)")
+    # 1 gris de A: negro A + gris B
+    gris_a = [n for n in asesinos_a - shared if st.key_b[n] == "neutral"]
+    assert_true(len(gris_a) == 1, "Debe haber 1 asesino gris de A (neutral para B)")
+    # 1 trampa de B: verde A + negro B
+    trap_b = [n for n in asesinos_b - shared if st.key_a[n] == "agente"]
+    assert_true(len(trap_b) == 1, "Debe haber 1 asesino trampa de B (verde para A)")
+    # 1 gris de B: gris A + negro B
+    gris_b = [n for n in asesinos_b - shared if st.key_a[n] == "neutral"]
+    assert_true(len(gris_b) == 1, "Debe haber 1 asesino gris de B (neutral para A)")
 
     assert_true(st.fase_actual == "Duo A - Pista", f"Debe iniciar con pista del jugador A, fue {st.fase_actual}")
 
