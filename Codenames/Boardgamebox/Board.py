@@ -49,7 +49,7 @@ class Board(BaseBoard):
         board = "*[VISTA ESPÍA]*\n"
         for i, card in enumerate(self.state.tablero):
             prefix = "✅" if card["revealed"] else ""
-            cell = f"{prefix}{REVEAL_EMOJIS[card['tipo']]}*{card['numero']}*"
+            cell = f"{prefix}{REVEAL_EMOJIS[card['tipo']]}*{card['word']}*"
             board += cell + "  "
             if (i + 1) % 5 == 0:
                 board = board.rstrip() + "\n"
@@ -83,7 +83,7 @@ class Board(BaseBoard):
         for i, card in enumerate(st.tablero):
             numero = card["numero"]
             prefix = "✅" if card["revealed"] else ""
-            cell = f"{prefix}{DUO_EMOJIS[key[numero]]}*{numero}*"
+            cell = f"{prefix}{DUO_EMOJIS[key[numero]]}*{card['word']}*"
             board += cell + "  "
             if (i + 1) % 5 == 0:
                 board = board.rstrip() + "\n"
