@@ -170,26 +170,45 @@ async def setup_duo(bot, game):
     game.board.state.jugador_a = jugador_a
     game.board.state.jugador_b = jugador_b
 
-    posiciones = list(range(1, 26))
-    random.shuffle(posiciones)
-    agentes = posiciones[:15]
-    resto = posiciones[15:]
-    grupo_a = set(agentes[:8])
-    grupo_b = set(agentes[8:])
-    asesino = resto[0]
+    # Layout oficial Codenames Dúo (25 cartas):
+    # 3 agentes compartidos (verde A + verde B)
+    # 6 agentes solo A (verde A + gris B)
+    # 6 agentes solo B (gris A + verde B)
+    # 1 asesino compartido (negro A + negro B)
+    # 1 asesino de A (negro A + gris B)
+    # 1 asesino de B — trampa (VERDE A + negro B)   ← A lo ve como agente!
+    # 7 neutrales (gris A + gris B)
+    nums = list(range(1, 26))
+    random.shuffle(nums)
+
+    shared_agents  = set(nums[0:3])
+    a_agents       = set(nums[3:9])
+    b_agents       = set(nums[9:15])
+    shared_assassin = nums[15]
+    a_assassin      = nums[16]
+    b_assassin      = nums[17]   # A lo ve como agente, pero es el asesino de B
 
     key_a = {}
     key_b = {}
     for n in range(1, 26):
-        if n == asesino:
-            key_a[n] = "asesino"
-            key_b[n] = "asesino"
-        elif n in grupo_a:
+        if n in shared_agents:
+            key_a[n] = "agente"
+            key_b[n] = "agente"
+        elif n in a_agents:
             key_a[n] = "agente"
             key_b[n] = "neutral"
-        elif n in grupo_b:
+        elif n in b_agents:
             key_a[n] = "neutral"
             key_b[n] = "agente"
+        elif n == shared_assassin:
+            key_a[n] = "asesino"
+            key_b[n] = "asesino"
+        elif n == a_assassin:
+            key_a[n] = "asesino"
+            key_b[n] = "neutral"
+        elif n == b_assassin:
+            key_a[n] = "agente"   # trampa: A lo ve verde, pero es el asesino de B
+            key_b[n] = "asesino"
         else:
             key_a[n] = "neutral"
             key_b[n] = "neutral"
@@ -210,12 +229,12 @@ async def setup_duo(bot, game):
     await bot.send_photo(
         jugador_a.uid,
         photo=game.board.render_key_image(game, "A"),
-        caption="🟩 Tu clave secreta (Jugador A) — verde=agente, negro=asesino, gris=neutral",
+        caption="🟩 Tu clave (Jugador A) — verde=agente, negro=asesino, gris=neutral\n⚠️ Cuidado: una carta verde tuya puede ser el asesino de tu compañero.",
     )
     await bot.send_photo(
         jugador_b.uid,
         photo=game.board.render_key_image(game, "B"),
-        caption="🟩 Tu clave secreta (Jugador B) — verde=agente, negro=asesino, gris=neutral",
+        caption="🟩 Tu clave (Jugador B) — verde=agente, negro=asesino, gris=neutral\n⚠️ Cuidado: una carta verde tuya puede ser el asesino de tu compañero.",
     )
 
     await start_turn_duo(bot, game, "A")
@@ -293,22 +312,33 @@ async def process_pick_duo(bot, game, uid, numero: int):
     card["revealed"] = True
     word = card["word"]
 
-    key_dador = st.key_a if st.dador_actual == "A" else st.key_b
-    tipo_real = key_dador[numero]
+    tipo_a = st.key_a[numero]
+    tipo_b = st.key_b[numero]
 
-    emoji_map = {"agente": "🟩", "neutral": "⬜", "asesino": "💀"}
-    await bot.send_message(
-        game.cid,
-        f"Carta {numero} revelada: *{word.upper()}* {emoji_map[tipo_real]}",
-        parse_mode=ParseMode.MARKDOWN,
-    )
-
-    if tipo_real == "asesino":
-        await bot.send_message(game.cid, "💀 *¡ASESINO!* El equipo ha perdido.", parse_mode=ParseMode.MARKDOWN)
+    # Si es asesino en CUALQUIERA de las dos claves → derrota inmediata
+    # Esto incluye la trampa: asesino de B que A ve como agente (verde)
+    if tipo_a == "asesino" or tipo_b == "asesino":
+        quien = "compartido" if tipo_a == "asesino" and tipo_b == "asesino" else (
+            "de A (B lo veía gris)" if tipo_a == "asesino" else "de B (A lo veía verde ⚠️)"
+        )
+        await bot.send_message(
+            game.cid,
+            f"💀 *¡ASESINO!* *{word.upper()}* era el asesino {quien}. El equipo ha perdido.",
+            parse_mode=ParseMode.MARKDOWN,
+        )
         await end_game_duo(bot, game, victoria=False, razon="asesino")
         return
 
-    if tipo_real == "agente":
+    # Resultado según la clave de quien da la pista
+    tipo_hinter = tipo_a if st.dador_actual == "A" else tipo_b
+    emoji_map = {"agente": "🟩", "neutral": "⬜"}
+    await bot.send_message(
+        game.cid,
+        f"Carta {numero} revelada: *{word.upper()}* {emoji_map.get(tipo_hinter, '⬜')}",
+        parse_mode=ParseMode.MARKDOWN,
+    )
+
+    if tipo_hinter == "agente":
         st.agentes_revelados += 1
         if st.agentes_revelados >= st.total_agentes_duo:
             await end_game_duo(bot, game, victoria=True, razon="agentes")
