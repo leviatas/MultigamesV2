@@ -156,12 +156,29 @@ async def play_cooperativo():
 
     agentes_a = {n for n, t in st.key_a.items() if t == "agente"}
     agentes_b = {n for n, t in st.key_b.items() if t == "agente"}
-    assert_true(len(agentes_a & agentes_b) == 0, "Las cartas de agente de A y B no deben solaparse")
-    assert_true(len(agentes_a) + len(agentes_b) == 15, "Debe haber 15 agentes en total")
+    asesinos_a = {n for n, t in st.key_a.items() if t == "asesino"}
+    asesinos_b = {n for n, t in st.key_b.items() if t == "asesino"}
 
-    asesinos = {n for n, t in st.key_a.items() if t == "asesino"}
-    assert_true(asesinos == {n for n, t in st.key_b.items() if t == "asesino"}, "El asesino debe ser el mismo para ambos")
-    assert_true(len(asesinos) == 1, "Debe haber exactamente un asesino")
+    # Reglas Dúo oficiales:
+    # 3 agentes compartidos (verde A + verde B)
+    shared_agents = agentes_a & agentes_b
+    assert_true(len(shared_agents) == 3, f"Debe haber 3 agentes compartidos, hay {len(shared_agents)}")
+
+    # 15 agentes reales = cartas que son agente en alguna clave y asesino en ninguna
+    agentes_reales = {n for n in range(1, 26)
+                      if (st.key_a[n] == "agente" or st.key_b[n] == "agente")
+                      and st.key_a[n] != "asesino" and st.key_b[n] != "asesino"}
+    assert_true(len(agentes_reales) == 15, f"Debe haber 15 agentes reales, hay {len(agentes_reales)}")
+
+    # 3 asesinos: 1 compartido, 1 solo A, 1 trampa (verde A + negro B)
+    assert_true(len(asesinos_a) == 2, f"key_a debe tener 2 asesinos, tiene {len(asesinos_a)}")
+    assert_true(len(asesinos_b) == 2, f"key_b debe tener 2 asesinos, tiene {len(asesinos_b)}")
+    shared_assassins = asesinos_a & asesinos_b
+    assert_true(len(shared_assassins) == 1, f"Debe haber 1 asesino compartido, hay {len(shared_assassins)}")
+    # Trampa: asesino de B que A ve como agente
+    trampa = asesinos_b - asesinos_a
+    assert_true(len(trampa) == 1 and st.key_a[next(iter(trampa))] == "agente",
+                "Debe haber 1 trampa: asesino de B visto como agente por A")
 
     assert_true(st.fase_actual == "Duo A - Pista", f"Debe iniciar con pista del jugador A, fue {st.fase_actual}")
 
