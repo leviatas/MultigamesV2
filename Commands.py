@@ -724,7 +724,7 @@ async def command_join(update: Update, context: CallbackContext):
 				
 				# Si se ha alcanzado el minimo o superado, y no esta ya empezado
 				if len(game.playerlist) == max_jugadores and not game.board:
-					await command_startgame(update, context)
+					await command_startgame(update, context, auto_start=True)
 				elif len(game.playerlist) >= min_jugadores:
 					if game.board:
 						await bot.send_message(game.cid, fname + " se ha unido al juego. Hay %s/%s jugadores." % (str(len(game.playerlist)), max_jugadores))
@@ -739,7 +739,7 @@ async def command_join(update: Update, context: CallbackContext):
 			await bot.send_message(game.cid,
 				fname + ", no puedo mandarte mensajes privados o hubo un error. Por favor anda a @MultiGamesByLevibot y hace click en \"Start\".\nLuego tiene que hacer /join de nuevo." + str(e))
 
-async def command_startgame(update: Update, context: CallbackContext):
+async def command_startgame(update: Update, context: CallbackContext, auto_start: bool = False):
 	bot = context.bot
 	log.info('command_startgame called')
 	cid = update.message.chat_id
@@ -748,7 +748,7 @@ async def command_startgame(update: Update, context: CallbackContext):
 		await bot.send_message(cid, "There is no game in this chat. Create a new game with /newgame")
 	#elif game.board:
 	#	await bot.send_message(cid, "The game is already running!")
-	elif update.message.from_user.id not in ADMIN and update.message.from_user.id != game.initiator and bot.getChatMember(cid, update.message.from_user.id).status not in ("administrator", "creator"):
+	elif not auto_start and update.message.from_user.id not in ADMIN and update.message.from_user.id != game.initiator and (await bot.get_chat_member(cid, update.message.from_user.id)).status not in ("administrator", "creator"):
 		await bot.send_message(game.cid, "Solo el creador del juego o un admin puede iniciar con /startgame")	
 	elif game.board:
 		await bot.send_message(cid, "El juego ya empezo!")
