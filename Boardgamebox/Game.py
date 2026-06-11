@@ -74,10 +74,10 @@ class Game(object):
     def get_rules(self):
         return ["LINK_Juego", "No hay reglas agregadas todavias:"]
 
-    def call(self, context):
+    async def call(self, context):
         import JustOne.Commands as JustoneCommands
         if self.board is not None:
-            JustoneCommands.command_call(context.bot, self)
+            await JustoneCommands.command_call(context.bot, self)
 
     def group_link_name(self):
         link_info = None
