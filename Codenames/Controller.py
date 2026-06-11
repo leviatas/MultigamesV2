@@ -314,10 +314,12 @@ async def process_pick_duo(bot, game, uid, numero: int):
 
     tipo_a = st.key_a[numero]
     tipo_b = st.key_b[numero]
+    tipo_hinter_pre = tipo_a if st.dador_actual == "A" else tipo_b
 
     # Si es asesino en CUALQUIERA de las dos claves → derrota inmediata
     # Esto incluye la trampa: asesino de B que A ve como agente (verde)
     if tipo_a == "asesino" or tipo_b == "asesino":
+        card["tipo"] = "asesino"
         quien = "compartido" if tipo_a == "asesino" and tipo_b == "asesino" else (
             "de A (B lo veía gris)" if tipo_a == "asesino" else "de B (A lo veía verde ⚠️)"
         )
@@ -330,7 +332,7 @@ async def process_pick_duo(bot, game, uid, numero: int):
         return
 
     # Resultado según la clave de quien da la pista
-    tipo_hinter = tipo_a if st.dador_actual == "A" else tipo_b
+    tipo_hinter = tipo_hinter_pre
     emoji_map = {"agente": "🟩", "neutral": "⬜"}
     await bot.send_message(
         game.cid,
@@ -339,6 +341,7 @@ async def process_pick_duo(bot, game, uid, numero: int):
     )
 
     if tipo_hinter == "agente":
+        card["tipo"] = "agente"
         st.agentes_revelados += 1
         if st.agentes_revelados >= st.total_agentes_duo:
             await end_game_duo(bot, game, victoria=True, razon="agentes")
@@ -356,6 +359,7 @@ async def process_pick_duo(bot, game, uid, numero: int):
             )
             await save(bot, game.cid)
     else:
+        card["tipo"] = "neutral"
         st.pistas_restantes -= 1
         await bot.send_message(
             game.cid,
