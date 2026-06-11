@@ -268,7 +268,15 @@ async def command_call(bot, game):
                 f"Intentos restantes: {st.intentos_restantes}.\nUsa `/pick NUMERO` o `/endturn`.",
                 parse_mode=ParseMode.MARKDOWN,
             )
-            await bot.send_message(game.cid, game.board.print_board_duo(game), parse_mode=ParseMode.MARKDOWN)
+            await bot.send_photo(
+                game.cid,
+                photo=game.board.render_duo_board_image(game),
+                caption=(
+                    f"{player_call(receptor)}: pista *{st.pista_actual}* — {st.numero_pista}. "
+                    f"Intentos restantes: {st.intentos_restantes}.\nUsa `/pick NUMERO` o `/endturn`."
+                ),
+                parse_mode=ParseMode.MARKDOWN,
+            )
         return
 
     if "Pista" in fase:
@@ -286,9 +294,12 @@ async def command_call(bot, game):
         pista = game.board.state.pista_actual
         numero = game.board.state.numero_pista
         intentos = game.board.state.intentos_restantes
-        await bot.send_message(
+        await bot.send_photo(
             game.cid,
-            f"Equipo *{team}*: pista *{pista}* — {numero}. Intentos restantes: {intentos}.\nUsa `/pick NUMERO` o `/endturn`.",
+            photo=game.board.render_board_image(game),
+            caption=(
+                f"Equipo *{team}*: pista *{pista}* — {numero}. "
+                f"Intentos restantes: {intentos}.\nUsa `/pick NUMERO` o `/endturn`."
+            ),
             parse_mode=ParseMode.MARKDOWN,
         )
-        await bot.send_message(game.cid, game.board.print_board(game), parse_mode=ParseMode.MARKDOWN)
