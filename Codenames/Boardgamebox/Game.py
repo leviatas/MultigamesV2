@@ -57,7 +57,7 @@ class Game(BaseGame):
                     "Comandos: /hint PALABRA NUMERO (quien da la pista, en privado) | /pick NUMERO (quien adivina, en el grupo) | /endturn"]
         return ["Codenames: adivinen las palabras de su equipo con las pistas del espía.\nComandos: /hint PALABRA NUMERO (espía, en privado) | /pick NUMERO (agentes, en el grupo) | /endturn"]
 
-    def call(self, context):
+    async def call(self, context):
         import Codenames.Commands as CodenamesCommands
         if self.board is not None:
-            CodenamesCommands.command_call(context.bot, self)
+            await CodenamesCommands.command_call(context.bot, self)

@@ -49,11 +49,11 @@ url = urllib.parse.urlparse(os.environ["DATABASE_URL"])
 async def command_call(bot, game):
 	# Verifico en mi maquina de estados que comando deberia usar para el estado(fase) actual
 	if game.board.state.fase_actual == "Proponiendo Pistas":
-		call_proponiendo_pistas(bot, game)
+		await call_proponiendo_pistas(bot, game)
 	elif game.board.state.fase_actual == "Revisando Pistas":
 		reviewer_player = game.board.state.reviewer_player
 		await bot.send_message(game.cid, "Revisor {0} recorda que tenes que verificar las pistas".format(player_call(reviewer_player)), ParseMode.MARKDOWN)
-		UnanimoController.send_reviewer_buttons(bot, game)
+		await UnanimoController.send_reviewer_buttons(bot, game)
 	elif game.board.state.fase_actual == "Adivinando":
 		active_player = game.board.state.active_player
 		await bot.send_message(game.cid, "{0} estamos esperando para que hagas /guess EJEMPLO o /pass".format(player_call(active_player)), ParseMode.MARKDOWN)
@@ -84,7 +84,7 @@ async def call_proponiendo_pistas(bot, game):
 				await bot.send_message(game.cid, history_text, ParseMode.MARKDOWN)
 			# Se pone >= ya que si un jugador se va del partido y ya puso pista entonces vale
 			if game.board.num_players != 3 and len(game.board.state.last_votes) >= len(game.player_sequence):
-				UnanimoController.review_clues(bot, game)			
+				await UnanimoController.review_clues(bot, game)
 		else:
 			await bot.send_message(game.cid, "5 minutos deben pasar para llamar a call") 
 
@@ -114,7 +114,7 @@ async def set_words(bot, args):
 			await bot.send_message(game.cid, "El jugador *%s* ha puesto una pista." % game.playerlist[uid].name, ParseMode.MARKDOWN)
 			
 			if len(game.board.state.last_votes) == len(game.player_sequence):
-				UnanimoController.review_clues(bot, game)
+				await UnanimoController.review_clues(bot, game)
 			# if game.board.num_players != 3:
 			# 	if len(game.board.state.last_votes) == len(game.player_sequence)-1:
 			# 		UnanimoController.review_clues(bot, game)
@@ -270,34 +270,14 @@ async def replace_accent(txt):
 
 async def command_continue(bot, game, uid):
 	try:
-		
-		# Verifico en mi maquina de estados que comando deberia usar para el estado(fase) actual
 		if game.board.state.fase_actual == "Proponiendo Pistas":
-			# Vuelvo a mandar la pista
-			UnanimoController.call_players_to_clue(bot, game)
+			await UnanimoController.call_players_to_clue(bot, game)
 		elif game.board.state.fase_actual == "Revisando Pistas":
-			UnanimoController.review_clues(bot, game)
+			await UnanimoController.review_clues(bot, game)
 		elif game.board.state.fase_actual == "Adivinando":
 			active_player = game.board.state.active_player
 			await bot.send_message(game.cid, "{0} estamos esperando para que hagas /guess EJEMPLO o /pass".format(player_call(active_player)), ParseMode.MARKDOWN)
 		elif game.board.state.fase_actual == "Finalizado":
-			UnanimoController.continue_playing(bot, game)
-	except Exception as e:
-		await bot.send_message(game.cid, str(e))
-		
-async def command_continue(bot, game, uid):
-	try:
-		
-		# Verifico en mi maquina de estados que comando deberia usar para el estado(fase) actual
-		if game.board.state.fase_actual == "Proponiendo Pistas":
-			# Vuelvo a mandar la pista
-			UnanimoController.call_players_to_clue(bot, game)
-		elif game.board.state.fase_actual == "Revisando Pistas":
-			UnanimoController.review_clues(bot, game)
-		elif game.board.state.fase_actual == "Adivinando":
-			active_player = game.board.state.active_player
-			await bot.send_message(game.cid, "{0} estamos esperando para que hagas /guess EJEMPLO o /pass".format(player_call(active_player)), ParseMode.MARKDOWN)
-		elif game.board.state.fase_actual == "Finalizado":
-			UnanimoController.continue_playing(bot, game)
+			await UnanimoController.continue_playing(bot, game)
 	except Exception as e:
 		await bot.send_message(game.cid, str(e))

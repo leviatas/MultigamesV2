@@ -20,7 +20,7 @@ class Game(BaseGame):
 	def create_board(self):
 		player_number = len(self.playerlist)
 		self.board = Board(player_number, self)
-	def call(self, context):
+	async def call(self, context):
 		import SayAnything.Commands as SayAnythingCommands
 		if self.board is not None:
-    			SayAnythingCommands.command_call(context.bot, self)
+			await SayAnythingCommands.command_call(context.bot, self)

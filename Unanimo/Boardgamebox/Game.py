@@ -62,10 +62,10 @@ Si NO se adivino la palabra, los aldeanos votan a ver quien es el lobo. *Si un l
 		for player in self.playerlist.values():
 			player.points = 0
 
-	def call(self, context):
+	async def call(self, context):
 		import Unanimo.Commands as UnanimoCommands
 		if self.board is not None:
-				UnanimoCommands.command_call(context.bot, self)
+			await UnanimoCommands.command_call(context.bot, self)
 				
 	def timer(self, update, context):
 		import Unanimo.Commands as UnanimoCommands

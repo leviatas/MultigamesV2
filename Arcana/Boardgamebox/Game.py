@@ -14,7 +14,7 @@ class Game(BaseGame):
 	def create_board(self):
 		player_number = len(self.playerlist)
 		self.board = Board(player_number, self)
-	def call(self, context):
+	async def call(self, context):
 		import Arcana.Commands as ArcanaCommands
 		if self.board is not None:
-			ArcanaCommands.command_call(context.bot, self)
+			await ArcanaCommands.command_call(context.bot, self)
