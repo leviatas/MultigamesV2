@@ -2,4 +2,9 @@
 set -e
 
 git pull
-docker compose up -d --build
+
+if docker compose version &>/dev/null; then
+    docker compose up -d --build
+else
+    docker-compose up -d --build
+fi
