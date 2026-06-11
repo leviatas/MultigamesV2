@@ -80,6 +80,9 @@ class FakeBot:
     async def delete_message(self, chat_id, message_id):
         pass
 
+    async def send_photo(self, chat_id, photo=None, caption=None, parse_mode=None, **kwargs):
+        self.messages.append((chat_id, caption or ""))
+
 
 async def _noop_save(bot, cid, newGroupName=''):
     pass

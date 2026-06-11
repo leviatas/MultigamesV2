@@ -122,12 +122,12 @@ async def assign_teams(bot, game):
     )
     await bot.send_message(game.cid, msg, parse_mode=ParseMode.MARKDOWN)
 
-    tablero_espia = game.board.print_spymaster_board(game)
     for sm, team in [(spymaster_rojo, "Rojo"), (spymaster_azul, "Azul")]:
         emoji = "🔴" if team == "Rojo" else "🔵"
-        await bot.send_message(
+        await bot.send_photo(
             sm.uid,
-            f"{emoji} Eres el espía del equipo *{team}*\n\n{tablero_espia}",
+            photo=game.board.render_spymaster_image(game),
+            caption=f"{emoji} Eres el espía del equipo *{team}* — todos los colores visibles",
             parse_mode=ParseMode.MARKDOWN,
         )
 
@@ -145,11 +145,14 @@ async def start_turn(bot, game, team: str):
     spymaster = game.get_spymaster(team)
     emoji = "🔴" if team == "Rojo" else "🔵"
 
-    await bot.send_message(game.cid, game.board.print_board(game), parse_mode=ParseMode.MARKDOWN)
-    await bot.send_message(
-        game.cid,
+    caption_turno = (
         f"{emoji} Turno del equipo *{team}*.\n"
-        f"Espía {player_call(spymaster)}, da tu pista en privado con:\n`/hint PALABRA NUMERO`",
+        f"Espía {player_call(spymaster)}, da tu pista en privado con:\n`/hint PALABRA NUMERO`"
+    )
+    await bot.send_photo(
+        game.cid,
+        photo=game.board.render_board_image(game),
+        caption=caption_turno,
         parse_mode=ParseMode.MARKDOWN,
     )
     await bot.send_message(
@@ -204,8 +207,16 @@ async def setup_duo(bot, game):
         "sin tocar al asesino, ¡antes de quedarse sin pistas!",
         parse_mode=ParseMode.MARKDOWN,
     )
-    await bot.send_message(jugador_a.uid, "Tu clave secreta (Jugador A):\n\n" + game.board.print_key(game, "A"), parse_mode=ParseMode.MARKDOWN)
-    await bot.send_message(jugador_b.uid, "Tu clave secreta (Jugador B):\n\n" + game.board.print_key(game, "B"), parse_mode=ParseMode.MARKDOWN)
+    await bot.send_photo(
+        jugador_a.uid,
+        photo=game.board.render_key_image(game, "A"),
+        caption="🟩 Tu clave secreta (Jugador A) — verde=agente, negro=asesino, gris=neutral",
+    )
+    await bot.send_photo(
+        jugador_b.uid,
+        photo=game.board.render_key_image(game, "B"),
+        caption="🟩 Tu clave secreta (Jugador B) — verde=agente, negro=asesino, gris=neutral",
+    )
 
     await start_turn_duo(bot, game, "A")
 
@@ -222,11 +233,13 @@ async def start_turn_duo(bot, game, dador_label: str):
     dador = game.get_player_by_label(dador_label)
     receptor = game.get_player_by_label(game.get_other_player_label(dador_label))
 
-    await bot.send_message(game.cid, game.board.print_board_duo(game), parse_mode=ParseMode.MARKDOWN)
-    await bot.send_message(
+    await bot.send_photo(
         game.cid,
-        f"🗣️ Turno de pista del Jugador *{dador.name}* (rol {dador_label}).\n"
-        f"{player_call(dador)}, da tu pista en privado con `/hint PALABRA NUMERO`.",
+        photo=game.board.render_duo_board_image(game),
+        caption=(
+            f"🗣️ Turno de pista del Jugador *{dador.name}* (rol {dador_label}).\n"
+            f"{player_call(dador)}, da tu pista en privado con `/hint PALABRA NUMERO`."
+        ),
         parse_mode=ParseMode.MARKDOWN,
     )
     await bot.send_message(dador.uid, "Es tu turno de dar pista. Usa `/hint PALABRA NUMERO` aquí.", parse_mode=ParseMode.MARKDOWN)
@@ -259,14 +272,16 @@ async def process_hint_duo(bot, game, uid, word: str, number: int):
     st.intentos_restantes = number + 1
     st.fase_actual = f"Duo {dador_label} - Adivinar"
 
-    await bot.send_message(
+    await bot.send_photo(
         game.cid,
-        f"💬 Pista de *{dador.name}*: *{word.upper()}* — {number}\n"
-        f"{player_call(receptor)}, usa `/pick NUMERO` para adivinar (en el grupo). "
-        f"Hasta *{number + 1}* intentos o `/endturn` para pasar.",
+        photo=game.board.render_duo_board_image(game),
+        caption=(
+            f"💬 Pista de *{dador.name}*: *{word.upper()}* — {number}\n"
+            f"{player_call(receptor)}, usa `/pick NUMERO` para adivinar (en el grupo). "
+            f"Hasta *{number + 1}* intentos o `/endturn` para pasar."
+        ),
         parse_mode=ParseMode.MARKDOWN,
     )
-    await bot.send_message(game.cid, game.board.print_board_duo(game), parse_mode=ParseMode.MARKDOWN)
     await save(bot, game.cid)
 
 
@@ -303,10 +318,10 @@ async def process_pick_duo(bot, game, uid, numero: int):
             await bot.send_message(game.cid, "Se agotaron los intentos. Cambio de turno.", parse_mode=ParseMode.MARKDOWN)
             await end_turn_duo(bot, game)
         else:
-            await bot.send_message(
+            await bot.send_photo(
                 game.cid,
-                f"✅ *¡Correcto!* Agentes encontrados: {st.agentes_revelados}/{st.total_agentes_duo}. Intentos restantes: {st.intentos_restantes}\n"
-                + game.board.print_board_duo(game),
+                photo=game.board.render_duo_board_image(game),
+                caption=f"✅ *¡Correcto!* Agentes encontrados: {st.agentes_revelados}/{st.total_agentes_duo}. Intentos restantes: {st.intentos_restantes}",
                 parse_mode=ParseMode.MARKDOWN,
             )
             await save(bot, game.cid)
@@ -395,14 +410,17 @@ async def process_hint(bot, game, spymaster_uid, word: str, number: int):
         for p in game.get_team_players(team)
         if not game.is_spymaster(p.uid)
     )
-    await bot.send_message(
-        game.cid,
+    caption_pista = (
         f"💬 Pista del espía *{team}*: *{word.upper()}* — {number}\n"
         f"{field_mentions} usen `/pick NUMERO` para elegir una carta.\n"
-        f"Hasta *{number + 1}* intentos o `/endturn` para pasar.",
+        f"Hasta *{number + 1}* intentos o `/endturn` para pasar."
+    )
+    await bot.send_photo(
+        game.cid,
+        photo=game.board.render_board_image(game),
+        caption=caption_pista,
         parse_mode=ParseMode.MARKDOWN,
     )
-    await bot.send_message(game.cid, game.board.print_board(game), parse_mode=ParseMode.MARKDOWN)
     await save(bot, game.cid)
 
 
@@ -447,10 +465,10 @@ async def process_pick(bot, game, uid, numero: int):
             await bot.send_message(game.cid, "Se agotaron los intentos. Fin del turno.", parse_mode=ParseMode.MARKDOWN)
             await end_turn(bot, game)
         else:
-            await bot.send_message(
+            await bot.send_photo(
                 game.cid,
-                f"✅ *¡Correcto!* Intentos restantes: {game.board.state.intentos_restantes}\n"
-                + game.board.print_board(game),
+                photo=game.board.render_board_image(game),
+                caption=f"✅ *¡Correcto!* Intentos restantes: {game.board.state.intentos_restantes}",
                 parse_mode=ParseMode.MARKDOWN,
             )
             await save(bot, game.cid)
