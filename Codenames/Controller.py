@@ -170,23 +170,19 @@ async def setup_duo(bot, game):
     game.board.state.jugador_a = jugador_a
     game.board.state.jugador_b = jugador_b
 
-    # Layout oficial Codenames Dúo (25 cartas):
-    # 3 agentes compartidos (verde A + verde B)
-    # 6 agentes solo A (verde A + gris B)
-    # 6 agentes solo B (gris A + verde B)
-    # 1 asesino compartido (negro A + negro B)
-    # 1 asesino de A (negro A + gris B)
-    # 1 asesino de B — trampa (VERDE A + negro B)   ← A lo ve como agente!
-    # 7 neutrales (gris A + gris B)
+    # Layout Codenames Dúo (25 cartas):
+    # 3 agentes compartidos  (verde A + verde B)
+    # 6 agentes solo A       (verde A + gris B)
+    # 6 agentes solo B       (gris A + verde B)
+    # 3 asesinos compartidos (negro A + negro B)  ← ambos ven 3 negros
+    # 7 neutrales            (gris A + gris B)
     nums = list(range(1, 26))
     random.shuffle(nums)
 
-    shared_agents  = set(nums[0:3])
-    a_agents       = set(nums[3:9])
-    b_agents       = set(nums[9:15])
-    shared_assassin = nums[15]
-    a_assassin      = nums[16]
-    b_assassin      = nums[17]   # A lo ve como agente, pero es el asesino de B
+    shared_agents    = set(nums[0:3])
+    a_agents         = set(nums[3:9])
+    b_agents         = set(nums[9:15])
+    assassins        = set(nums[15:18])   # 3 asesinos compartidos
 
     key_a = {}
     key_b = {}
@@ -200,14 +196,8 @@ async def setup_duo(bot, game):
         elif n in b_agents:
             key_a[n] = "neutral"
             key_b[n] = "agente"
-        elif n == shared_assassin:
+        elif n in assassins:
             key_a[n] = "asesino"
-            key_b[n] = "asesino"
-        elif n == a_assassin:
-            key_a[n] = "asesino"
-            key_b[n] = "neutral"
-        elif n == b_assassin:
-            key_a[n] = "agente"   # trampa: A lo ve verde, pero es el asesino de B
             key_b[n] = "asesino"
         else:
             key_a[n] = "neutral"
@@ -223,18 +213,18 @@ async def setup_duo(bot, game):
         game.cid,
         f"🤝 *Modo Dúo activado!*\nJugador A: *{jugador_a.name}*\nJugador B: *{jugador_b.name}*\n\n"
         "Cada uno recibirá su clave secreta en privado. Trabajen juntos para encontrar los 15 agentes "
-        "sin tocar al asesino, ¡antes de quedarse sin pistas!",
+        "sin tocar ninguno de los 3 asesinos, ¡antes de quedarse sin pistas!",
         parse_mode=ParseMode.MARKDOWN,
     )
     await bot.send_photo(
         jugador_a.uid,
         photo=game.board.render_key_image(game, "A"),
-        caption="🟩 Tu clave (Jugador A) — verde=agente, negro=asesino, gris=neutral\n⚠️ Cuidado: una carta verde tuya puede ser el asesino de tu compañero.",
+        caption="🟩 Tu clave (Jugador A) — verde=agente, negro=asesino, gris=neutral",
     )
     await bot.send_photo(
         jugador_b.uid,
         photo=game.board.render_key_image(game, "B"),
-        caption="🟩 Tu clave (Jugador B) — verde=agente, negro=asesino, gris=neutral\n⚠️ Cuidado: una carta verde tuya puede ser el asesino de tu compañero.",
+        caption="🟩 Tu clave (Jugador B) — verde=agente, negro=asesino, gris=neutral",
     )
 
     await start_turn_duo(bot, game, "A")
