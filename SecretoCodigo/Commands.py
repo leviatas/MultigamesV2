@@ -324,7 +324,7 @@ async def command_demotablero3(update: Update, context: CallbackContext):
         )
         path_saved = hti.screenshot(html_str=html, save_as="tablero3.png")
         with open(path_saved[0], "rb") as f:
-            await bot.send_document(cid, document=f, filename="tablero3.png",
+            await bot.send_photo(cid, photo=f,
                 caption=f"🎲 Tablero de demo — html2image | font: {effective_size}px")
 
 
