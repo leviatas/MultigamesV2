@@ -71,9 +71,9 @@ JUEGOS_DISPONIBLES = {
                 },
 		"permitir_ingreso_tardio" : True
         },
-	"Codenames" : {
+	"SecretoCodigo" : {
                 "comandos" : {
-                    "Codenames" : "Codenames"
+                    "SecretoCodigo" : "Secreto Código"
                 },
         },
 }
@@ -219,7 +219,7 @@ MODULOS_DISPONIBES = {
                         "max_jugadores" : 12
                 }
         },
-	"Codenames" : {
+	"SecretoCodigo" : {
                 "Competitivo" : {
                         "comandos" : {
                             "Competitivo" : "Competitivo"

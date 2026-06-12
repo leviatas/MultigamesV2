@@ -3,7 +3,7 @@ import os
 import urllib.parse
 
 import psycopg
-import Codenames.Controller as CodenamesController
+import SecretoCodigo.Controller as SecretoCodigoController
 from Utils import get_game, save, player_call, simple_choose_buttons
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
@@ -15,7 +15,7 @@ from Constants.Config import ADMIN
 import re
 
 log.basicConfig(
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s Codenames',
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s SecretoCodigo',
     level=log.INFO)
 logger = log.getLogger(__name__)
 
@@ -57,7 +57,7 @@ async def command_hint(update: Update, context: CallbackContext):
         await bot.send_message(uid, "El número debe ser entre 0 y 9.")
         return
 
-    # Load all Codenames games from DB to memory
+    # Load all SecretoCodigo games from DB to memory
     try:
         conn = psycopg.connect(
             dbname=url.path[1:],
@@ -67,17 +67,16 @@ async def command_hint(update: Update, context: CallbackContext):
             port=url.port,
         )
         cursor = conn.cursor()
-        cursor.execute("SELECT * FROM games g WHERE g.tipojuego = 'Codenames'")
-        if cursor.rowcount > 0:
-            for table in cursor.fetchall():
-                if table[0] not in GamesController.games:
-                    get_game(table[0])
+        cursor.execute("SELECT * FROM games g WHERE g.tipojuego = 'SecretoCodigo'")
+        for table in cursor.fetchall():
+            if table[0] not in GamesController.games:
+                get_game(table[0])
         conn.close()
     except Exception as e:
         log.error(f'DB error in command_hint: {e}')
 
     def _can_hint(g):
-        if g.tipo != "Codenames" or uid not in g.playerlist or g.board is None:
+        if g.tipo != "SecretoCodigo" or uid not in g.playerlist or g.board is None:
             return False
         if g.modo == "Cooperativo":
             label = g.get_label_by_uid(uid)
@@ -93,9 +92,9 @@ async def command_hint(update: Update, context: CallbackContext):
     if len(valid_games) == 1:
         g = valid_games[0]
         if g.modo == "Cooperativo":
-            await CodenamesController.process_hint_duo(bot, g, uid, word, number)
+            await SecretoCodigoController.process_hint_duo(bot, g, uid, word, number)
         else:
-            await CodenamesController.process_hint(bot, g, uid, word, number)
+            await SecretoCodigoController.process_hint(bot, g, uid, word, number)
         return
 
     # Multiple eligible games — show selection buttons
@@ -126,9 +125,9 @@ async def callback_choose_game_hint_cn(update: Update, context: CallbackContext)
         word = parts[0]
         number = int(parts[1])
         if game.modo == "Cooperativo":
-            await CodenamesController.process_hint_duo(bot, game, uid, word, number)
+            await SecretoCodigoController.process_hint_duo(bot, game, uid, word, number)
         else:
-            await CodenamesController.process_hint(bot, game, uid, word, number)
+            await SecretoCodigoController.process_hint(bot, game, uid, word, number)
     except Exception as e:
         await bot.send_message(ADMIN[0], f'callback_choose_game_hint_cn error: {e}')
 
@@ -140,7 +139,7 @@ async def command_pick(update: Update, context: CallbackContext):
     uid = update.message.from_user.id
 
     game = get_game(cid)
-    if not game or game.tipo != "Codenames" or not game.board:
+    if not game or game.tipo != "SecretoCodigo" or not game.board:
         return
 
     if len(args) < 1:
@@ -176,7 +175,7 @@ async def command_pick(update: Update, context: CallbackContext):
             await bot.send_message(cid, "Carta inválida o ya revelada.")
             return
 
-        await CodenamesController.process_pick_duo(bot, game, uid, numero)
+        await SecretoCodigoController.process_pick_duo(bot, game, uid, numero)
         return
 
     team = game.board.state.turno_actual
@@ -194,7 +193,7 @@ async def command_pick(update: Update, context: CallbackContext):
         await bot.send_message(cid, "Carta inválida o ya revelada.")
         return
 
-    await CodenamesController.process_pick(bot, game, uid, numero)
+    await SecretoCodigoController.process_pick(bot, game, uid, numero)
 
 
 async def command_endturn(update: Update, context: CallbackContext):
@@ -203,7 +202,7 @@ async def command_endturn(update: Update, context: CallbackContext):
     uid = update.message.from_user.id
 
     game = get_game(cid)
-    if not game or game.tipo != "Codenames" or not game.board:
+    if not game or game.tipo != "SecretoCodigo" or not game.board:
         return
 
     fase = game.board.state.fase_actual
@@ -221,7 +220,7 @@ async def command_endturn(update: Update, context: CallbackContext):
             return
 
         await bot.send_message(cid, f"*{receptor.name}* termina el turno voluntariamente.", parse_mode=ParseMode.MARKDOWN)
-        await CodenamesController.end_turn_duo(bot, game)
+        await SecretoCodigoController.end_turn_duo(bot, game)
         return
 
     team = game.board.state.turno_actual
@@ -239,7 +238,7 @@ async def command_endturn(update: Update, context: CallbackContext):
         f"El equipo *{team}* termina su turno voluntariamente.",
         parse_mode=ParseMode.MARKDOWN,
     )
-    await CodenamesController.end_turn(bot, game)
+    await SecretoCodigoController.end_turn(bot, game)
 
 
 async def command_call(bot, game):

@@ -1,6 +1,6 @@
 from Boardgamebox.Game import Game as BaseGame
-from Codenames.Boardgamebox.Player import Player
-from Codenames.Boardgamebox.Board import Board
+from SecretoCodigo.Boardgamebox.Player import Player
+from SecretoCodigo.Boardgamebox.Board import Board
 
 
 class Game(BaseGame):
@@ -53,11 +53,11 @@ class Game(BaseGame):
 
     def get_rules(self):
         if self.modo == "Cooperativo":
-            return ["Codenames Dúo: trabajen juntos para encontrar los 15 agentes sin tocar al asesino ni quedarse sin pistas.\n"
+            return ["Secreto Código Dúo: trabajen juntos para encontrar los 15 agentes sin tocar al asesino ni quedarse sin pistas.\n"
                     "Comandos: /hint PALABRA NUMERO (quien da la pista, en privado) | /pick NUMERO (quien adivina, en el grupo) | /endturn"]
-        return ["Codenames: adivinen las palabras de su equipo con las pistas del espía.\nComandos: /hint PALABRA NUMERO (espía, en privado) | /pick NUMERO (agentes, en el grupo) | /endturn"]
+        return ["Secreto Código: adivinen las palabras de su equipo con las pistas del espía.\nComandos: /hint PALABRA NUMERO (espía, en privado) | /pick NUMERO (agentes, en el grupo) | /endturn"]
 
     async def call(self, context):
-        import Codenames.Commands as CodenamesCommands
+        import SecretoCodigo.Commands as SecretoCodigoCommands
         if self.board is not None:
-            await CodenamesCommands.command_call(context.bot, self)
+            await SecretoCodigoCommands.command_call(context.bot, self)

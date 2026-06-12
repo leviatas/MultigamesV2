@@ -1,11 +1,11 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-Smoke test para Codenames: simula partidas completas (Competitivo y
+Smoke test para SecretoCodigo: simula partidas completas (Competitivo y
 Cooperativo/Dúo) sin Telegram ni base de datos, usando un FakeBot y
 mockeando save()/get_game().
 
-Ejecutar con:  python -m Codenames.test_codenames
+Ejecutar con:  python -m SecretoCodigo.test_secretocodigo
 """
 import asyncio
 import os
@@ -15,12 +15,12 @@ import types
 
 os.environ.setdefault("DATABASE_URL", "postgres://user:pass@localhost/db")
 
-# El Controller carga las palabras desde una ruta absoluta "/Codenames/txt/...",
+# El Controller carga las palabras desde una ruta absoluta "/SecretoCodigo/txt/...",
 # que coincide con el directorio raíz del proyecto en el contenedor de producción.
 # Si no existe (p.ej. corriendo localmente desde otro lugar), se crea un symlink.
-if not os.path.exists("/Codenames"):
+if not os.path.exists("/SecretoCodigo"):
     try:
-        os.symlink(os.path.dirname(os.path.abspath(__file__)), "/Codenames")
+        os.symlink(os.path.dirname(os.path.abspath(__file__)), "/SecretoCodigo")
     except OSError:
         pass
 
@@ -61,9 +61,9 @@ if "telegram" not in sys.modules:
 
 import GamesController
 import Utils
-import Codenames.Controller as CodenamesController
-import Codenames.Commands as CodenamesCommands
-from Codenames.Boardgamebox.Game import Game
+import SecretoCodigo.Controller as SecretoCodigoController
+import SecretoCodigo.Commands as SecretoCodigoCommands
+from SecretoCodigo.Boardgamebox.Game import Game
 
 
 class FakeBot:
@@ -88,7 +88,7 @@ async def _noop_save(bot, cid, newGroupName=''):
     pass
 
 
-def make_game(cid, modo, names, tipo="Codenames"):
+def make_game(cid, modo, names, tipo="SecretoCodigo"):
     game = Game(cid, 1, f"Grupo-{cid}", tipo, modo)
     for i, name in enumerate(names, start=1):
         uid = cid * 1000 + i
@@ -106,11 +106,11 @@ def assert_true(cond, msg):
 
 
 async def play_competitivo():
-    print("\n=== Test Codenames Competitivo ===")
+    print("\n=== Test SecretoCodigo Competitivo ===")
     bot = FakeBot()
     game = make_game(-1001, "Competitivo", ["Ana", "Beto", "Caro", "Dani", "Ema", "Fede"])
 
-    await CodenamesController.finish_config(bot, game)
+    await SecretoCodigoController.finish_config(bot, game)
 
     st = game.board.state
     assert_true(len(st.tablero) == 25, "El tablero debe tener 25 cartas")
@@ -125,13 +125,13 @@ async def play_competitivo():
 
         if fase == f"Turno {team} - Pista":
             sm = game.get_spymaster(team)
-            await CodenamesController.process_hint(bot, game, sm.uid, "PISTA", random.randint(1, 3))
+            await SecretoCodigoController.process_hint(bot, game, sm.uid, "PISTA", random.randint(1, 3))
         elif fase == f"Turno {team} - Adivinar":
             operativos = [p for p in game.get_team_players(team) if not game.is_spymaster(p.uid)]
             uid = operativos[0].uid
             sin_revelar = [c for c in st.tablero if not c["revealed"]]
             numero = random.choice(sin_revelar)["numero"]
-            await CodenamesController.process_pick(bot, game, uid, numero)
+            await SecretoCodigoController.process_pick(bot, game, uid, numero)
         else:
             raise AssertionError(f"Fase inesperada: {fase}")
 
@@ -145,11 +145,11 @@ async def play_competitivo():
 
 
 async def play_cooperativo():
-    print("\n=== Test Codenames Cooperativo (Dúo) ===")
+    print("\n=== Test SecretoCodigo Cooperativo (Dúo) ===")
     bot = FakeBot()
     game = make_game(-1002, "Cooperativo", ["Ana", "Beto"])
 
-    await CodenamesController.finish_config(bot, game)
+    await SecretoCodigoController.finish_config(bot, game)
 
     st = game.board.state
     assert_true(len(st.key_a) == 25 and len(st.key_b) == 25, "Las claves deben cubrir las 25 cartas")
@@ -199,11 +199,11 @@ async def play_cooperativo():
         receptor = game.get_player_by_label(game.get_other_player_label(dador_label))
 
         if fase == f"Duo {dador_label} - Pista":
-            await CodenamesController.process_hint_duo(bot, game, dador.uid, "PISTA", random.randint(1, 3))
+            await SecretoCodigoController.process_hint_duo(bot, game, dador.uid, "PISTA", random.randint(1, 3))
         elif fase == f"Duo {dador_label} - Adivinar":
             sin_revelar = [c for c in st.tablero if not c["revealed"]]
             numero = random.choice(sin_revelar)["numero"]
-            await CodenamesController.process_pick_duo(bot, game, receptor.uid, numero)
+            await SecretoCodigoController.process_pick_duo(bot, game, receptor.uid, numero)
         else:
             raise AssertionError(f"Fase inesperada: {fase}")
 
@@ -213,17 +213,17 @@ async def play_cooperativo():
 
 
 async def play_cooperativo_command_dispatch():
-    print("\n=== Test Codenames Cooperativo — dispatch vía Commands ===")
+    print("\n=== Test SecretoCodigo Cooperativo — dispatch vía Commands ===")
     bot = FakeBot()
     game = make_game(-1003, "Cooperativo", ["Ana", "Beto"])
-    await CodenamesController.finish_config(bot, game)
+    await SecretoCodigoController.finish_config(bot, game)
 
     st = game.board.state
     dador = game.get_player_by_label(st.dador_actual)
     receptor = game.get_player_by_label(game.get_other_player_label(st.dador_actual))
 
     def _can_hint(g):
-        if g.tipo != "Codenames" or g.board is None:
+        if g.tipo != "SecretoCodigo" or g.board is None:
             return False
         if g.modo == "Cooperativo":
             label = g.get_label_by_uid(dador.uid)
@@ -232,7 +232,7 @@ async def play_cooperativo_command_dispatch():
 
     assert_true(_can_hint(game), "El jugador A debe poder dar pista en su turno")
 
-    await CodenamesController.process_hint_duo(bot, game, dador.uid, "ANIMAL", 2)
+    await SecretoCodigoController.process_hint_duo(bot, game, dador.uid, "ANIMAL", 2)
     assert_true(st.fase_actual == f"Duo {st.dador_actual} - Adivinar", "Tras la pista debe pasar a fase de adivinar")
 
     sin_revelar = [c for c in st.tablero if not c["revealed"]]
@@ -241,20 +241,20 @@ async def play_cooperativo_command_dispatch():
     receptor = game.get_player_by_label(receptor_label)
     assert_true(game.get_label_by_uid(receptor.uid) == receptor_label, "El receptor debe resolverse por label")
 
-    await CodenamesController.process_pick_duo(bot, game, receptor.uid, numero)
+    await SecretoCodigoController.process_pick_duo(bot, game, receptor.uid, numero)
     print("OK — dispatch coherente entre Commands y Controller para modo Dúo")
 
 
 async def main():
     GamesController.init()
     Utils.save = _noop_save
-    CodenamesController.save = _noop_save
-    CodenamesCommands.save = _noop_save
+    SecretoCodigoController.save = _noop_save
+    SecretoCodigoCommands.save = _noop_save
 
     await play_competitivo()
     await play_cooperativo()
     await play_cooperativo_command_dispatch()
-    print("\nTodos los tests de Codenames pasaron correctamente.")
+    print("\nTodos los tests de SecretoCodigo pasaron correctamente.")
 
 
 if __name__ == "__main__":

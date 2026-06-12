@@ -263,7 +263,7 @@ app.add_handler(CallbackQueryHandler(
 
 | Elemento | Convención | Ejemplo |
 |---|---|---|
-| Sufijo de callbacks | 2 letras mayúsculas | `CN` (Codenames), `JO` (JustOne) |
+| Sufijo de callbacks | 2 letras mayúsculas | `CN` (SecretoCodigo), `JO` (JustOne) |
 | Action codes | camelCase + sufijo | `choosediccCN`, `chooseendCN` |
 | Fases (`fase_actual`) | Español descriptivo | `"Turno Rojo - Pista"` |
 | Rutas a archivos txt | Absolutas desde raíz | `/NombreJuego/txt/spanish-original.txt` |
@@ -277,5 +277,5 @@ app.add_handler(CallbackQueryHandler(
 |---|---|---|
 | JustOne | Media | Comandos privados, múltiples partidas activas |
 | Arcana | Alta | Teams, cartas con acciones, Boardgamebox custom |
-| Codenames | Media | 2 equipos, roles distintos, fases alternadas |
+| SecretoCodigo | Media | 2 equipos, roles distintos, fases alternadas |
 | Unanimo | Baja | Estructura mínima, juego cooperativo simple |
