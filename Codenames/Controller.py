@@ -323,19 +323,9 @@ async def process_pick_duo(bot, game, uid, numero: int):
     # Esto incluye la trampa: asesino de B que A ve como agente (verde)
     if tipo_a == "asesino" or tipo_b == "asesino":
         card["tipo"] = "asesino"
-        if tipo_a == "asesino" and tipo_b == "asesino":
-            quien = "compartido 💀"
-        elif tipo_a == "asesino" and tipo_b == "agente":
-            quien = "de A — ¡B lo veía verde y cayó en la trampa! ⚠️"
-        elif tipo_a == "asesino" and tipo_b == "neutral":
-            quien = "de A (B lo veía gris)"
-        elif tipo_a == "agente" and tipo_b == "asesino":
-            quien = "de B — ¡A lo veía verde y cayó en la trampa! ⚠️"
-        else:
-            quien = "de B (A lo veía gris)"
         await bot.send_message(
             game.cid,
-            f"💀 *¡ASESINO!* *{word.upper()}* era el asesino {quien}. El equipo ha perdido.",
+            f"💀 *¡ASESINO!* *{word.upper()}* era un asesino. El equipo ha perdido.",
             parse_mode=ParseMode.MARKDOWN,
         )
         await end_game_duo(bot, game, victoria=False, razon="asesino")
