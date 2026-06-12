@@ -31,7 +31,7 @@ from Decrypt.Boardgamebox.Game import Game as GameDecrypt
 from Werewords.Boardgamebox.Game import Game as GameWerewords
 from Deception.Boardgamebox.Game import Game as GameDeception
 from Unanimo.Boardgamebox.Game import Game as GameUnanimo
-from Codenames.Boardgamebox.Game import Game as GameCodenames
+from SecretoCodigo.Boardgamebox.Game import Game as GameSecretoCodigo
 
 from Boardgamebox.Player import Player
 from Boardgamebox.State import State
@@ -641,8 +641,8 @@ async def CreateGame(cid, uid, tipo, groupName, bot):
 		GamesController.games[cid] = GameDeception(cid, uid, groupName, tipo)
 	elif tipo == 'Unanimo':
 		GamesController.games[cid] = GameUnanimo(cid, uid, groupName, tipo)
-	elif tipo == 'Codenames':
-		GamesController.games[cid] = GameCodenames(cid, uid, groupName, tipo)
+	elif tipo == 'SecretoCodigo':
+		GamesController.games[cid] = GameSecretoCodigo(cid, uid, groupName, tipo)
 	else:
 		GamesController.games[cid] = Game(cid, uid, groupName, tipo)
 
@@ -1021,7 +1021,7 @@ async def command_guess(update: Update, context: CallbackContext):
 async def command_pick(update: Update, context: CallbackContext):
 	bot = context.bot
 	import SayAnything.Commands as SayAnythingCommands
-	import Codenames.Commands as CodenamesCommands
+	import SecretoCodigo.Commands as SecretoCodigoCommands
 
 	cid = update.message.chat_id
 	uid = update.message.from_user.id
@@ -1029,8 +1029,8 @@ async def command_pick(update: Update, context: CallbackContext):
 	if game and uid in game.playerlist:
 		if game.tipo == "SayAnything":
 			await SayAnythingCommands.command_pick(update, context)
-		elif game.tipo == "Codenames":
-			await CodenamesCommands.command_pick(update, context)
+		elif game.tipo == "SecretoCodigo":
+			await SecretoCodigoCommands.command_pick(update, context)
 		else:
 			await bot.send_message(cid, "*El juego no tiene comando pick*", ParseMode.MARKDOWN)
 	else:

@@ -13,19 +13,19 @@ from telegram.ext import CallbackContext
 
 from Utils import get_game, save, player_call, simple_choose_buttons
 from Constants.Config import ADMIN
-from Codenames.Boardgamebox.Game import Game
-from Codenames.Boardgamebox.Board import Board
+from SecretoCodigo.Boardgamebox.Game import Game
+from SecretoCodigo.Boardgamebox.Board import Board
 import GamesController
 
 log.basicConfig(
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s Codenames',
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s SecretoCodigo',
     level=log.INFO)
 logger = log.getLogger(__name__)
 
 
 async def init_game(bot, game):
     try:
-        log.info('Codenames init_game called')
+        log.info('SecretoCodigo init_game called')
         game.shuffle_player_sequence()
         game.board.state.fase_actual = "Configurando"
         await call_dicc_buttons(bot, game)
@@ -40,7 +40,7 @@ async def call_dicc_buttons(bot, game):
     await simple_choose_buttons(
         bot, game.cid, 1234, game.cid,
         "choosediccCN",
-        "¿Elige un diccionario para jugar Codenames?",
+        "¿Elige un diccionario para jugar Secreto Código?",
         opciones_botones,
     )
 
@@ -66,7 +66,7 @@ async def callback_finish_config_cn(update: Update, context: CallbackContext):
 
 
 async def finish_config(bot, game):
-    log.info('Codenames finish_config called')
+    log.info('SecretoCodigo finish_config called')
     opcion = game.configs.get('diccionario', 'original')
     url_palabras = os.path.join(_TXT_DIR, f'spanish-{opcion}.txt')
     with open(url_palabras, 'r') as f:
@@ -93,7 +93,7 @@ async def finish_config(bot, game):
 
 
 async def assign_teams(bot, game):
-    log.info('Codenames assign_teams called')
+    log.info('SecretoCodigo assign_teams called')
     mitad = len(game.player_sequence) // 2
     equipo_rojo = game.player_sequence[:mitad]
     equipo_azul = game.player_sequence[mitad:]
@@ -135,7 +135,7 @@ async def assign_teams(bot, game):
 
 
 async def start_turn(bot, game, team: str):
-    log.info(f'Codenames start_turn called — equipo {team}')
+    log.info(f'SecretoCodigo start_turn called — equipo {team}')
     game.board.state.fase_actual = f"Turno {team} - Pista"
     game.board.state.turno_actual = team
     game.board.state.pista_actual = None
@@ -164,7 +164,7 @@ async def start_turn(bot, game, team: str):
 
 
 async def setup_duo(bot, game):
-    log.info('Codenames setup_duo called')
+    log.info('SecretoCodigo setup_duo called')
     jugadores = game.player_sequence
     jugador_a, jugador_b = jugadores[0], jugadores[1]
     game.board.state.jugador_a = jugador_a
@@ -244,7 +244,7 @@ async def setup_duo(bot, game):
 
 
 async def start_turn_duo(bot, game, dador_label: str):
-    log.info(f'Codenames start_turn_duo called — dador {dador_label}')
+    log.info(f'SecretoCodigo start_turn_duo called — dador {dador_label}')
     st = game.board.state
     st.fase_actual = f"Duo {dador_label} - Pista"
     st.dador_actual = dador_label
@@ -269,7 +269,7 @@ async def start_turn_duo(bot, game, dador_label: str):
 
 
 async def process_hint_duo(bot, game, uid, word: str, number: int):
-    log.info('Codenames process_hint_duo called')
+    log.info('SecretoCodigo process_hint_duo called')
     st = game.board.state
     fase = st.fase_actual
     dador_label = st.dador_actual

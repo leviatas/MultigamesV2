@@ -3,7 +3,7 @@ import os
 import urllib.parse
 
 import psycopg
-import Codenames.Controller as CodenamesController
+import SecretoCodigo.Controller as SecretoCodigoController
 from Utils import get_game, save, player_call, simple_choose_buttons
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
@@ -15,7 +15,7 @@ from Constants.Config import ADMIN
 import re
 
 log.basicConfig(
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s Codenames',
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s SecretoCodigo',
     level=log.INFO)
 logger = log.getLogger(__name__)
 
@@ -67,7 +67,7 @@ async def command_hint(update: Update, context: CallbackContext):
             port=url.port,
         )
         cursor = conn.cursor()
-        cursor.execute("SELECT * FROM games g WHERE g.tipojuego = 'Codenames'")
+        cursor.execute("SELECT * FROM games g WHERE g.tipojuego = 'SecretoCodigo'")
         for table in cursor.fetchall():
             if table[0] not in GamesController.games:
                 get_game(table[0])
