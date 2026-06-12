@@ -247,7 +247,7 @@ async def command_history(update: Update, context: CallbackContext):
     game = get_game(cid)
     if not game or game.tipo != "SecretoCodigo" or not game.board:
         return
-    historial = game.board.state.historial
+    historial = getattr(game.board.state, 'historial', [])
     if not historial:
         await bot.send_message(cid, "No hay pistas registradas aún.", parse_mode=ParseMode.MARKDOWN)
         return

@@ -23,6 +23,13 @@ log.basicConfig(
 logger = log.getLogger(__name__)
 
 
+def _hist(st):
+    """Devuelve st.historial, inicializándolo si el objeto viene de una versión anterior."""
+    if not hasattr(st, 'historial'):
+        st.historial = []
+    return st.historial
+
+
 async def init_game(bot, game):
     try:
         log.info('SecretoCodigo init_game called')
@@ -302,7 +309,7 @@ async def process_hint_duo(bot, game, uid, word: str, number: int):
     st.numero_pista = number
     st.intentos_restantes = 999 if infinito else number + 1
     st.fase_actual = f"Duo {dador_label} - Adivinar"
-    st.historial.append({
+    _hist(st).append({
         "turno": dador_label, "dador": dador.name,
         "pista": word.upper(), "numero": number, "picks": []
     })
@@ -336,8 +343,8 @@ async def process_pick_duo(bot, game, uid, numero: int):
     # Si es asesino en CUALQUIERA de las dos claves → derrota inmediata
     if tipo_a == "asesino" or tipo_b == "asesino":
         card["tipo"] = "asesino"
-        if st.historial:
-            st.historial[-1]["picks"].append({"word": word.upper(), "resultado": "asesino"})
+        if _hist(st):
+            _hist(st)[-1]["picks"].append({"word": word.upper(), "resultado": "asesino"})
         await bot.send_message(
             game.cid,
             f"💀 *¡ASESINO!* *{word.upper()}* era un asesino. El equipo ha perdido.",
@@ -349,8 +356,8 @@ async def process_pick_duo(bot, game, uid, numero: int):
     # Resultado según la clave de quien da la pista
     tipo_hinter = tipo_hinter_pre
     resultado_pick = "agente" if tipo_hinter == "agente" else "neutral"
-    if st.historial:
-        st.historial[-1]["picks"].append({"word": word.upper(), "resultado": resultado_pick})
+    if _hist(st):
+        _hist(st)[-1]["picks"].append({"word": word.upper(), "resultado": resultado_pick})
 
     emoji_map = {"agente": "🟩", "neutral": "⬜"}
     await bot.send_message(
@@ -458,7 +465,7 @@ async def process_hint(bot, game, spymaster_uid, word: str, number: int):
     game.board.state.numero_pista = number
     game.board.state.intentos_restantes = 999 if infinito else number + 1
     game.board.state.fase_actual = f"Turno {team} - Adivinar"
-    game.board.state.historial.append({
+    _hist(game.board.state).append({
         "turno": team, "dador": spymaster.name,
         "pista": word.upper(), "numero": number, "picks": []
     })
@@ -492,7 +499,7 @@ async def process_pick(bot, game, uid, numero: int):
     team = game.board.state.turno_actual
 
     # Registrar en historial
-    if game.board.state.historial:
+    if _hist(game.board.state):
         if tipo == "asesino":
             resultado = "asesino"
         elif tipo == team.lower():
@@ -501,7 +508,7 @@ async def process_pick(bot, game, uid, numero: int):
             resultado = "contrario"
         else:
             resultado = "gris"
-        game.board.state.historial[-1]["picks"].append({"word": word.upper(), "resultado": resultado})
+        _hist(game.board.state)[-1]["picks"].append({"word": word.upper(), "resultado": resultado})
 
     emoji_map = {"rojo": "🟥", "azul": "🟦", "neutral": "⬜", "asesino": "💀"}
     await bot.send_message(
