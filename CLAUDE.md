@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Branch Protection Rules
 
-**NEVER push directly to `develop` or `main`.** All changes must go through a Pull Request from a feature branch. The only exception is if the user explicitly instructs a direct push.
+**NEVER push directly to `develop` or `main`.** All changes must go through a Pull Request from a feature branch targeting `develop`. The only exception is if the user explicitly instructs a direct push.
 
 ## What This Is
 
