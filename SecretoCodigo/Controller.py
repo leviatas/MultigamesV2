@@ -157,7 +157,9 @@ async def start_turn(bot, game, team: str):
     )
     await bot.send_message(
         spymaster.uid,
-        f"Es tu turno de espía ({team}). Usa `/hint PALABRA NUMERO` en este chat.",
+        f"Es tu turno de espía ({team}). Usa `/hint PALABRA NUMERO` en este chat.\n"
+        "• `0` → adivina sin límite\n"
+        "• `-1` → pista infinita (también sin límite)",
         parse_mode=ParseMode.MARKDOWN,
     )
     await save(bot, game.cid)
@@ -264,7 +266,13 @@ async def start_turn_duo(bot, game, dador_label: str):
         ),
         parse_mode=ParseMode.MARKDOWN,
     )
-    await bot.send_message(dador.uid, "Es tu turno de dar pista. Usa `/hint PALABRA NUMERO` aquí.", parse_mode=ParseMode.MARKDOWN)
+    await bot.send_message(
+        dador.uid,
+        "Es tu turno de dar pista. Usa `/hint PALABRA NUMERO` aquí.\n"
+        "• `0` → adivina sin límite\n"
+        "• `-1` → pista infinita (también sin límite)",
+        parse_mode=ParseMode.MARKDOWN,
+    )
     await save(bot, game.cid)
 
 
@@ -285,22 +293,24 @@ async def process_hint_duo(bot, game, uid, word: str, number: int):
     if " " in word:
         await bot.send_message(uid, "La pista debe ser una sola palabra sin espacios.")
         return
-    if not (0 <= number <= 9):
-        await bot.send_message(uid, "El número debe ser entre 0 y 9.")
+    if not (-1 <= number <= 9):
+        await bot.send_message(uid, "El número debe ser entre -1 y 9. Usa -1 para pista infinita.")
         return
 
+    infinito = number in (0, -1)
     st.pista_actual = word.upper()
     st.numero_pista = number
-    st.intentos_restantes = number + 1
+    st.intentos_restantes = 999 if infinito else number + 1
     st.fase_actual = f"Duo {dador_label} - Adivinar"
 
+    intentos_str = "∞" if infinito else str(number + 1)
     await bot.send_photo(
         game.cid,
         photo=game.board.render_duo_board_image(game),
         caption=(
-            f"💬 Pista de *{dador.name}*: *{word.upper()}* — {number}\n"
+            f"💬 Pista de *{dador.name}*: *{word.upper()}* — {'∞' if infinito else number}\n"
             f"{player_call(receptor)}, usa `/pick NUMERO` para adivinar (en el grupo). "
-            f"Hasta *{number + 1}* intentos o `/endturn` para pasar."
+            f"Hasta *{intentos_str}* intentos o `/endturn` para pasar."
         ),
         parse_mode=ParseMode.MARKDOWN,
     )
@@ -354,7 +364,7 @@ async def process_pick_duo(bot, game, uid, numero: int):
             await bot.send_photo(
                 game.cid,
                 photo=game.board.render_duo_board_image(game),
-                caption=f"✅ *¡Correcto!* Agentes encontrados: {st.agentes_revelados}/{st.total_agentes_duo}. Intentos restantes: {st.intentos_restantes}",
+                caption=f"✅ *¡Correcto!* Agentes encontrados: {st.agentes_revelados}/{st.total_agentes_duo}. Intentos restantes: {'∞' if st.intentos_restantes >= 999 else st.intentos_restantes}",
                 parse_mode=ParseMode.MARKDOWN,
             )
             await save(bot, game.cid)
@@ -430,24 +440,26 @@ async def process_hint(bot, game, spymaster_uid, word: str, number: int):
     if " " in word:
         await bot.send_message(spymaster_uid, "La pista debe ser una sola palabra sin espacios.")
         return
-    if not (0 <= number <= 9):
-        await bot.send_message(spymaster_uid, "El número debe ser entre 0 y 9.")
+    if not (-1 <= number <= 9):
+        await bot.send_message(spymaster_uid, "El número debe ser entre -1 y 9. Usa -1 para pista infinita.")
         return
 
+    infinito = number in (0, -1)
     game.board.state.pista_actual = word.upper()
     game.board.state.numero_pista = number
-    game.board.state.intentos_restantes = number + 1
+    game.board.state.intentos_restantes = 999 if infinito else number + 1
     game.board.state.fase_actual = f"Turno {team} - Adivinar"
 
+    intentos_str = "∞" if infinito else str(number + 1)
     field_mentions = " ".join(
         player_call(p)
         for p in game.get_team_players(team)
         if not game.is_spymaster(p.uid)
     )
     caption_pista = (
-        f"💬 Pista del espía *{team}*: *{word.upper()}* — {number}\n"
+        f"💬 Pista del espía *{team}*: *{word.upper()}* — {'∞' if infinito else number}\n"
         f"{field_mentions} usen `/pick NUMERO` para elegir una carta.\n"
-        f"Hasta *{number + 1}* intentos o `/endturn` para pasar."
+        f"Hasta *{intentos_str}* intentos o `/endturn` para pasar."
     )
     await bot.send_photo(
         game.cid,
@@ -502,7 +514,7 @@ async def process_pick(bot, game, uid, numero: int):
             await bot.send_photo(
                 game.cid,
                 photo=game.board.render_board_image(game),
-                caption=f"✅ *¡Correcto!* Intentos restantes: {game.board.state.intentos_restantes}",
+                caption=f"✅ *¡Correcto!* Intentos restantes: {'∞' if game.board.state.intentos_restantes >= 999 else game.board.state.intentos_restantes}",
                 parse_mode=ParseMode.MARKDOWN,
             )
             await save(bot, game.cid)

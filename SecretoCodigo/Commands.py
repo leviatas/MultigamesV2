@@ -53,8 +53,8 @@ async def command_hint(update: Update, context: CallbackContext):
         await bot.send_message(uid, "El segundo argumento debe ser un número entero.")
         return
 
-    if not (0 <= number <= 9):
-        await bot.send_message(uid, "El número debe ser entre 0 y 9.")
+    if not (-1 <= number <= 9):
+        await bot.send_message(uid, "El número debe ser entre -1 y 9. Usa -1 para pista infinita.")
         return
 
     # Load all SecretoCodigo games from DB to memory
@@ -259,20 +259,22 @@ async def command_call(bot, game):
                 f"{player_call(dador)} es tu turno de dar la pista.\nUsa `/hint PALABRA NUMERO` en privado.",
                 parse_mode=ParseMode.MARKDOWN,
             )
-            await bot.send_message(dador.uid, "Es tu turno de dar pista. Usa `/hint PALABRA NUMERO` aquí.", parse_mode=ParseMode.MARKDOWN)
-        elif "Adivinar" in fase:
             await bot.send_message(
-                game.cid,
-                f"{player_call(receptor)}: pista *{st.pista_actual}* — {st.numero_pista}. "
-                f"Intentos restantes: {st.intentos_restantes}.\nUsa `/pick NUMERO` o `/endturn`.",
+                dador.uid,
+                "Es tu turno de dar pista. Usa `/hint PALABRA NUMERO` aquí.\n"
+                "• `0` → adivina sin límite\n"
+                "• `-1` → pista infinita (también sin límite)",
                 parse_mode=ParseMode.MARKDOWN,
             )
+        elif "Adivinar" in fase:
+            intentos_display = "∞" if st.intentos_restantes >= 999 else st.intentos_restantes
+            numero_display = "∞" if st.numero_pista in (0, -1) else st.numero_pista
             await bot.send_photo(
                 game.cid,
                 photo=game.board.render_duo_board_image(game),
                 caption=(
-                    f"{player_call(receptor)}: pista *{st.pista_actual}* — {st.numero_pista}. "
-                    f"Intentos restantes: {st.intentos_restantes}.\nUsa `/pick NUMERO` o `/endturn`."
+                    f"{player_call(receptor)}: pista *{st.pista_actual}* — {numero_display}. "
+                    f"Intentos restantes: {intentos_display}.\nUsa `/pick NUMERO` o `/endturn`."
                 ),
                 parse_mode=ParseMode.MARKDOWN,
             )
@@ -286,19 +288,27 @@ async def command_call(bot, game):
             f"{player_call(sm)} es tu turno de dar la pista del equipo *{team}*.\nUsa `/hint PALABRA NUMERO` en privado.",
             parse_mode=ParseMode.MARKDOWN,
         )
-        await bot.send_message(sm.uid, "Es tu turno. Usa `/hint PALABRA NUMERO` aquí.", parse_mode=ParseMode.MARKDOWN)
+        await bot.send_message(
+            sm.uid,
+            "Es tu turno. Usa `/hint PALABRA NUMERO` aquí.\n"
+            "• `0` → adivina sin límite\n"
+            "• `-1` → pista infinita (también sin límite)",
+            parse_mode=ParseMode.MARKDOWN,
+        )
 
     elif "Adivinar" in fase:
         team = game.board.state.turno_actual
         pista = game.board.state.pista_actual
         numero = game.board.state.numero_pista
         intentos = game.board.state.intentos_restantes
+        intentos_display = "∞" if intentos >= 999 else intentos
+        numero_display = "∞" if numero in (0, -1) else numero
         await bot.send_photo(
             game.cid,
             photo=game.board.render_board_image(game),
             caption=(
-                f"Equipo *{team}*: pista *{pista}* — {numero}. "
-                f"Intentos restantes: {intentos}.\nUsa `/pick NUMERO` o `/endturn`."
+                f"Equipo *{team}*: pista *{pista}* — {numero_display}. "
+                f"Intentos restantes: {intentos_display}.\nUsa `/pick NUMERO` o `/endturn`."
             ),
             parse_mode=ParseMode.MARKDOWN,
         )
