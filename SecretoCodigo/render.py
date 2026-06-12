@@ -14,7 +14,7 @@ _FONT_PATH = "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf"
 # (background_hex, text_hex)
 _PALETTE = {
     # Sin revelar
-    "unrevealed":    ("#E8E8E8", "#1A1A1A"),
+    "unrevealed":    ("#FFE5CC", "#1A1A1A"),
     # Competitivo — tipo de carta sin revelar
     "rojo":          ("#C0392B", "#FFFFFF"),
     "azul":          ("#1A5276", "#FFFFFF"),
