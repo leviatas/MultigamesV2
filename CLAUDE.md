@@ -6,6 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **NEVER push directly to `develop` or `main`.** All changes must go through a Pull Request from a feature branch targeting `develop`. The only exception is if the user explicitly instructs a direct push.
 
+**NEVER merge a Pull Request without explicit user approval.** Always create the PR and then ask the user before merging it.
+
 ## What This Is
 
 MultigamesV2 is a **Python Telegram bot ecosystem** for playing board games in group chats. It runs multiple bots concurrently in threads: a main Multigames bot (10+ games) and a dedicated Secret Hitler bot. The user-facing language is Spanish.
