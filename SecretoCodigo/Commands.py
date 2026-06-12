@@ -291,6 +291,38 @@ async def command_demotablero2(update: Update, context: CallbackContext):
     await bot.send_document(cid, document=buf, filename="tablero.png", caption=f"🎲 Tablero de demo — send_document | font: {effective_size}px")
 
 
+async def command_demotablero3(update: Update, context: CallbackContext):
+    bot = context.bot
+    cid = update.message.chat_id
+    import SecretoCodigo.render as render_mod
+    from html2image import Html2Image
+    import tempfile, os
+    args = context.args
+    font_size = int(args[0]) if args and args[0].isdigit() else None
+    sample_words = [
+        "GRANADA", "UNICORNIO", "MONTAÑA", "LANZA", "MOTOR",
+        "RIO", "LEONA", "INTERNET", "POLO", "CEREBRO",
+        "ARMA", "ROBOT", "GATO", "TIGRE", "HORMIGA",
+        "PAPA", "ESTADO", "LINCE", "SATELITE", "MERCADO",
+        "FALCON", "LATIGO", "CHOCOLATE", "DIETA", "SENADO",
+    ]
+    tipos = ["rojo"] * 9 + ["azul"] * 8 + ["neutral"] * 7 + ["asesino"] * 1
+    import random as _random
+    _random.shuffle(tipos)
+    tablero = [
+        {"word": w, "tipo": tipos[i], "revealed": i in (0, 5, 10, 17, 24), "numero": i + 1}
+        for i, w in enumerate(sample_words)
+    ]
+    effective_size = font_size if font_size is not None else render_mod.FONT_SIZE
+    html, canvas = render_mod.render_board_html(tablero, mode="public", font_size=font_size)
+    with tempfile.TemporaryDirectory() as tmpdir:
+        hti = Html2Image(output_path=tmpdir, size=(canvas, canvas))
+        path_saved = hti.screenshot(html_str=html, save_as="tablero3.png")
+        with open(path_saved[0], "rb") as f:
+            await bot.send_document(cid, document=f, filename="tablero3.png",
+                caption=f"🎲 Tablero de demo — html2image | font: {effective_size}px")
+
+
 async def command_history(update: Update, context: CallbackContext):
     bot = context.bot
     cid = update.message.chat_id
