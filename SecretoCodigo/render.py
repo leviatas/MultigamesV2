@@ -4,8 +4,8 @@ from io import BytesIO
 import os
 import time
 
-CELL_W = 230
-CELL_H = 230
+CELL_W = 200
+CELL_H = 200
 PAD = 10
 COLS = 5
 ROWS = 5
@@ -84,7 +84,7 @@ def _draw_cell(draw, x, y, word, numero, bg_hex, fg_hex, mark=None, revealed=Fal
         draw.polygon(pts, fill=_hex_rgb("#E67E22"))
 
     # Palabra centrada
-    font, label = _fit_text(draw, word.upper(), 56, CELL_W - 20)
+    font, label = _fit_text(draw, word.upper(), 62, CELL_W - 16)
     try:
         bbox = draw.textbbox((0, 0), label, font=font)
         tw, th = bbox[2] - bbox[0], bbox[3] - bbox[1]
