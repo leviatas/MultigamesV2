@@ -316,7 +316,12 @@ async def command_demotablero3(update: Update, context: CallbackContext):
     effective_size = font_size if font_size is not None else render_mod.FONT_SIZE
     html, canvas = render_mod.render_board_html(tablero, mode="public", font_size=font_size)
     with tempfile.TemporaryDirectory() as tmpdir:
-        hti = Html2Image(output_path=tmpdir, size=(canvas, canvas), browser_executable="/usr/bin/chromium")
+        hti = Html2Image(
+            output_path=tmpdir,
+            size=(canvas, canvas),
+            browser_executable="/usr/bin/chromium",
+            custom_flags=["--no-sandbox", "--disable-setuid-sandbox", "--disable-gpu"],
+        )
         path_saved = hti.screenshot(html_str=html, save_as="tablero3.png")
         with open(path_saved[0], "rb") as f:
             await bot.send_document(cid, document=f, filename="tablero3.png",
