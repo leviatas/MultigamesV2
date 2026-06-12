@@ -3,8 +3,8 @@ from PIL import Image, ImageDraw, ImageFont
 from io import BytesIO
 import os
 
-CELL_W = 150
-CELL_H = 78
+CELL_W = 170
+CELL_H = 90
 PAD = 7
 COLS = 5
 ROWS = 5
@@ -83,7 +83,7 @@ def _draw_cell(draw, x, y, word, numero, bg_hex, fg_hex, mark=None, revealed=Fal
         draw.polygon(pts, fill=_hex_rgb("#E67E22"))
 
     # Palabra centrada
-    font, label = _fit_text(draw, word.upper(), 22, CELL_W - 16)
+    font, label = _fit_text(draw, word.upper(), 24, CELL_W - 12)
     try:
         bbox = draw.textbbox((0, 0), label, font=font)
         tw, th = bbox[2] - bbox[0], bbox[3] - bbox[1]
