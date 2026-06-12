@@ -62,9 +62,10 @@ def _fit_text(draw, text, font_size, max_w):
     return _load_font(8), text[:12] + "…"
 
 
-def _draw_cell(draw, x, y, word, numero, bg_hex, fg_hex, mark=None):
+def _draw_cell(draw, x, y, word, numero, bg_hex, fg_hex, mark=None, revealed=False):
     """
-    mark: None | "check" (agente encontrado) | "miss_corner" (neutral pisado)
+    mark    : None | "check" (agente encontrado) | "miss_corner" (neutral pisado)
+    revealed: True dibuja tachado diagonal sobre la carta
     """
     bg = _hex_rgb(bg_hex)
     fg = _hex_rgb(fg_hex)
@@ -88,7 +89,14 @@ def _draw_cell(draw, x, y, word, numero, bg_hex, fg_hex, mark=None):
         tw, th = bbox[2] - bbox[0], bbox[3] - bbox[1]
     except AttributeError:
         tw, th = draw.textsize(label, font=font)
-    draw.text((x + (CELL_W - tw) // 2, y + (CELL_H - th) // 2 + 4), label, font=font, fill=fg)
+    tx = x + (CELL_W - tw) // 2
+    ty = y + (CELL_H - th) // 2 + 4
+    draw.text((tx, ty), label, font=font, fill=fg)
+
+    # Tachado sobre la palabra para cartas ya reveladas
+    if revealed:
+        strike_y = ty + th // 2
+        draw.line([(tx, strike_y), (tx + tw, strike_y)], fill=fg, width=2)
 
 
 def render_board(tablero, mode="public", key=None, partner_key=None):
@@ -163,7 +171,7 @@ def render_board(tablero, mode="public", key=None, partner_key=None):
         else:
             bg, fg = _PALETTE["unrevealed"]
 
-        _draw_cell(draw, x, y, word, numero, bg, fg, mark=mark)
+        _draw_cell(draw, x, y, word, numero, bg, fg, mark=mark, revealed=revealed)
 
     buf = BytesIO()
     img.save(buf, format="PNG")
