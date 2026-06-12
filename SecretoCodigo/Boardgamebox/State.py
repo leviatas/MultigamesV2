@@ -32,3 +32,8 @@ class State(BaseState):
         self.total_agentes_duo = 15
         self.pistas_restantes = 9
 
+        # Historial: list[dict]
+        # {"turno": str, "dador": str, "pista": str, "numero": int,
+        #  "picks": [{"word": str, "resultado": str}]}
+        self.historial = []
+

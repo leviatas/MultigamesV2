@@ -302,6 +302,10 @@ async def process_hint_duo(bot, game, uid, word: str, number: int):
     st.numero_pista = number
     st.intentos_restantes = 999 if infinito else number + 1
     st.fase_actual = f"Duo {dador_label} - Adivinar"
+    st.historial.append({
+        "turno": dador_label, "dador": dador.name,
+        "pista": word.upper(), "numero": number, "picks": []
+    })
 
     intentos_str = "∞" if infinito else str(number + 1)
     await bot.send_photo(
@@ -330,9 +334,10 @@ async def process_pick_duo(bot, game, uid, numero: int):
     tipo_hinter_pre = tipo_a if st.dador_actual == "A" else tipo_b
 
     # Si es asesino en CUALQUIERA de las dos claves → derrota inmediata
-    # Esto incluye la trampa: asesino de B que A ve como agente (verde)
     if tipo_a == "asesino" or tipo_b == "asesino":
         card["tipo"] = "asesino"
+        if st.historial:
+            st.historial[-1]["picks"].append({"word": word.upper(), "resultado": "asesino"})
         await bot.send_message(
             game.cid,
             f"💀 *¡ASESINO!* *{word.upper()}* era un asesino. El equipo ha perdido.",
@@ -343,6 +348,10 @@ async def process_pick_duo(bot, game, uid, numero: int):
 
     # Resultado según la clave de quien da la pista
     tipo_hinter = tipo_hinter_pre
+    resultado_pick = "agente" if tipo_hinter == "agente" else "neutral"
+    if st.historial:
+        st.historial[-1]["picks"].append({"word": word.upper(), "resultado": resultado_pick})
+
     emoji_map = {"agente": "🟩", "neutral": "⬜"}
     await bot.send_message(
         game.cid,
@@ -449,6 +458,10 @@ async def process_hint(bot, game, spymaster_uid, word: str, number: int):
     game.board.state.numero_pista = number
     game.board.state.intentos_restantes = 999 if infinito else number + 1
     game.board.state.fase_actual = f"Turno {team} - Adivinar"
+    game.board.state.historial.append({
+        "turno": team, "dador": spymaster.name,
+        "pista": word.upper(), "numero": number, "picks": []
+    })
 
     intentos_str = "∞" if infinito else str(number + 1)
     field_mentions = " ".join(
@@ -477,6 +490,18 @@ async def process_pick(bot, game, uid, numero: int):
     tipo = card["tipo"]
     word = card["word"]
     team = game.board.state.turno_actual
+
+    # Registrar en historial
+    if game.board.state.historial:
+        if tipo == "asesino":
+            resultado = "asesino"
+        elif tipo == team.lower():
+            resultado = "correcto"
+        elif tipo in ("rojo", "azul"):
+            resultado = "contrario"
+        else:
+            resultado = "gris"
+        game.board.state.historial[-1]["picks"].append({"word": word.upper(), "resultado": resultado})
 
     emoji_map = {"rojo": "🟥", "azul": "🟦", "neutral": "⬜", "asesino": "💀"}
     await bot.send_message(
