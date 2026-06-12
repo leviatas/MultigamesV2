@@ -68,10 +68,9 @@ async def command_hint(update: Update, context: CallbackContext):
         )
         cursor = conn.cursor()
         cursor.execute("SELECT * FROM games g WHERE g.tipojuego = 'Codenames'")
-        if cursor.rowcount > 0:
-            for table in cursor.fetchall():
-                if table[0] not in GamesController.games:
-                    get_game(table[0])
+        for table in cursor.fetchall():
+            if table[0] not in GamesController.games:
+                get_game(table[0])
         conn.close()
     except Exception as e:
         log.error(f'DB error in command_hint: {e}')
