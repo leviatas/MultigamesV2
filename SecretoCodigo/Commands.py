@@ -241,6 +241,49 @@ async def command_endturn(update: Update, context: CallbackContext):
     await SecretoCodigoController.end_turn(bot, game)
 
 
+async def command_history(update: Update, context: CallbackContext):
+    bot = context.bot
+    cid = update.message.chat_id
+    game = get_game(cid)
+    if not game or game.tipo != "SecretoCodigo" or not game.board:
+        return
+    historial = game.board.state.historial
+    if not historial:
+        await bot.send_message(cid, "No hay pistas registradas aún.", parse_mode=ParseMode.MARKDOWN)
+        return
+
+    if game.modo == "Cooperativo":
+        emoji_resultado = {"agente": "✅", "neutral": "⬜", "asesino": "💀"}
+        desc_resultado = {"agente": "agente", "neutral": "neutral pisado", "asesino": "asesino"}
+    else:
+        emoji_resultado = {"correcto": "✅", "gris": "⬜", "contrario": "❌", "asesino": "💀"}
+        desc_resultado = {"correcto": "correcto", "gris": "neutral", "contrario": "equipo contrario", "asesino": "asesino"}
+
+    lines = ["📋 *Historial de pistas:*\n"]
+    for entrada in historial:
+        turno = entrada["turno"]
+        dador = entrada["dador"]
+        pista = entrada["pista"]
+        numero = entrada["numero"]
+        numero_str = "∞" if numero in (0, -1) else str(numero)
+
+        if game.modo == "Cooperativo":
+            lines.append(f"👤 *{dador}* (Jugador {turno}) — *{pista}* ({numero_str})")
+        else:
+            emoji_eq = "🔴" if turno == "Rojo" else "🔵"
+            lines.append(f"{emoji_eq} *{dador}* ({turno}) — *{pista}* ({numero_str})")
+
+        for pick in entrada["picks"]:
+            r = pick["resultado"]
+            lines.append(f"  {emoji_resultado.get(r, '?')} *{pick['word']}* — {desc_resultado.get(r, r)}")
+
+        if not entrada["picks"]:
+            lines.append("  _(sin intentos)_")
+        lines.append("")
+
+    await bot.send_message(cid, "\n".join(lines), parse_mode=ParseMode.MARKDOWN)
+
+
 async def command_call(bot, game):
     fase = game.board.state.fase_actual
     if not fase:
@@ -259,11 +302,14 @@ async def command_call(bot, game):
                 f"{player_call(dador)} es tu turno de dar la pista.\nUsa `/hint PALABRA NUMERO` en privado.",
                 parse_mode=ParseMode.MARKDOWN,
             )
-            await bot.send_message(
+            await bot.send_photo(
                 dador.uid,
-                "Es tu turno de dar pista. Usa `/hint PALABRA NUMERO` aquí.\n"
-                "• `0` → adivina sin límite\n"
-                "• `-1` → pista infinita (también sin límite)",
+                photo=game.board.render_key_image(game, st.dador_actual),
+                caption=(
+                    "Es tu turno de dar pista. Usa `/hint PALABRA NUMERO` aquí.\n"
+                    "• `0` → adivina sin límite\n"
+                    "• `-1` → pista infinita (también sin límite)"
+                ),
                 parse_mode=ParseMode.MARKDOWN,
             )
         elif "Adivinar" in fase:
@@ -288,11 +334,14 @@ async def command_call(bot, game):
             f"{player_call(sm)} es tu turno de dar la pista del equipo *{team}*.\nUsa `/hint PALABRA NUMERO` en privado.",
             parse_mode=ParseMode.MARKDOWN,
         )
-        await bot.send_message(
+        await bot.send_photo(
             sm.uid,
-            "Es tu turno. Usa `/hint PALABRA NUMERO` aquí.\n"
-            "• `0` → adivina sin límite\n"
-            "• `-1` → pista infinita (también sin límite)",
+            photo=game.board.render_spymaster_image(game),
+            caption=(
+                f"Es tu turno ({team}). Usa `/hint PALABRA NUMERO` aquí.\n"
+                "• `0` → adivina sin límite\n"
+                "• `-1` → pista infinita (también sin límite)"
+            ),
             parse_mode=ParseMode.MARKDOWN,
         )
 

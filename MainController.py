@@ -768,6 +768,7 @@ def main(stop_event):
 	# Handlers de SecretoCodigo
 	app.add_handler(CommandHandler("hint", SecretoCodigoCommands.command_hint))
 	app.add_handler(CommandHandler("endturn", SecretoCodigoCommands.command_endturn))
+	app.add_handler(CommandHandler("history", SecretoCodigoCommands.command_history))
 	app.add_handler(CallbackQueryHandler(pattern=r"(-[0-9]*)\*choosediccCN\*(.*)\*([0-9]*)", callback=SecretoCodigoController.callback_finish_config_cn))
 	app.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)\*choosegamehintCN\*(.*)\*([0-9]*)", callback=SecretoCodigoCommands.callback_choose_game_hint_cn))
 	app.add_handler(CallbackQueryHandler(pattern=r"(-[0-9]*)\*chooseendCN\*(.*)\*([0-9]*)", callback=SecretoCodigoController.callback_finish_game_buttons_cn))
