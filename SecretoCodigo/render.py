@@ -13,7 +13,7 @@ CELL_H = 200
 PAD = 10
 COLS = 5
 ROWS = 5
-FONT_SIZE = 46
+FONT_SIZE = 28
 
 _FONT_PATH = "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf"
 
@@ -229,18 +229,18 @@ def render_board_html(tablero, mode="public", key=None, font_size=None):
         bg, fg = _HTML_PALETTE.get(palette_key, _HTML_PALETTE["unrevealed"])
         strike = "text-decoration: line-through;" if revealed else ""
         cells_html += f"""
-        <div style="
+        <div class="cell" style="
             width:{cell}px; height:{cell}px;
             background:{bg}; color:{fg};
             display:flex; flex-direction:column;
             align-items:center; justify-content:center;
             border:1px solid #fff; border-radius:4px;
-            font-size:{fs}px; font-weight:bold;
+            font-weight:bold;
             font-family:'Liberation Sans', Arial, sans-serif;
             position:relative; overflow:hidden; {strike}
         ">
             <span style="position:absolute;top:4px;left:6px;font-size:13px;opacity:.7;">{numero}</span>
-            <span style="text-align:center;padding:4px;word-break:break-word;line-height:1.1;">{word}</span>
+            <span class="word" style="font-size:{fs}px;text-align:center;padding:0 6px;white-space:nowrap;">{word}</span>
         </div>"""
 
     html = f"""<!DOCTYPE html>
@@ -255,6 +255,17 @@ def render_board_html(tablero, mode="public", key=None, font_size=None):
 ">
 {cells_html}
 </div>
+<script>
+document.querySelectorAll('.cell').forEach(function(cell) {{
+    var span = cell.querySelector('.word');
+    var maxW = {cell} - 12;
+    var size = parseInt(span.style.fontSize);
+    while (span.scrollWidth > maxW && size > 8) {{
+        size--;
+        span.style.fontSize = size + 'px';
+    }}
+}});
+</script>
 </body></html>"""
     return html, canvas
 
