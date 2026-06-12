@@ -30,7 +30,7 @@ There is no test suite. `MainTest.py` is a standalone runner for isolated manual
 
 ## Deployment
 
-- **CI/CD**: Push to `main` triggers `.github/workflows/fly.yml`, which deploys to Fly.io (`flyctl deploy --remote-only`).
+- **CI/CD**: Push to `develop` triggers `.github/workflows/fly.yml`, which deploys to Fly.io (`flyctl deploy --remote-only`).
 - **Docker**: `CMD ["python", "Main.py"]` — includes Google Chrome (used by `html2image` for rendering).
 - **Database**: PostgreSQL, schema in `DBCreate.sql`. Key table: `games` (id, groupName, tipojuego, data TEXT — JSON-serialized game object via `jsonpickle`).
 
