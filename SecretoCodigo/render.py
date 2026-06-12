@@ -4,9 +4,9 @@ from io import BytesIO
 import os
 import time
 
-CELL_W = 160
-CELL_H = 160
-PAD = 8
+CELL_W = 200
+CELL_H = 200
+PAD = 10
 COLS = 5
 ROWS = 5
 
@@ -73,18 +73,18 @@ def _draw_cell(draw, x, y, word, numero, bg_hex, fg_hex, mark=None, revealed=Fal
     draw.rectangle([x, y, x + CELL_W - 1, y + CELL_H - 1], fill=bg, outline=_hex_rgb("#FFFFFF"), width=1)
 
     # Número pequeño arriba-izquierda
-    num_font = _load_font(11)
-    draw.text((x + 5, y + 4), str(numero), font=num_font, fill=fg)
+    num_font = _load_font(15)
+    draw.text((x + 6, y + 5), str(numero), font=num_font, fill=fg)
 
     if mark == "check":
-        draw.text((x + CELL_W - 18, y + 3), "✓", font=num_font, fill=fg)
+        draw.text((x + CELL_W - 22, y + 4), "✓", font=num_font, fill=fg)
     elif mark == "miss_corner":
         # Triángulo naranja en esquina superior derecha para indicar "miss"
-        pts = [(x + CELL_W - 18, y + 1), (x + CELL_W - 1, y + 1), (x + CELL_W - 1, y + 18)]
+        pts = [(x + CELL_W - 22, y + 1), (x + CELL_W - 1, y + 1), (x + CELL_W - 1, y + 22)]
         draw.polygon(pts, fill=_hex_rgb("#E67E22"))
 
     # Palabra centrada
-    font, label = _fit_text(draw, word.upper(), 36, CELL_W - 16)
+    font, label = _fit_text(draw, word.upper(), 46, CELL_W - 20)
     try:
         bbox = draw.textbbox((0, 0), label, font=font)
         tw, th = bbox[2] - bbox[0], bbox[3] - bbox[1]
