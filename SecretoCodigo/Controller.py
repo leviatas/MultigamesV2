@@ -170,7 +170,7 @@ async def setup_duo(bot, game):
     game.board.state.jugador_a = jugador_a
     game.board.state.jugador_b = jugador_b
 
-    # Layout Codenames Dúo (25 cartas):
+    # Layout Secreto Código Dúo (25 cartas):
     # 3 agentes compartidos          (verde A + verde B)
     # 6 agentes solo A               (verde A + gris B)
     # 6 agentes solo B               (gris A + verde B)
@@ -308,7 +308,7 @@ async def process_hint_duo(bot, game, uid, word: str, number: int):
 
 
 async def process_pick_duo(bot, game, uid, numero: int):
-    log.info('Codenames process_pick_duo called')
+    log.info('SecretoCodigo process_pick_duo called')
     st = game.board.state
 
     card = next((c for c in st.tablero if c["numero"] == numero), None)
@@ -416,7 +416,7 @@ def _reveal_full_board_duo(game) -> str:
 
 
 async def process_hint(bot, game, spymaster_uid, word: str, number: int):
-    log.info('Codenames process_hint called')
+    log.info('SecretoCodigo process_hint called')
     fase = game.board.state.fase_actual
     team = game.board.state.turno_actual
     spymaster = game.get_spymaster(team)
@@ -459,7 +459,7 @@ async def process_hint(bot, game, spymaster_uid, word: str, number: int):
 
 
 async def process_pick(bot, game, uid, numero: int):
-    log.info('Codenames process_pick called')
+    log.info('SecretoCodigo process_pick called')
     card = next((c for c in game.board.state.tablero if c["numero"] == numero), None)
     card["revealed"] = True
     tipo = card["tipo"]

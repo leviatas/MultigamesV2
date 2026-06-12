@@ -1,4 +1,4 @@
-"""Genera imágenes PNG del tablero de Codenames."""
+"""Genera imágenes PNG del tablero de Secreto Código."""
 from PIL import Image, ImageDraw, ImageFont
 from io import BytesIO
 import os

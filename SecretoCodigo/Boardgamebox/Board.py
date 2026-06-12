@@ -1,6 +1,6 @@
 from Boardgamebox.Board import Board as BaseBoard
-from Codenames.Boardgamebox.State import State
-from Codenames.render import render_board
+from SecretoCodigo.Boardgamebox.State import State
+from SecretoCodigo.render import render_board
 
 
 REVEAL_EMOJIS = {
