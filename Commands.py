@@ -311,7 +311,16 @@ async def command_board(update: Update, context: CallbackContext):
 	cid = update.message.chat_id
 	game = get_game(cid)
 	if game.board:
-		await bot.send_message(cid, game.board.print_board(game), ParseMode.MARKDOWN)
+		if game.tipo == "SecretoCodigo":
+			fase = game.board.state.fase_actual or ""
+			if game.modo == "Cooperativo":
+				await bot.send_photo(cid, photo=game.board.render_duo_board_image(game))
+			elif "Adivinar" in fase or "Pista" in fase:
+				await bot.send_photo(cid, photo=game.board.render_board_image(game))
+			else:
+				await bot.send_photo(cid, photo=game.board.render_board_image(game))
+		else:
+			await bot.send_message(cid, game.board.print_board(game), ParseMode.MARKDOWN)
 	else:
 		await bot.send_message(cid, "There is no running game in this chat. Please start the game with /startgame")
 	
