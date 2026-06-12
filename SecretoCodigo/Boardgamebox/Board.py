@@ -1,6 +1,6 @@
 from Boardgamebox.Board import Board as BaseBoard
 from SecretoCodigo.Boardgamebox.State import State
-from SecretoCodigo.render import render_board
+from SecretoCodigo.render import render_html_to_bytesio
 
 
 REVEAL_EMOJIS = {
@@ -93,14 +93,14 @@ class Board(BaseBoard):
     # --- Métodos de imagen ---
 
     def render_board_image(self, game):
-        return render_board(self.state.tablero, mode="public")
+        return render_html_to_bytesio(self.state.tablero, mode="public")
 
     def render_spymaster_image(self, game):
-        return render_board(self.state.tablero, mode="spymaster")
+        return render_html_to_bytesio(self.state.tablero, mode="spymaster")
 
     def render_key_image(self, game, jugador_label):
         key = self.state.key_a if jugador_label == "A" else self.state.key_b
-        return render_board(self.state.tablero, mode="duo_key", key=key)
+        return render_html_to_bytesio(self.state.tablero, mode="duo_key", key=key)
 
     def render_duo_board_image(self, game):
-        return render_board(self.state.tablero, mode="duo_public")
+        return render_html_to_bytesio(self.state.tablero, mode="duo_public")

@@ -3,6 +3,10 @@ from PIL import Image, ImageDraw, ImageFont
 from io import BytesIO
 import os
 import time
+import tempfile
+
+_CHROME = "/usr/bin/chromium"
+_CHROME_FLAGS = ["--no-sandbox", "--disable-setuid-sandbox", "--disable-gpu"]
 
 CELL_W = 200
 CELL_H = 200
@@ -253,3 +257,21 @@ def render_board_html(tablero, mode="public", key=None, font_size=None):
 </div>
 </body></html>"""
     return html, canvas
+
+
+def render_html_to_bytesio(tablero, mode="public", key=None, font_size=None):
+    """Renderiza el tablero con html2image y devuelve BytesIO."""
+    from html2image import Html2Image
+    html, canvas = render_board_html(tablero, mode=mode, key=key, font_size=font_size)
+    with tempfile.TemporaryDirectory() as tmpdir:
+        hti = Html2Image(
+            output_path=tmpdir,
+            size=(canvas, canvas),
+            browser_executable=_CHROME,
+            custom_flags=_CHROME_FLAGS,
+        )
+        paths = hti.screenshot(html_str=html, save_as="board.png")
+        with open(paths[0], "rb") as f:
+            buf = BytesIO(f.read())
+    buf.seek(0)
+    return buf
