@@ -260,7 +260,7 @@ async def command_demotablero(update: Update, context: CallbackContext):
         for i, w in enumerate(sample_words)
     ]
     buf = render_mod.render_board(tablero, mode="public")
-    await bot.send_photo(cid, photo=buf, caption="🎲 Tablero de demo — send_photo (modo público)")
+    await bot.send_photo(cid, photo=buf, caption=f"🎲 Tablero de demo — send_photo | font: {render_mod.FONT_SIZE}px")
 
 
 async def command_demotablero2(update: Update, context: CallbackContext):
@@ -282,7 +282,7 @@ async def command_demotablero2(update: Update, context: CallbackContext):
         for i, w in enumerate(sample_words)
     ]
     buf = render_mod.render_board(tablero, mode="public")
-    await bot.send_document(cid, document=buf, filename="tablero.png", caption="🎲 Tablero de demo — send_document (modo público)")
+    await bot.send_document(cid, document=buf, filename="tablero.png", caption=f"🎲 Tablero de demo — send_document | font: {render_mod.FONT_SIZE}px")
 
 
 async def command_history(update: Update, context: CallbackContext):
