@@ -241,6 +241,28 @@ async def command_endturn(update: Update, context: CallbackContext):
     await SecretoCodigoController.end_turn(bot, game)
 
 
+async def command_demotablero(update: Update, context: CallbackContext):
+    bot = context.bot
+    cid = update.message.chat_id
+    import SecretoCodigo.render as render_mod
+    sample_words = [
+        "GRANADA", "UNICORNIO", "MONTAÑA", "LANZA", "MOTOR",
+        "RIO", "LEONA", "INTERNET", "POLO", "CEREBRO",
+        "ARMA", "ROBOT", "GATO", "TIGRE", "HORMIGA",
+        "PAPA", "ESTADO", "LINCE", "SATELITE", "MERCADO",
+        "FALCON", "LATIGO", "CHOCOLATE", "DIETA", "SENADO",
+    ]
+    tipos = ["rojo"] * 9 + ["azul"] * 8 + ["neutral"] * 7 + ["asesino"] * 1
+    import random as _random
+    _random.shuffle(tipos)
+    tablero = [
+        {"word": w, "tipo": tipos[i], "revealed": i in (0, 5, 10, 17, 24), "numero": i + 1}
+        for i, w in enumerate(sample_words)
+    ]
+    buf = render_mod.render_board(tablero, mode="public")
+    await bot.send_photo(cid, photo=buf, caption="🎲 Tablero de demo (modo público)")
+
+
 async def command_history(update: Update, context: CallbackContext):
     bot = context.bot
     cid = update.message.chat_id
