@@ -245,6 +245,8 @@ async def command_demotablero(update: Update, context: CallbackContext):
     bot = context.bot
     cid = update.message.chat_id
     import SecretoCodigo.render as render_mod
+    args = context.args
+    font_size = int(args[0]) if args and args[0].isdigit() else None
     sample_words = [
         "GRANADA", "UNICORNIO", "MONTAÑA", "LANZA", "MOTOR",
         "RIO", "LEONA", "INTERNET", "POLO", "CEREBRO",
@@ -259,14 +261,17 @@ async def command_demotablero(update: Update, context: CallbackContext):
         {"word": w, "tipo": tipos[i], "revealed": i in (0, 5, 10, 17, 24), "numero": i + 1}
         for i, w in enumerate(sample_words)
     ]
-    buf = render_mod.render_board(tablero, mode="public")
-    await bot.send_photo(cid, photo=buf, caption=f"🎲 Tablero de demo — send_photo | font: {render_mod.FONT_SIZE}px")
+    effective_size = font_size if font_size is not None else render_mod.FONT_SIZE
+    buf = render_mod.render_board(tablero, mode="public", font_size=font_size)
+    await bot.send_photo(cid, photo=buf, caption=f"🎲 Tablero de demo — send_photo | font: {effective_size}px")
 
 
 async def command_demotablero2(update: Update, context: CallbackContext):
     bot = context.bot
     cid = update.message.chat_id
     import SecretoCodigo.render as render_mod
+    args = context.args
+    font_size = int(args[0]) if args and args[0].isdigit() else None
     sample_words = [
         "GRANADA", "UNICORNIO", "MONTAÑA", "LANZA", "MOTOR",
         "RIO", "LEONA", "INTERNET", "POLO", "CEREBRO",
@@ -281,8 +286,9 @@ async def command_demotablero2(update: Update, context: CallbackContext):
         {"word": w, "tipo": tipos[i], "revealed": i in (0, 5, 10, 17, 24), "numero": i + 1}
         for i, w in enumerate(sample_words)
     ]
-    buf = render_mod.render_board(tablero, mode="public")
-    await bot.send_document(cid, document=buf, filename="tablero.png", caption=f"🎲 Tablero de demo — send_document | font: {render_mod.FONT_SIZE}px")
+    effective_size = font_size if font_size is not None else render_mod.FONT_SIZE
+    buf = render_mod.render_board(tablero, mode="public", font_size=font_size)
+    await bot.send_document(cid, document=buf, filename="tablero.png", caption=f"🎲 Tablero de demo — send_document | font: {effective_size}px")
 
 
 async def command_history(update: Update, context: CallbackContext):
