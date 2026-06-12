@@ -259,11 +259,14 @@ async def command_call(bot, game):
                 f"{player_call(dador)} es tu turno de dar la pista.\nUsa `/hint PALABRA NUMERO` en privado.",
                 parse_mode=ParseMode.MARKDOWN,
             )
-            await bot.send_message(
+            await bot.send_photo(
                 dador.uid,
-                "Es tu turno de dar pista. Usa `/hint PALABRA NUMERO` aquí.\n"
-                "• `0` → adivina sin límite\n"
-                "• `-1` → pista infinita (también sin límite)",
+                photo=game.board.render_key_image(game, st.dador_actual),
+                caption=(
+                    "Es tu turno de dar pista. Usa `/hint PALABRA NUMERO` aquí.\n"
+                    "• `0` → adivina sin límite\n"
+                    "• `-1` → pista infinita (también sin límite)"
+                ),
                 parse_mode=ParseMode.MARKDOWN,
             )
         elif "Adivinar" in fase:
@@ -288,11 +291,14 @@ async def command_call(bot, game):
             f"{player_call(sm)} es tu turno de dar la pista del equipo *{team}*.\nUsa `/hint PALABRA NUMERO` en privado.",
             parse_mode=ParseMode.MARKDOWN,
         )
-        await bot.send_message(
+        await bot.send_photo(
             sm.uid,
-            "Es tu turno. Usa `/hint PALABRA NUMERO` aquí.\n"
-            "• `0` → adivina sin límite\n"
-            "• `-1` → pista infinita (también sin límite)",
+            photo=game.board.render_spymaster_image(game),
+            caption=(
+                f"Es tu turno ({team}). Usa `/hint PALABRA NUMERO` aquí.\n"
+                "• `0` → adivina sin límite\n"
+                "• `-1` → pista infinita (también sin límite)"
+            ),
             parse_mode=ParseMode.MARKDOWN,
         )
 
