@@ -185,3 +185,71 @@ def render_board(tablero, mode="public", key=None, partner_key=None, font_size=N
     img.save(buf, format="PNG")
     buf.seek(0)
     return buf
+
+
+_HTML_PALETTE = {
+    "unrevealed":         ("#FFE5CC", "#1A1A1A"),
+    "rojo":               ("#C0392B", "#FFFFFF"),
+    "azul":               ("#1A5276", "#FFFFFF"),
+    "neutral":            ("#797D7F", "#FFFFFF"),
+    "asesino":            ("#1C2833", "#FFFFFF"),
+    "agente":             ("#1E8449", "#FFFFFF"),
+    "revealed_rojo":      ("#F1948A", "#5D0000"),
+    "revealed_azul":      ("#7FB3D3", "#0A2942"),
+    "revealed_neutral":   ("#CACFD2", "#3D3D3D"),
+    "revealed_asesino":   ("#4D5656", "#CCCCCC"),
+    "revealed_agente":    ("#27AE60", "#FFFFFF"),
+    "revealed_miss":      ("#C8C8C8", "#555555"),
+    "revealed_asesino_duo": ("#1C2833", "#FFFFFF"),
+}
+
+
+def render_board_html(tablero, mode="public", key=None, font_size=None):
+    fs = font_size if font_size is not None else FONT_SIZE
+    cell = CELL_W
+    pad = PAD
+    canvas = COLS * cell + (COLS + 1) * pad
+
+    cells_html = ""
+    for card in tablero:
+        word = card["word"].upper()
+        numero = card["numero"]
+        revealed = card["revealed"]
+        tipo = card.get("tipo") or "neutral"
+
+        if mode == "spymaster":
+            palette_key = f"revealed_{tipo}" if revealed else tipo
+        else:
+            palette_key = f"revealed_{tipo}" if revealed else "unrevealed"
+
+        bg, fg = _HTML_PALETTE.get(palette_key, _HTML_PALETTE["unrevealed"])
+        strike = "text-decoration: line-through;" if revealed else ""
+        cells_html += f"""
+        <div style="
+            width:{cell}px; height:{cell}px;
+            background:{bg}; color:{fg};
+            display:flex; flex-direction:column;
+            align-items:center; justify-content:center;
+            border:1px solid #fff; border-radius:4px;
+            font-size:{fs}px; font-weight:bold;
+            font-family:'Liberation Sans', Arial, sans-serif;
+            position:relative; overflow:hidden; {strike}
+        ">
+            <span style="position:absolute;top:4px;left:6px;font-size:13px;opacity:.7;">{numero}</span>
+            <span style="text-align:center;padding:4px;word-break:break-word;line-height:1.1;">{word}</span>
+        </div>"""
+
+    html = f"""<!DOCTYPE html>
+<html><body style="margin:0;padding:0;background:#2C3E50;">
+<div style="
+    display:grid;
+    grid-template-columns:repeat(5,{cell}px);
+    gap:{pad}px;
+    padding:{pad}px;
+    width:{canvas}px;
+    background:#2C3E50;
+">
+{cells_html}
+</div>
+</body></html>"""
+    return html, canvas
