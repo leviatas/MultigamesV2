@@ -2,6 +2,7 @@
 from PIL import Image, ImageDraw, ImageFont
 from io import BytesIO
 import os
+import time
 
 CELL_W = 190
 CELL_H = 100
@@ -172,6 +173,11 @@ def render_board(tablero, mode="public", key=None, partner_key=None):
             bg, fg = _PALETTE["unrevealed"]
 
         _draw_cell(draw, x, y, word, numero, bg, fg, mark=mark, revealed=revealed)
+
+    # Pixel único para evitar caché de Telegram (deduplica imágenes idénticas)
+    ts = int(time.time() * 1000) % (256 ** 3)
+    r, g, b = ts >> 16, (ts >> 8) & 0xFF, ts & 0xFF
+    img.putpixel((0, 0), (r, g, b))
 
     buf = BytesIO()
     img.save(buf, format="PNG")
