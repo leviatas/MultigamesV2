@@ -9,6 +9,7 @@ CELL_H = 200
 PAD = 10
 COLS = 5
 ROWS = 5
+FONT_SIZE = 46
 
 _FONT_PATH = "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf"
 
@@ -63,7 +64,7 @@ def _fit_text(draw, text, font_size, max_w):
     return _load_font(8), text[:12] + "…"
 
 
-def _draw_cell(draw, x, y, word, numero, bg_hex, fg_hex, mark=None, revealed=False):
+def _draw_cell(draw, x, y, word, numero, bg_hex, fg_hex, mark=None, revealed=False, font_size=None):
     """
     mark    : None | "check" (agente encontrado) | "miss_corner" (neutral pisado)
     revealed: True dibuja tachado diagonal sobre la carta
@@ -83,8 +84,9 @@ def _draw_cell(draw, x, y, word, numero, bg_hex, fg_hex, mark=None, revealed=Fal
         pts = [(x + CELL_W - 22, y + 1), (x + CELL_W - 1, y + 1), (x + CELL_W - 1, y + 22)]
         draw.polygon(pts, fill=_hex_rgb("#E67E22"))
 
-    # Palabra centrada
-    font, label = _fit_text(draw, word.upper(), 46, CELL_W - 20)
+    # Palabra centrada — tamaño fijo, sin ajuste automático
+    font = _load_font(font_size if font_size is not None else FONT_SIZE)
+    label = word.upper()
     try:
         bbox = draw.textbbox((0, 0), label, font=font)
         tw, th = bbox[2] - bbox[0], bbox[3] - bbox[1]
@@ -100,7 +102,7 @@ def _draw_cell(draw, x, y, word, numero, bg_hex, fg_hex, mark=None, revealed=Fal
         draw.line([(tx, strike_y), (tx + tw, strike_y)], fill=fg, width=2)
 
 
-def render_board(tablero, mode="public", key=None, partner_key=None):
+def render_board(tablero, mode="public", key=None, partner_key=None, font_size=None):
     """
     mode        : "public" | "spymaster" | "duo_key" | "duo_public"
     key         : {numero: tipo_str} — clave del jugador (duo_key)
@@ -172,7 +174,7 @@ def render_board(tablero, mode="public", key=None, partner_key=None):
         else:
             bg, fg = _PALETTE["unrevealed"]
 
-        _draw_cell(draw, x, y, word, numero, bg, fg, mark=mark, revealed=revealed)
+        _draw_cell(draw, x, y, word, numero, bg, fg, mark=mark, revealed=revealed, font_size=font_size)
 
     # Pixel único para evitar caché de Telegram (deduplica imágenes idénticas)
     ts = int(time.time() * 1000) % (256 ** 3)
