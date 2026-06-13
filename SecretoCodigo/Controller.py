@@ -303,6 +303,9 @@ async def process_hint_duo(bot, game, uid, word: str, number: int):
     if " " in word:
         await bot.send_message(uid, "La pista debe ser una sola palabra sin espacios.")
         return
+    if len(word) > 30:
+        await bot.send_message(uid, f"La pista es demasiado larga ({len(word)} caracteres). Máximo 30.")
+        return
     if not (-1 <= number <= 9):
         await bot.send_message(uid, "El número debe ser entre -1 y 9. Usa -1 para pista infinita.")
         return
@@ -458,6 +461,9 @@ async def process_hint(bot, game, spymaster_uid, word: str, number: int):
         return
     if " " in word:
         await bot.send_message(spymaster_uid, "La pista debe ser una sola palabra sin espacios.")
+        return
+    if len(word) > 30:
+        await bot.send_message(spymaster_uid, f"La pista es demasiado larga ({len(word)} caracteres). Máximo 30.")
         return
     if not (-1 <= number <= 9):
         await bot.send_message(spymaster_uid, "El número debe ser entre -1 y 9. Usa -1 para pista infinita.")
