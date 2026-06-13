@@ -433,6 +433,11 @@ async def command_history(update: Update, context: CallbackContext):
 
         if not entrada["picks"]:
             lines.append("  _(sin intentos)_")
+        elif numero not in (0, -1):
+            exito_key = "agente" if game.modo == "Cooperativo" else "correcto"
+            encontrados = sum(1 for p in entrada["picks"] if p["resultado"] == exito_key)
+            if encontrados < numero:
+                lines.append(f"  ⚠️ _Solo {encontrados}/{numero} encontrados — quedaron intentos sin usar_")
         lines.append("")
 
     await bot.send_message(cid, "\n".join(lines), parse_mode=ParseMode.MARKDOWN)
