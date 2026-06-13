@@ -391,8 +391,8 @@ async def command_demotablero3(update: Update, context: CallbackContext):
         for i, w in enumerate(sample_words)
     ]
     effective_size = font_size if font_size is not None else render_mod.FONT_SIZE
-    buf = render_mod.render_html_to_bytesio(tablero, mode="public", font_size=font_size)
-    await bot.send_photo(cid, photo=buf, caption=f"🎲 Tablero de demo — html2image | font: {effective_size}px")
+    buf = render_mod.render_html_to_bytesio(tablero, mode="spymaster", font_size=font_size)
+    await bot.send_photo(cid, photo=buf, caption=f"🎲 Tablero de demo — html2image espía | font: {effective_size}px")
 
 
 async def command_history(update: Update, context: CallbackContext):
