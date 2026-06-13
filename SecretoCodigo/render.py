@@ -223,6 +223,22 @@ def render_board_html(tablero, mode="public", key=None, font_size=None):
 
         if mode == "spymaster":
             palette_key = f"revealed_{tipo}" if revealed else tipo
+        elif mode == "duo_key" and key:
+            if revealed:
+                if tipo == "agente":
+                    palette_key = "revealed_agente"
+                elif tipo == "asesino":
+                    palette_key = "revealed_asesino_duo"
+                else:
+                    palette_key = "revealed_miss"
+            else:
+                tipo_mine = key.get(numero, "neutral")
+                if tipo_mine == "agente":
+                    palette_key = "agente"
+                elif tipo_mine == "asesino":
+                    palette_key = "asesino"
+                else:
+                    palette_key = "unrevealed"
         else:
             palette_key = f"revealed_{tipo}" if revealed else "unrevealed"
 
