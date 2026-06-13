@@ -484,6 +484,12 @@ async def command_call(bot, game):
                 ),
                 parse_mode=ParseMode.MARKDOWN,
             )
+            await bot.send_message(
+                receptor.uid,
+                f"[{game.groupName}] 🔍 Toca adivinar. Pista: *{st.pista_actual}* — {numero_display}. "
+                f"Intentos restantes: {intentos_display}.\nUsa `/pick NUMERO` o `/endturn`.",
+                parse_mode=ParseMode.MARKDOWN,
+            )
         return
 
     if "Pista" in fase:
@@ -521,3 +527,13 @@ async def command_call(bot, game):
             ),
             parse_mode=ParseMode.MARKDOWN,
         )
+        sm = game.get_spymaster(team)
+        equipo = game.board.state.equipo_rojo if team == "Rojo" else game.board.state.equipo_azul
+        for jugador in equipo:
+            if jugador.uid != sm.uid:
+                await bot.send_message(
+                    jugador.uid,
+                    f"[{game.groupName}] 🔍 Toca adivinar, equipo *{team}*. Pista: *{pista}* — {numero_display}. "
+                    f"Intentos restantes: {intentos_display}.\nUsa `/pick NUMERO` o `/endturn`.",
+                    parse_mode=ParseMode.MARKDOWN,
+                )
