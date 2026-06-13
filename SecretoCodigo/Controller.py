@@ -320,7 +320,7 @@ async def process_hint_duo(bot, game, uid, word: str, number: int):
         photo=game.board.render_duo_board_image(game),
         caption=(
             f"💬 Pista de *{dador.name}*: *{word.upper()}* — {'∞' if infinito else number}\n"
-            f"{player_call(receptor)}, usa `/pick NUMERO` para adivinar (en el grupo). "
+            f"{player_call(receptor)}, usa `/pick NUMERO` o `/pickb` (botonera) para adivinar (en el grupo). "
             f"Hasta *{intentos_str}* intentos o `/endturn` para pasar."
         ),
         parse_mode=ParseMode.MARKDOWN,
@@ -478,7 +478,7 @@ async def process_hint(bot, game, spymaster_uid, word: str, number: int):
     )
     caption_pista = (
         f"💬 Pista del espía *{team}*: *{word.upper()}* — {'∞' if infinito else number}\n"
-        f"{field_mentions} usen `/pick NUMERO` para elegir una carta.\n"
+        f"{field_mentions} usen `/pick NUMERO` o `/pickb` (botonera) para elegir una carta.\n"
         f"Hasta *{intentos_str}* intentos o `/endturn` para pasar."
     )
     await bot.send_photo(
