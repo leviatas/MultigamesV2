@@ -398,12 +398,13 @@ async def command_demotablero3(update: Update, context: CallbackContext):
 async def command_history(update: Update, context: CallbackContext):
     bot = context.bot
     cid = update.message.chat_id
+    uid = update.message.from_user.id
     game = get_game(cid)
     if not game or game.tipo != "SecretoCodigo" or not game.board:
         return
     historial = getattr(game.board.state, 'historial', [])
     if not historial:
-        await bot.send_message(cid, "No hay pistas registradas aún.", parse_mode=ParseMode.MARKDOWN)
+        await bot.send_message(uid, "No hay pistas registradas aún.", parse_mode=ParseMode.MARKDOWN)
         return
 
     if game.modo == "Cooperativo":
@@ -413,7 +414,7 @@ async def command_history(update: Update, context: CallbackContext):
         emoji_resultado = {"correcto": "✅", "gris": "⬜", "contrario": "❌", "asesino": "💀"}
         desc_resultado = {"correcto": "correcto", "gris": "neutral", "contrario": "equipo contrario", "asesino": "asesino"}
 
-    lines = ["📋 *Historial de pistas:*\n"]
+    lines = [f"📋 *Historial de pistas — {game.groupName}:*\n"]
     for entrada in historial:
         turno = entrada["turno"]
         dador = entrada["dador"]
@@ -440,7 +441,7 @@ async def command_history(update: Update, context: CallbackContext):
                 lines.append(f"  ⚠️ _Solo {encontrados}/{numero} encontrados — quedaron intentos sin usar_")
         lines.append("")
 
-    await bot.send_message(cid, "\n".join(lines), parse_mode=ParseMode.MARKDOWN)
+    await bot.send_message(uid, "\n".join(lines), parse_mode=ParseMode.MARKDOWN)
 
 
 async def command_call(bot, game):
