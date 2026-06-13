@@ -196,6 +196,85 @@ async def command_pick(update: Update, context: CallbackContext):
     await SecretoCodigoController.process_pick(bot, game, uid, numero)
 
 
+async def command_pickb(update: Update, context: CallbackContext):
+    bot = context.bot
+    cid = update.message.chat_id
+    uid = update.message.from_user.id
+
+    game = get_game(cid)
+    if not game or game.tipo != "SecretoCodigo" or not game.board:
+        return
+
+    tablero = game.board.state.tablero
+    strcid = str(cid)
+
+    buttons = []
+    row = []
+    for card in tablero:
+        numero = card["numero"]
+        word = card["word"].upper()
+        label = f"✓" if card["revealed"] else word
+        cb = f"{strcid}*pickb*{numero}*{uid}"
+        row.append(InlineKeyboardButton(label, callback_data=cb))
+        if len(row) == 5:
+            buttons.append(row)
+            row = []
+    if row:
+        buttons.append(row)
+
+    markup = InlineKeyboardMarkup(buttons)
+    await bot.send_message(cid, "🗺 Elegí una carta:", reply_markup=markup)
+
+
+async def callback_pickb(update: Update, context: CallbackContext):
+    bot = context.bot
+    callback = update.callback_query
+    import re
+    regex = re.search(r"(-?[0-9]*)\*pickb\*([0-9]*)\*([0-9]*)", callback.data)
+    cid = int(regex.group(1))
+    numero = int(regex.group(2))
+    uid = callback.from_user.id
+
+    game = get_game(cid)
+    if not game or game.tipo != "SecretoCodigo" or not game.board:
+        await callback.answer("No hay partida activa.")
+        return
+
+    card = next((c for c in game.board.state.tablero if c["numero"] == numero), None)
+    if card is None or card["revealed"]:
+        await callback.answer("Carta ya revelada o inválida.")
+        return
+
+    fase = game.board.state.fase_actual
+
+    if game.modo == "Cooperativo":
+        st = game.board.state
+        receptor_label = game.get_other_player_label(st.dador_actual)
+        receptor = game.get_player_by_label(receptor_label)
+        if fase != f"Duo {st.dador_actual} - Adivinar":
+            await callback.answer("No es el momento de adivinar.")
+            return
+        if not receptor or receptor.uid != uid:
+            await callback.answer("No eres quien debe adivinar ahora.")
+            return
+        await callback.answer()
+        await callback.message.delete()
+        await SecretoCodigoController.process_pick_duo(bot, game, uid, numero)
+        return
+
+    team = game.board.state.turno_actual
+    if fase != f"Turno {team} - Adivinar":
+        await callback.answer("No es el momento de adivinar.")
+        return
+    if not game.is_field_operative(uid, team):
+        await callback.answer("No eres un agente de campo del equipo activo.")
+        return
+
+    await callback.answer()
+    await callback.message.delete()
+    await SecretoCodigoController.process_pick(bot, game, uid, numero)
+
+
 async def command_endturn(update: Update, context: CallbackContext):
     bot = context.bot
     cid = update.message.chat_id
