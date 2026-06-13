@@ -773,7 +773,6 @@ def main(stop_event):
 	# Handlers de SecretoCodigo
 	app.add_handler(CommandHandler("hint", SecretoCodigoCommands.command_hint))
 	app.add_handler(CommandHandler("endturn", SecretoCodigoCommands.command_endturn))
-	app.add_handler(CommandHandler("history", SecretoCodigoCommands.command_history))
 	app.add_handler(CommandHandler("demotablero", SecretoCodigoCommands.command_demotablero))
 	app.add_handler(CommandHandler("demotablero2", SecretoCodigoCommands.command_demotablero2))
 	app.add_handler(CommandHandler("demotablero3", SecretoCodigoCommands.command_demotablero3))
