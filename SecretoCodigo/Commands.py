@@ -47,6 +47,9 @@ async def command_hint(update: Update, context: CallbackContext):
         return
 
     word = args[0]
+    if word.lstrip('-').isdigit():
+        await bot.send_message(uid, "La pista debe ser una palabra, no un número. Uso: `/hint PALABRA NUMERO`", parse_mode=ParseMode.MARKDOWN)
+        return
     try:
         number = int(args[1])
     except ValueError:
