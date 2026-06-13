@@ -605,7 +605,12 @@ def main(stop_event):
 	app.add_handler(CommandHandler("pass", Commands.command_pass))
 	app.add_handler(CommandHandler("info", Commands.command_info))
 	app.add_handler(CommandHandler("admin", Commands.command_admin_games))
-	
+	app.add_handler(CommandHandler("adminmenu", Commands.command_admin_menu))
+
+	app.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)\*adminMenuOpc\*(.*)\*(-?[0-9]*)", callback=Commands.callback_admin_menu_opc))
+	app.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)\*adminMenuTipo\*(.*)\*(-?[0-9]*)", callback=Commands.callback_admin_menu_tipo))
+	app.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)\*adminMenuStats\*(.*)\*(-?[0-9]*)", callback=Commands.callback_admin_menu_stats))
+
 	app.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)\*chooseGameInfo\*(.*)\*(-?[0-9]*)", callback=Commands.callback_info))
 	app.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)\*chooseGameDelete\*(.*)\*(-?[0-9]*)", callback=Commands.callback_game_delete))
 	

@@ -6,6 +6,7 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.constants import ParseMode, ChatAction
 from telegram.ext import CallbackContext
 from random import randrange
+from datetime import datetime
 
 import psycopg
 import urllib.parse
@@ -307,10 +308,11 @@ def save_game(cid, groupName, game, gameType):
 		host=url.hostname,
 		port=url.port
 		)
-		cur = conn.cursor()			
+		cur = conn.cursor()
 		#log.info("Searching Game in DB")
 		query = "select * from games where id = %s;"
 		cur.execute(query, [cid])
+		game.last_activity = datetime.now()
 		if cur.rowcount > 0:
 			#log.info('Updating Game')
 			gamejson = jsonpickle.encode(game)
