@@ -772,6 +772,8 @@ def main(stop_event):
 	app.add_handler(CommandHandler("demotablero", SecretoCodigoCommands.command_demotablero))
 	app.add_handler(CommandHandler("demotablero2", SecretoCodigoCommands.command_demotablero2))
 	app.add_handler(CommandHandler("demotablero3", SecretoCodigoCommands.command_demotablero3))
+	app.add_handler(CommandHandler("pickb", SecretoCodigoCommands.command_pickb))
+	app.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)\*pickb\*([0-9]*)\*([0-9]*)", callback=SecretoCodigoCommands.callback_pickb))
 	app.add_handler(CallbackQueryHandler(pattern=r"(-[0-9]*)\*choosediccCN\*(.*)\*([0-9]*)", callback=SecretoCodigoController.callback_finish_config_cn))
 	app.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)\*choosegamehintCN\*(.*)\*([0-9]*)", callback=SecretoCodigoCommands.callback_choose_game_hint_cn))
 	app.add_handler(CallbackQueryHandler(pattern=r"(-[0-9]*)\*chooseendCN\*(.*)\*([0-9]*)", callback=SecretoCodigoController.callback_finish_game_buttons_cn))
