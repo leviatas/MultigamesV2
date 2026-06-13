@@ -241,12 +241,12 @@ async def setup_duo(bot, game):
     await bot.send_photo(
         jugador_a.uid,
         photo=game.board.render_key_image(game, "A"),
-        caption="🟩 Tu clave (Jugador A) — verde=agente, negro=asesino, gris=neutral",
+        caption=f"[{game.groupName}] 🟩 Tu clave (Jugador A) — verde=agente, negro=asesino, gris=neutral",
     )
     await bot.send_photo(
         jugador_b.uid,
         photo=game.board.render_key_image(game, "B"),
-        caption="🟩 Tu clave (Jugador B) — verde=agente, negro=asesino, gris=neutral",
+        caption=f"[{game.groupName}] 🟩 Tu clave (Jugador B) — verde=agente, negro=asesino, gris=neutral",
     )
 
     await start_turn_duo(bot, game, "A")
@@ -277,7 +277,7 @@ async def start_turn_duo(bot, game, dador_label: str):
         dador.uid,
         photo=game.board.render_key_image(game, dador_label),
         caption=(
-            "Es tu turno de dar pista. Usa `/hint PALABRA NUMERO` aquí.\n"
+            f"[{game.groupName}] Es tu turno de dar pista. Usa `/hint PALABRA NUMERO` aquí.\n"
             "• `0` → adivina sin límite\n"
             "• `-1` → pista infinita (también sin límite)"
         ),

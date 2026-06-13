@@ -460,7 +460,7 @@ async def command_call(bot, game):
                 dador.uid,
                 photo=game.board.render_key_image(game, st.dador_actual),
                 caption=(
-                    "Es tu turno de dar pista. Usa `/hint PALABRA NUMERO` aquí.\n"
+                    f"[{game.groupName}] Es tu turno de dar pista. Usa `/hint PALABRA NUMERO` aquí.\n"
                     "• `0` → adivina sin límite\n"
                     "• `-1` → pista infinita (también sin límite)"
                 ),
