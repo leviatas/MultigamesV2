@@ -454,14 +454,14 @@ async def command_call(update: Update, context: CallbackContext):
 		
 async def command_showhistory(update: Update, context: CallbackContext):
 	bot = context.bot
-	#game.pedrote = 3
 	try:
-		#Send message of executing command   
 		cid = update.message.chat_id
-		#Check if there is a current game 
 		game = get_game(cid)
-		if game:			
-			#await bot.send_message(cid, "Current round: " + str(game.board.state.currentround + 1))
+		if game:
+			if game.tipo == "SecretoCodigo":
+				import SecretoCodigo.Commands as SCCommands
+				await SCCommands.command_history(update, context)
+				return
 			uid = update.message.from_user.id
 			for history in game.getHistory(uid):
 				if len(history) > 0:
@@ -470,8 +470,8 @@ async def command_showhistory(update: Update, context: CallbackContext):
 			await bot.send_message(cid, "No hay ninguna partida en este chat.")
 	except Exception as e:
 		await bot.send_message(cid, str(e))
-		log.error("Unknown error: " + str(e))  
-		
+		log.error("Unknown error: " + str(e))
+
 async def command_claim(update: Update, context: CallbackContext):
 	bot = context.bot
 	args = context.args
