@@ -273,11 +273,14 @@ async def start_turn_duo(bot, game, dador_label: str):
         ),
         parse_mode=ParseMode.MARKDOWN,
     )
-    await bot.send_message(
+    await bot.send_photo(
         dador.uid,
-        "Es tu turno de dar pista. Usa `/hint PALABRA NUMERO` aquí.\n"
-        "• `0` → adivina sin límite\n"
-        "• `-1` → pista infinita (también sin límite)",
+        photo=game.board.render_key_image(game, dador_label),
+        caption=(
+            "Es tu turno de dar pista. Usa `/hint PALABRA NUMERO` aquí.\n"
+            "• `0` → adivina sin límite\n"
+            "• `-1` → pista infinita (también sin límite)"
+        ),
         parse_mode=ParseMode.MARKDOWN,
     )
     await save(bot, game.cid)
