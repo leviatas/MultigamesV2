@@ -1321,6 +1321,111 @@ def chunk_dict(d: dict, size: int):
         yield chunk
 
 @restricted
+async def command_admin_menu(update: Update, context: CallbackContext):
+    bot = context.bot
+    uid = update.effective_user.id
+    opciones = {
+        "tipos": "📋 Ver Juegos Por Tipo",
+        "stats": "📊 Estadísticas",
+    }
+    await simple_choose_buttons(bot, uid, uid, uid, "adminMenuOpc", "🔧 *Menú Admin*", opciones)
+
+
+async def callback_admin_menu_opc(update: Update, context: CallbackContext):
+    bot = context.bot
+    callback = update.callback_query
+    regex = re.search(r"(-?[0-9]*)\*adminMenuOpc\*(.*)\*(-?[0-9]*)", callback.data)
+    uid = int(regex.group(3))
+    opcion = regex.group(2)
+
+    if opcion == "tipos":
+        all_games = MainController.getGamesByTipo("Todos") or {}
+        tipos_con_juegos = {}
+        for game in all_games.values():
+            if game.tipo not in tipos_con_juegos:
+                tipos_con_juegos[game.tipo] = game.tipo
+        if not tipos_con_juegos:
+            await bot.edit_message_text("No hay juegos activos.", callback.message.chat_id, callback.message.message_id)
+            return
+        await bot.edit_message_text("Elige un tipo de juego:", callback.message.chat_id, callback.message.message_id)
+        await simple_choose_buttons(bot, uid, uid, uid, "adminMenuTipo", "🎮 *Tipos de juego activos:*", tipos_con_juegos)
+
+    elif opcion == "stats":
+        opciones_stats = {
+            "tipos": "🎮 Tipos de Juegos",
+            "jugadores": "👥 Jugadores",
+            "cantidad": "🔢 Cantidad",
+        }
+        await bot.edit_message_text("Elige una estadística:", callback.message.chat_id, callback.message.message_id)
+        await simple_choose_buttons(bot, uid, uid, uid, "adminMenuStats", "📊 *Estadísticas:*", opciones_stats)
+
+
+async def callback_admin_menu_tipo(update: Update, context: CallbackContext):
+    bot = context.bot
+    callback = update.callback_query
+    regex = re.search(r"(-?[0-9]*)\*adminMenuTipo\*(.*)\*(-?[0-9]*)", callback.data)
+    uid = int(regex.group(3))
+    tipo = regex.group(2)
+
+    all_games = MainController.getGamesByTipo(tipo) or {}
+    if not all_games:
+        await bot.edit_message_text(f"No hay juegos de tipo *{tipo}*.", callback.message.chat_id, callback.message.message_id, parse_mode=ParseMode.MARKDOWN)
+        return
+
+    lines = [f"📋 *Juegos de tipo {tipo}:*\n"]
+    for game in all_games.values():
+        last = getattr(game, 'last_activity', None)
+        last_str = last.strftime("%d/%m/%Y %H:%M") if last else "—"
+        lines.append(f"• *{game.groupName}* (`{game.cid}`)\n  ⏱ Última actividad: {last_str}")
+
+    await bot.edit_message_text("\n".join(lines), callback.message.chat_id, callback.message.message_id, parse_mode=ParseMode.MARKDOWN)
+
+
+async def callback_admin_menu_stats(update: Update, context: CallbackContext):
+    bot = context.bot
+    callback = update.callback_query
+    regex = re.search(r"(-?[0-9]*)\*adminMenuStats\*(.*)\*(-?[0-9]*)", callback.data)
+    uid = int(regex.group(3))
+    opcion = regex.group(2)
+
+    all_games = MainController.getGamesByTipo("Todos") or {}
+
+    if opcion == "tipos":
+        contador = {}
+        for game in all_games.values():
+            contador[game.tipo] = contador.get(game.tipo, 0) + 1
+        ordenado = sorted(contador.items(), key=lambda x: x[1], reverse=True)
+        lines = ["📊 *Juegos activos por tipo:*\n"]
+        for tipo, count in ordenado:
+            lines.append(f"• {tipo}: *{count}*")
+        if not ordenado:
+            lines.append("_No hay juegos activos._")
+        await bot.edit_message_text("\n".join(lines), callback.message.chat_id, callback.message.message_id, parse_mode=ParseMode.MARKDOWN)
+
+    elif opcion == "jugadores":
+        lines = ["👥 *Jugadores en partidas activas:*\n"]
+        for game in all_games.values():
+            if game.playerlist:
+                nombres = ", ".join(p.name for p in game.playerlist.values())
+                lines.append(f"• *{game.groupName}* ({game.tipo}): {nombres}")
+        if len(lines) == 1:
+            lines.append("_No hay jugadores en partidas activas._")
+        await bot.edit_message_text("\n".join(lines), callback.message.chat_id, callback.message.message_id, parse_mode=ParseMode.MARKDOWN)
+
+    elif opcion == "cantidad":
+        total_juegos = len(all_games)
+        total_jugadores = sum(len(game.playerlist) for game in all_games.values())
+        tipos = set(game.tipo for game in all_games.values())
+        lines = [
+            "🔢 *Resumen:*\n",
+            f"🎮 Juegos activos: *{total_juegos}*",
+            f"👥 Jugadores totales: *{total_jugadores}*",
+            f"🗂 Tipos en juego: *{len(tipos)}*",
+        ]
+        await bot.edit_message_text("\n".join(lines), callback.message.chat_id, callback.message.message_id, parse_mode=ParseMode.MARKDOWN)
+
+
+@restricted
 async def command_admin_games(update: Update, context: CallbackContext):
     bot = context.bot
     cid = update.message.chat_id
