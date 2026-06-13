@@ -263,10 +263,18 @@ def load_game(cid):
 			game.board.state.last_votes = temp_last_votes
 		
 		if game.board is not None and game.board.state is not None and hasattr(game.board.state, 'enesperadeaccion'):
-			temp_espera_accion = {}	
+			temp_espera_accion = {}
 			for uid in game.board.state.enesperadeaccion:
 				temp_espera_accion[int(uid)] = game.board.state.enesperadeaccion[uid]
 			game.board.state.enesperadeaccion = temp_espera_accion
+
+		if game.board is not None and game.board.state is not None:
+			for attr in ('key_a', 'key_b'):
+				if hasattr(game.board.state, attr):
+					raw = getattr(game.board.state, attr)
+					if raw:
+						setattr(game.board.state, attr, {int(k): v for k, v in raw.items()})
+
 		return game
 	else:
 		#log.info("Game Not Found")
