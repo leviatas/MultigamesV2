@@ -1372,13 +1372,110 @@ async def callback_admin_menu_tipo(update: Update, context: CallbackContext):
         await bot.edit_message_text(f"No hay juegos de tipo *{tipo}*.", callback.message.chat_id, callback.message.message_id, parse_mode=ParseMode.MARKDOWN)
         return
 
-    lines = [f"📋 *Juegos de tipo {tipo}:*\n"]
-    for game in all_games.values():
-        last = getattr(game, 'last_activity', None)
-        last_str = last.strftime("%d/%m/%Y %H:%M") if last else "—"
-        lines.append(f"• *{game.groupName}* (`{game.cid}`)\n  ⏱ Última actividad: {last_str}")
+    await bot.edit_message_text(f"Juegos de tipo *{tipo}*:", callback.message.chat_id, callback.message.message_id, parse_mode=ParseMode.MARKDOWN)
+    opciones = {str(game.cid): game.groupName for game in all_games.values()}
+    await simple_choose_buttons(bot, uid, uid, uid, "adminMenuGameList", f"🎮 *{tipo}* — elige un juego:", opciones)
 
-    await bot.edit_message_text("\n".join(lines), callback.message.chat_id, callback.message.message_id, parse_mode=ParseMode.MARKDOWN)
+
+async def callback_admin_menu_game_list(update: Update, context: CallbackContext):
+    bot = context.bot
+    callback = update.callback_query
+    regex = re.search(r"(-?[0-9]*)\*adminMenuGameList\*(.*)\*(-?[0-9]*)", callback.data)
+    uid = int(regex.group(3))
+    game_cid = int(regex.group(2))
+
+    game = get_game(game_cid)
+    if not game:
+        await bot.edit_message_text("Juego no encontrado.", callback.message.chat_id, callback.message.message_id)
+        return
+
+    estado = "▶️ En curso" if game.board else "⏸ Sin iniciar"
+    fase = game.board.state.fase_actual if game.board else "—"
+    jugadores = ", ".join(p.name for p in game.playerlist.values()) or "—"
+    last = getattr(game, 'last_activity', None)
+    last_str = last.strftime("%d/%m %H:%M") if last else "—"
+    debug = "🐛 SÍ" if game.is_debugging else "NO"
+
+    texto = (
+        f"📋 *{game.groupName}*\n"
+        f"Tipo: {game.tipo} | Modo: {game.modo or '—'}\n"
+        f"Estado: {estado}\n"
+        f"Fase: `{fase}`\n"
+        f"Jugadores ({len(game.playerlist)}): {jugadores}\n"
+        f"Última actividad: {last_str}\n"
+        f"Debug: {debug}"
+    )
+    btns = InlineKeyboardMarkup([
+        [InlineKeyboardButton("🗑 Eliminar", callback_data=f"{uid}*adminMenuGameDelete*{game_cid}*{uid}")],
+        [InlineKeyboardButton("📋 Historial", callback_data=f"{uid}*adminMenuGameHistory*{game_cid}*{uid}")],
+    ])
+    await bot.edit_message_text(texto, callback.message.chat_id, callback.message.message_id, parse_mode=ParseMode.MARKDOWN, reply_markup=btns)
+
+
+async def callback_admin_menu_game_delete(update: Update, context: CallbackContext):
+    bot = context.bot
+    callback = update.callback_query
+    regex = re.search(r"(-?[0-9]*)\*adminMenuGameDelete\*(.*)\*(-?[0-9]*)", callback.data)
+    uid = int(regex.group(3))
+    game_cid = int(regex.group(2))
+
+    delete_game(game_cid)
+    if game_cid in GamesController.games:
+        del GamesController.games[game_cid]
+    await bot.edit_message_text(f"✅ Juego `{game_cid}` eliminado.", callback.message.chat_id, callback.message.message_id, parse_mode=ParseMode.MARKDOWN)
+
+
+async def callback_admin_menu_game_history(update: Update, context: CallbackContext):
+    bot = context.bot
+    callback = update.callback_query
+    regex = re.search(r"(-?[0-9]*)\*adminMenuGameHistory\*(.*)\*(-?[0-9]*)", callback.data)
+    uid = int(regex.group(3))
+    game_cid = int(regex.group(2))
+
+    game = get_game(game_cid)
+    if not game:
+        await bot.send_message(uid, "Juego no encontrado.")
+        await callback.answer()
+        return
+
+    if game.tipo == "SecretoCodigo":
+        historial = getattr(game.board.state, 'historial', []) if game.board else []
+        if not historial:
+            await bot.send_message(uid, f"[{game.groupName}] No hay pistas registradas.")
+        else:
+            if game.modo == "Cooperativo":
+                emoji_r = {"agente": "✅", "neutral": "⬜", "asesino": "💀"}
+                desc_r = {"agente": "agente", "neutral": "neutral pisado", "asesino": "asesino"}
+            else:
+                emoji_r = {"correcto": "✅", "gris": "⬜", "contrario": "❌", "asesino": "💀"}
+                desc_r = {"correcto": "correcto", "gris": "neutral", "contrario": "equipo contrario", "asesino": "asesino"}
+            lines = [f"📋 *Historial de pistas — {game.groupName}:*\n"]
+            for entrada in historial:
+                turno, dador, pista, numero = entrada["turno"], entrada["dador"], entrada["pista"], entrada["numero"]
+                numero_str = "∞" if numero in (0, -1) else str(numero)
+                if game.modo == "Cooperativo":
+                    lines.append(f"👤 *{dador}* (Jugador {turno}) — *{pista}* ({numero_str})")
+                else:
+                    emoji_eq = "🔴" if turno == "Rojo" else "🔵"
+                    lines.append(f"{emoji_eq} *{dador}* ({turno}) — *{pista}* ({numero_str})")
+                for pick in entrada["picks"]:
+                    r = pick["resultado"]
+                    lines.append(f"  {emoji_r.get(r,'?')} *{pick['word']}* — {desc_r.get(r,r)}")
+                if not entrada["picks"]:
+                    lines.append("  _(sin intentos)_")
+                lines.append("")
+            await bot.send_message(uid, "\n".join(lines), parse_mode=ParseMode.MARKDOWN)
+    else:
+        chunks = game.getHistory(uid)
+        if not chunks or all(len(c) == 0 for c in chunks):
+            await bot.send_message(uid, f"[{game.groupName}] No hay historial registrado.")
+        else:
+            for chunk in chunks:
+                if len(chunk) > 0:
+                    await bot.send_message(uid, chunk, parse_mode=ParseMode.MARKDOWN)
+
+    await callback.answer("📋 Historial enviado en privado")
+
 
 
 async def callback_admin_menu_stats(update: Update, context: CallbackContext):

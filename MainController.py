@@ -610,6 +610,9 @@ def main(stop_event):
 	app.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)\*adminMenuOpc\*(.*)\*(-?[0-9]*)", callback=Commands.callback_admin_menu_opc))
 	app.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)\*adminMenuTipo\*(.*)\*(-?[0-9]*)", callback=Commands.callback_admin_menu_tipo))
 	app.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)\*adminMenuStats\*(.*)\*(-?[0-9]*)", callback=Commands.callback_admin_menu_stats))
+	app.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)\*adminMenuGameList\*(.*)\*(-?[0-9]*)", callback=Commands.callback_admin_menu_game_list))
+	app.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)\*adminMenuGameDelete\*(.*)\*(-?[0-9]*)", callback=Commands.callback_admin_menu_game_delete))
+	app.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)\*adminMenuGameHistory\*(.*)\*(-?[0-9]*)", callback=Commands.callback_admin_menu_game_history))
 
 	app.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)\*chooseGameInfo\*(.*)\*(-?[0-9]*)", callback=Commands.callback_info))
 	app.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)\*chooseGameDelete\*(.*)\*(-?[0-9]*)", callback=Commands.callback_game_delete))
