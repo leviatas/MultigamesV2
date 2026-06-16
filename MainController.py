@@ -30,6 +30,7 @@ import Decrypt.Controller as DecryptController
 import Werewords.Controller as WerewordsController
 import Deception.Controller as DeceptionController
 import Unanimo.Controller as UnanimoController
+import SpyFall.Controller as SpyFallController
 
 # Importo los comandos de los juegos que vaya agregando
 import JustOne.Commands as JustoneCommands
@@ -41,6 +42,7 @@ import Decrypt.Commands as DecryptCommands
 import Werewords.Commands as WerewordsCommands
 import Deception.Commands as DeceptionCommands
 import Unanimo.Commands as UnanimoCommands
+import SpyFall.Commands as SpyFallCommands
 
 from Constants.Cards import playerSets, actions
 from Constants.Config import TOKEN, STATS, ADMIN
@@ -120,6 +122,9 @@ def init_game(bot, game):
 	elif game.tipo == "Unanimo":
 		game.create_board()
 		UnanimoController.init_game(bot, game)
+	elif game.tipo == "SpyFall":
+		game.create_board()
+		SpyFallController.init_game(bot, game)
 
 
 def init_lost_expedition(bot, game, player_number):
@@ -759,6 +764,13 @@ def main():
 	# dp.add_handler(CallbackQueryHandler(pattern=r"(-[0-9]*)\*reviewerconfirm\*(.*)\*([0-9]*)", callback=JustOneController.callback_reviewer_confirm))
 	# dp.add_handler(CallbackQueryHandler(pattern=r"(-[0-9]*)\*choosegameclue\*(.*)\*([0-9]*)", callback=JustoneCommands.callback_choose_game_clue))
 	dp.add_handler(CallbackQueryHandler(pattern=r"(-[0-9]*)\*chooseendunanimo\*(.*)\*([0-9]*)", callback=UnanimoController.callback_finish_game_buttons))
+
+	# SpyFall Comandos y Callbacks
+	dp.add_handler(CommandHandler("acusar", SpyFallCommands.command_acusar))
+	dp.add_handler(CommandHandler("adivinar", SpyFallCommands.command_adivinar))
+	dp.add_handler(CommandHandler("rol", SpyFallCommands.command_rol))
+	dp.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)\*spyfallVoto\*(-?[0-9]*)\*(-?[0-9]*)", callback=SpyFallCommands.callback_spyfall_voto))
+	dp.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)\*spyfallAdivinar\*([0-9]*)\*(-?[0-9]*)", callback=SpyFallCommands.callback_spyfall_adivinar))
 
 	dp.add_handler(CommandHandler("status", command_status))
 

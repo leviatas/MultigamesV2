@@ -30,6 +30,7 @@ from Decrypt.Boardgamebox.Game import Game as GameDecrypt
 from Werewords.Boardgamebox.Game import Game as GameWerewords
 from Deception.Boardgamebox.Game import Game as GameDeception
 from Unanimo.Boardgamebox.Game import Game as GameUnanimo
+from SpyFall.Boardgamebox.Game import Game as GameSpyFall
 
 from Boardgamebox.Player import Player
 from Boardgamebox.State import State
@@ -637,6 +638,8 @@ def CreateGame(cid, uid, tipo, groupName, bot):
 		GamesController.games[cid] = GameDeception(cid, uid, groupName, tipo)
 	elif tipo == 'Unanimo':
 		GamesController.games[cid] = GameUnanimo(cid, uid, groupName, tipo)
+	elif tipo == 'SpyFall':
+		GamesController.games[cid] = GameSpyFall(cid, uid, groupName, tipo)
 	else:
 		GamesController.games[cid] = Game(cid, uid, groupName, tipo)
 

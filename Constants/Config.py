@@ -71,6 +71,12 @@ JUEGOS_DISPONIBLES = {
                 },
 		"permitir_ingreso_tardio" : True
         },
+	"SpyFall" : {
+                "comandos" : {
+                    "SpyFall" : "Spy Fall"
+                },
+		"permitir_ingreso_tardio" : True
+        },
 }
 
 
@@ -219,6 +225,15 @@ MODULOS_DISPONIBES = {
                 #         },
                 #         "min_jugadores" : 1,
                 #         "max_jugadores" : 15
-                # } 
+                # }
+        },
+	"SpyFall" : {
+                "Cooperativo" : {
+                        "comandos" : {
+                            "Cooperativo" : "Cooperativo"
+                        },
+                        "min_jugadores" : 3,
+                        "max_jugadores" : 10
+                }
         },
 }
