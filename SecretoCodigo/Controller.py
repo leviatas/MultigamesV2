@@ -428,23 +428,20 @@ async def end_game_duo(bot, game, victoria: bool, razon: str):
         msg = "⌛ Derrota: se acabaron las pistas antes de encontrar a todos los agentes."
 
     await bot.send_message(game.cid, msg, parse_mode=ParseMode.MARKDOWN)
-    await bot.send_message(game.cid, _reveal_full_board_duo(game), parse_mode=ParseMode.MARKDOWN)
+
+    jugador_a = st.jugador_a
+    jugador_b = st.jugador_b
+    await bot.send_photo(
+        game.cid,
+        photo=game.board.render_key_image(game, "A"),
+        caption=f"🟩 Tablero final — clave del Jugador 1 ({jugador_a.name})",
+    )
+    await bot.send_photo(
+        game.cid,
+        photo=game.board.render_key_image(game, "B"),
+        caption=f"🟩 Tablero final — clave del Jugador 2 ({jugador_b.name})",
+    )
     await continue_playing(bot, game)
-
-
-def _reveal_full_board_duo(game) -> str:
-    st = game.board.state
-    emoji_map = {"agente": "🟩", "neutral": "⬜", "asesino": "💀"}
-    lines = []
-    for i, card in enumerate(st.tablero):
-        n = card["numero"]
-        tipo_a = st.key_a[n]
-        tipo_b = st.key_b[n]
-        marker = "✅" if card["revealed"] else "  "
-        lines.append(f"{marker}{card['word'].upper()} — A:{emoji_map[tipo_a]} B:{emoji_map[tipo_b]}")
-        if (i + 1) % 5 == 0:
-            lines.append("")
-    return "*Tablero Final (vista A / vista B):*\n" + "\n".join(lines)
 
 
 async def process_hint(bot, game, spymaster_uid, word: str, number: int):
