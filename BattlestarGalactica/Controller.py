@@ -159,6 +159,9 @@ async def finalizar_setup(bot, game):
     pres = game.playerlist.get(st.presidente_uid)
     alm = game.playerlist.get(st.almirante_uid)
 
+    # --- Flota inicial ---
+    _colocar_flota_inicial(st)
+
     # --- Manos de habilidad iniciales ---
     for player in game.playerlist.values():
         _robar_skills(st, player)
@@ -261,11 +264,13 @@ async def iniciar_turno(bot, game):
     _robar_skills(st, player)
     await _dm_mano(bot, player)
 
+    ubic = Locations.UBICACIONES.get(player.ubicacion, {}).get("nombre", "—")
     await bot.send_message(
         game.cid,
         f"🎬 *Turno de {player.name}* (recibió cartas de habilidad).\n"
-        f"Usa `/accion` para tu acción y luego se revelará una *Crisis*, "
-        f"o `/crisis` para ir directo a la crisis.",
+        f"📍 Estás en: *{ubic}*\n\n"
+        f"`/mover` para cambiar de ubicación · `/accion` para la acción de tu ubicación · "
+        f"luego `/crisis` para revelar la crisis.",
         parse_mode=ParseMode.MARKDOWN,
     )
     await save(bot, game.cid)
@@ -279,6 +284,275 @@ async def avanzar_turno(bot, game):
     st.player_counter = (st.player_counter + 1) % len(seq)
     st.active_player = seq[st.player_counter]
     await iniciar_turno(bot, game)
+
+
+# ===================== FLOTA / COMBATE ESPACIAL =====================
+
+def _colocar_flota_inicial(st):
+    """Despliega vipers iniciales y naves civiles con carga oculta."""
+    n_vipers = min(3, st.vipers_reserva)
+    st.vipers_reserva -= n_vipers
+    st.vipers_espacio += n_vipers
+
+    cargas = [
+        {"recurso": "poblacion", "cantidad": 1},
+        {"recurso": "poblacion", "cantidad": 1},
+        {"recurso": "moral", "cantidad": 1},
+        {"recurso": "combustible", "cantidad": 1},
+        {"recurso": None, "cantidad": 0},
+        {"recurso": None, "cantidad": 0},
+    ]
+    random.shuffle(cargas)
+    st.civiles = cargas
+    st.naves_civiles = len(cargas)
+
+
+def _d8():
+    return random.randint(1, 8)
+
+
+# Acciones disponibles por ubicación (clave -> lista de acciones)
+ACCIONES_UBICACION = {
+    "weapons": ["shoot_raider", "shoot_basestar"],
+    "hangar": ["launch", "repair"],
+    "command": ["viper_attack", "repel"],
+    "ftl": ["prep"],
+    "admiral_quarters": ["jump", "nuke"],
+    "research": ["draw2"],
+    "press_room": ["draw1"],
+    "president_office": ["draw1"],
+    "sickbay": ["heal"],
+    "brig": [],
+}
+
+ETIQUETA_ACCION = {
+    "shoot_raider": "🔫 Disparar a un Raider",
+    "shoot_basestar": "💥 Disparar a una Basestar",
+    "launch": "✈️ Lanzar un Viper",
+    "repair": "🔧 Reparar Vipers dañados",
+    "viper_attack": "✈️🔫 Viper ataca a un Raider",
+    "repel": "🪖 Repeler centuriones (-1)",
+    "prep": "⏫ Preparar salto (+1)",
+    "jump": "🌌 Ejecutar salto FTL",
+    "nuke": "☢️ Ataque nuclear",
+    "draw2": "🃏 Robar 2 cartas de habilidad",
+    "draw1": "🃏 Robar 1 carta de habilidad",
+    "heal": "🩺 Curarse",
+}
+
+
+async def ejecutar_accion_ubicacion(bot, game, uid, accion):
+    """Resuelve la acción de ubicación elegida por el jugador activo."""
+    st = game.board.state
+    player = game.playerlist[uid]
+
+    if accion == "shoot_raider":
+        await _disparar(bot, game, "raider")
+    elif accion == "shoot_basestar":
+        await _disparar(bot, game, "basestar")
+    elif accion == "launch":
+        await _lanzar_viper(bot, game)
+    elif accion == "repair":
+        reparados = st.vipers_danados
+        st.vipers_reserva += st.vipers_danados
+        st.vipers_danados = 0
+        await bot.send_message(game.cid, f"🔧 {reparados} Viper(s) reparado(s).")
+    elif accion == "viper_attack":
+        await _viper_ataca(bot, game)
+    elif accion == "repel":
+        if st.centuriones > 0:
+            st.centuriones -= 1
+            await bot.send_message(game.cid, f"🪖 Repeles a los centuriones ({st.centuriones}/{st.centuriones_max}).")
+        else:
+            await bot.send_message(game.cid, "No hay centuriones a bordo.")
+    elif accion == "prep":
+        st.jump_prep = min(st.jump_prep_max, st.jump_prep + 1)
+        await bot.send_message(game.cid, f"⏫ Preparación de salto: {st.jump_prep}/{st.jump_prep_max}")
+    elif accion == "jump":
+        if uid != st.almirante_uid and uid not in ADMIN:
+            await bot.send_message(game.cid, "Solo el Almirante puede ejecutar el salto.")
+            return
+        if st.jump_prep < 2:
+            await bot.send_message(game.cid, "La preparación de salto aún no es suficiente (mín. 2).")
+            return
+        await ejecutar_salto(bot, game, auto=False)
+    elif accion == "nuke":
+        if uid != st.almirante_uid and uid not in ADMIN:
+            await bot.send_message(game.cid, "Solo el Almirante puede lanzar el ataque nuclear.")
+            return
+        await _nuke(bot, game)
+    elif accion == "draw2":
+        await _robar_n_skills(bot, game, player, 2)
+    elif accion == "draw1":
+        await _robar_n_skills(bot, game, player, 1)
+    elif accion == "heal":
+        await bot.send_message(game.cid, f"🩺 {player.name} se recupera en la enfermería.")
+    else:
+        await bot.send_message(game.cid, "Acción no disponible.")
+    await save(bot, game.cid)
+
+
+async def _robar_n_skills(bot, game, player, n):
+    pj = Characters.PERSONAJES[player.personaje]
+    colores = pj["skill_set"]
+    for i in range(n):
+        color = colores[i % len(colores)]
+        carta = _robar_carta_color(game.board.state, color)
+        if carta:
+            player.skill_hand.append(carta)
+    await bot.send_message(game.cid, f"🃏 {player.name} roba {n} carta(s) de habilidad.")
+    await _dm_mano(bot, player)
+
+
+async def _disparar(bot, game, objetivo):
+    st = game.board.state
+    if objetivo == "raider":
+        if st.raiders <= 0:
+            await bot.send_message(game.cid, "No hay Raiders a los que disparar.")
+            return
+        r = _d8()
+        if r >= 4:
+            st.raiders -= 1
+            await bot.send_message(game.cid, f"🔫 Tirada {r}: ¡Raider destruido! (quedan {st.raiders})")
+        else:
+            await bot.send_message(game.cid, f"🔫 Tirada {r}: fallo.")
+    else:
+        if st.basestars <= 0:
+            await bot.send_message(game.cid, "No hay Basestars a las que disparar.")
+            return
+        r = _d8()
+        if r >= 5:
+            st.basestar_hits += 1
+            await bot.send_message(game.cid, f"💥 Tirada {r}: impacto en Basestar ({st.basestar_hits}/3).")
+            if st.basestar_hits >= 3:
+                st.basestars -= 1
+                st.basestar_hits = 0
+                await bot.send_message(game.cid, "🛸💀 ¡Basestar destruida!")
+        else:
+            await bot.send_message(game.cid, f"💥 Tirada {r}: fallo.")
+
+
+async def _lanzar_viper(bot, game):
+    st = game.board.state
+    if st.vipers_reserva <= 0:
+        await bot.send_message(game.cid, "No quedan Vipers en la reserva.")
+        return
+    st.vipers_reserva -= 1
+    st.vipers_espacio += 1
+    await bot.send_message(game.cid, f"✈️ Viper lanzado (en espacio: {st.vipers_espacio}).")
+
+
+async def _viper_ataca(bot, game):
+    st = game.board.state
+    if st.vipers_espacio <= 0:
+        await bot.send_message(game.cid, "No hay Vipers en el espacio.")
+        return
+    if st.raiders <= 0:
+        await bot.send_message(game.cid, "No hay Raiders a los que atacar.")
+        return
+    r = _d8()
+    if r >= 4:
+        st.raiders -= 1
+        await bot.send_message(game.cid, f"✈️🔫 Tirada {r}: el Viper derriba un Raider (quedan {st.raiders}).")
+    else:
+        await bot.send_message(game.cid, f"✈️ Tirada {r}: el Viper falla.")
+
+
+async def _nuke(bot, game):
+    st = game.board.state
+    if st.nuke_usado:
+        await bot.send_message(game.cid, "El ataque nuclear ya fue utilizado.")
+        return
+    if st.basestars <= 0:
+        await bot.send_message(game.cid, "No hay Basestars para atacar.")
+        return
+    st.nuke_usado = True
+    st.basestars -= 1
+    st.basestar_hits = 0
+    await bot.send_message(game.cid, "☢️ *¡ATAQUE NUCLEAR!* Una Basestar es destruida.", parse_mode=ParseMode.MARKDOWN)
+
+
+async def mover_jugador(bot, game, uid, destino):
+    st = game.board.state
+    player = game.playerlist[uid]
+    if destino not in Locations.UBICACIONES:
+        await bot.send_message(game.cid, "Ubicación inválida.")
+        return
+    player.ubicacion = destino
+    await bot.send_message(
+        game.cid,
+        f"📍 {player.name} se mueve a *{Locations.UBICACIONES[destino]['nombre']}*.",
+        parse_mode=ParseMode.MARKDOWN,
+    )
+    await save(bot, game.cid)
+
+
+async def activar_naves_cylon(bot, game):
+    """Activa las naves Cylon: basestars lanzan raiders y atacan; raiders combaten."""
+    st = game.board.state
+    await bot.send_message(game.cid, "🤖 *Se activan las naves Cylon...*", parse_mode=ParseMode.MARKDOWN)
+
+    # Si no hay basestars y pocos raiders, a veces aparece una basestar
+    if st.basestars == 0 and st.raiders == 0 and _d8() >= 6:
+        st.basestars += 1
+        await bot.send_message(game.cid, "🛸 ¡Una Basestar Cylon salta a la zona!")
+
+    # Basestars lanzan raiders
+    for _ in range(st.basestars):
+        st.raiders += 1
+    if st.basestars > 0:
+        await bot.send_message(
+            game.cid,
+            f"🛸 Las Basestars lanzan Raiders (total: {st.raiders}).",
+        )
+
+    # Combate Raiders vs Vipers
+    combates = min(st.vipers_espacio, st.raiders)
+    for _ in range(combates):
+        r = _d8()
+        if r >= 5:
+            st.raiders -= 1
+        else:
+            st.vipers_espacio -= 1
+            st.vipers_danados += 1
+    if combates:
+        await bot.send_message(
+            game.cid,
+            f"✈️💥 Combate aéreo — Vipers en espacio: {st.vipers_espacio}, Raiders: {st.raiders}.",
+        )
+
+    # Raiders sin oposición atacan naves civiles o abordan Galactica
+    excess = max(0, st.raiders - st.vipers_espacio)
+    if excess > 0:
+        if st.civiles:
+            await _destruir_civil(bot, game)
+        elif st.vipers_espacio == 0:
+            st.centuriones += 1
+            await bot.send_message(
+                game.cid,
+                f"🔺 Sin defensas, los Cylons abordan Galactica (centuriones: {st.centuriones}/{st.centuriones_max}).",
+            )
+
+    # Si el espacio quedó despejado de amenazas, los marines recuperan terreno
+    if st.raiders == 0 and st.basestars == 0 and st.centuriones > 0:
+        st.centuriones -= 1
+        await bot.send_message(
+            game.cid,
+            f"🪖 Espacio despejado: los marines repelen el abordaje (centuriones: {st.centuriones}/{st.centuriones_max}).",
+        )
+
+
+async def _destruir_civil(bot, game):
+    st = game.board.state
+    if not st.civiles:
+        return
+    carga = st.civiles.pop(random.randrange(len(st.civiles)))
+    st.naves_civiles = len(st.civiles)
+    if carga["recurso"]:
+        await bot.send_message(game.cid, f"🛰️💀 ¡Nave civil destruida! Transportaba {carga['recurso']}.")
+        await modificar_recurso(bot, game, carga["recurso"], -carga["cantidad"])
+    else:
+        await bot.send_message(game.cid, "🛰️💀 Nave civil destruida (estaba vacía).")
 
 
 # ===================== CRISIS =====================
@@ -413,6 +687,12 @@ async def cerrar_crisis(bot, game, crisis):
     st.crisis_discard.append(crisis)
     st.crisis_actual = None
 
+    # Activación de naves Cylon si la crisis lo indica
+    if crisis.get("activar_cylons"):
+        await activar_naves_cylon(bot, game)
+        if await _chequear_fin(bot, game):
+            return
+
     # Avance de preparación de salto por iconos de la crisis
     jump_icons = crisis.get("jump", 0)
     if jump_icons:
@@ -445,6 +725,9 @@ async def aplicar_efectos(bot, game, efectos):
         elif tipo == "raiders":
             st.raiders += ef["cantidad"]
             await bot.send_message(game.cid, f"👾 Aparecen {ef['cantidad']} Raiders (total: {st.raiders}).")
+        elif tipo == "centuriones":
+            st.centuriones = max(0, st.centuriones + ef["delta"])
+            await bot.send_message(game.cid, f"🔺 Centuriones: {st.centuriones}/{st.centuriones_max}")
         elif tipo == "mensaje":
             await bot.send_message(game.cid, ef["texto"])
 
@@ -467,10 +750,23 @@ async def modificar_recurso(bot, game, recurso, delta):
 async def ejecutar_salto(bot, game, auto=False):
     st = game.board.state
     st.jump_prep = 0
-    st.distancia = min(st.objetivo_distancia, st.distancia + 1)
+    # La carta de destino del salto avanza 1 o 2 unidades de distancia.
+    avance = random.choice([1, 1, 2])
+    st.distancia = min(st.objetivo_distancia, st.distancia + avance)
+
+    # Las naves Cylon no siguen a la flota tras el salto; los Vipers regresan.
+    st.raiders = 0
+    st.basestars = 0
+    st.basestar_hits = 0
+    st.vipers_reserva += st.vipers_espacio + st.vipers_danados
+    st.vipers_espacio = 0
+    st.vipers_danados = 0
+
+    etiqueta = "AUTOMÁTICO" if auto else "FTL"
     await bot.send_message(
         game.cid,
-        f"🌌 *¡SALTO FTL!* La flota avanza. Distancia: *{st.distancia}/{st.objetivo_distancia}*.",
+        f"🌌 *¡SALTO {etiqueta}!* La flota avanza y deja atrás a los Cylons. "
+        f"Distancia: *{st.distancia}/{st.objetivo_distancia}*.",
         parse_mode=ParseMode.MARKDOWN,
     )
     # Fase del Agente Durmiente
@@ -505,6 +801,10 @@ async def _chequear_fin(bot, game):
         if getattr(st, recurso) <= 0:
             await terminar(bot, game, "Cylons", f"El recurso *{nombre}* llegó a 0.")
             return True
+    # Derrota: Galactica tomada por los centuriones
+    if st.centuriones >= st.centuriones_max:
+        await terminar(bot, game, "Cylons", "Los centuriones tomaron Galactica.")
+        return True
     # Victoria humana
     if st.distancia >= st.objetivo_distancia:
         await terminar(bot, game, "Humanos", "La flota alcanzó la distancia objetivo. ¡Llegaron a Kobol!")

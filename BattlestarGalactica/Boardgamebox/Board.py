@@ -20,7 +20,10 @@ class Board(BaseBoard):
         board += f"⏫ Prep. salto: {st.jump_prep}/{st.jump_prep_max}\n\n"
         board += "*Naves:*\n"
         board += f"✈️ Vipers (reserva/espacio/dañados): {st.vipers_reserva}/{st.vipers_espacio}/{st.vipers_danados}\n"
-        board += f"👾 Raiders: {st.raiders}   🛸 Basestars: {st.basestars}\n\n"
+        board += f"👾 Raiders: {st.raiders}   🛸 Basestars: {st.basestars}"
+        if st.basestars and st.basestar_hits:
+            board += f" (impactos: {st.basestar_hits})"
+        board += f"\n🛰️ Naves civiles: {len(st.civiles)}   🔺 Centuriones: {st.centuriones}/{st.centuriones_max}\n\n"
 
         pres = game.playerlist.get(st.presidente_uid)
         alm = game.playerlist.get(st.almirante_uid)

@@ -42,13 +42,21 @@ class State(BaseState):
         # --- Chequeo de habilidad en curso ---
         self.skill_check = None           # dict: {crisis, colores, dificultad, aportes:{uid:[cartas]}, ...}
 
-        # --- Naves (modelo simplificado para la capa base) ---
+        # --- Naves ---
         self.vipers_reserva = 8
         self.vipers_espacio = 0
         self.vipers_danados = 0
         self.raiders = 0
         self.basestars = 0
-        self.naves_civiles = 0
+        self.basestar_hits = 0            # impactos acumulados sobre basestars
+        self.nuke_usado = False           # ataque nuclear del Almirante (1 por juego)
+
+        # --- Naves civiles (cada una con carga oculta) ---
+        self.civiles = []                 # lista de dicts {recurso, cantidad}
+
+        # --- Abordaje / centuriones en Galactica ---
+        self.centuriones = 0              # avance del abordaje
+        self.centuriones_max = 4          # al llegar, Galactica es tomada (Cylons ganan)
 
         # --- Cylons revelados ---
         self.cylons_revelados = []        # uids
