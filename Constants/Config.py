@@ -82,6 +82,11 @@ JUEGOS_DISPONIBLES = {
                 },
 		"permitir_ingreso_tardio" : True
         },
+	"Insider" : {
+                "comandos" : {
+                    "Insider" : "Insider"
+                },
+        },
 }
 
 
@@ -101,7 +106,13 @@ HOJAS_AYUDA = {
 		"Panadero y Panadera, Tobogán y Tovogan son identicas.",
         "LostExpedition" : "Eventos amarillos son obligatorios\n" + \
 		"Eventos rojo son obligatorios pero tenes que elegir 1\n"  + \
-		"Eventos Azules son opcionales"
+		"Eventos Azules son opcionales",
+        "Insider" : "El Guía conoce la palabra y responde sí/no/no lo sé.\n" + \
+		"El Infiltrado también la conoce y guía la charla sin que lo descubran.\n" + \
+		"Los Ciudadanos no la conocen y deben adivinarla.\n" + \
+		"`/acerto` (Guía): marca quién adivinó.\n" + \
+		"`/notiempo` (Guía): se acabó el tiempo, todos pierden.\n" + \
+		"`/mirol`: ver tu rol en privado."
 }
 
 MODULOS_DISPONIBES = {
@@ -248,6 +259,15 @@ MODULOS_DISPONIBES = {
                         },
                         "min_jugadores" : 3,
                         "max_jugadores" : 10
+                }
+        },
+	"Insider" : {
+                "Clasico" : {
+                        "comandos" : {
+                            "Clasico" : "Clásico"
+                        },
+                        "min_jugadores" : 4,
+                        "max_jugadores" : 8
                 }
         },
 }

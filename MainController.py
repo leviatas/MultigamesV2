@@ -33,6 +33,7 @@ import Deception.Controller as DeceptionController
 import Unanimo.Controller as UnanimoController
 import SecretoCodigo.Controller as SecretoCodigoController
 import SpyFall.Controller as SpyFallController
+import Insider.Controller as InsiderController
 
 # Importo los comandos de los juegos que vaya agregando
 import JustOne.Commands as JustoneCommands
@@ -46,6 +47,7 @@ import Deception.Commands as DeceptionCommands
 import Unanimo.Commands as UnanimoCommands
 import SecretoCodigo.Commands as SecretoCodigoCommands
 import SpyFall.Commands as SpyFallCommands
+import Insider.Commands as InsiderCommands
 
 from Constants.Cards import playerSets, actions
 from Constants.Config import TOKEN, STATS, ADMIN
@@ -132,6 +134,9 @@ async def init_game(bot, game):
 	elif game.tipo == "SpyFall":
 		game.create_board()
 		await SpyFallController.init_game(bot, game)
+	elif game.tipo == "Insider":
+		game.create_board()
+		await InsiderController.init_game(bot, game)
 
 
 async def init_lost_expedition(bot, game, player_number):
@@ -797,6 +802,17 @@ def main(stop_event):
 	app.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)\*spyfallVoto\*(-?[0-9]*)\*(-?[0-9]*)", callback=SpyFallCommands.callback_spyfall_voto))
 	app.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)\*spyfallAdivinar\*([0-9]*)\*(-?[0-9]*)", callback=SpyFallCommands.callback_spyfall_adivinar))
 	app.add_handler(CallbackQueryHandler(pattern=r"(-[0-9]*)\*chooseendSpy\*(.*)\*([0-9]*)", callback=SpyFallController.callback_finish_game_buttons_spy))
+
+	# Handlers de Insider
+	app.add_handler(CommandHandler("acerto", InsiderCommands.command_acerto))
+	app.add_handler(CommandHandler("notiempo", InsiderCommands.command_notiempo))
+	app.add_handler(CommandHandler("palabra", InsiderCommands.command_palabra))
+	app.add_handler(CommandHandler("mirol", InsiderCommands.command_rol))
+	app.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)\*insiderAcerto\*(-?[0-9]*)\*(-?[0-9]*)", callback=InsiderCommands.callback_insider_acerto))
+	app.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)\*insiderJuzgar\*(si|no)\*([0-9]*)", callback=InsiderCommands.callback_insider_juzgar))
+	app.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)\*insiderVotar\*(-?[0-9]*)\*([0-9]*)", callback=InsiderCommands.callback_insider_votar))
+	app.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)\*insiderDesempate\*(-?[0-9]*)\*(-?[0-9]*)", callback=InsiderCommands.callback_insider_desempate))
+	app.add_handler(CallbackQueryHandler(pattern=r"(-[0-9]*)\*chooseendInsider\*(.*)\*([0-9]*)", callback=InsiderController.callback_finish_game_buttons_insider))
 
 	app.add_handler(CommandHandler("status", command_status))
 
