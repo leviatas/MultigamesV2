@@ -796,6 +796,7 @@ def main(stop_event):
 	app.add_handler(CommandHandler("rol", SpyFallCommands.command_rol))
 	app.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)\*spyfallVoto\*(-?[0-9]*)\*(-?[0-9]*)", callback=SpyFallCommands.callback_spyfall_voto))
 	app.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)\*spyfallAdivinar\*([0-9]*)\*(-?[0-9]*)", callback=SpyFallCommands.callback_spyfall_adivinar))
+	app.add_handler(CallbackQueryHandler(pattern=r"(-[0-9]*)\*chooseendSpy\*(.*)\*([0-9]*)", callback=SpyFallController.callback_finish_game_buttons_spy))
 
 	app.add_handler(CommandHandler("status", command_status))
 

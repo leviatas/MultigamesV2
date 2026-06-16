@@ -3,13 +3,16 @@
 
 import logging as log
 import random
+import re
 
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.constants import ParseMode
+from telegram.ext import CallbackContext
 
-from Utils import get_game, save
+from Utils import get_game, save, simple_choose_buttons
 from Constants.Config import ADMIN
 from SpyFall.Constants.Locations import LOCALIDADES, LISTA_LOCALIDADES
+from SpyFall.Boardgamebox.Game import Game
 
 import GamesController
 
@@ -139,6 +142,7 @@ async def spy_wins(bot, game, reason=""):
         f"La localidad secreta era: *{localidad}*",
         parse_mode=ParseMode.MARKDOWN
     )
+    await continue_playing(bot, game)
 
 
 async def non_spy_wins(bot, game, caught=False, guessed_wrong=False):
@@ -165,3 +169,55 @@ async def non_spy_wins(bot, game, caught=False, guessed_wrong=False):
         )
 
     await bot.send_message(game.cid, msg, parse_mode=ParseMode.MARKDOWN)
+    await continue_playing(bot, game)
+
+
+async def continue_playing(bot, game):
+    opciones_botones = {
+        "Nuevo": "Nuevo partido con nuevos jugadores",
+        "Mismos": "Misma partida, mismos jugadores",
+    }
+    await simple_choose_buttons(
+        bot, game.cid, 1, game.cid,
+        "chooseendSpy",
+        "¿Quieres continuar jugando?",
+        opciones_botones,
+    )
+
+
+async def callback_finish_game_buttons_spy(update: Update, context: CallbackContext):
+    bot = context.bot
+    callback = update.callback_query
+    try:
+        regex = re.search(r"(-[0-9]*)\*chooseendSpy\*(.*)\*([0-9]*)", callback.data)
+        cid, opcion, uid = int(regex.group(1)), regex.group(2), int(regex.group(3))
+        mensaje_edit = f"Has elegido: {opcion}"
+        try:
+            await bot.edit_message_text(mensaje_edit, cid, callback.message.message_id)
+        except Exception:
+            await bot.edit_message_text(mensaje_edit, uid, callback.message.message_id)
+
+        game = get_game(cid)
+        groupName = game.groupName
+        tipo = game.tipo
+        modo = game.modo
+        players = game.playerlist.copy()
+
+        new_game = Game(cid, uid, groupName, tipo, modo)
+        GamesController.games[cid] = new_game
+
+        if opcion == "Nuevo":
+            await bot.send_message(
+                cid,
+                "Cada jugador puede unirse con /join. El iniciador puede escribir /startgame cuando todos estén listos.",
+            )
+            return
+
+        new_game.playerlist = players
+        new_game.board = None
+        new_game.create_board()
+        new_game.player_sequence = []
+        await init_game(bot, new_game)
+    except Exception as e:
+        await bot.send_message(ADMIN[0], f'callback_finish_game_buttons_spy error: {e}')
+        await bot.send_message(ADMIN[0], callback.data)
