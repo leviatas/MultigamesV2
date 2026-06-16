@@ -3,12 +3,13 @@ import logging as log
 import datetime
 import jsonpickle
 import os
-import psycopg2
+import psycopg
 import urllib.parse
 import sys
 from time import sleep
 
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ParseMode, Update, ForceReply, Update
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update, ForceReply
+from telegram.constants import ParseMode
 from telegram.ext import (CallbackContext)
 
 from Boardgamebox.Board import Board
@@ -28,16 +29,16 @@ log.basicConfig(
 logger = log.getLogger(__name__)
 
 #DB Connection I made a Haroku Postgres database first
-urllib.parse.uses_netloc.append("postgres")
-url = urllib.parse.urlparse(os.environ["DATABASE_URL"])
-
-conn = psycopg2.connect(
-    database=url.path[1:],
-    user=url.username,
-    password=url.password,
-    host=url.hostname,
-    port=url.port
-)
+#urllib.parse.uses_netloc.append("postgres")
+#url = urllib.parse.urlparse(os.environ["DATABASE_URL"])
+#
+#conn = psycopg.connect(
+#    dbname=url.path[1:],
+#    user=url.username,
+#    password=url.password,
+#    host=url.hostname,
+#    port=url.port
+#)
 
 # Secret Moon
 secret_moon_cid = '-1001206290323'
@@ -73,14 +74,14 @@ def command_roll(update: Update, context: CallbackContext):
 	else:
 		text_tirada +=  ' es *%s!*' % (str(tirada + sumar - restar))
 		
-	bot.send_message(cid, "%s" % (text_tirada), ParseMode.MARKDOWN)
+	await bot.send_message(cid, "%s" % (text_tirada), ParseMode.MARKDOWN)
 	
 	#ot.send_message(cid, "Se sumo {}. Se resto {}".format(sumar, restar), ParseMode.MARKDOWN)
 	
 	# Si hay un juego creado guardo en el historial
 	game = get_game(cid)
 	if game and uid in game.playerlist:
-		#bot.send_message(cid, "Grabo en base de datos", ParseMode.MARKDOWN)
+		#await bot.send_message(cid, "Grabo en base de datos", ParseMode.MARKDOWN)
 		player = game.playerlist[uid]
 		texthistory = "Jugador *%s* - %s" % (player.name, text_tirada)
 		game.history.append("%s" % (texthistory))

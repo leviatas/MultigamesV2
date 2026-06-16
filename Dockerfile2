@@ -1,0 +1,24 @@
+FROM python:3.12.4-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+WORKDIR /app
+
+# Install Chromium (disponible en repos de Debian sin configuración extra)
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends chromium \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install build deps, install python requirements, then remove build tools to keep image small
+COPY requirements.txt ./
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends build-essential gcc \
+    && pip install --no-cache-dir -r requirements.txt \
+    && apt-get purge -y --auto-remove build-essential gcc \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy project files and the .env (if present). The entrypoint will export vars from .env at container start.
+COPY . /app
+
+CMD ["python", "Main.py"]

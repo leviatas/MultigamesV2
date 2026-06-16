@@ -2,15 +2,19 @@ from functools import wraps
 from Constants.Config import ADMIN
 from PIL import Image
 from io import BytesIO
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ChatAction, ParseMode, Update
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
+from telegram.constants import ParseMode, ChatAction
 from telegram.ext import CallbackContext
 from random import randrange
+from datetime import datetime
 
-import psycopg2
+import psycopg
 import urllib.parse
 import os
 import jsonpickle
 import logging as log
+from dotenv import load_dotenv
+
 import GamesController
 
 log.basicConfig(
@@ -18,11 +22,14 @@ log.basicConfig(
         level=log.INFO)
 logger = log.getLogger(__name__)
 
-
+# Load environment variables from .env file
+load_dotenv()
 
 urllib.parse.uses_netloc.append("postgres")
-#url = urllib.parse.urlparse('postgres://osawfnidytbmgi:126714f9f3157ee10baa8046e48d287872788c8d1349ddba5dfd2a85de82d2a6@ec2-174-129-192-200.compute-1.amazonaws.com:5432/d79l0ugjdnfiac')
-url = urllib.parse.urlparse(os.environ["DATABASE_URL"])
+
+def _get_db_url():
+    """Parse DATABASE_URL lazily (not at module import time)."""
+    return urllib.parse.urlparse(os.environ.get("DATABASE_URL", ""))
 
 def restricted(func):
 	@wraps(func)
@@ -154,7 +161,7 @@ def get_config_data(game, config_name):
 	except Exception:
 		return None
 
-def simple_choose_buttons(bot, cid, uid, chat_donde_se_pregunta, comando_callback, mensaje_pregunta, opciones_botones, one_line = True, items_each_line = 3):
+async def simple_choose_buttons(bot, cid, uid, chat_donde_se_pregunta, comando_callback, mensaje_pregunta, opciones_botones, one_line = True, items_each_line = 3):
 	
 	#sleep(3)
 	btns = []
@@ -165,7 +172,7 @@ def simple_choose_buttons(bot, cid, uid, chat_donde_se_pregunta, comando_callbac
 			datos = str(cid) + "*" + comando_callback + "*" + str(key) + "*" + str(uid)
 			#log.info(datos)
 			#if comando_callback == "announce":
-			#	bot.send_message(ADMIN[0], datos)
+			#	await bot.send_message(ADMIN[0], datos)
 			btns.append([InlineKeyboardButton(txtBoton, callback_data=datos)])
 	else:
 		btn_group = []
@@ -174,7 +181,7 @@ def simple_choose_buttons(bot, cid, uid, chat_donde_se_pregunta, comando_callbac
 			datos = str(cid) + "*" + comando_callback + "*" + str(key) + "*" + str(uid)
 			
 			#if comando_callback == "announce":
-			#	bot.send_message(ADMIN[0], datos)
+			#	await bot.send_message(ADMIN[0], datos)
 			btn_group.append(InlineKeyboardButton(txtBoton, callback_data=datos))
 			if len(btn_group) == items_each_line:				
 				btns.append(btn_group)
@@ -189,16 +196,16 @@ def simple_choose_buttons(bot, cid, uid, chat_donde_se_pregunta, comando_callbac
 		game = get_game(cid)
 		if game is not None and game.is_debugging:
 			chat_donde_se_pregunta = ADMIN[0]
-		bot.send_message(chat_donde_se_pregunta, mensaje_pregunta, reply_markup=btnMarkup, parse_mode=ParseMode.MARKDOWN)
+		await bot.send_message(chat_donde_se_pregunta, mensaje_pregunta, reply_markup=btnMarkup, parse_mode=ParseMode.MARKDOWN)
 		GamesController.simple_choose_buttons_retry = False
 	except Exception as e:
 		# Si tira error y estoy debugeando intento mandar de nuevo pero si no intente anteriormente
 		game = get_game(cid)
 		if game is not None and game.is_debugging and not GamesController.simple_choose_buttons_retry:
 			GamesController.simple_choose_buttons_retry = True
-			simple_choose_buttons(bot, cid, ADMIN[0], ADMIN[0], comando_callback, mensaje_pregunta, opciones_botones, one_line, items_each_line)
+			await simple_choose_buttons(bot, cid, ADMIN[0], ADMIN[0], comando_callback, mensaje_pregunta, opciones_botones, one_line, items_each_line)
 		else:
-			bot.send_message(ADMIN[0], 'Error en simple_choose_buttons {}'.format(e))
+			await bot.send_message(ADMIN[0], 'Error en simple_choose_buttons {}'.format(e))
 
 def get_game(cid):
 	# Busco el juego actual
@@ -208,7 +215,9 @@ def get_game(cid):
 		return game
 	else:
 		# Si no esta lo busco en BD y lo pongo en GamesController.games
+		# log.info('get_game called in chat {}'.format(cid))
 		game = load_game(cid)
+		# log.info('Termino de cargar game')
 		if game:
 			GamesController.games[cid] = game
 			return game
@@ -216,8 +225,9 @@ def get_game(cid):
 			None
 
 def load_game(cid):
-	conn = psycopg2.connect(
-		database=url.path[1:],
+	url = _get_db_url()
+	conn = psycopg.connect(
+		dbname=url.path[1:],
 		user=url.username,
 		password=url.password,
 		host=url.hostname,
@@ -254,18 +264,27 @@ def load_game(cid):
 			game.board.state.last_votes = temp_last_votes
 		
 		if game.board is not None and game.board.state is not None and hasattr(game.board.state, 'enesperadeaccion'):
-			temp_espera_accion = {}	
+			temp_espera_accion = {}
 			for uid in game.board.state.enesperadeaccion:
 				temp_espera_accion[int(uid)] = game.board.state.enesperadeaccion[uid]
 			game.board.state.enesperadeaccion = temp_espera_accion
+
+		if game.board is not None and game.board.state is not None:
+			for attr in ('key_a', 'key_b'):
+				if hasattr(game.board.state, attr):
+					raw = getattr(game.board.state, attr)
+					if raw:
+						setattr(game.board.state, attr, {int(k): v for k, v in raw.items()})
+
 		return game
 	else:
 		#log.info("Game Not Found")
 		return None
 
 def delete_game(cid):
-	conn = psycopg2.connect(
-		database=url.path[1:],
+	url = _get_db_url()
+	conn = psycopg.connect(
+		dbname=url.path[1:],
 		user=url.username,
 		password=url.password,
 		host=url.hostname,
@@ -281,17 +300,19 @@ def delete_game(cid):
 def save_game(cid, groupName, game, gameType):
 	try:
 		#Check if game is in DB first
-		conn = psycopg2.connect(
-		database=url.path[1:],
+		url = _get_db_url()
+		conn = psycopg.connect(
+		dbname=url.path[1:],
 		user=url.username,
 		password=url.password,
 		host=url.hostname,
 		port=url.port
 		)
-		cur = conn.cursor()			
+		cur = conn.cursor()
 		#log.info("Searching Game in DB")
 		query = "select * from games where id = %s;"
 		cur.execute(query, [cid])
+		game.last_activity = datetime.now()
 		if cur.rowcount > 0:
 			#log.info('Updating Game')
 			gamejson = jsonpickle.encode(game)
@@ -316,16 +337,16 @@ def save_game(cid, groupName, game, gameType):
 		log.info('No se grabo debido al siguiente error: '+str(e))
 		conn.rollback()
 	
-def save(bot, cid, newGroupName = ''):
+async def save(bot, cid, newGroupName = ''):
 	try:		
 		#groupName = "Prueba"
 		game = GamesController.games.get(cid, None)
 		gameType = game.tipo
 		save_game(cid, game.groupName if newGroupName == '' else newGroupName , game, gameType )
-		#bot.send_message(cid, 'Se grabo correctamente.')
+		#await bot.send_message(cid, 'Se grabo correctamente.')
 		#log.info('Se grabo correctamente.')
 	except Exception as e:
-		bot.send_message(cid, 'Error al grabar '+str(e))
+		await bot.send_message(cid, 'Error al grabar '+str(e))
 
 def get_base_data2(cid, uid):
 	if uid in ADMIN:		
@@ -337,13 +358,13 @@ def get_base_data2(cid, uid):
 	else:
 		return None, None
 		
-def get_base_data(update: Update, context: CallbackContext):
+async def get_base_data(update: Update, context: CallbackContext):
 	bot = context.bot	
 	cid, uid = update.message.chat_id, update.message.from_user.id
 	if uid in ADMIN:		
 		game = get_game(cid)
 		if not game:
-			bot.send_message(cid, "No hay juego creado en este chat")
+			await bot.send_message(cid, "No hay juego creado en este chat")
 			return cid, uid, None, None
 		player = game.playerlist[uid]
 		return cid, uid, game, player
@@ -358,11 +379,11 @@ def simple_choose_buttons_only_buttons(bot, cid, uid, comando_callback, opciones
 		txtBoton = value
 		datos = str(cid) + "*" + comando_callback + "*" + str(key) + "*" + str(uid)
 		#if comando_callback == "announce":
-		#	bot.send_message(ADMIN[0], datos)
+		#	await bot.send_message(ADMIN[0], datos)
 		btns.append([InlineKeyboardButton(txtBoton, callback_data=datos)])
 	return InlineKeyboardMarkup(btns)
 
-def command_status(update: Update, context: CallbackContext):
+async def command_status(update: Update, context: CallbackContext):
 	bot = context.bot
 	# cid = update.message.chat_id
 	try:
@@ -371,7 +392,7 @@ def command_status(update: Update, context: CallbackContext):
 		message = update.effective_message
 		
 		if cid == -1001768638126 and message.text == "status":
-			bot.send_message(ADMIN[0], f'Status OK')
+			await bot.send_message(ADMIN[0], f'Status OK')
 	except Exception as e:
 		log.info('Fallo el hacer status')
 		

@@ -28,7 +28,7 @@ class Game(BaseGame):
             "• No-espías: Identifican al espía en la votación"
         ]
 
-    def call(self, context):
+    async def call(self, context):
         import SpyFall.Commands as SpyFallCommands
         if self.board is not None:
-            SpyFallCommands.command_call(context.bot, self)
+            await SpyFallCommands.command_call(context.bot, self)

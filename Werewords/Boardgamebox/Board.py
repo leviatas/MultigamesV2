@@ -4,7 +4,7 @@ from Werewords.Boardgamebox.State import State
 
 import random
 from Werewords.Boardgamebox.State import State
-from telegram import ParseMode
+from telegram.constants import ParseMode
 
 class Board(BaseBoard):
     def __init__(self, playercount, game):
@@ -14,7 +14,7 @@ class Board(BaseBoard):
         self.discards = []
         self.magic_word = None
         
-    def print_board(self, bot, game):
+    async def print_board(self, bot, game):
         board = "*Estado de partida:*\nPreguntas restantes:{}\n\nJugadores:\n".format(self.state.preguntas_restantes)
         for player in game.player_sequence:
             if self.state.mayor == player:
@@ -25,6 +25,6 @@ class Board(BaseBoard):
         board += u"\U0001F501"
 
         board += "\n\n"
-        bot.send_message(game.cid, board, parse_mode=ParseMode.MARKDOWN)
+        await bot.send_message(game.cid, board, parse_mode=ParseMode.MARKDOWN)
         puede_hablar = " NO" if game.board.state.fase_actual == "preguntar" else ""
-        bot.send_message(game.cid, "*Mayor {}{} puedes hablar*".format(game.board.state.mayor.name, puede_hablar), parse_mode=ParseMode.MARKDOWN)
+        await bot.send_message(game.cid, "*Mayor {}{} puedes hablar*".format(game.board.state.mayor.name, puede_hablar), parse_mode=ParseMode.MARKDOWN)

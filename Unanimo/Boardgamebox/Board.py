@@ -4,7 +4,7 @@ from Unanimo.Boardgamebox.State import State
 
 import random
 from Unanimo.Boardgamebox.State import State
-from telegram import ParseMode
+from telegram.constants import ParseMode
 
 class Board(BaseBoard):
     def __init__(self, playercount, game):

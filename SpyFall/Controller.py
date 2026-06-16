@@ -4,7 +4,8 @@
 import logging as log
 import random
 
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ParseMode
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.constants import ParseMode
 
 from Utils import get_game, save
 from Constants.Config import ADMIN
@@ -16,7 +17,7 @@ log.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', l
 logger = log.getLogger(__name__)
 
 
-def init_game(bot, game):
+async def init_game(bot, game):
     try:
         log.info("SpyFall init_game called")
         game.shuffle_player_sequence()
@@ -41,7 +42,7 @@ def init_game(bot, game):
                 role_index += 1
 
         # Send DMs with roles
-        bot.send_message(
+        await bot.send_message(
             spy_uid,
             "🕵️ *¡Eres el ESPÍA!*\n\nNo conoces la localidad. Intenta descubrirla.\n\n"
             "Usa `/adivinar` en el grupo para adivinar la localidad en cualquier momento.",
@@ -49,7 +50,7 @@ def init_game(bot, game):
         )
 
         localidades_list = "\n".join(f"• {loc}" for loc in LISTA_LOCALIDADES)
-        bot.send_message(
+        await bot.send_message(
             spy_uid,
             f"📋 *Localidades posibles:*\n{localidades_list}",
             parse_mode=ParseMode.MARKDOWN
@@ -57,7 +58,7 @@ def init_game(bot, game):
 
         for uid, player in game.playerlist.items():
             if uid != spy_uid:
-                bot.send_message(
+                await bot.send_message(
                     uid,
                     f"🗺️ *Localidad: {localidad}*\n\n"
                     f"👤 *Tu rol: {player.role}*\n\n"
@@ -66,7 +67,7 @@ def init_game(bot, game):
                 )
 
         player_names = "\n".join(f"• {p.name}" for p in game.player_sequence)
-        bot.send_message(
+        await bot.send_message(
             game.cid,
             f"🎮 *¡SpyFall ha comenzado!*\n\n"
             f"*Jugadores ({len(game.playerlist)}):*\n{player_names}\n\n"
@@ -79,23 +80,22 @@ def init_game(bot, game):
             parse_mode=ParseMode.MARKDOWN
         )
 
-        save(bot, game.cid)
+        await save(bot, game.cid)
     except Exception as e:
         logger.error(f"SpyFall init_game error: {e}")
-        bot.send_message(ADMIN[0], f"SpyFall init_game error: {e}")
+        await bot.send_message(ADMIN[0], f"SpyFall init_game error: {e}")
         raise
 
 
-def resolve_accusation(bot, game):
+async def resolve_accusation(bot, game):
     """Tally votes and determine if the spy was caught."""
     votes = game.board.state.votos_acusacion
     if not votes:
-        bot.send_message(game.cid, "No hubo votos.", parse_mode=ParseMode.MARKDOWN)
+        await bot.send_message(game.cid, "No hubo votos.", parse_mode=ParseMode.MARKDOWN)
         game.board.state.fase_actual = "Interrogando"
-        save(bot, game.cid)
+        await save(bot, game.cid)
         return
 
-    # Count how many votes each player received
     tally = {}
     for voter_uid, accused_uid in votes.items():
         tally[accused_uid] = tally.get(accused_uid, 0) + 1
@@ -110,7 +110,7 @@ def resolve_accusation(bot, game):
         if uid in game.playerlist
     )
 
-    bot.send_message(
+    await bot.send_message(
         game.cid,
         f"📊 *Resultados de la votación:*\n{tally_text}\n\n"
         f"El más acusado: *{most_accused_player.name}* con {vote_count} voto(s)",
@@ -118,21 +118,21 @@ def resolve_accusation(bot, game):
     )
 
     if most_accused_player.is_spy:
-        non_spy_wins(bot, game, caught=True)
+        await non_spy_wins(bot, game, caught=True)
     else:
-        spy_wins(bot, game, reason=f"¡*{most_accused_player.name}* es inocente!")
+        await spy_wins(bot, game, reason=f"¡*{most_accused_player.name}* es inocente!")
 
 
-def spy_wins(bot, game, reason=""):
+async def spy_wins(bot, game, reason=""):
     """Announce spy victory and end the game."""
     spy_player = game.playerlist.get(game.board.state.spy_uid)
     localidad = game.board.state.localidad
 
     game.board.state.fase_actual = "Finalizado"
-    save(bot, game.cid)
+    await save(bot, game.cid)
 
     prefix = f"{reason}\n\n" if reason else ""
-    bot.send_message(
+    await bot.send_message(
         game.cid,
         f"{prefix}🕵️ *¡El espía gana!*\n\n"
         f"El espía era: *{spy_player.name}*\n"
@@ -141,13 +141,13 @@ def spy_wins(bot, game, reason=""):
     )
 
 
-def non_spy_wins(bot, game, caught=False, guessed_wrong=False):
+async def non_spy_wins(bot, game, caught=False, guessed_wrong=False):
     """Announce non-spy victory and end the game."""
     spy_player = game.playerlist.get(game.board.state.spy_uid)
     localidad = game.board.state.localidad
 
     game.board.state.fase_actual = "Finalizado"
-    save(bot, game.cid)
+    await save(bot, game.cid)
 
     if caught:
         msg = (
@@ -164,4 +164,4 @@ def non_spy_wins(bot, game, caught=False, guessed_wrong=False):
             f"🏆 *¡Los no-espías ganan!*"
         )
 
-    bot.send_message(game.cid, msg, parse_mode=ParseMode.MARKDOWN)
+    await bot.send_message(game.cid, msg, parse_mode=ParseMode.MARKDOWN)

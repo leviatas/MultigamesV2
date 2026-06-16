@@ -1,4 +1,4 @@
-import psycopg2
+import psycopg
 import urllib.parse
 import os
 import logging as log
@@ -18,8 +18,8 @@ logger = log.getLogger(__name__)
 
 def save_user(user : UserModel):
     try:
-        conn = psycopg2.connect(
-            database=url.path[1:],
+        conn = psycopg.connect(
+            dbname=url.path[1:],
             user=url.username,
             password=url.password,
             host=url.hostname,
@@ -48,8 +48,8 @@ def save_user(user : UserModel):
 def get_users(uid = ""):
     try:
         users = []
-        conn = psycopg2.connect(
-            database=url.path[1:],
+        conn = psycopg.connect(
+            dbname=url.path[1:],
             user=url.username,
             password=url.password,
             host=url.hostname,
@@ -108,8 +108,8 @@ def get_users_with_missing_last_report(date = ""):
         log.info(date)
         string_date = date.strftime("%H:%M %d.%m")
         users = []
-        conn = psycopg2.connect(
-            database=url.path[1:],
+        conn = psycopg.connect(
+            dbname=url.path[1:],
             user=url.username,
             password=url.password,
             host=url.hostname,
@@ -139,8 +139,8 @@ def get_users_with_missing_last_report(date = ""):
 
 def delete_user(user : UserModel):
     try:
-        conn = psycopg2.connect(
-            database=url.path[1:],
+        conn = psycopg.connect(
+            dbname=url.path[1:],
             user=url.username,
             password=url.password,
             host=url.hostname,

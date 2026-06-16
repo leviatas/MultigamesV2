@@ -3,11 +3,12 @@ import os
 import traceback
 import sys
 
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ParseMode, Update, \
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update, \
 	InlineQueryResultArticle, InputTextMessageContent
-from telegram.ext import (InlineQueryHandler, Updater, CommandHandler, \
-	CallbackQueryHandler, MessageHandler, Filters, CallbackContext)
-from telegram.utils.helpers import mention_html, escape_markdown
+from telegram.constants import ParseMode
+from telegram.ext import (Application, InlineQueryHandler, CommandHandler, \
+	CallbackQueryHandler, MessageHandler, filters, CallbackContext)
+from telegram.helpers import mention_html, escape_markdown
 
 from Constants.Config import ADMIN
 import BloodClocktower.Commands as Commands
@@ -19,7 +20,7 @@ import pytz
 from Utils import command_status
 
 log.basicConfig(
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    format='%(asctime)s - Blood - %(levelname)s - %(message)s',
     level=log.INFO)
 logger = log.getLogger(__name__)
 
@@ -63,87 +64,98 @@ def error(update, context):
     # we raise the error again, so the logger module catches it. If you don't use the logger module, use it.
     logger.warning('Update "%s" caused error "%s"', update, context.error)
 
-def main():
+def main(stop_event):
     log.info("Starting blood bot")
     GamesController.init() #Call only once
 
     token = os.environ.get('TOKEN_BLOOD', None)
-    updater = Updater(token, use_context=True)
-    dp = updater.dispatcher
+    
+    app = Application.builder().token(token).build()
 
     # on different commands - answer in Telegram
-    dp.add_handler(CommandHandler("start", Commands.command_start))
-    dp.add_handler(CommandHandler("help", Commands.command_help))
-    dp.add_handler(CommandHandler("board", Commands.command_board))
-    dp.add_handler(CommandHandler("rules", Commands.command_rules))
-    dp.add_handler(CommandHandler("debug", Commands.command_debug))
+    app.add_handler(CommandHandler("start", Commands.command_start))
+    app.add_handler(CommandHandler("help", Commands.command_help))
+    app.add_handler(CommandHandler("board", Commands.command_board))
+    app.add_handler(CommandHandler("rules", Commands.command_rules))
+    app.add_handler(CommandHandler("debug", Commands.command_debug))
 
-    dp.add_handler(CommandHandler("newgame", Commands.command_newgame))
-    dp.add_handler(CommandHandler("join", Commands.command_join))
-    dp.add_handler(CommandHandler("startgame", Commands.command_startgame))
-    dp.add_handler(CommandHandler("storyteller", Commands.command_storyteller))
-    dp.add_handler(CommandHandler("delete", Commands.command_delete))
-    dp.add_handler(CommandHandler("leave", Commands.command_leave))
+    app.add_handler(CommandHandler("newgame", Commands.command_newgame))
+    app.add_handler(CommandHandler("join", Commands.command_join))
+    app.add_handler(CommandHandler("startgame", Commands.command_startgame))
+    app.add_handler(CommandHandler("storyteller", Commands.command_storyteller))
+    app.add_handler(CommandHandler("delete", Commands.command_delete))
+    app.add_handler(CommandHandler("leave", Commands.command_leave))
     
     # Comandos Storyteller
-    dp.add_handler(CommandHandler("firstnight", Commands.command_firstnight))
-    dp.add_handler(CommandHandler("night", Commands.command_night))
-    dp.add_handler(CommandHandler("day", Commands.command_day))
-    dp.add_handler(CommandHandler("kill", Commands.command_kill))
-    dp.add_handler(CommandHandler("setplayerorder", Commands.command_set_player_order))
-    dp.add_handler(CommandHandler("clear", Commands.command_clear))
-    dp.add_handler(CommandHandler("nominations", Commands.command_toggle_nominations))
-    dp.add_handler(CommandHandler("chopping", Commands.command_chopping))
-    dp.add_handler(CommandHandler("execute", Commands.command_execute))
-    dp.add_handler(CommandHandler("setrole", Commands.command_setrole))
-    dp.add_handler(CommandHandler("readgamejson", Commands.command_readgamejson))    
-    dp.add_handler(CommandHandler('getreminders', Commands.command_getreminders))
-    dp.add_handler(CommandHandler('getjsondata', Commands.command_getjsondata))
+    app.add_handler(CommandHandler("firstnight", Commands.command_firstnight))
+    app.add_handler(CommandHandler("night", Commands.command_night))
+    app.add_handler(CommandHandler("day", Commands.command_day))
+    app.add_handler(CommandHandler("kill", Commands.command_kill))
+    app.add_handler(CommandHandler("setplayerorder", Commands.command_set_player_order))
+    app.add_handler(CommandHandler("clear", Commands.command_clear))
+    app.add_handler(CommandHandler("nominations", Commands.command_toggle_nominations))
+    app.add_handler(CommandHandler("chopping", Commands.command_chopping))
+    app.add_handler(CommandHandler("execute", Commands.command_execute))
+    app.add_handler(CommandHandler("setrole", Commands.command_setrole))
+    app.add_handler(CommandHandler("readgamejson", Commands.command_readgamejson))    
+    app.add_handler(CommandHandler('getreminders', Commands.command_getreminders))
+    app.add_handler(CommandHandler('getjsondata', Commands.command_getjsondata))
 
     #Comandos utiles para jugadores
-    dp.add_handler(CommandHandler('timer', Commands.callback_timer))    
-    dp.add_handler(CommandHandler("players", Commands.command_players))    
-    dp.add_handler(CommandHandler("history", Commands.command_history))
-    dp.add_handler(CommandHandler("claim", Commands.command_claim))
-    dp.add_handler(CommandHandler("whisper", Commands.command_whisper))
-    dp.add_handler(CommandHandler("endwhisper", Commands.command_endwhisper))
-    dp.add_handler(CommandHandler("defense", Commands.command_defense))
-    dp.add_handler(CommandHandler("nominate", Commands.command_nominate))    
-    dp.add_handler(CommandHandler("tick", Commands.command_tick))
-    dp.add_handler(CommandHandler("vote", Commands.command_vote))
-    dp.add_handler(CommandHandler("clearvote", Commands.command_clearvote))    
+    app.add_handler(CommandHandler('timer', Commands.callback_timer))    
+    app.add_handler(CommandHandler("players", Commands.command_players))    
+    app.add_handler(CommandHandler("history", Commands.command_history))
+    app.add_handler(CommandHandler("claim", Commands.command_claim))
+    app.add_handler(CommandHandler("whisper", Commands.command_whisper))
+    app.add_handler(CommandHandler("endwhisper", Commands.command_endwhisper))
+    app.add_handler(CommandHandler("defense", Commands.command_defense))
+    app.add_handler(CommandHandler("nominate", Commands.command_nominate))    
+    app.add_handler(CommandHandler("tick", Commands.command_tick))
+    app.add_handler(CommandHandler("vote", Commands.command_vote))
+    app.add_handler(CommandHandler("clearvote", Commands.command_clearvote))    
     
-    dp.add_handler(CommandHandler("refresh", Commands.command_refresh))
-    dp.add_handler(CommandHandler("info", Commands.command_info))
-    dp.add_handler(CommandHandler("notes", Commands.command_notes))
-    dp.add_handler(CommandHandler("call", Commands.command_call))
+    app.add_handler(CommandHandler("refresh", Commands.command_refresh))
+    app.add_handler(CommandHandler("info", Commands.command_info))
+    app.add_handler(CommandHandler("notes", Commands.command_notes))
+    app.add_handler(CommandHandler("call", Commands.command_call))
 
-    dp.add_handler(CommandHandler("id", Commands.command_id))
-    dp.add_handler(CommandHandler("travel", Commands.command_travel))
-    dp.add_handler(CommandHandler("grimoire", Commands.command_grimoire))
-    dp.add_handler(CommandHandler("glosary", Commands.command_glosary))
+    app.add_handler(CommandHandler("id", Commands.command_id))
+    app.add_handler(CommandHandler("travel", Commands.command_travel))
+    app.add_handler(CommandHandler("grimoire", Commands.command_grimoire))
+    app.add_handler(CommandHandler("glosary", Commands.command_glosary))
 
     # DEveloper commands
-    dp.add_handler(CommandHandler("fix", Commands.command_fix))
-    dp.add_handler(CommandHandler("bug", Commands.command_bug))
-    dp.add_handler(CommandHandler("feature", Commands.command_feature))
-    dp.add_handler(CommandHandler("reload", Commands.command_reload))
-    dp.add_handler(CommandHandler("issues", Commands.command_list_issues))    
+    app.add_handler(CommandHandler("fix", Commands.command_fix))
+    app.add_handler(CommandHandler("bug", Commands.command_bug))
+    app.add_handler(CommandHandler("feature", Commands.command_feature))
+    app.add_handler(CommandHandler("reload", Commands.command_reload))
+    app.add_handler(CommandHandler("issues", Commands.command_list_issues))    
 
-    dp.add_handler(CallbackQueryHandler(pattern=r"(-[0-9]*)\*choosegameblood\*(.*)\*([0-9]*)", callback=Commands.callback_choose_game_blood))
+    app.add_handler(CallbackQueryHandler(pattern=r"(-[0-9]*)\*choosegameblood\*(.*)\*([0-9]*)", callback=Commands.callback_choose_game_blood))
 
-    dp.add_handler(MessageHandler(Filters.text, command_status))
+    app.add_handler(MessageHandler(filters.TEXT, command_status))
 
-    job_que = updater.job_queue
-    morning = datetime.time(13, 15, 0, 0, tzinfo=pytz.timezone("America/Argentina/Buenos_Aires"))
+    job_que = app.job_queue
+
     
-    job_que.run_daily(Commands.reload_last_workflow, morning, context="Mensaje programado")
+    # JobQueue.run_daily no longer accepts a `context` kwarg; schedule without extra data
+    if job_que is not None:
+        morning = datetime.time(13, 15, 0, 0, tzinfo=pytz.timezone("America/Argentina/Buenos_Aires"))
+        job_que.run_daily(Commands.reload_last_workflow, morning)
+    else:
+        log.warning('JobQueue not available. Install with: pip install "python-telegram-bot[job-queue]"')
     
-    job_que.start()
+    # app.add_error_handler(error)
 
-    dp.add_error_handler(error)
+    app.post_init = notify_startup
 
-    updater.bot.send_message(ADMIN[0], "Nueva version en linea")
+	# Start the Bot
+    # app.run_polling(timeout=30)
+    while not stop_event.is_set():
+        app.run_polling(timeout=5,stop_signals=None) 
 
-    updater.start_polling(timeout=30)
-    updater.idle()
+async def notify_startup(application: Application):
+    await application.bot.send_message(
+        chat_id=ADMIN[0],
+        text="✅ Nueva versión en línea"
+    )

@@ -4,12 +4,13 @@ import datetime
 #import ast
 import jsonpickle
 import os
-import psycopg2
+import psycopg
 import urllib.parse
 
 from random import randrange
 	
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ParseMode, Update, Update
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
+from telegram.constants import ParseMode
 from telegram.ext import (CallbackContext)
 
 from Utils import get_game, save
@@ -33,7 +34,7 @@ log.basicConfig(
         level=log.INFO)
 logger = log.getLogger(__name__)
 
-def command_evidence_collection(update: Update, context: CallbackContext):
+async def command_evidence_collection(update: Update, context: CallbackContext):
 	bot = context.bot
 	try:
 		cid = update.message.chat_id
@@ -45,7 +46,7 @@ def command_evidence_collection(update: Update, context: CallbackContext):
 		'''
 		if uid != forense.uid or forense.bullet_marker != 0:
 			msg = "*No eres el forense o no es momento de recoletar nueva información!*"
-			bot.send_message(cid, msg, parse_mode=ParseMode.MARKDOWN)
+			await bot.send_message(cid, msg, parse_mode=ParseMode.MARKDOWN)
 			return
 		'''
 		# Le doy una bala para poner
@@ -59,14 +60,14 @@ def command_evidence_collection(update: Update, context: CallbackContext):
 		game.board.state.new_scene_event_card.append({ scene_desc : copy.deepcopy(FORENSIC_CARDS["scene"][scene_desc]) })
 		msg = "La nueva carta es:\n{}".format(game.board.get_forensic_cards_description(False, False, False))
 		# Le muestro al forense la nueva carta
-		DeceptionController.send_message(bot, game, forense, msg)
+		await DeceptionController.send_message(bot, game, forense, msg)
 
 		DeceptionController.choose_forensic_card_menu(bot, game, False, True)
 	except Exception as e:
-		bot.send_message(uid, str(e))
+		await bot.send_message(uid, str(e))
 		raise e
 
-def command_accuse(update: Update, context: CallbackContext):
+async def command_accuse(update: Update, context: CallbackContext):
 	bot = context.bot
 	cid = update.message.chat_id
 	uid = update.effective_user.id
@@ -74,13 +75,13 @@ def command_accuse(update: Update, context: CallbackContext):
 	DeceptionController.accuse(bot, game, uid)
 
 
-def command_call(bot, game):
+async def command_call(bot, game):
 	try:
 		DeceptionController.choose_forensic_card_menu(bot, game, game.board.state.check_has_bullet, game.board.state.only_scenes)		
 	except Exception as e:
-		bot.send_message(game.cid, str(e))
+		await bot.send_message(game.cid, str(e))
 
-def callback_timer(update: Update, context: CallbackContext):
+async def callback_timer(update: Update, context: CallbackContext):
 	bot = context.bot
 	args = context.args
 	job_queue = context.job_queue
@@ -91,7 +92,7 @@ def callback_timer(update: Update, context: CallbackContext):
 	if len(args) == 0:
 		args = ["8","28"]
 
-	bot.send_message(chat_id=cid, text='Comienzen a preguntar hay {} minutos y {} preguntas!'.format(args[0], args[1]))
+	await bot.send_message(chat_id=cid, text='Comienzen a preguntar hay {} minutos y {} preguntas!'.format(args[0], args[1]))
 	
 	game.using_timer = True
 
@@ -102,9 +103,9 @@ def callback_timer(update: Update, context: CallbackContext):
 	# Paso los minutos a segundos y le resto los segundos del primer warning
 	segundos_totales = (int(args[0])-1)*60
 
-	job_queue.run_once(callback_alarm, segundos_totales, context=contexto, name=game.cid)
+	job_queue.run_once(callback_alarm, segundos_totales, data=contexto, name=game.cid)
 
-def callback_alarm(context: CallbackContext):
+async def callback_alarm(context: CallbackContext):
 	job = context.job
 	bot = context.bot
 	
@@ -120,20 +121,20 @@ def callback_alarm(context: CallbackContext):
 	
 	game.board.state.warning -= 30
 	
-	save(bot, game.cid)	
+	await save(bot, game.cid)	
 	# Si hay tiempo de warning re ejecuto con tiempo restante.
 	job_queue = job.context[0]
 	if game.board.state.warning >= 0:		
 		contexto = [job_queue, game.cid]
 		tiempo_restante = game.board.state.warning + 30
-		bot.send_message(cid, '️‼‼*️️️Quedan {} segundos*‼‼'.format(tiempo_restante), parse_mode=ParseMode.MARKDOWN)
+		await bot.send_message(cid, '️‼‼*️️️Quedan {} segundos*‼‼'.format(tiempo_restante), parse_mode=ParseMode.MARKDOWN)
 		# Se hace una alerta de que queda 1 minuto, y luego de 30 segundos ambos con internvalos de 30 segundos.
-		job_queue.run_once(callback_alarm, 30, context=contexto, name=game.cid)
+		job_queue.run_once(callback_alarm, 30, data=contexto, name=game.cid)
 	else:
-		bot.send_message(cid, text='‼‼*️️️El tiempo ha terminado*‼‼', parse_mode=ParseMode.MARKDOWN)
+		await bot.send_message(cid, text='‼‼*️️️El tiempo ha terminado*‼‼', parse_mode=ParseMode.MARKDOWN)
 		#DeceptionController.resolve(bot, game, job_queue)
 
-def command_undo(update: Update, context: CallbackContext):
+async def command_undo(update: Update, context: CallbackContext):
 	bot = context.bot
 	cid = update.message.chat_id
 	#uid = update.effective_user.id
@@ -144,7 +145,7 @@ def command_undo(update: Update, context: CallbackContext):
 		msg = '‼‼*️️️No se puede hacer UNDO ahora*‼‼'		
 		return bot.send_message(cid, text=msg, parse_mode=ParseMode.MARKDOWN)				
 	else:
-		bot.send_message(cid, text='‼‼*️️️No se puede hacer UNDO ahora*‼‼', parse_mode=ParseMode.MARKDOWN)
+		await bot.send_message(cid, text='‼‼*️️️No se puede hacer UNDO ahora*‼‼', parse_mode=ParseMode.MARKDOWN)
 
 
 

@@ -9,8 +9,9 @@ import re
 from random import randrange, choice
 from time import sleep
 
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ParseMode, Update, ForceReply, Update
-from telegram.ext import (Updater, CommandHandler, CallbackQueryHandler, CallbackContext)
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update, ForceReply
+from telegram.constants import ParseMode
+from telegram.ext import (CommandHandler, CallbackQueryHandler, CallbackContext)
 
 from Utils import get_game, save
 from Constants.Cards import playerSets, actions
@@ -25,7 +26,7 @@ import GamesController
 import datetime
 
 import os
-import psycopg2
+import psycopg
 import urllib.parse
 
 # Enable logging
@@ -39,16 +40,16 @@ logger = log.getLogger(__name__)
 
 debugging = False
 
-def init_game(bot, game):
+async def init_game(bot, game):
 	try:
 		log.info('init_just_one called')		
 		game.shuffle_player_sequence()		
 		# Seteo las palabras	
-		call_dicc_buttons(bot, game)
+		await call_dicc_buttons(bot, game)
 	except Exception as e:
-		bot.send_message(game.cid, 'No se ejecuto el comando debido a: '+str(e))
+		await bot.send_message(game.cid, 'No se ejecuto el comando debido a: '+str(e))
 
-def call_dicc_buttons(bot, game):
+async def call_dicc_buttons(bot, game):
 	#log.info('call_dicc_buttons called')
 	opciones_botones = { 
 		"original" : "Español Nuestro",
@@ -59,9 +60,9 @@ def call_dicc_buttons(bot, game):
 		"orsai": "Español Orsai",
 		"futbol" : "Futbol ed Germán"
 	}
-	simple_choose_buttons(bot, game.cid, 1234, game.cid, "choosedicc", "¿Elija un diccionario para jugar?", opciones_botones)
+	await simple_choose_buttons(bot, game.cid, 1234, game.cid, "choosedicc", "¿Elija un diccionario para jugar?", opciones_botones)
 		
-def callback_finish_config_justone(update: Update, context: CallbackContext):
+async def callback_finish_config_justone(update: Update, context: CallbackContext):
 	bot = context.bot
 	log.info('callback_finish_config_justone called')
 	callback = update.callback_query
@@ -70,23 +71,23 @@ def callback_finish_config_justone(update: Update, context: CallbackContext):
 		cid, opcion, uid,  = int(regex.group(1)), regex.group(2), int(regex.group(3))
 		mensaje_edit = "Has elegido el diccionario: {0}".format(opcion)
 		try:
-			bot.edit_message_text(mensaje_edit, cid, callback.message.message_id)
+			await bot.edit_message_text(mensaje_edit, cid, callback.message.message_id)
 		except Exception as e:
-			bot.edit_message_text(mensaje_edit, uid, callback.message.message_id)
+			await bot.edit_message_text(mensaje_edit, uid, callback.message.message_id)
 			
 		game = get_game(cid)
 		game.configs['diccionario'] = opcion
-		finish_config(bot, game)
+		await finish_config(bot, game)
 	except Exception as e:
-		bot.send_message(ADMIN[0], 'No se ejecuto el comando debido a: '+str(e))
-		bot.send_message(ADMIN[0], callback.data)
+		await bot.send_message(ADMIN[0], 'No se ejecuto el comando debido a: '+str(e))
+		await bot.send_message(ADMIN[0], callback.data)
 
 # list_total lista con todos los elementos
 # list_a_restar Elementos a restar a list_total
-def list_menos_list(list_total, list_a_restar):
+async def list_menos_list(list_total, list_a_restar):
 	return [x for x in list_total if x not in list_a_restar]
 		
-def finish_config(bot, game):
+async def finish_config(bot, game):
 	log.info('finish_config called')
 	# Si vengo de un partido anterior agrego los descartes de la partida anterior.	
 	if game.configs.get('discards', None):
@@ -94,7 +95,7 @@ def finish_config(bot, game):
 		del game.configs['discards']
 	fill_cartas(game)
 	game.board.state.progreso = 0
-	start_round_just_one(bot, game)
+	await start_round_just_one(bot, game)
 
 def fill_cartas(game):
 	opcion = game.configs['diccionario']
@@ -112,7 +113,7 @@ def fill_cartas(game):
 		game.board.cartas = palabras_posibles_no_repetidas[0:13]
 		game.board.cartas = [w.replace('\n', '') for w in game.board.cartas]
 
-def start_round_just_one(bot, game):
+async def start_round_just_one(bot, game):
 	log.info('start_round_just_one called')
 	cid = game.cid	
 	# Se marca al jugador activo
@@ -130,45 +131,44 @@ def start_round_just_one(bot, game):
 	palabra_elegida = game.board.cartas.pop(0)
 	game.board.state.acciones_carta_actual = palabra_elegida	
 	
-	bot.send_message(cid, game.board.print_board(game), ParseMode.MARKDOWN)	
+	await bot.send_message(cid, game.board.print_board(game), ParseMode.MARKDOWN)	
 	game.dateinitvote = datetime.datetime.now()
-	call_players_to_clue(bot, game)			
+	await call_players_to_clue(bot, game)			
 	game.dateinitvote = datetime.datetime.now()
 	game.board.state.fase_actual = "Proponiendo Pistas"
-	save(bot, game.cid)
+	await save(bot, game.cid)
 
-def call_players_to_clue(bot, game):
+async def call_players_to_clue(bot, game):
 	for uid in game.playerlist:
 		if uid != game.board.state.active_player.uid:
-			#bot.send_message(cid, "Enviando mensaje a: %s" % game.playerlist[uid].name)
+			#await bot.send_message(cid, "Enviando mensaje a: %s" % game.playerlist[uid].name)
 			mensaje = "Nueva palabra en el grupo {1}.\nAdivina el jugador: *{2}*\nLa palabra es: *{0}*, propone tu pista!".format(game.board.state.acciones_carta_actual, game.group_link_name(), game.board.state.active_player.name)
-			bot.send_message(uid, mensaje, ParseMode.MARKDOWN)
+			await bot.send_message(uid, mensaje, ParseMode.MARKDOWN)
 			mensaje = "/clue Ejemplo" if game.board.num_players != 3 else "/clue Ejemplo Ejemplo2"
-			bot.send_message(uid, mensaje)
+			await bot.send_message(uid, mensaje)
 	
-def review_clues(bot, game):
+async def review_clues(bot, game):
 	log.info('review_clues called')
 	game.dateinitvote = None
 	game.board.state.fase_actual = "Revisando Pistas"
 	reviewer_player = game.board.state.reviewer_player
-	bot.send_message(game.cid, "El revisor {0} esta viendo las pistas".format(reviewer_player.name), ParseMode.MARKDOWN)
+	await bot.send_message(game.cid, "El revisor {0} esta viendo las pistas".format(reviewer_player.name), ParseMode.MARKDOWN)
 	# Antes de enviar las pistas elimino las que son iguales no importa el case
 	votes_before_method = len(game.board.state.last_votes)
 	# En removed_votes guardo las cartas eliminadas		
 	game.board.state.last_votes, game.board.state.removed_votes = remove_same_elements_dict(game.board.state.last_votes)
 	votes_after_method = len(game.board.state.last_votes)	
 	if votes_before_method > votes_after_method:
-		bot.send_message(game.cid, "Se han eliminado automaticamente *{0}* pistas".format(votes_before_method-votes_after_method), ParseMode.MARKDOWN)
-	
+		await bot.send_message(game.cid, "Se han eliminado automaticamente *{0}* pistas".format(votes_before_method-votes_after_method), ParseMode.MARKDOWN)
 	if game.board.state.last_votes:
-		send_reviewer_buttons(bot, game)
-		save(bot, game.cid)
+		await send_reviewer_buttons(bot, game)
+		await save(bot, game.cid)
 	else:
-		bot.send_message(game.cid, "Todas las pistas han sido descartadas. Se pasa al siguiente jugador")
-		bot.send_message(game.cid, "La palabra era: *{0}*.\n".format(game.board.state.acciones_carta_actual), ParseMode.MARKDOWN)			
-		start_next_round(bot, game, True)
+		await bot.send_message(game.cid, "Todas las pistas han sido descartadas. Se pasa al siguiente jugador")
+		await bot.send_message(game.cid, "La palabra era: *{0}*.\n".format(game.board.state.acciones_carta_actual), ParseMode.MARKDOWN)			
+		await start_next_round(bot, game, True)
 
-def send_reviewer_buttons(bot, game):
+async def send_reviewer_buttons(bot, game):
 	log.info('send_reviewer_buttons called')
 	reviewer_player = game.board.state.reviewer_player
 	# Armo los botones para que el reviewer los analice.
@@ -188,10 +188,10 @@ def send_reviewer_buttons(bot, game):
 	datos = str(cid) + "*" + comando_callback + "*" + str("finalizar") + "*" + str(uid)
 	btns.append([InlineKeyboardButton('Finalizar', callback_data=datos)])	
 	btnMarkup = InlineKeyboardMarkup(btns)	
-	bot.send_message(uid, mensaje_pregunta, parse_mode=ParseMode.MARKDOWN, reply_markup=btnMarkup)	
-	save(bot, game.cid)
+	await bot.send_message(uid, mensaje_pregunta, parse_mode=ParseMode.MARKDOWN, reply_markup=btnMarkup)	
+	await save(bot, game.cid)
 	
-def callback_review_clues(update: Update, context: CallbackContext):
+async def callback_review_clues(update: Update, context: CallbackContext):
 	bot = context.bot
 	try:
 		callback = update.callback_query
@@ -205,9 +205,9 @@ def callback_review_clues(update: Update, context: CallbackContext):
 
 		mensaje_edit = "Has eliminado la pista: %s" % opcion
 		try:
-			bot.edit_message_text(mensaje_edit, cid, callback.message.message_id)
+			await bot.edit_message_text(mensaje_edit, cid, callback.message.message_id)
 		except Exception as e:
-			bot.edit_message_text(mensaje_edit, uid, callback.message.message_id)		
+			await bot.edit_message_text(mensaje_edit, uid, callback.message.message_id)		
 		
 		
 		reviewer_player = game.board.state.reviewer_player
@@ -216,27 +216,27 @@ def callback_review_clues(update: Update, context: CallbackContext):
 		try:
 			game.board.state.removed_votes.update({key:val for key, val in game.board.state.last_votes.items() if val == opcion})					
 		except Exception as e:
-			bot.send_message(ADMIN[0], 'Fallo al usar removed_votes: '+str(e))
+			await bot.send_message(ADMIN[0], 'Fallo al usar removed_votes: '+str(e))
 			game.board.state.amount_shuffled.update({key:val for key, val in game.board.state.last_votes.items() if val == opcion})
 				
 		game.board.state.last_votes = {key:val for key, val in game.board.state.last_votes.items() if val != opcion}	
 		
-		bot.send_message(game.cid, "El revisor %s ha descartado una pista" % reviewer_player.name)
-		save(bot, game.cid)
+		await bot.send_message(game.cid, "El revisor %s ha descartado una pista" % reviewer_player.name)
+		await save(bot, game.cid)
 		
 		# Si todavia hay pistas...
 		if game.board.state.last_votes:
-			send_reviewer_buttons(bot, game)
+			await send_reviewer_buttons(bot, game)
 		else:
-			bot.send_message(game.cid, "Todas las pistas han sido descartadas. Se pasa al siguiente jugador")
-			bot.send_message(game.cid, "La palabra era: *{0}*.\n".format(game.board.state.acciones_carta_actual), ParseMode.MARKDOWN)			
-			start_next_round(bot, game, True)
+			await bot.send_message(game.cid, "Todas las pistas han sido descartadas. Se pasa al siguiente jugador")
+			await bot.send_message(game.cid, "La palabra era: *{0}*.\n".format(game.board.state.acciones_carta_actual), ParseMode.MARKDOWN)			
+			await start_next_round(bot, game, True)
 	except Exception as e:
-		bot.send_message(ADMIN[0], callback.data)
+		await bot.send_message(ADMIN[0], callback.data)
 		raise e
 		
 	
-def callback_review_clues_finalizado(update: Update, context: CallbackContext):
+async def callback_review_clues_finalizado(update: Update, context: CallbackContext):
 	bot = context.bot
 	callback = update.callback_query
 	log.info('review_clues_finalizado_callback called: %s' % callback.data)	
@@ -244,14 +244,14 @@ def callback_review_clues_finalizado(update: Update, context: CallbackContext):
 	cid, uid = int(regex.group(1)), int(regex.group(3))
 	game = get_game(cid)		
 	mensaje_edit = "Has finalizado la revision"
-	bot.edit_message_text(mensaje_edit, uid, callback.message.message_id)
+	await bot.edit_message_text(mensaje_edit, uid, callback.message.message_id)
 		
 	reviewer_player = game.board.state.reviewer_player
-	bot.send_message(game.cid, "El revisor %s ha terminado de revisar las pistas" % reviewer_player.name)
-	send_clues(bot, game)
-	save(bot, game.cid)
+	await bot.send_message(game.cid, "El revisor %s ha terminado de revisar las pistas" % reviewer_player.name)
+	await send_clues(bot, game)
+	await save(bot, game.cid)
 
-def callback_reviewer_confirm(update: Update, context: CallbackContext):
+async def callback_reviewer_confirm(update: Update, context: CallbackContext):
 	bot = context.bot
 	try:
 		callback = update.callback_query
@@ -263,9 +263,9 @@ def callback_reviewer_confirm(update: Update, context: CallbackContext):
 		
 		mensaje_edit = "Gracias!"
 		try:
-			bot.edit_message_text(mensaje_edit, cid, callback.message.message_id)
+			await bot.edit_message_text(mensaje_edit, cid, callback.message.message_id)
 		except Exception as e:
-			bot.edit_message_text(mensaje_edit, uid, callback.message.message_id)
+			await bot.edit_message_text(mensaje_edit, uid, callback.message.message_id)
 
 		reviewer_player = game.board.state.reviewer_player
 
@@ -273,8 +273,8 @@ def callback_reviewer_confirm(update: Update, context: CallbackContext):
 			# Si no se esta en la fase de adivinar o el jugador no es el revisor no se hace nada
 			return
 
-		bot.send_message(game.cid, "El revisor {0} ha determinado que es {1}".format(reviewer_player.name, opcion))
-		bot.send_message(game.cid, "La palabra era: *{0}*.".format(game.board.state.acciones_carta_actual), ParseMode.MARKDOWN)
+		await bot.send_message(game.cid, "El revisor {0} ha determinado que es {1}".format(reviewer_player.name, opcion))
+		await bot.send_message(game.cid, "La palabra era: *{0}*.".format(game.board.state.acciones_carta_actual), ParseMode.MARKDOWN)
 		failed = False
 		if opcion == "correcto":
 			game.board.state.progreso += 1
@@ -285,17 +285,17 @@ def callback_reviewer_confirm(update: Update, context: CallbackContext):
 			failed = True
 			# Solo descarto si hay cartas
 			if len(game.board.cartas) != 0:
-				bot.send_message(game.cid, "Se ha *eliminado del mazo 1 carta* como penalización", ParseMode.MARKDOWN)			
+				await bot.send_message(game.cid, "Se ha *eliminado del mazo 1 carta* como penalización", ParseMode.MARKDOWN)			
 				game.board.discards.append(game.board.cartas.pop(0))
 			else:
 				# Si se falla en la ultima carta la penalizacion es perder 1 punto
-				bot.send_message(game.cid, "Se ha *perdido 1 punto* como penalización", ParseMode.MARKDOWN)
+				await bot.send_message(game.cid, "Se ha *perdido 1 punto* como penalización", ParseMode.MARKDOWN)
 				game.board.state.progreso -= 1		
-		start_next_round(bot, game, failed)
+		await start_next_round(bot, game, failed)
 	except Exception as e:
-		bot.send_message(game.cid, 'No se ejecuto el comando debido a: '+str(e))
+		await bot.send_message(game.cid, 'No se ejecuto el comando debido a: '+str(e))
 
-def send_clues(bot, game):
+async def send_clues(bot, game):
 	text = ""
 	for key, value in game.board.state.last_votes.items():		
 		try:
@@ -312,27 +312,27 @@ def send_clues(bot, game):
 	mensaje_final = "[{0}](tg://user?id={1}) es hora de adivinar! Pone /guess Palabra o /pass si no sabes la palabra\nLas pistas son: \n{2}\n*NO SE PUEDE HABLAR*".format(game.board.state.active_player.name, game.board.state.active_player.uid, text)
 	
 	game.board.state.fase_actual = "Adivinando"
-	save(bot, game.cid)
+	await save(bot, game.cid)
 	
-	bot.send_message(game.cid, mensaje_final, ParseMode.MARKDOWN)
+	await bot.send_message(game.cid, mensaje_final, ParseMode.MARKDOWN)
 
-def pass_just_one(bot, game):
-	bot.send_message(game.cid, "La palabra era: *{0}*.".format(game.board.state.acciones_carta_actual), ParseMode.MARKDOWN)
+async def pass_just_one(bot, game):
+	await bot.send_message(game.cid, "La palabra era: *{0}*.".format(game.board.state.acciones_carta_actual), ParseMode.MARKDOWN)
 	game.board.discards.append(game.board.state.acciones_carta_actual)
 	failed = True
 	# Solo descarto si hay cartas
 	'''
 	if len(game.board.cartas) != 0:
-		bot.send_message(game.cid, "Se ha *eliminado del mazo 1 carta* como penalización", ParseMode.MARKDOWN)			
+		await bot.send_message(game.cid, "Se ha *eliminado del mazo 1 carta* como penalización", ParseMode.MARKDOWN)			
 		game.board.discards.append(game.board.cartas.pop(0))
 	else:
 		# Si se falla en la ultima carta la penalizacion es perder 1 punto
-		bot.send_message(game.cid, "Se ha *perdido 1 punto* como penalización", ParseMode.MARKDOWN)
+		await bot.send_message(game.cid, "Se ha *perdido 1 punto* como penalización", ParseMode.MARKDOWN)
 		game.board.state.progreso -= 1
 	'''
-	start_next_round(bot, game, failed)	
+	await start_next_round(bot, game, failed)	
 
-def get_pistas_eliminadas(game):
+async def get_pistas_eliminadas(game):
 	text_eliminadas = ""
 	if game.board.state.removed_votes:
 		text_eliminadas += "*Pistas eliminadas*\n"
@@ -345,42 +345,42 @@ def get_pistas_eliminadas(game):
 			text_eliminadas += "*{1}: {0}*\n".format(value, player.name)
 	return text_eliminadas
 
-def informar_pistas_eliminadas(bot, game):
+async def informar_pistas_eliminadas(bot, game):
 	try:
-		#bot.send_message(ADMIN[0], game.board.state.removed_votes)
+		#await bot.send_message(ADMIN[0], game.board.state.removed_votes)
 		text_eliminadas = get_pistas_eliminadas(game)
 		log.info(text_eliminadas)
-		bot.send_message(game.cid, text_eliminadas, ParseMode.MARKDOWN)
+		await bot.send_message(game.cid, text_eliminadas, ParseMode.MARKDOWN)
 	except Exception as e:
 		log.info(f"{game.cid} No se ejecuto el comando debido a: " +str(e))
 
 
-def start_next_round(bot, game, failed = False):
+async def start_next_round(bot, game, failed = False):
 	log.info('start_next_round called')	
 	if game.board.state.removed_votes:
-		informar_pistas_eliminadas(bot, game)
+		await informar_pistas_eliminadas(bot, game)
 	log.info('Verifing End_Game called')
 	if (not game.board.cartas and game.modo != 'Extreme') or (game.modo == 'Extreme' and failed):
 		# Si no quedan cartas se termina el juego y se muestra el puntaje.
 		mensaje = "Juego finalizado! El puntaje fue de: *{0}*".format(game.board.state.progreso)		
 		game.board.state.fase_actual = "Finalizado"
-		save(bot, game.cid)
-		bot.send_message(game.cid, mensaje, ParseMode.MARKDOWN)
-		continue_playing(bot, game)
-		#bot.send_message(game.cid, "Para comenzar un juego nuevo pon el comando /delete y luego /newgame", ParseMode.MARKDOWN)
+		await save(bot, game.cid)
+		await bot.send_message(game.cid, mensaje, ParseMode.MARKDOWN)
+		await continue_playing(bot, game)
+		#await bot.send_message(game.cid, "Para comenzar un juego nuevo pon el comando /delete y luego /newgame", ParseMode.MARKDOWN)
 		return
 	# Si se acabaron las cartas y esta en extreme agrego mas.
 	if not game.board.cartas:
 		fill_cartas(game)
 	increment_player_counter(game)
-	start_round_just_one(bot, game)
+	await start_round_just_one(bot, game)
 
-def continue_playing(bot, game):
+async def continue_playing(bot, game):
 	opciones_botones = { "Nuevo" : "Nuevo Partido con nuevos jugadores", "Mismo Diccionario" : "Mismo diccionario", "Otro Diccionario" : "Diferente diccionario"}
 	msg = "¿Quieres continuar jugando? *Modo actual {}*. Si quieres cambiar de modo debes elegir nuevo partido".format(game.modo)
-	simple_choose_buttons(bot, game.cid, 1, game.cid, "chooseend", msg, opciones_botones)
+	await simple_choose_buttons(bot, game.cid, 1, game.cid, "chooseend", msg, opciones_botones)
 	
-def callback_finish_game_buttons(update: Update, context: CallbackContext):
+async def callback_finish_game_buttons(update: Update, context: CallbackContext):
 	bot = context.bot
 	callback = update.callback_query
 	try:		
@@ -389,9 +389,9 @@ def callback_finish_game_buttons(update: Update, context: CallbackContext):
 		cid, opcion, uid = int(regex.group(1)), regex.group(2), int(regex.group(3))
 		mensaje_edit = "Has elegido el diccionario: {0}".format(opcion)
 		try:
-			bot.edit_message_text(mensaje_edit, cid, callback.message.message_id)
+			await bot.edit_message_text(mensaje_edit, cid, callback.message.message_id)
 		except Exception as e:
-			bot.edit_message_text(mensaje_edit, uid, callback.message.message_id)				
+			await bot.edit_message_text(mensaje_edit, uid, callback.message.message_id)				
 		game = get_game(cid)
 		
 		# Obtengo el diccionario actual, primero casos no tendre el config y pondre el community
@@ -418,7 +418,7 @@ def callback_finish_game_buttons(update: Update, context: CallbackContext):
 		game.configs['link'] = link
 
 		if opcion == "Nuevo":
-			bot.send_message(cid, "Cada jugador puede unirse al juego con el comando /join.\nEl iniciador del juego (o el administrador) pueden unirse tambien y escribir /startgame cuando todos se hayan unido al juego!")			
+			await bot.send_message(cid, "Cada jugador puede unirse al juego con el comando /join.\nEl iniciador del juego (o el administrador) pueden unirse tambien y escribir /startgame cuando todos se hayan unido al juego!")			
 			return
 		#log.info('Llego hasta la creacion')		
 		game.playerlist = players
@@ -432,15 +432,15 @@ def callback_finish_game_buttons(update: Update, context: CallbackContext):
 			#(Beta) Nuevo Partido, mismos jugadores, mismo diccionario
 			#log.info('Llego hasta el new2')
 			game.configs['diccionario'] = dicc
-			finish_config(bot, game)
+			await finish_config(bot, game)
 		if opcion == "Otro Diccionario":
 			#(Beta) Nuevo Partido, mismos jugadores, diferente diccionario
-			call_dicc_buttons(bot, game)				
+			await call_dicc_buttons(bot, game)				
 	except Exception as e:
-		bot.send_message(ADMIN[0], 'No se ejecuto el comando debido a: '+str(e))
-		bot.send_message(ADMIN[0], callback.data)
+		await bot.send_message(ADMIN[0], 'No se ejecuto el comando debido a: '+str(e))
+		await bot.send_message(ADMIN[0], callback.data)
 
-def myturn_message(game, uid):
+async def myturn_message(game, uid):
 	try:
 		group_link_name = game.group_link_name()
 		if game.board.state.fase_actual == "Proponiendo Pistas":			

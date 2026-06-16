@@ -1,0 +1,23 @@
+#!/bin/sh
+# Pre-commit hook para detectar secretos
+# Este hook se ejecuta antes de cada commit para validar que no hay secretos
+
+# Obtener la raíz del repositorio git
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+VALIDATE_SCRIPT="$REPO_ROOT/scripts/validate-secrets.py"
+
+if [ ! -f "$VALIDATE_SCRIPT" ]; then
+    echo "❌ Error: No se encontró el script de validación en $VALIDATE_SCRIPT"
+    exit 1
+fi
+
+# Intentar usar py (Windows Python launcher) y luego python3/python
+if command -v py &> /dev/null; then
+    py "$VALIDATE_SCRIPT"
+elif command -v python3 &> /dev/null; then
+    python3 "$VALIDATE_SCRIPT"
+else
+    python "$VALIDATE_SCRIPT"
+fi
+
+exit $?

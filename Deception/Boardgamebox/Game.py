@@ -135,12 +135,12 @@ Si para la ultima exposicion del ultimo jugador nadie ha hecho un acusación cor
 	def validate_call_choose_continue(self, jugador_ejecutor):
 		return basic_validation(self, jugador_ejecutor.uid) and self.board.state.fase_actual is None and jugador_ejecutor.is_forense
 	
-	def call(self, context):
+	async def call(self, context):
 		import Deception.Commands as DeceptionCommands
 		if self.board is not None:
-    			DeceptionCommands.command_call(context.bot, self)
+			await DeceptionCommands.command_call(context.bot, self)
 	
-	def timer(self, update, context):
+	async def timer(self, update, context):
 		import Deception.Commands as DeceptionCommands
 		if self.board is not None:
-			DeceptionCommands.callback_timer(update, context)
+			await DeceptionCommands.callback_timer(update, context)

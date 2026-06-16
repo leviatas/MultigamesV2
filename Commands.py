@@ -2,7 +2,7 @@ import json
 import logging as log
 import datetime
 import os
-import psycopg2
+import psycopg
 import urllib.parse
 import sys
 from time import sleep
@@ -13,7 +13,8 @@ import Werewords.Controller as WerewordsController
 import Unanimo.Controller as UnanimoController
 
 from Utils import restricted, player_call, send_typing_action, get_game, delete_game, save, load_game, save_game
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ParseMode, Update, ForceReply, Update
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update, ForceReply
+from telegram.constants import ParseMode
 from telegram.ext import (CallbackContext)
 import MainController
 import GamesController
@@ -30,6 +31,7 @@ from Decrypt.Boardgamebox.Game import Game as GameDecrypt
 from Werewords.Boardgamebox.Game import Game as GameWerewords
 from Deception.Boardgamebox.Game import Game as GameDeception
 from Unanimo.Boardgamebox.Game import Game as GameUnanimo
+from SecretoCodigo.Boardgamebox.Game import Game as GameSecretoCodigo
 from SpyFall.Boardgamebox.Game import Game as GameSpyFall
 
 from Boardgamebox.Player import Player
@@ -56,8 +58,9 @@ import random
 import re
 import requests
 from bs4 import BeautifulSoup
-
+from telegram.ext import ContextTypes
 import pathlib
+from itertools import islice
 # Objetos que uso de prueba estaran en el state
 
 # Enable logging
@@ -77,15 +80,15 @@ secret_moon_cid = '-1001206290323'
 
 ALLOW_TEAM_COMMUNICATION = ['Decrypt']
 
-def command_newgame_sql_command(update: Update, context: CallbackContext):
+async def command_newgame_sql_command(update: Update, context: CallbackContext):
 	bot = context.bot
 	args = context.args
 	cid, uid = update.message.chat_id, update.message.from_user.id
 	if uid in ADMIN:
 		try:
 			#Check if game is in DB first
-			conn = psycopg2.connect(
-				database=url.path[1:],
+			conn = psycopg.connect(
+				dbname=url.path[1:],
 				user=url.username,
 				password=url.password,
 				host=url.hostname,
@@ -99,28 +102,28 @@ def command_newgame_sql_command(update: Update, context: CallbackContext):
 			cursor.execute(query)
 			#dbdata = cur.fetchone()
 			if cursor.rowcount > 0:
-				bot.send_message(cid, 'Resultado de la consulta:')
+				await bot.send_message(cid, 'Resultado de la consulta:')
 				for table in cursor.fetchall():
-					#bot.send_message(cid, len(str(table)))
+					#await bot.send_message(cid, len(str(table)))
 					tabla_str = str(table)
 					# Si supera el maximo de caracteres lo parto
 					max_length_msg = 3500
 					if len(tabla_str) < max_length_msg:
-						bot.send_message(cid, table)
+						await bot.send_message(cid, table)
 					else:
 						n = max_length_msg
 						parts = [tabla_str[i:i+n] for i in range(0, len(tabla_str), n)]
 						for part in parts:
-							bot.send_message(cid, part)
+							await bot.send_message(cid, part)
 			else:
-				bot.send_message(cid, 'No se obtuvo nada de la consulta')
+				await bot.send_message(cid, 'No se obtuvo nada de la consulta')
 			conn.close()
 		except Exception as e:
-			bot.send_message(cid, 'No se ejecuto el comando debido a: '+str(e))
+			await bot.send_message(cid, 'No se ejecuto el comando debido a: '+str(e))
 			conn.rollback()
 			conn.close()
 
-def save_comm(update: Update, context: CallbackContext):
+async def save_comm(update: Update, context: CallbackContext):
 	bot = context.bot
 	try:		
 		cid = update.message.chat_id	
@@ -128,51 +131,51 @@ def save_comm(update: Update, context: CallbackContext):
 		gameType = game.tipo
 		newGroupName = ''
 		save_game(cid, game.groupName if newGroupName == '' else newGroupName , game, gameType )
-		#bot.send_message(cid, 'Se grabo correctamente.')
+		#await bot.send_message(cid, 'Se grabo correctamente.')
 		#log.info('Se grabo correctamente.')
 	except Exception as e:
-		bot.send_message(cid, 'Error al grabar '+str(e))
+		await bot.send_message(cid, 'Error al grabar '+str(e))
 
 
-def load(update: Update, context: CallbackContext):
+async def load(update: Update, context: CallbackContext):
 	bot = context.bot
 
 	cid = update.message.chat_id
 	game = load_game(cid)			
 	if game:
 		GamesController.games[cid] = game
-		bot.send_message(cid, "Juego Cargado exitosamente")
+		await bot.send_message(cid, "Juego Cargado exitosamente")
 		
 
 	else:
-		bot.send_message(cid, "No existe juego")		
+		await bot.send_message(cid, "No existe juego")		
 
-def reload(update: Update, context: CallbackContext):
+async def reload(update: Update, context: CallbackContext):
 	bot = context.bot
 
 	cid = update.message.chat_id
 	game = get_game(cid)
 	if game:
-		bot.send_message(cid, "Juego Cargado exitosamente")
+		await bot.send_message(cid, "Juego Cargado exitosamente")
 	else:
-		bot.send_message(cid, "No existe juego")
+		await bot.send_message(cid, "No existe juego")
 
 
 
 	
-def command_hoja_ayuda(update: Update, context: CallbackContext):
+async def command_hoja_ayuda(update: Update, context: CallbackContext):
 	bot = context.bot
 	cid = update.message.chat_id
 	uid = update.message.from_user.id
 	game = get_game(cid)	
 	help_text = HOJAS_AYUDA.get(game.tipo)	
 	chat_send = cid if game.modo == 'Solitario' else uid
-	bot.send_message(chat_send, help_text, ParseMode.MARKDOWN)
+	await bot.send_message(chat_send, help_text, ParseMode.MARKDOWN)
 	if game.tipo == 'LostExpedition':
-		bot.send_photo(chat_send, photo=open('/img/LostExpedition/Ayuda01.jpg', 'rb'))
-		bot.send_photo(chat_send, photo=open('/img/LostExpedition/Ayuda02.jpg', 'rb'))
+		await bot.send_photo(chat_send, photo=open('/img/LostExpedition/Ayuda01.jpg', 'rb'))
+		await bot.send_photo(chat_send, photo=open('/img/LostExpedition/Ayuda02.jpg', 'rb'))
 
-def command_info(update: Update, context: CallbackContext):
+async def command_info(update: Update, context: CallbackContext):
 	bot = context.bot
 	cid, uid, groupType = update.message.chat_id, update.message.from_user.id, update.message.chat.type
 	
@@ -183,19 +186,19 @@ def command_info(update: Update, context: CallbackContext):
 		# Me improtan los juegos que; Este el jugador, hayan sido iniciados, datinivote no sea null y que cumpla reglas del tipo de juego en particular
 		all_games = {key: "{}: {}".format(game.groupName, game.tipo) for key, game in all_games_unfiltered.items() if uid in game.playerlist and game.board != None }
 		msg = "Elija el juego para obtener /info en privado"
-		simple_choose_buttons(bot, cid, uid, uid, "chooseGameInfo", msg, all_games, False, 2)
+		await simple_choose_buttons(bot, cid, uid, uid, "chooseGameInfo", msg, all_games, False, 2)
 	else:		
 		game = get_game(cid)
 		if game:
 			if uid in game.playerlist:								
 				player = game.playerlist[uid]
-				bot.send_message(uid, player.get_private_info(game), ParseMode.MARKDOWN)				
+				await bot.send_message(uid, player.get_private_info(game), ParseMode.MARKDOWN)				
 			else:
-				bot.send_message(cid, "Debes ser un jugador del partido para obtener informacion.")
+				await bot.send_message(cid, "Debes ser un jugador del partido para obtener informacion.")
 		else:
-			bot.send_message(cid, "No hay juego creado en este chat")
+			await bot.send_message(cid, "No hay juego creado en este chat")
 
-def callback_info(update: Update, context: CallbackContext):
+async def callback_info(update: Update, context: CallbackContext):
 	bot = context.bot
 	log.info('callback_info called')
 	callback = update.callback_query
@@ -207,24 +210,24 @@ def callback_info(update: Update, context: CallbackContext):
 	
 	if uid in game.playerlist:								
 		player = game.playerlist[uid]
-		bot.send_message(uid, player.get_private_info(game), ParseMode.MARKDOWN)				
+		await bot.send_message(uid, player.get_private_info(game), ParseMode.MARKDOWN)				
 	else:
-		bot.send_message(uid, "Debes ser un jugador del partido para obtener informacion.")
+		await bot.send_message(uid, "Debes ser un jugador del partido para obtener informacion.")
 	
 	
-def command_showstats(update: Update, context: CallbackContext):
+async def command_showstats(update: Update, context: CallbackContext):
 	bot = context.bot
 	log.info('command_showstats called')
 	cid, uid = update.message.chat_id, update.message.from_user.id	
 	if uid in ADMIN:
 		game = get_game(cid)
 		if not game:
-			bot.send_message(cid, "No hay juego creado en este chat")
+			await bot.send_message(cid, "No hay juego creado en este chat")
 			return
 		player = game.playerlist[uid]		
-		bot.send_message(cid, player.print_stats())
+		await bot.send_message(cid, player.print_stats())
 
-def command_help(update: Update, context: CallbackContext):
+async def command_help(update: Update, context: CallbackContext):
 	bot = context.bot
 	cid = update.message.chat_id
 	'''
@@ -234,28 +237,28 @@ def command_help(update: Update, context: CallbackContext):
 	'''
 	help_text = "\nLos siguientes comandos estan disponibles:\n"
 	help_text += commands	
-	bot.send_message(cid, help_text)
+	await bot.send_message(cid, help_text)
 		
-def command_symbols(update: Update, context: CallbackContext):
+async def command_symbols(update: Update, context: CallbackContext):
 	bot = context.bot
 	cid = update.message.chat_id
 	url_img = '/img/LostExpedition/Ayuda01.jpg'		
-	bot.send_photo(cid, photo=url_img)
+	await bot.send_photo(cid, photo=url_img)
 	url_img = '/img/LostExpedition/Ayuda02.jpg'
-	bot.send_photo(cid, photo=url_img)
+	await bot.send_photo(cid, photo=url_img)
 
-def command_reglas(update: Update, context: CallbackContext):
+async def command_reglas(update: Update, context: CallbackContext):
 	bot = context.bot
 	cid = update.message.chat_id
 	texto_reglas = "Solitario: \n" + \
 			"*Dia*: Obten 6 cartas. 2 mazo, 2 mano, 1 mazo, 1 mano.\n*Se ordenan por número.*\nResuelve.\n*Pierde 1 comida.*\n" + \
 			"*Noche*: Primera de la mano. Poner de mazo o mano hasta completar 6.\n*Se puede poner adelante o atras en la ruta.*\nResuelve.\n*Pierde 1 comida.* Ir a día."			
 	
-	bot.send_message(cid, texto_reglas, ParseMode.MARKDOWN)
+	await bot.send_message(cid, texto_reglas, ParseMode.MARKDOWN)
 
 	
 		
-def command_prueba(update: Update, context: CallbackContext):
+async def command_prueba(update: Update, context: CallbackContext):
 	bot = context.bot
 	#log.info(update.message.from_user.id)
 	#log.info(update.message.chat_id)
@@ -264,19 +267,19 @@ def command_prueba(update: Update, context: CallbackContext):
 	if uid in ADMIN:
 		game = get_game(cid)
 		
-		#bot.send_message(cid, "Este es el grupo ({0}) - Cuyo nombre es {1} y tipo es {2}".format(cid, groupName, groupType))
-		#bot.send_message(cid, chat_data)
-		#bot.send_message(cid, user_data)
+		#await bot.send_message(cid, "Este es el grupo ({0}) - Cuyo nombre es {1} y tipo es {2}".format(cid, groupName, groupType))
+		#await bot.send_message(cid, chat_data)
+		#await bot.send_message(cid, user_data)
 		
 		SayAnythingController.call_players_to_vote(bot, game)
 		
 		'''
 		
 		if not game:
-			bot.send_message(cid, "No hay juego creado en este chat")
+			await bot.send_message(cid, "No hay juego creado en este chat")
 			return
-		#bot.send_message(uid, "Respondeme", reply_markup=ForceReply())
-		bot.send_message(uid, "/clue algo -312312312")
+		#await bot.send_message(uid, "Respondeme", reply_markup=ForceReply())
+		await bot.send_message(uid, "/clue algo -312312312")
 		'''
 
 commands = """/newgame - Crea un nuevo juego
@@ -304,48 +307,57 @@ symbols = [
     u"\u2620" + ' Fascists win'  # skull
 ]
 
-def command_board(update: Update, context: CallbackContext):
+async def command_board(update: Update, context: CallbackContext):
 	bot = context.bot
 	cid = update.message.chat_id
 	game = get_game(cid)
+	if not game:
+		await bot.send_message(cid, "There is no running game in this chat. Please start the game with /startgame")
+		return
 	if game.board:
-		try:
-			bot.send_message(cid, game.board.print_board(game), ParseMode.MARKDOWN)
-		except Exception :
-			game.board.print_board(bot, game)
+		if game.tipo == "SecretoCodigo":
+			fase = game.board.state.fase_actual or ""
+			if game.modo == "Cooperativo":
+				await bot.send_photo(cid, photo=game.board.render_duo_board_image(game))
+			elif "Adivinar" in fase or "Pista" in fase:
+				await bot.send_photo(cid, photo=game.board.render_board_image(game))
+			else:
+				await bot.send_photo(cid, photo=game.board.render_board_image(game))
+		else:
+			await bot.send_message(cid, game.board.print_board(game), ParseMode.MARKDOWN)
 	else:
-		bot.send_message(cid, "There is no running game in this chat. Please start the game with /startgame")
+		await bot.send_message(cid, "There is no running game in this chat. Please start the game with /startgame")
 	
-def command_start(update: Update, context: CallbackContext):
+async def command_start(update: Update, context: CallbackContext):
 	bot = context.bot
 	cid = update.message.chat_id
-	bot.send_message(cid,"Bot para multiples juegos. Preguntar al ADMIN por los juegos disponibles")
+	await bot.send_message(cid,"Bot para multiples juegos. Preguntar al ADMIN por los juegos disponibles")
     #command_help(bot, update)
 
-def command_rules(update: Update, context: CallbackContext):
+async def command_rules(update: Update, context: CallbackContext):
 	bot = context.bot
 	cid = update.message.chat_id
 	game = get_game(cid)
 	
 	if game is None:
-		bot.send_message(cid, "No hay ningun juego en este grupo:")
+		await bot.send_message(cid, "No hay ningun juego en este grupo:")
 	else:
 		rules = game.get_rules()
 		if len(rules) > 1:
 			btn = [[InlineKeyboardButton("Reglas", url=rules[0])]]
 			rulesMarkup = InlineKeyboardMarkup(btn)
-			bot.send_message(cid, rules[1], reply_markup=rulesMarkup)
+			await bot.send_message(cid, rules[1], reply_markup=rulesMarkup)
 		else:
-			bot.send_message(cid, rules[0], ParseMode.MARKDOWN)
+			await bot.send_message(cid, rules[0], ParseMode.MARKDOWN)
 
 # prints statistics, only ADMIN
-def command_stats(update: Update, context: CallbackContext):
+async def command_stats(update: Update, context: CallbackContext):
 	bot = context.bot
 	cid = update.message.chat_id
 	if cid == ADMIN:		
-		bot.send_message(cid, "Estadisticas pronto...")
+		await bot.send_message(cid, "Estadisticas pronto...")
 		
-def command_cancelgame(update: Update, context: CallbackContext):
+async def command_cancelgame(update: Update, context: CallbackContext):
 	bot = context.bot
 	args = context.args
 	log.info('command_cancelgame called {}'.format(args))
@@ -358,22 +370,22 @@ def command_cancelgame(update: Update, context: CallbackContext):
 		delete_game(cid)
 		if cid in GamesController.games.keys():
 			del GamesController.games[cid]
-		bot.send_message(cid, "Borrado exitoso.")
+		await bot.send_message(cid, "Borrado exitoso.")
 	except Exception as e:
-		bot.send_message(cid, "El borrado ha fallado debido a: "+str(e))	
+		await bot.send_message(cid, "El borrado ha fallado debido a: "+str(e))	
 
-def command_votes(update: Update, context: CallbackContext):
+async def command_votes(update: Update, context: CallbackContext):
 	bot = context.bot
 	try:
 		#Send message of executing command   
 		cid = update.message.chat_id
-		#bot.send_message(cid, "Looking for history...")
+		#await bot.send_message(cid, "Looking for history...")
 		#Check if there is a current game 
 		if cid in GamesController.games.keys():
 			game = GamesController.games.get(cid, None)
 			if not game.dateinitvote:
 				# If date of init vote is null, then the voting didnt start          
-				bot.send_message(cid, "The voting didn't start yet.")
+				await bot.send_message(cid, "The voting didn't start yet.")
 			else:
 				#If there is a time, compare it and send history of votes.
 				start = game.dateinitvote
@@ -387,16 +399,16 @@ def command_votes(update: Update, context: CallbackContext):
 							history_text += "%s ha dado pista.\n" % (game.playerlist[player.uid].name)
 						else:
 							history_text += "%s *no* ha dado pista.\n" % (game.playerlist[player.uid].name)
-					bot.send_message(cid, history_text, ParseMode.MARKDOWN)
+					await bot.send_message(cid, history_text, ParseMode.MARKDOWN)
 					
 				else:
-					bot.send_message(cid, "Five minutes must pass to see the votes") 
+					await bot.send_message(cid, "Five minutes must pass to see the votes") 
 		else:
-			bot.send_message(cid, "There is no game in this chat. Create a new game with /newgame")
+			await bot.send_message(cid, "There is no game in this chat. Create a new game with /newgame")
 	except Exception as e:
-		bot.send_message(cid, str(e))
+		await bot.send_message(cid, str(e))
 
-def command_call(update: Update, context: CallbackContext):
+async def command_call(update: Update, context: CallbackContext):
 	bot = context.bot
 	args = context.args
 	import JustOne.Commands as JustoneCommands
@@ -404,7 +416,7 @@ def command_call(update: Update, context: CallbackContext):
 	#Send message of executing command   
 	cid = update.message.chat_id
 	uid = update.effective_user.id
-	#bot.send_message(cid, "Looking for history...")
+	#await bot.send_message(cid, "Looking for history...")
 	#Check if there is a current game 
 
 	# Si soy yo y es mi privado hago call a todos.
@@ -415,15 +427,15 @@ def command_call(update: Update, context: CallbackContext):
 			filtro = args[0]
 		all_games = MainController.getGamesByTipo(filtro)
 		log.info("Llamada a todos los juegos con call")
-		bot.send_message(cid, "Realizando call a todas las apps.")
+		await bot.send_message(cid, "Realizando call a todas las apps.")
 		for game_chat_id, game in all_games.items():
 			log.info("Llamada a todos los juegos con call")
 			if getattr(game, "call", None):
 				# Si game tiene atributo call lo utilizo
 				try:
-					game.call(context)
+					await game.call(context)
 				except Exception as e:
-					bot.send_message(cid, "Chat {} Usuario {} Error:\n{}".format(game_chat_id, game.tipo, str(e)))
+					await bot.send_message(cid, "Chat {} Usuario {} Error:\n{}".format(game_chat_id, game.tipo, str(e)))
 				
 		return
 	
@@ -433,35 +445,35 @@ def command_call(update: Update, context: CallbackContext):
 	
 	if game:
 		if getattr(game, "call", None):
-			log.info("Se llamo por el medio del game")
+			# log.info("Se llamo por el medio del game")
 			# Si game tiene atributo call lo utilizo
-			game.call(context)
+			await game.call(context)
 		else:
-			bot.send_message(cid, "El juego no tiene el metodo /call")
+			await bot.send_message(cid, "El juego no tiene el metodo /call")
 	else:
-		bot.send_message(cid, "There is no game in this chat. Create a new game with /newgame")
+		await bot.send_message(cid, "There is no game in this chat. Create a new game with /newgame")
 		
-def command_showhistory(update: Update, context: CallbackContext):
+async def command_showhistory(update: Update, context: CallbackContext):
 	bot = context.bot
-	#game.pedrote = 3
 	try:
-		#Send message of executing command   
 		cid = update.message.chat_id
-		#Check if there is a current game 
 		game = get_game(cid)
-		if game:			
-			#bot.send_message(cid, "Current round: " + str(game.board.state.currentround + 1))
+		if game:
+			if game.tipo == "SecretoCodigo":
+				import SecretoCodigo.Commands as SCCommands
+				await SCCommands.command_history(update, context)
+				return
 			uid = update.message.from_user.id
 			for history in game.getHistory(uid):
 				if len(history) > 0:
-					bot.send_message(uid, history, ParseMode.MARKDOWN)
+					await bot.send_message(uid, history, ParseMode.MARKDOWN)
 		else:
-			bot.send_message(cid, "No hay ninguna partida en este chat.")
+			await bot.send_message(cid, "No hay ninguna partida en este chat.")
 	except Exception as e:
-		bot.send_message(cid, str(e))
-		log.error("Unknown error: " + str(e))  
-		
-def command_claim(update: Update, context: CallbackContext):
+		await bot.send_message(cid, str(e))
+		log.error("Unknown error: " + str(e))
+
+async def command_claim(update: Update, context: CallbackContext):
 	bot = context.bot
 	args = context.args
 	#game.pedrote = 3
@@ -477,42 +489,42 @@ def command_claim(update: Update, context: CallbackContext):
 					#Data is being claimed
 					claimtext = ' '.join(args)
 					claimtexttohistory = "El jugador %s declara: %s" % (game.playerlist[uid].name, claimtext)
-					bot.send_message(cid, "Tu declaración: %s fue agregada al historial." % (claimtext))
+					await bot.send_message(cid, "Tu declaración: %s fue agregada al historial." % (claimtext))
 					game.history.append("%s" % (claimtexttohistory))
 				else:					
-					bot.send_message(cid, "Debes mandar un mensaje para hacer una declaración.")
+					await bot.send_message(cid, "Debes mandar un mensaje para hacer una declaración.")
 
 			else:
-				bot.send_message(cid, "Debes ser un jugador del partido para declarar algo.")				
+				await bot.send_message(cid, "Debes ser un jugador del partido para declarar algo.")				
 		else:
-			bot.send_message(cid, "No hay juego en este chat. Crea un nuevo juego con /newgame")
+			await bot.send_message(cid, "No hay juego en este chat. Crea un nuevo juego con /newgame")
 	except Exception as e:
-		bot.send_message(cid, str(e))
+		await bot.send_message(cid, str(e))
 		log.error("Unknown error: " + str(e))    
 		
 
 	
-def command_choose_posible_role(update: Update, context: CallbackContext):
+async def command_choose_posible_role(update: Update, context: CallbackContext):
 	bot = context.bot
 	cid, uid = update.message.chat_id, update.message.from_user.id
 	choose_posible_role(bot, cid, uid)
-def choose_posible_role(bot, cid, uid):
+async def choose_posible_role(bot, cid, uid):
 	frase_regex = "chooserole"
 	pregunta_arriba_botones = "¿Qué rol quisieras ser?"
 	chat_donde_se_pregunta = uid
-	multipurpose_choose_buttons(bot, cid, uid, chat_donde_se_pregunta, frase_regex, pregunta_arriba_botones, opciones_choose_posible_role)
-def callback_choose_posible_role(update: Update, context: CallbackContext):
+	await multipurpose_choose_buttons(bot, cid, uid, chat_donde_se_pregunta, frase_regex, pregunta_arriba_botones, opciones_choose_posible_role)
+async def callback_choose_posible_role(update: Update, context: CallbackContext):
 	bot = context.bot
 	callback = update.callback_query
 	log.info('callback_choose_posible_role called: %s' % callback.data)	
 	regex = re.search(r"(-[0-9]*)\*chooserole\*(.*)\*([0-9]*)", callback.data)
 	cid, opcion, uid = int(regex.group(1)), regex.group(2), int(regex.group(3))
-	bot.edit_message_text("Mensaje Editado: Has elegido el Rol: %s" % opcion, cid, callback.message.message_id)
-	bot.send_message(cid, "Ventana Juego: Has elegido el Rol %s" % opcion)
-	bot.send_message(uid, "Ventana Usuario: Has elegido el Rol %s" % opcion)	
+	await bot.edit_message_text("Mensaje Editado: Has elegido el Rol: %s" % opcion, cid, callback.message.message_id)
+	await bot.send_message(cid, "Ventana Juego: Has elegido el Rol %s" % opcion)
+	await bot.send_message(uid, "Ventana Usuario: Has elegido el Rol %s" % opcion)	
 
 
-def multipurpose_choose_buttons(bot, cid, uid, chat_donde_se_pregunta, comando_callback, mensaje_pregunta, opciones_botones, one_line = True, items_each_line = 3):
+async def multipurpose_choose_buttons(bot, cid, uid, chat_donde_se_pregunta, comando_callback, mensaje_pregunta, opciones_botones, one_line = True, items_each_line = 3):
 	#sleep(3)
 	btns = []
 	# Creo los botones para elegir al usuario
@@ -551,74 +563,78 @@ def multipurpose_choose_buttons(bot, cid, uid, chat_donde_se_pregunta, comando_c
 			btns.append(btn_group)
 	btnMarkup = InlineKeyboardMarkup(btns)
 	#for uid in game.playerlist:
-	bot.send_message(chat_donde_se_pregunta, mensaje_pregunta, reply_markup=btnMarkup)
+	await bot.send_message(chat_donde_se_pregunta, mensaje_pregunta, reply_markup=btnMarkup)
 
 # Comando para elegir el juego
 #Se crea metodo general para crear jeugos
-def command_newgame(update: Update, context: CallbackContext):
+async def command_newgame(update: Update, context: CallbackContext):
 	bot = context.bot
 	cid = update.message.chat_id
 	uid = update.message.from_user.id
+	groupType = update.message.chat.type
+	#await bot.send_message(cid, "Mensaje recibido, procesando comando /newgame...")
+	log.info('command_newgame called in chat {} of type {}'.format(cid, groupType))
 	try:
 		game = GamesController.games.get(cid, None)
-		groupType = update.message.chat.type
+		# show in log all games
+		log.info('All games: {}'.format(list(GamesController.games.keys())))
 		if groupType not in ['group', 'supergroup']:
-			bot.send_message(cid, "Tienes que agregarme a un grupo primero y escribir /newgame allá!")
+			await bot.send_message(cid, "Tienes que agregarme a un grupo primero y escribir /newgame allá!")
 		elif game:
-			bot.send_message(cid, "Hay un juego comenzado en este chat. Si quieres terminarlo escribe /delete!")
+			await bot.send_message(cid, "Hay un juego comenzado en este chat. Si quieres terminarlo escribe /delete!")
 		else:			
 			# Busco si hay un juego ya creado
+			log.info('command_newgame called in chat {}'.format(game))
 			game = get_game(cid)
 			if game:
-				bot.send_message(cid, "Hay un juego ya creado, borralo con /delete o unite con /join")
-			else:
-								
-				bot.send_message(cid, "Comenzamos eligiendo el juego a jugar")
-				configurarpartida(bot, cid, uid)
+				await bot.send_message(cid, "Hay un juego ya creado, borralo con /delete o unite con /join")
+			else:								
+				await bot.send_message(cid, "Comenzamos eligiendo el juego a jugar")
+				await configurarpartida(bot, cid, uid)
 	except Exception as e:
-		bot.send_message(cid, str(e))
+		await bot.send_message(cid, str(e))
 
-def command_configurar_partida(update: Update, context: CallbackContext):
+async def command_configurar_partida(update: Update, context: CallbackContext):
 	bot = context.bot
 	cid, uid = update.message.chat_id, update.message.from_user.id
-	configurarpartida(bot, cid, uid)
+	await configurarpartida(bot, cid, uid)
 		
-def configurarpartida(bot, cid, uid):
+async def configurarpartida(bot, cid, uid):
 	frase_regex = "choosegame"
 	pregunta_arriba_botones = "¿Qué juego quieres jugar?"
 	chat_donde_se_pregunta = cid
-	multipurpose_choose_buttons(bot, cid, uid, chat_donde_se_pregunta, frase_regex, pregunta_arriba_botones, JUEGOS_DISPONIBLES, False, 2)
+	await multipurpose_choose_buttons(bot, cid, uid, chat_donde_se_pregunta, frase_regex, pregunta_arriba_botones, JUEGOS_DISPONIBLES, False, 2)
 	
-def callback_choose_game(update: Update, context: CallbackContext):
+async def callback_choose_game(update: Update, context: CallbackContext):
 	bot = context.bot
 	callback = update.callback_query
 	log.info('callback_choose_game called: %s' % callback.data)	
 	regex = re.search(r"(-[0-9]*)\*choosegame\*(.*)\*([0-9]*)", callback.data)
 	cid, opcion, uid, = int(regex.group(1)), regex.group(2), int(regex.group(3))
-	bot.edit_message_text("Has elegido el juego: %s" % opcion, cid, callback.message.message_id)
-	
+	await bot.edit_message_text("Has elegido el juego: %s" % opcion, cid, callback.message.message_id)
+
 	# Inicio el juego con los valores iniciales, el chat en que se va a jugar, el iniciador y el nombre del chat
 	groupName = update.effective_chat.title
-	
-	game = CreateGame(cid, uid, opcion, groupName, bot)
+
+	game = await CreateGame(cid, uid, opcion, groupName, bot)
 	
 	modulos_disponibles_juego = MODULOS_DISPONIBES[opcion]
 	
 	# Si hay solo un modo de juego, lo pongo. Sino pregunto cual se quiere jugar
-	if len(modulos_disponibles_juego) == 1:	
+	if len(modulos_disponibles_juego) == 1:    
 		game.modo = next(iter(modulos_disponibles_juego))
-		bot.send_message(cid, "Solo hay un modulo y se pone ese %s" % game.modo)
-		bot.send_message(cid, "Cada jugador puede unirse al juego con el comando /join.\nEl iniciador del juego (o el administrador) pueden unirse tambien y escribir /startgame cuando todos se hayan unido al juego!")
+		await bot.send_message(cid, "Solo hay un modulo y se pone ese %s" % game.modo)
+		await bot.send_message(cid, "Cada jugador puede unirse al juego con el comando /join.\nEl iniciador del juego (o el administrador) pueden unirse tambien y escribir /startgame cuando todos se hayan unido al juego!")
 		save_game(cid, groupName, game, game.tipo)
-		#save(bot, game.cid)
+		#await save(bot, game.cid)
 	else:
 		frase_regex = "choosemode"
 		pregunta_arriba_botones = "¿Qué modo de juego quieres jugar?"
 		chat_donde_se_pregunta = cid
-		multipurpose_choose_buttons(bot, cid, uid, chat_donde_se_pregunta, frase_regex, pregunta_arriba_botones, modulos_disponibles_juego)
+		await multipurpose_choose_buttons(bot, cid, uid, chat_donde_se_pregunta, frase_regex, pregunta_arriba_botones, modulos_disponibles_juego)
 
 
-def CreateGame(cid, uid, tipo, groupName, bot):
+async def CreateGame(cid, uid, tipo, groupName, bot):
 	# Al momento solo SayAnything y Arcana tienen game custom
 	if tipo == 'SayAnything':
 		GamesController.games[cid] = GameSayAnything(cid, uid, groupName, tipo)	
@@ -632,12 +648,14 @@ def CreateGame(cid, uid, tipo, groupName, bot):
 		GamesController.games[cid] = GameDecrypt(cid, uid, groupName, tipo)	
 	elif tipo == 'Werewords':
 		GamesController.games[cid] = GameWerewords(cid, uid, groupName, tipo)
-		bot.send_message(cid, "Comenzamos eligiendo los modulos a incluir en tu partida de Werewords")
+		await bot.send_message(cid, "Comenzamos eligiendo los modulos a incluir en tu partida de Werewords")
 		#WerewordsController.configurar_partida(bot, GamesController.games[cid])
 	elif tipo == 'Deception':
 		GamesController.games[cid] = GameDeception(cid, uid, groupName, tipo)
 	elif tipo == 'Unanimo':
 		GamesController.games[cid] = GameUnanimo(cid, uid, groupName, tipo)
+	elif tipo == 'SecretoCodigo':
+		GamesController.games[cid] = GameSecretoCodigo(cid, uid, groupName, tipo)
 	elif tipo == 'SpyFall':
 		GamesController.games[cid] = GameSpyFall(cid, uid, groupName, tipo)
 	else:
@@ -645,19 +663,19 @@ def CreateGame(cid, uid, tipo, groupName, bot):
 
 	return GamesController.games[cid]
 
-def callback_choose_mode(update: Update, context: CallbackContext):
+async def callback_choose_mode(update: Update, context: CallbackContext):
 	bot = context.bot
 	callback = update.callback_query
 	log.info('callback_choose_mode called: %s' % callback.data)	
 	regex = re.search(r"(-[0-9]*)\*choosemode\*(.*)\*([0-9]*)", callback.data)
 	cid, opcion = int(regex.group(1)), regex.group(2)
-	bot.edit_message_text("Has elegido el modo: %s" % opcion, cid, callback.message.message_id)
+	await bot.edit_message_text("Has elegido el modo: %s" % opcion, cid, callback.message.message_id)
 	game = get_game(cid)
 	game.modo = opcion
-	bot.send_message(cid, "Cada jugador puede unirse al juego con el comando /join.\nEl iniciador del juego (o el administrador) pueden unirse tambien y escribir /startgame cuando todos se hayan unido al juego!")
-	save(bot, game.cid)
+	await bot.send_message(cid, "Cada jugador puede unirse al juego con el comando /join.\nEl iniciador del juego (o el administrador) pueden unirse tambien y escribir /startgame cuando todos se hayan unido al juego!")
+	await save(bot, game.cid)
 	
-def command_join(update: Update, context: CallbackContext):
+async def command_join(update: Update, context: CallbackContext):
 	bot = context.bot
 	args = context.args
 	# I use args for testing. // Remove after?
@@ -678,17 +696,17 @@ def command_join(update: Update, context: CallbackContext):
 				player = Player(fname, uid)
 				game.add_player(uid, player)
 				log.info("%s (%d) joined a game in %d" % (fname, uid, game.cid))
-				save(cid, "Game in join state", game)
+				await save(bot, cid)
 	
 	if groupType not in ['group', 'supergroup']:
-		bot.send_message(cid, "Tienes que agregarme a un grupo primero y escribir /newgame allá!")
+		await bot.send_message(cid, "Tienes que agregarme a un grupo primero y escribir /newgame allá!")
 	elif not game:
-		bot.send_message(cid, "No hay juego en este chat. Crea un nuevo juego con /newgame")
+		await bot.send_message(cid, "No hay juego en este chat. Crea un nuevo juego con /newgame")
 	elif game.board and not "permitir_ingreso_tardio" in JUEGOS_DISPONIBLES[game.tipo]:
 		# Si el juego se ha comenzado, y no permite ingreso tardio...
-		bot.send_message(cid, "El juego ha comenzado. Por favor espera el proximo juego!")
+		await bot.send_message(cid, "El juego ha comenzado. Por favor espera el proximo juego!")
 	elif uid in game.playerlist:
-		bot.send_message(game.cid, "Ya te has unido al juego, %s!" % fname)
+		await bot.send_message(game.cid, "Ya te has unido al juego, %s!" % fname)
 	else:
 		#uid = update.message.from_user.id
 		try:
@@ -697,13 +715,13 @@ def command_join(update: Update, context: CallbackContext):
 			
 			# Si se ha alcanzado el maximo de jugadores no te puedes unir.
 			if len(game.playerlist) == max_jugadores:
-				bot.send_message(game.cid, "Se ha alcanzado previamente el maximo de jugadores. Espera el proximo juego!")
+				await bot.send_message(game.cid, "Se ha alcanzado previamente el maximo de jugadores. Espera el proximo juego!")
 			else:
 				# Uno al jugador a la partida
 				if game.is_debugging:
-					bot.send_message(ADMIN[0], "Se has unido a un juego en %s." % groupName)
+					await bot.send_message(ADMIN[0], "Se has unido a un juego en %s." % groupName)
 				else:
-					bot.send_message(uid, "Te has unido a un juego en %s." % groupName)
+					await bot.send_message(uid, "Te has unido a un juego en %s." % groupName)
 				
 				game.add_player(uid, fname)
 
@@ -718,34 +736,34 @@ def command_join(update: Update, context: CallbackContext):
 				
 				# Si se ha alcanzado el minimo o superado, y no esta ya empezado
 				if len(game.playerlist) == max_jugadores and not game.board:
-					command_startgame(bot, update)
+					await command_startgame(update, context, auto_start=True)
 				elif len(game.playerlist) >= min_jugadores:
 					if game.board:
-						bot.send_message(game.cid, fname + " se ha unido al juego. Hay %s/%s jugadores." % (str(len(game.playerlist)), max_jugadores))
+						await bot.send_message(game.cid, fname + " se ha unido al juego. Hay %s/%s jugadores." % (str(len(game.playerlist)), max_jugadores))
 					else:
-						bot.send_message(game.cid, fname + " se ha unido al juego. Hay %s/%s jugadores.\nPueden poner /startgame para comenzar" % (str(len(game.playerlist)), max_jugadores))
+						await bot.send_message(game.cid, fname + " se ha unido al juego. Hay %s/%s jugadores.\nPueden poner /startgame para comenzar" % (str(len(game.playerlist)), max_jugadores))
 				else:
-					bot.send_message(game.cid, fname + " se ha unido al juego. Todavia no se ha llegado al minimo de jugadores. Faltan: %s " % (str(min_jugadores - len(game.playerlist))))
+					await bot.send_message(game.cid, fname + " se ha unido al juego. Todavia no se ha llegado al minimo de jugadores. Faltan: %s " % (str(min_jugadores - len(game.playerlist))))
 				
-				save(bot, game.cid)
+				await save(bot, game.cid)
 					
 		except Exception as e:
-			bot.send_message(game.cid,
+			await bot.send_message(game.cid,
 				fname + ", no puedo mandarte mensajes privados o hubo un error. Por favor anda a @MultiGamesByLevibot y hace click en \"Start\".\nLuego tiene que hacer /join de nuevo." + str(e))
 
-def command_startgame(update: Update, context: CallbackContext):
+async def command_startgame(update: Update, context: CallbackContext, auto_start: bool = False):
 	bot = context.bot
 	log.info('command_startgame called')
 	cid = update.message.chat_id
 	game = get_game(cid)
 	if not game:
-		bot.send_message(cid, "There is no game in this chat. Create a new game with /newgame")
+		await bot.send_message(cid, "There is no game in this chat. Create a new game with /newgame")
 	#elif game.board:
-	#	bot.send_message(cid, "The game is already running!")
-	elif update.message.from_user.id not in ADMIN and update.message.from_user.id != game.initiator and bot.getChatMember(cid, update.message.from_user.id).status not in ("administrator", "creator"):
-		bot.send_message(game.cid, "Solo el creador del juego o un admin puede iniciar con /startgame")	
+	#	await bot.send_message(cid, "The game is already running!")
+	elif not auto_start and update.message.from_user.id not in ADMIN and update.message.from_user.id != game.initiator and (await bot.get_chat_member(cid, update.message.from_user.id)).status not in ("administrator", "creator"):
+		await bot.send_message(game.cid, "Solo el creador del juego o un admin puede iniciar con /startgame")	
 	elif game.board:
-		bot.send_message(cid, "El juego ya empezo!")
+		await bot.send_message(cid, "El juego ya empezo!")
 		
 	else:
 		
@@ -753,12 +771,12 @@ def command_startgame(update: Update, context: CallbackContext):
 		min_jugadores = MODULOS_DISPONIBES[game.tipo][game.modo]["min_jugadores"]
 		
 		if len(game.playerlist) >= min_jugadores:
-			save(bot, game.cid)
-			MainController.init_game(bot, game)
+			await save(bot, game.cid)
+			await MainController.init_game(bot, game)
 		else:
-			bot.send_message(game.cid, "Falta el numero mínimo de jugadores. Faltan: %s " % (str(min_jugadores - len(game.playerlist))))
+			await bot.send_message(game.cid, "Falta el numero mínimo de jugadores. Faltan: %s " % (str(min_jugadores - len(game.playerlist))))
 			
-def command_roll(update: Update, context: CallbackContext):
+async def command_roll(update: Update, context: CallbackContext):
 	bot = context.bot
 	import GameCommands.SistemaD100Commands as SistemaD100Commands
 	import GameCommands.HarryPotterCommands as HarryPotterCommands
@@ -768,17 +786,17 @@ def command_roll(update: Update, context: CallbackContext):
 	# Me fijo si hay una partida, sino por defecto es D100
 	game = get_game(cid)
 	if game and uid in game.playerlist:
-		#bot.send_message(cid, "*Juego encontrado*", ParseMode.MARKDOWN)
+		#await bot.send_message(cid, "*Juego encontrado*", ParseMode.MARKDOWN)
 		if game.tipo == "SistemaD100":
 			SistemaD100Commands.command_roll(update, context)
 		elif game.tipo == "HarryPotter":
 			HarryPotterCommands.command_roll(update, context)
 		else:
-			bot.send_message(cid, "*El juego no tiene commando roll*", ParseMode.MARKDOWN)
+			await bot.send_message(cid, "*El juego no tiene commando roll*", ParseMode.MARKDOWN)
 	else:
 		SistemaD100Commands.command_roll(update, context)
 
-def simple_choose_buttons(bot, cid, uid, chat_donde_se_pregunta, comando_callback, mensaje_pregunta, opciones_botones, one_line = True, items_each_line = 3):
+async def simple_choose_buttons(bot, cid, uid, chat_donde_se_pregunta, comando_callback, mensaje_pregunta, opciones_botones, one_line = True, items_each_line = 3):
 	
 	#sleep(3)
 	btns = []
@@ -787,18 +805,19 @@ def simple_choose_buttons(bot, cid, uid, chat_donde_se_pregunta, comando_callbac
 		for key, value in opciones_botones.items():
 			txtBoton = value
 			datos = str(cid) + "*" + comando_callback + "*" + str(key) + "*" + str(uid)
-			#log.info(datos)
+			
 			#if comando_callback == "announce":
-			#	bot.send_message(ADMIN[0], datos)
+			#	await bot.send_message(ADMIN[0], datos)
 			btns.append([InlineKeyboardButton(txtBoton, callback_data=datos)])
 	else:
+		log.info(opciones_botones)
 		btn_group = []
 		for key, value in opciones_botones.items():
 			txtBoton = value
 			datos = str(cid) + "*" + comando_callback + "*" + str(key) + "*" + str(uid)
 			
 			#if comando_callback == "announce":
-			#	bot.send_message(ADMIN[0], datos)
+			#	await bot.send_message(ADMIN[0], datos)
 			btn_group.append(InlineKeyboardButton(txtBoton, callback_data=datos))
 			if len(btn_group) == items_each_line:				
 				btns.append(btn_group)
@@ -813,21 +832,21 @@ def simple_choose_buttons(bot, cid, uid, chat_donde_se_pregunta, comando_callbac
 		game = get_game(cid)
 		if game is not None and game.is_debugging:
 			chat_donde_se_pregunta = ADMIN[0]
-		bot.send_message(chat_donde_se_pregunta, mensaje_pregunta, reply_markup=btnMarkup, parse_mode=ParseMode.MARKDOWN)
+		await bot.send_message(chat_donde_se_pregunta, mensaje_pregunta, reply_markup=btnMarkup, parse_mode=ParseMode.MARKDOWN)
 		GamesController.simple_choose_buttons_retry = False
 	except Exception as e:
 		# Si tira error y estoy debugeando intento mandar de nuevo pero si no intente anteriormente
 		game = get_game(cid)
 		if game is not None and game.is_debugging and not GamesController.simple_choose_buttons_retry:
 			GamesController.simple_choose_buttons_retry = True
-			simple_choose_buttons(bot, cid, ADMIN[0], ADMIN[0], comando_callback, mensaje_pregunta, opciones_botones, one_line, items_each_line)
+			await simple_choose_buttons(bot, cid, ADMIN[0], ADMIN[0], comando_callback, mensaje_pregunta, opciones_botones, one_line, items_each_line)
 		else:
-			bot.send_message(ADMIN[0], 'Error en simple_choose_buttons {}'.format(e))
+			await bot.send_message(ADMIN[0], 'Error en simple_choose_buttons {}'.format(e))
 
 
 	
 	
-def command_continue(update: Update, context: CallbackContext):
+async def command_continue(update: Update, context: CallbackContext):
 	bot = context.bot
 	args = context.args
 	import JustOne.Commands as JustoneCommands
@@ -849,11 +868,11 @@ def command_continue(update: Update, context: CallbackContext):
 			log.info('continue Just One Game called')
 			JustoneCommands.command_continue(bot, game, uid)
 		else:
-			bot.send_message(cid, "El juego no tiene comando continue")
+			await bot.send_message(cid, "El juego no tiene comando continue")
 	else:
-		bot.send_message(cid, "No hay juego que continuar")
+		await bot.send_message(cid, "No hay juego que continuar")
 	
-def command_jugadores(update: Update, context: CallbackContext):
+async def command_jugadores(update: Update, context: CallbackContext):
 	bot = context.bot	
 	uid = update.message.from_user.id
 	cid = update.message.chat_id
@@ -870,10 +889,10 @@ def command_jugadores(update: Update, context: CallbackContext):
 	for uid in game.playerlist:
 		jugadoresActuales += "{}\n".format(player_call(game.playerlist[uid]))
 					
-	bot.send_message(game.cid, jugadoresActuales, ParseMode.MARKDOWN)
+	await bot.send_message(game.cid, jugadoresActuales, ParseMode.MARKDOWN)
 
 @restricted	
-def command_announce(update: Update, context: CallbackContext):
+async def command_announce(update: Update, context: CallbackContext):
 	bot = context.bot
 	args = context.args
 	uid = update.message.from_user.id
@@ -888,14 +907,14 @@ def command_announce(update: Update, context: CallbackContext):
 		"Todos" : "Todos", 
 		"Cancel" : "Cancel" }
 	if len(args) < 1:
-		bot.send_message(cid, "Edu, tenes que poner un mensaje", ParseMode.MARKDOWN)
+		await bot.send_message(cid, "Edu, tenes que poner un mensaje", ParseMode.MARKDOWN)
 		return
 	GamesController.announce_text = ' '.join(args)
-	simple_choose_buttons(bot, cid, 1234, uid, "announce", "En que juegos queres anunciar", opciones_botones)
+	await simple_choose_buttons(bot, cid, 1234, uid, "announce", "En que juegos queres anunciar", opciones_botones)
 
 # Comando para que el bot nos recuerde los partidos que tenemos 	
 @send_typing_action
-def command_myturn(update: Update, context: CallbackContext):
+async def command_myturn(update: Update, context: CallbackContext):
 	bot = context.bot
 	uid = update.message.from_user.id
 	
@@ -909,13 +928,13 @@ def command_myturn(update: Update, context: CallbackContext):
 	try:
 		chat_id = min(all_games, key=lambda key: datetime.datetime.now() if all_games[key].dateinitvote == None else all_games[key].dateinitvote)
 		game_pendiente = all_games[chat_id]
-		bot.send_message(uid, myturn_message(bot, game_pendiente , uid), ParseMode.MARKDOWN)
+		await bot.send_message(uid, myturn_message(bot, game_pendiente , uid), ParseMode.MARKDOWN)
 	except Exception:
-		bot.send_message(uid, "*NO* tienes partidos pendientes", ParseMode.MARKDOWN)
+		await bot.send_message(uid, "*NO* tienes partidos pendientes", ParseMode.MARKDOWN)
 		#ot.send_message(ADMIN[0], str(e))
 
 @send_typing_action
-def command_myturns(update: Update, context: CallbackContext):
+async def command_myturns(update: Update, context: CallbackContext):
 	bot = context.bot
 	uid = update.message.from_user.id
 	
@@ -924,13 +943,13 @@ def command_myturns(update: Update, context: CallbackContext):
 	# Me improtan los juegos que; Este el jugador, hayan sido iniciados, datinivote no sea null y que cumpla reglas del tipo de juego en particular
 	all_games = {key:game for key, game in all_games_unfiltered.items() if uid in game.playerlist and game.board != None and verify_my_turn(game, uid) }
 	for game in all_games.values():		
-		bot.send_message(uid, myturn_message(bot, game, uid), ParseMode.MARKDOWN)			
+		await bot.send_message(uid, myturn_message(bot, game, uid), ParseMode.MARKDOWN)			
 	if len(all_games) == 0:
-		bot.send_message(uid, "*NO* tienes partidos pendientes", ParseMode.MARKDOWN)
+		await bot.send_message(uid, "*NO* tienes partidos pendientes", ParseMode.MARKDOWN)
 
 
 @restricted
-def command_set_config_data(update: Update, context: CallbackContext):
+async def command_set_config_data(update: Update, context: CallbackContext):
 	bot = context.bot
 	args = context.args
 	cid = update.message.chat_id
@@ -941,10 +960,10 @@ def command_set_config_data(update: Update, context: CallbackContext):
 		# Si hay excepcion es que configs no existe
 		game.configs = {}
 		game.configs[args[0]] = args[1]
-		bot.send_message()
+		await bot.send_message()
 		log.info('command_set_config_data successfull: {}{}'.format(args[0], args[1]))
-	bot.send_message(cid, "La key {} y variable {} han sido agregadas al juego".format(args[0], args[1]))
-	save(bot, cid)
+	await bot.send_message(cid, "La key {} y variable {} han sido agregadas al juego".format(args[0], args[1]))
+	await save(bot, cid)
 
 # TODO Poner estos metodos en helpers o usar los de cada juego en particular en su controller
 def verify_my_turn(game, uid):
@@ -993,7 +1012,7 @@ def get_config_data(game, config_name):
 	except Exception :
 		return None
 
-def command_guess(update: Update, context: CallbackContext):
+async def command_guess(update: Update, context: CallbackContext):
 	bot = context.bot
 	import JustOne.Commands as JustoneCommands
 	import SayAnything.Commands as SayAnythingCommands
@@ -1004,18 +1023,36 @@ def command_guess(update: Update, context: CallbackContext):
 	# Me fijo si hay una partida, sino por defecto es D100
 	game = get_game(cid)
 	if game and uid in game.playerlist:
-		#bot.send_message(cid, "*Juego encontrado*", ParseMode.MARKDOWN)
+		#await bot.send_message(cid, "*Juego encontrado*", ParseMode.MARKDOWN)
 		if game.tipo == "JustOne":
-			JustoneCommands.command_guess(update, context)
+			await JustoneCommands.command_guess(update, context)
 		elif game.tipo == "Arcana":
-			ArcanaCommands.command_guess(update, context)
+			await ArcanaCommands.command_guess(update, context)
 		else:
-			bot.send_message(cid, "*El juego no tiene commando guess*", ParseMode.MARKDOWN)
+			await bot.send_message(cid, "*El juego no tiene commando guess*", ParseMode.MARKDOWN)
 	else:
-		bot.send_message(cid, "*No estas en ninguna partida en la que puedas hacer guess*", ParseMode.MARKDOWN)
+		await bot.send_message(cid, "*No estas en ninguna partida en la que puedas hacer guess*", ParseMode.MARKDOWN)
 
-def command_pass(update: Update, context: CallbackContext):
-	bot = context.bot	
+async def command_pick(update: Update, context: CallbackContext):
+	bot = context.bot
+	import SayAnything.Commands as SayAnythingCommands
+	import SecretoCodigo.Commands as SecretoCodigoCommands
+
+	cid = update.message.chat_id
+	uid = update.message.from_user.id
+	game = get_game(cid)
+	if game and uid in game.playerlist:
+		if game.tipo == "SayAnything":
+			await SayAnythingCommands.command_pick(update, context)
+		elif game.tipo == "SecretoCodigo":
+			await SecretoCodigoCommands.command_pick(update, context)
+		else:
+			await bot.send_message(cid, "*El juego no tiene comando pick*", ParseMode.MARKDOWN)
+	else:
+		await bot.send_message(cid, "*No estás en ninguna partida en la que puedas hacer pick*", ParseMode.MARKDOWN)
+
+async def command_pass(update: Update, context: CallbackContext):
+	bot = context.bot
 	import JustOne.Commands as JustoneCommands
 	import SayAnything.Commands as SayAnythingCommands
 	import Arcana.Commands as ArcanaCommands
@@ -1027,20 +1064,20 @@ def command_pass(update: Update, context: CallbackContext):
 	game = get_game(cid)
 	if game and uid in game.playerlist:
 		log.info(game.tipo)
-		#bot.send_message(cid, "*Juego encontrado*", ParseMode.MARKDOWN)
+		#await bot.send_message(cid, "*Juego encontrado*", ParseMode.MARKDOWN)
 		if game.tipo == "JustOne":
-			JustoneCommands.command_pass(update, context)
+			await JustoneCommands.command_pass(update, context)
 		elif game.tipo == "Arcana":
-			ArcanaCommands.command_pass(update, context)
+			await ArcanaCommands.command_pass(update, context)
 		elif game.tipo == "Wavelength":
-			WavelengthCommands.command_pass(update, context)
+			await WavelengthCommands.command_pass(update, context)
 		else:
-			bot.send_message(cid, "*El juego no tiene commando pass*", ParseMode.MARKDOWN)
+			await bot.send_message(cid, "*El juego no tiene commando pass*", ParseMode.MARKDOWN)
 	else:
-		bot.send_message(cid, "*No estas en ninguna partida en la que puedas hacer pass*", ParseMode.MARKDOWN)
+		await bot.send_message(cid, "*No estas en ninguna partida en la que puedas hacer pass*", ParseMode.MARKDOWN)
 
 @restricted
-def command_changestate(update: Update, context: CallbackContext):
+async def command_changestate(update: Update, context: CallbackContext):
 	bot = context.bot
 	args = context.args
 	cid = update.message.chat_id
@@ -1048,12 +1085,12 @@ def command_changestate(update: Update, context: CallbackContext):
 		game = get_game(cid)
 		nuevo_estado = " ".join(args)
 		game.board.state.fase_actual = nuevo_estado
-		bot.send_message(cid, "Estado modificado a *{}*".format(nuevo_estado), ParseMode.MARKDOWN)
+		await bot.send_message(cid, "Estado modificado a *{}*".format(nuevo_estado), ParseMode.MARKDOWN)
 	except Exception as e:
-		bot.send_message(cid, "Fallo modificar estado por *{}*".format(e), ParseMode.MARKDOWN)
+		await bot.send_message(cid, "Fallo modificar estado por *{}*".format(e), ParseMode.MARKDOWN)
 
 
-def command_team(update: Update, context: CallbackContext):
+async def command_team(update: Update, context: CallbackContext):
 	bot = context.bot
 	args = context.args
 	user_data = context.user_data
@@ -1062,7 +1099,7 @@ def command_team(update: Update, context: CallbackContext):
 	cid = update.message.chat_id
 
 	if update.message.chat.type in ['group', 'supergroup']:
-		bot.delete_message(cid, update.message.message_id)
+		await bot.delete_message(cid, update.message.message_id)
 		return
 
 	if len(args) > 0:
@@ -1078,7 +1115,7 @@ def command_team(update: Update, context: CallbackContext):
 			if len(btns) == 1:
 				#Si es solo 1 juego lo hago automatico
 				game = get_game(cid)
-				bot.send_message(uid, "Se ha elegido automaticamente *{}*".format(game.groupName), ParseMode.MARKDOWN)
+				await bot.send_message(uid, "Se ha elegido automaticamente *{}*".format(game.groupName), ParseMode.MARKDOWN)
 				
 				for team in game.board.state.teams:
 					if team.belongs(uid):
@@ -1089,10 +1126,10 @@ def command_team(update: Update, context: CallbackContext):
 				datos = "-1*choosegameCHAT*" + "prop" + "*" + str(uid)
 				btns.append([InlineKeyboardButton(txtBoton, callback_data=datos)])
 				btnMarkup = InlineKeyboardMarkup(btns)
-				bot.send_message(uid, "En cual de estos grupos queres mandar el mensaje?", reply_markup=btnMarkup)
+				await bot.send_message(uid, "En cual de estos grupos queres mandar el mensaje?", reply_markup=btnMarkup)
 		else:
 			mensaje_error = "No hay partidas en las que puedas hacer /team"
-			bot.send_message(uid, mensaje_error)
+			await bot.send_message(uid, mensaje_error)
 
 def get_choose_game_buttons(games_tipo, uid, callback_command):	
 	btns = []
@@ -1111,7 +1148,7 @@ def get_choose_game_buttons(games_tipo, uid, callback_command):
 				btns.append([InlineKeyboardButton(txtBoton, callback_data=datos)])
 	return btns, cid
 	
-def callback_choose_game_chat(update: Update, context: CallbackContext):
+async def callback_choose_game_chat(update: Update, context: CallbackContext):
 	bot = context.bot
 	user_data = context.user_data
 	callback = update.callback_query
@@ -1120,11 +1157,11 @@ def callback_choose_game_chat(update: Update, context: CallbackContext):
 	cid, uid = int(regex.group(1)), int(regex.group(3))
 	
 	if cid == -1:
-		bot.edit_message_text("Cancelado", uid, callback.message.message_id)
+		await bot.edit_message_text("Cancelado", uid, callback.message.message_id)
 		return	
 	game = get_game(cid)
 	mensaje_edit = "Has elegido el grupo {0}".format(game.groupName)	
-	bot.edit_message_text(mensaje_edit, uid, callback.message.message_id)	
+	await bot.edit_message_text(mensaje_edit, uid, callback.message.message_id)	
 	message = user_data[uid]	
 	# Obtengo el juego y mando el mensaje a los compañeros
 	for team in game.board.state.teams:
@@ -1132,7 +1169,7 @@ def callback_choose_game_chat(update: Update, context: CallbackContext):
 			player = team.getPlayer(uid)
 			team.communicate_team(bot, message, exclude = [], messanger = player.name, groupName = game.groupName)
 
-def command_toggle_debugging(update: Update, context: CallbackContext):
+async def command_toggle_debugging(update: Update, context: CallbackContext):
 	bot = context.bot
 	uid = update.message.from_user.id
 	if uid in ADMIN:
@@ -1143,9 +1180,9 @@ def command_toggle_debugging(update: Update, context: CallbackContext):
 		if not hasattr(game, "is_debugging"):
 			game.is_debugging = False
 		game.is_debugging = True if not game.is_debugging else False
-		bot.send_message(cid, "Debug Mode: ON" if game.is_debugging else "Debug Mode: OFF")
+		await bot.send_message(cid, "Debug Mode: ON" if game.is_debugging else "Debug Mode: OFF")
 
-def call_players_group(update: Update, context: CallbackContext):
+async def call_players_group(update: Update, context: CallbackContext):
 	bot = context.bot
 	# Llama a los jugadores que estan en el grupo.
 	log.info('call_player_group called')
@@ -1153,8 +1190,8 @@ def call_players_group(update: Update, context: CallbackContext):
 	call_text = "Despierten!: "
 	try:
 		#Check if game is in DB first
-		conn = psycopg2.connect(
-				database=url.path[1:],
+		conn = psycopg.connect(
+				dbname=url.path[1:],
 				user=url.username,
 				password=url.password,
 				host=url.hostname,
@@ -1174,13 +1211,13 @@ def call_players_group(update: Update, context: CallbackContext):
 				#table[4]
 				#table[5]
 				#do = "stuff"
-			bot.send_message(cid, call_text, ParseMode.MARKDOWN)
+			await bot.send_message(cid, call_text, ParseMode.MARKDOWN)
 					
 	except Exception as e:
 		log.info('No se busco bien los jugadores debido al siguiente error: '+str(e))
 		conn.rollback()
 
-def callback_timer(update: Update, context: CallbackContext):
+async def callback_timer(update: Update, context: CallbackContext):
 	cid = update.message.chat_id
 	bot = context.bot
 	job_queue = context.job_queue
@@ -1205,19 +1242,18 @@ def callback_timer(update: Update, context: CallbackContext):
 		else:
 			msg = 'Se pone timer para {} horas!'.format(minutos/60)
 
-		bot.send_message(chat_id=update.message.chat_id, text=msg)
-		job_queue.run_once(callback_alarm, minutos*60, context=[update.message.chat_id, mensaje])
+		await bot.send_message(chat_id=update.message.chat_id, text=msg)
+		job_queue.run_once(callback_alarm, minutos*60, data=[update.message.chat_id, mensaje])
 
-def callback_alarm(context: CallbackContext):
-	job = context.job
-	cid = job.context[0]
-	mensaje = job.context[1]
+async def callback_alarm(context: ContextTypes.DEFAULT_TYPE):
+	cid = context.job.data[0]
+	mensaje = context.job.data[1]
 	if mensaje == "":
-		context.bot.send_message(cid, '‼‼*El tiempo ha terminado*‼‼', ParseMode.MARKDOWN)
+		await context.bot.send_message(cid, '‼‼*El tiempo ha terminado*‼‼', ParseMode.MARKDOWN)
 	else:
-		context.bot.send_message(cid, '‼‼*Acordate de {}*‼‼'.format(mensaje), ParseMode.MARKDOWN)
+		await context.bot.send_message(cid, '‼‼*Acordate de {}*‼‼'.format(mensaje), ParseMode.MARKDOWN)
 
-def command_leave(update: Update, context: CallbackContext):
+async def command_leave(update: Update, context: CallbackContext):
 	bot = context.bot
 	args = context.args
 	log.info('command_cancelgame called {}'.format(args))
@@ -1227,15 +1263,15 @@ def command_leave(update: Update, context: CallbackContext):
 	game = get_game(cid)
 
 	if not game:
-		bot.send_message(cid, '‼‼*No hay juego del que salir*‼‼', ParseMode.MARKDOWN)
+		await bot.send_message(cid, '‼‼*No hay juego del que salir*‼‼', ParseMode.MARKDOWN)
 	else:
 		if game.board:
-			bot.send_message(cid, '‼‼*El juego ya empezo y el admin no permite salir de juegos*‼‼', ParseMode.MARKDOWN)
+			await bot.send_message(cid, '‼‼*El juego ya empezo y el admin no permite salir de juegos*‼‼', ParseMode.MARKDOWN)
 		else:
 			del game.playerlist[uid]
-			bot.send_message(cid, '‼‼*Has salido exitosamente del juego*‼‼', ParseMode.MARKDOWN)
+			await bot.send_message(cid, '‼‼*Has salido exitosamente del juego*‼‼', ParseMode.MARKDOWN)
 
-def command_noticias(update: Update, context: CallbackContext):
+async def command_noticias(update: Update, context: CallbackContext):
 	bot = context.bot
 	log.info('command_noticias called')
 	cid = update.message.chat_id
@@ -1263,11 +1299,11 @@ def command_noticias(update: Update, context: CallbackContext):
 	# 	else:
 	# 		textContinue += producto + "\n"
 
-	bot.send_message(cid, text, ParseMode.MARKDOWN)
+	await bot.send_message(cid, text, ParseMode.MARKDOWN)
 	if len(textContinue) > 0:
-		bot.send_message(cid, textContinue, ParseMode.MARKDOWN)
+		await bot.send_message(cid, textContinue, ParseMode.MARKDOWN)
 
-def command_image(update: Update, context: CallbackContext):
+async def command_image(update: Update, context: CallbackContext):
 	bot = context.bot
 	cid = update.message.chat_id
 
@@ -1277,20 +1313,245 @@ def command_image(update: Update, context: CallbackContext):
 	path_saved = hti.screenshot(html_str=html, css_str=css, save_as='red_page.png')
 	log.info(path_saved)
 	log.info(os.listdir('/'))
-	bot.send_photo(cid, photo=open(path_saved[0], 'rb'))
+	await bot.send_photo(cid, photo=open(path_saved[0], 'rb'))
+
+def chunk_dict(d: dict, size: int):
+    it = iter(d.items())
+    while True:
+        chunk = dict(islice(it, size))
+        if not chunk:
+            return
+        yield chunk
 
 @restricted
-def command_admin_games(update: Update, context: CallbackContext):
-	bot = context.bot
-	cid = update.message.chat_id
-	uid = update.effective_user.id
-	all_games_unfiltered = MainController.getGamesByTipo("Todos")	
-	# Me improtan los juegos que; Este el jugador, hayan sido iniciados, datinivote no sea null y que cumpla reglas del tipo de juego en particular
-	all_games = {key: "{} {}: {}".format(game.groupName, game.cid, game.tipo) for key, game in all_games_unfiltered.items() }
-	msg = "Elija juego que quieras eliminar"
-	simple_choose_buttons(bot, cid, uid, uid, "chooseGameDelete", msg, all_games, False, 1)
+async def command_admin_menu(update: Update, context: CallbackContext):
+    bot = context.bot
+    uid = update.effective_user.id
+    opciones = {
+        "tipos": "📋 Ver Juegos Por Tipo",
+        "stats": "📊 Estadísticas",
+    }
+    await simple_choose_buttons(bot, uid, uid, uid, "adminMenuOpc", "🔧 *Menú Admin*", opciones)
 
-def callback_game_delete(update: Update, context: CallbackContext):
+
+async def callback_admin_menu_opc(update: Update, context: CallbackContext):
+    bot = context.bot
+    callback = update.callback_query
+    regex = re.search(r"(-?[0-9]*)\*adminMenuOpc\*(.*)\*(-?[0-9]*)", callback.data)
+    uid = int(regex.group(3))
+    opcion = regex.group(2)
+
+    if opcion == "tipos":
+        all_games = MainController.getGamesByTipo("Todos") or {}
+        tipos_con_juegos = {}
+        for game in all_games.values():
+            if game.tipo not in tipos_con_juegos:
+                tipos_con_juegos[game.tipo] = game.tipo
+        if not tipos_con_juegos:
+            await bot.edit_message_text("No hay juegos activos.", callback.message.chat_id, callback.message.message_id)
+            return
+        await bot.edit_message_text("Elige un tipo de juego:", callback.message.chat_id, callback.message.message_id)
+        await simple_choose_buttons(bot, uid, uid, uid, "adminMenuTipo", "🎮 *Tipos de juego activos:*", tipos_con_juegos)
+
+    elif opcion == "stats":
+        opciones_stats = {
+            "tipos": "🎮 Tipos de Juegos",
+            "jugadores": "👥 Jugadores",
+            "cantidad": "🔢 Cantidad",
+        }
+        await bot.edit_message_text("Elige una estadística:", callback.message.chat_id, callback.message.message_id)
+        await simple_choose_buttons(bot, uid, uid, uid, "adminMenuStats", "📊 *Estadísticas:*", opciones_stats)
+
+
+async def callback_admin_menu_tipo(update: Update, context: CallbackContext):
+    bot = context.bot
+    callback = update.callback_query
+    regex = re.search(r"(-?[0-9]*)\*adminMenuTipo\*(.*)\*(-?[0-9]*)", callback.data)
+    uid = int(regex.group(3))
+    tipo = regex.group(2)
+
+    all_games = MainController.getGamesByTipo(tipo) or {}
+    if not all_games:
+        await bot.edit_message_text(f"No hay juegos de tipo *{tipo}*.", callback.message.chat_id, callback.message.message_id, parse_mode=ParseMode.MARKDOWN)
+        return
+
+    await bot.edit_message_text(f"Juegos de tipo *{tipo}*:", callback.message.chat_id, callback.message.message_id, parse_mode=ParseMode.MARKDOWN)
+    opciones = {str(game.cid): game.groupName for game in all_games.values()}
+    await simple_choose_buttons(bot, uid, uid, uid, "adminMenuGameList", f"🎮 *{tipo}* — elige un juego:", opciones)
+
+
+async def callback_admin_menu_game_list(update: Update, context: CallbackContext):
+    bot = context.bot
+    callback = update.callback_query
+    regex = re.search(r"(-?[0-9]*)\*adminMenuGameList\*(.*)\*(-?[0-9]*)", callback.data)
+    uid = int(regex.group(3))
+    game_cid = int(regex.group(2))
+
+    game = get_game(game_cid)
+    if not game:
+        await bot.edit_message_text("Juego no encontrado.", callback.message.chat_id, callback.message.message_id)
+        return
+
+    estado = "▶️ En curso" if game.board else "⏸ Sin iniciar"
+    fase = game.board.state.fase_actual if game.board else "—"
+    jugadores = ", ".join(p.name for p in game.playerlist.values()) or "—"
+    last = getattr(game, 'last_activity', None)
+    last_str = last.strftime("%d/%m %H:%M") if last else "—"
+    debug = "🐛 SÍ" if game.is_debugging else "NO"
+
+    texto = (
+        f"📋 *{game.groupName}*\n"
+        f"Tipo: {game.tipo} | Modo: {game.modo or '—'}\n"
+        f"Estado: {estado}\n"
+        f"Fase: `{fase}`\n"
+        f"Jugadores ({len(game.playerlist)}): {jugadores}\n"
+        f"Última actividad: {last_str}\n"
+        f"Debug: {debug}"
+    )
+    btns = InlineKeyboardMarkup([
+        [InlineKeyboardButton("🗑 Eliminar", callback_data=f"{uid}*adminMenuGameDelete*{game_cid}*{uid}")],
+        [InlineKeyboardButton("📋 Historial", callback_data=f"{uid}*adminMenuGameHistory*{game_cid}*{uid}")],
+    ])
+    await bot.edit_message_text(texto, callback.message.chat_id, callback.message.message_id, parse_mode=ParseMode.MARKDOWN, reply_markup=btns)
+
+
+async def callback_admin_menu_game_delete(update: Update, context: CallbackContext):
+    bot = context.bot
+    callback = update.callback_query
+    regex = re.search(r"(-?[0-9]*)\*adminMenuGameDelete\*(.*)\*(-?[0-9]*)", callback.data)
+    uid = int(regex.group(3))
+    game_cid = int(regex.group(2))
+
+    delete_game(game_cid)
+    if game_cid in GamesController.games:
+        del GamesController.games[game_cid]
+    await bot.edit_message_text(f"✅ Juego `{game_cid}` eliminado.", callback.message.chat_id, callback.message.message_id, parse_mode=ParseMode.MARKDOWN)
+
+
+async def callback_admin_menu_game_history(update: Update, context: CallbackContext):
+    bot = context.bot
+    callback = update.callback_query
+    regex = re.search(r"(-?[0-9]*)\*adminMenuGameHistory\*(.*)\*(-?[0-9]*)", callback.data)
+    uid = int(regex.group(3))
+    game_cid = int(regex.group(2))
+
+    game = get_game(game_cid)
+    if not game:
+        await bot.send_message(uid, "Juego no encontrado.")
+        await callback.answer()
+        return
+
+    if game.tipo == "SecretoCodigo":
+        historial = getattr(game.board.state, 'historial', []) if game.board else []
+        if not historial:
+            await bot.send_message(uid, f"[{game.groupName}] No hay pistas registradas.")
+        else:
+            if game.modo == "Cooperativo":
+                emoji_r = {"agente": "✅", "neutral": "⬜", "asesino": "💀"}
+                desc_r = {"agente": "agente", "neutral": "neutral pisado", "asesino": "asesino"}
+            else:
+                emoji_r = {"correcto": "✅", "gris": "⬜", "contrario": "❌", "asesino": "💀"}
+                desc_r = {"correcto": "correcto", "gris": "neutral", "contrario": "equipo contrario", "asesino": "asesino"}
+            lines = [f"📋 *Historial de pistas — {game.groupName}:*\n"]
+            for entrada in historial:
+                turno, dador, pista, numero = entrada["turno"], entrada["dador"], entrada["pista"], entrada["numero"]
+                numero_str = "∞" if numero in (0, -1) else str(numero)
+                if game.modo == "Cooperativo":
+                    lines.append(f"👤 *{dador}* (Jugador {turno}) — *{pista}* ({numero_str})")
+                else:
+                    emoji_eq = "🔴" if turno == "Rojo" else "🔵"
+                    lines.append(f"{emoji_eq} *{dador}* ({turno}) — *{pista}* ({numero_str})")
+                for pick in entrada["picks"]:
+                    r = pick["resultado"]
+                    lines.append(f"  {emoji_r.get(r,'?')} *{pick['word']}* — {desc_r.get(r,r)}")
+                if not entrada["picks"]:
+                    lines.append("  _(sin intentos)_")
+                lines.append("")
+            await bot.send_message(uid, "\n".join(lines), parse_mode=ParseMode.MARKDOWN)
+    else:
+        chunks = game.getHistory(uid)
+        if not chunks or all(len(c) == 0 for c in chunks):
+            await bot.send_message(uid, f"[{game.groupName}] No hay historial registrado.")
+        else:
+            for chunk in chunks:
+                if len(chunk) > 0:
+                    await bot.send_message(uid, chunk, parse_mode=ParseMode.MARKDOWN)
+
+    await callback.answer("📋 Historial enviado en privado")
+
+
+
+async def callback_admin_menu_stats(update: Update, context: CallbackContext):
+    bot = context.bot
+    callback = update.callback_query
+    regex = re.search(r"(-?[0-9]*)\*adminMenuStats\*(.*)\*(-?[0-9]*)", callback.data)
+    uid = int(regex.group(3))
+    opcion = regex.group(2)
+
+    all_games = MainController.getGamesByTipo("Todos") or {}
+
+    if opcion == "tipos":
+        contador = {}
+        for game in all_games.values():
+            contador[game.tipo] = contador.get(game.tipo, 0) + 1
+        ordenado = sorted(contador.items(), key=lambda x: x[1], reverse=True)
+        lines = ["📊 *Juegos activos por tipo:*\n"]
+        for tipo, count in ordenado:
+            lines.append(f"• {tipo}: *{count}*")
+        if not ordenado:
+            lines.append("_No hay juegos activos._")
+        await bot.edit_message_text("\n".join(lines), callback.message.chat_id, callback.message.message_id, parse_mode=ParseMode.MARKDOWN)
+
+    elif opcion == "jugadores":
+        lines = ["👥 *Jugadores en partidas activas:*\n"]
+        for game in all_games.values():
+            if game.playerlist:
+                nombres = ", ".join(p.name for p in game.playerlist.values())
+                lines.append(f"• *{game.groupName}* ({game.tipo}): {nombres}")
+        if len(lines) == 1:
+            lines.append("_No hay jugadores en partidas activas._")
+        await bot.edit_message_text("\n".join(lines), callback.message.chat_id, callback.message.message_id, parse_mode=ParseMode.MARKDOWN)
+
+    elif opcion == "cantidad":
+        total_juegos = len(all_games)
+        total_jugadores = sum(len(game.playerlist) for game in all_games.values())
+        tipos = set(game.tipo for game in all_games.values())
+        lines = [
+            "🔢 *Resumen:*\n",
+            f"🎮 Juegos activos: *{total_juegos}*",
+            f"👥 Jugadores totales: *{total_jugadores}*",
+            f"🗂 Tipos en juego: *{len(tipos)}*",
+        ]
+        await bot.edit_message_text("\n".join(lines), callback.message.chat_id, callback.message.message_id, parse_mode=ParseMode.MARKDOWN)
+
+
+@restricted
+async def command_admin_games(update: Update, context: CallbackContext):
+    bot = context.bot
+    cid = update.message.chat_id
+    uid = update.effective_user.id
+
+    all_games_unfiltered = MainController.getGamesByTipo("Todos")
+
+    all_games = {
+        key: f"{game.groupName} {game.cid}: {game.tipo}"
+        for key, game in all_games_unfiltered.items()
+    }
+
+    MAX_BUTTONS = 20  # ajustalo
+
+    for i, chunk in enumerate(chunk_dict(all_games, MAX_BUTTONS), start=1):
+        msg = f"Elija juego que quieras eliminar (Página {i})"
+        await simple_choose_buttons(
+            bot, cid, uid, uid,
+            "chooseGameDelete",
+            msg,
+            chunk,
+            False,
+            1
+        )
+
+async def callback_game_delete(update: Update, context: CallbackContext):
 	bot = context.bot
 	log.info('callback_game_delete called')
 	callback = update.callback_query
@@ -1301,10 +1562,10 @@ def callback_game_delete(update: Update, context: CallbackContext):
 	delete_game(cid)
 	if cid in GamesController.games.keys():
 		del GamesController.games[cid]
-	bot.send_message(uid, "Juego eliminado")
+	await bot.send_message(uid, "Juego eliminado")
 
 @restricted
-def command_kick(update: Update, context: CallbackContext):
+async def command_kick(update: Update, context: CallbackContext):
 	cid = update.message.chat_id
 	args = context.args
 	game = get_game(cid)
@@ -1314,11 +1575,11 @@ def command_kick(update: Update, context: CallbackContext):
 		if player and hasattr(game, 'player_leaving'):
 			resultado = game.player_leaving(player)
 			if resultado:
-				bot.send_message(cid, text=resultado)
+				await bot.send_message(cid, text=resultado)
 		else:
-			bot.send_message(cid, text="El jugador no esta en el partido o el juego no sabe como hecharlo.")
+			await bot.send_message(cid, text="El jugador no esta en el partido o el juego no sabe como hecharlo.")
 	else:
-		bot.send_message(cid, text="No hay juego del que kickear a alguien")
+		await bot.send_message(cid, text="No hay juego del que kickear a alguien")
 
 
 	

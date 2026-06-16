@@ -1,4 +1,5 @@
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ParseMode, Update
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
+from telegram.constants import ParseMode
 from telegram.ext import (CallbackContext)
 import GamesController
 
@@ -6,8 +7,8 @@ from functools import wraps
 import requests
 import jsonpickle
 import os
-import psycopg2
-from psycopg2 import sql
+import psycopg
+from psycopg import sql
 import urllib.parse
 import logging as log
 
@@ -88,9 +89,9 @@ glosario = [
 	'*Starpass* - Habilidad del demonio de matarse en la noche y convertir a un minion en demonio.'
 ]
 
-def storyteller(func):
+async def storyteller(func):
 	@wraps(func)
-	def wrapped(update, context, *args, **kwargs):
+	async def wrapped(update, context, *args, **kwargs):
 		user_id = update.effective_user.id
 		cid = update.message.chat_id		
 		game = get_game(cid)
@@ -101,9 +102,9 @@ def storyteller(func):
 		return func(update, context, *args, **kwargs)
 	return wrapped
 
-def player(func):
+async def player(func):
 	@wraps(func)
-	def wrapped(update, context, *args, **kwargs):
+	async def wrapped(update, context, *args, **kwargs):
 		uid = update.effective_user.id
 		cid = update.message.chat_id		
 		game = get_game(cid)
@@ -115,11 +116,11 @@ def player(func):
 		return func(update, context, *args, **kwargs)
 	return wrapped
 
-def command_start(update: Update, context: CallbackContext):
+async def command_start(update: Update, context: CallbackContext):
 	bot = context.bot
 
 	cid = update.message.chat_id
-	bot.send_message(cid,
+	await bot.send_message(cid,
 """Este es un bot para jugar Clock On The Bloodtower
 A ver explicación completa la editamos y luego la pongo en el bot.
 
@@ -187,30 +188,30 @@ O sea que hablar con otras 2 personas constaría 2 whispers y con 3 usarías 3 w
 Por otro lado mientras se está en whisper con alguien se puede hablar con los vecinos.
 
 También se puede usar un whisper para hablar más de 15 palabras con un vecino cada día.""", ParseMode.MARKDOWN)
-	command_help(update, context)
+	await command_help(update, context)
 
-def command_commands(update: Update, context: CallbackContext):
+async def command_commands(update: Update, context: CallbackContext):
 	bot = context.bot
 	args = context.args
 	cid = update.message.chat_id
 
-def command_help(update: Update, context: CallbackContext):
+async def command_help(update: Update, context: CallbackContext):
 	bot = context.bot
 	args = context.args
 	cid = update.message.chat_id
 	help_text = "Los siguientes comandos están disponibles:\n"
 	for i in commands:
 		help_text += i + "\n"
-	bot.send_message(cid, help_text, ParseMode.MARKDOWN)
+	await bot.send_message(cid, help_text, ParseMode.MARKDOWN)
 
-def command_glosary(update: Update, context: CallbackContext):
+async def command_glosary(update: Update, context: CallbackContext):
 	bot = context.bot
 	args = context.args
 	cid = update.message.chat_id
 	help_text = "*Glosario*\n"
 	for i in glosario:
 		help_text += i + "\n"
-	bot.send_message(cid, help_text, ParseMode.MARKDOWN)
+	await bot.send_message(cid, help_text, ParseMode.MARKDOWN)
 
 def get_game(cid) -> Game:
 	# Busco el juego actual
@@ -232,8 +233,8 @@ def get_game(cid) -> Game:
 def load_and_get_games() -> List[Game]:
 	games = []
 
-	conn = psycopg2.connect(
-		database=url.path[1:],
+	conn = psycopg.connect(
+		dbname=url.path[1:],
 		user=url.username,
 		password=url.password,
 		host=url.hostname,
@@ -252,8 +253,8 @@ def load_and_get_games() -> List[Game]:
 	return list(GamesController.games.values())
 
 def load_game(cid):
-	conn = psycopg2.connect(
-				database=url.path[1:],
+	conn = psycopg.connect(
+				dbname=url.path[1:],
 				user=url.username,
 				password=url.password,
 				host=url.hostname,
@@ -289,7 +290,7 @@ def load_game(cid):
 			for uid in game.board.state.votes:
 				temp_votes[int(uid)] = game.board.state.votes[uid]
 			game.board.state.votes = temp_votes
-		#bot.send_message(cid, game.print_roles())
+		#await bot.send_message(cid, game.print_roles())
 		conn.close()
 		return game
 	else:
@@ -297,27 +298,27 @@ def load_game(cid):
 		conn.close()
 		return None
 
-def command_board(update: Update, context: CallbackContext):
+async def command_board(update: Update, context: CallbackContext):
 	bot = context.bot
 	cid = update.message.chat_id
 	game = get_game(cid)
 	if game.board:
 		board_text = game.board.print_board(game)
 		log.info(board_text)
-		board_message = bot.send_message(cid, board_text, ParseMode.MARKDOWN)
+		board_message = await bot.send_message(cid, board_text, ParseMode.MARKDOWN)
 		game.board_message_id = board_message.message_id
 		save_game(cid, "Game in join state", game)
 	else:
-		bot.send_message(cid, "No ha comenzado el juego todavia, para comenzar pone /startgame")
+		await bot.send_message(cid, "No ha comenzado el juego todavia, para comenzar pone /startgame")
 
-def command_rules(update: Update, context: CallbackContext):
+async def command_rules(update: Update, context: CallbackContext):
 	bot = context.bot
 	cid = update.message.chat_id	
 	msg = """Reglas de Blood on the clocktower
 	"""
-	bot.send_message(cid, msg, ParseMode.MARKDOWN)
+	await bot.send_message(cid, msg, ParseMode.MARKDOWN)
 
-def command_newgame(update: Update, context: CallbackContext):
+async def command_newgame(update: Update, context: CallbackContext):
 	bot = context.bot
 	cid = update.message.chat_id
 	groupName = update.message.chat.title	
@@ -325,15 +326,15 @@ def command_newgame(update: Update, context: CallbackContext):
 	game = get_game(cid)
 	groupType = update.message.chat.type
 	if groupType not in ['group', 'supergroup']:
-		bot.send_message(cid, "Tienes que agregarme a un grupo primero y escribir /newgame allá!")
+		await bot.send_message(cid, "Tienes que agregarme a un grupo primero y escribir /newgame allá!")
 	elif game:
-		bot.send_message(cid, "Hay un juego comenzado en este chat. Si quieres terminarlo escribe /delete!")
+		await bot.send_message(cid, "Hay un juego comenzado en este chat. Si quieres terminarlo escribe /delete!")
 	else:
 		newGame = Game(cid, update.message.from_user.id, groupName)
 		GamesController.games[cid] = newGame
-		bot.send_message(cid, "Nuevo juego creado! Cada jugador debe unirse al juego con el comando /join.\n*El storyteller no debe unirse de esta forma, el sera asignado mas tarde*\nEl iniciador del juego (o el administrador) pueden unirse tambien y escribir /startgame cuando todos se hayan unido al juego!")
+		await bot.send_message(cid, "Nuevo juego creado! Cada jugador debe unirse al juego con el comando /join.\n*El storyteller no debe unirse de esta forma, el sera asignado mas tarde*\nEl iniciador del juego (o el administrador) pueden unirse tambien y escribir /startgame cuando todos se hayan unido al juego!")
 
-def command_join(update: Update, context: CallbackContext):
+async def command_join(update: Update, context: CallbackContext):
 	bot = context.bot
 	args = context.args
 	# I use args for testing. // Remove after?
@@ -358,40 +359,40 @@ def command_join(update: Update, context: CallbackContext):
 				save_game(cid, "Game in join state", game)
 	
 	if groupType not in ['group', 'supergroup']:
-		bot.send_message(cid, "Tienes que agregarme a un grupo primero y escribir /newgame allá!")
+		await bot.send_message(cid, "Tienes que agregarme a un grupo primero y escribir /newgame allá!")
 	elif not game:
-		bot.send_message(cid, "No hay juego en este chat. Crea un nuevo juego con /newgame")
+		await bot.send_message(cid, "No hay juego en este chat. Crea un nuevo juego con /newgame")
 	elif game.board:
-		bot.send_message(cid, "El juego ha comenzado. Si quieres unirte haz /travel")
+		await bot.send_message(cid, "El juego ha comenzado. Si quieres unirte haz /travel")
 	elif uid in game.playerlist:
-		bot.send_message(game.cid, f"Ya te has unido al juego, {fname}!")
+		await bot.send_message(game.cid, f"Ya te has unido al juego, {fname}!")
 	elif len(game.playerlist) >= 10:
-		bot.send_message(game.cid, "Han llegado al maximo de jugadores. Por favor comiencen el juego con /startgame!")
+		await bot.send_message(game.cid, "Han llegado al maximo de jugadores. Por favor comiencen el juego con /startgame!")
 	else:
 		#uid = update.message.from_user.id		
 		try:
 			#Commented to dont disturb player during testing uncomment in production
-			bot.send_message(uid, f"Te has unido a un juego en {groupName}. Pronto te dire cual es tu rol secreto.")
+			await bot.send_message(uid, f"Te has unido a un juego en {groupName}. Pronto te dire cual es tu rol secreto.")
 			# choose_posible_role(bot, cid, uid)
 
 			game.add_player(uid, fname, nick)
 			log.info("%s (%d) joined a game in %d" % (fname, uid, game.cid))
 			if len(game.playerlist) > 4:
-				bot.send_message(game.cid, fname + " se ha unido al juego. Escribe /startgame si este es el último jugador y quieren comenzar con %d jugadores!" % len(game.playerlist))
+				await bot.send_message(game.cid, fname + " se ha unido al juego. Escribe /startgame si este es el último jugador y quieren comenzar con %d jugadores!" % len(game.playerlist))
 			elif len(game.playerlist) == 1:
-				bot.send_message(game.cid, "%s se ha unido al juego. Hay %d jugador en el juego y se necesita 5-10 jugadores." % (fname, len(game.playerlist)))
+				await bot.send_message(game.cid, "%s se ha unido al juego. Hay %d jugador en el juego y se necesita 5-10 jugadores." % (fname, len(game.playerlist)))
 			else:
-				bot.send_message(game.cid, "%s se ha unido al juego. Hay %d jugadores en el juego y se necesita 5-10 jugadores" % (fname, len(game.playerlist)))
+				await bot.send_message(game.cid, "%s se ha unido al juego. Hay %d jugadores en el juego y se necesita 5-10 jugadores" % (fname, len(game.playerlist)))
 				# Luego dicto los jugadores que se han unido
 			jugadoresActuales = "Los jugadores que se han unido al momento son:\n"
 			for player in game.playerlist.values():
 				jugadoresActuales += f"{player.name}\n"
-			bot.send_message(game.cid, jugadoresActuales)
+			await bot.send_message(game.cid, jugadoresActuales)
 			save_game(cid, "Game in join state", game)
 		except Exception:
-			bot.send_message(game.cid, f"Jugador {fname} debes ir a @botontheclocktowerbot y darle /start")
+			await bot.send_message(game.cid, f"Jugador {fname} debes ir a @botontheclocktowerbot y darle /start")
 
-def command_startgame(update: Update, context: CallbackContext):
+async def command_startgame(update: Update, context: CallbackContext):
 	bot = context.bot	
 	uid = update.message.from_user.id
 	cid = update.message.chat_id
@@ -399,22 +400,22 @@ def command_startgame(update: Update, context: CallbackContext):
 	game = get_game(cid)
 
 	if not game:
-		bot.send_message(cid, "No hay juego en este grupo crea un nuevo juego con /newgame")
+		await bot.send_message(cid, "No hay juego en este grupo crea un nuevo juego con /newgame")
 	elif update.message.from_user.id not in ADMIN and update.message.from_user.id != game.initiator and bot.getChatMember(cid, update.message.from_user.id).status not in ("administrator", "creator"):
-		bot.send_message(game.cid, "Solo el creador del juego o un admin puede iniciar con /startgame")	
+		await bot.send_message(game.cid, "Solo el creador del juego o un admin puede iniciar con /startgame")	
 	elif game.board:
-		bot.send_message(cid, "El juego ya empezo!")		
+		await bot.send_message(cid, "El juego ya empezo!")		
 	else:		
 		# Verifico si la configuracion ha terminado y se han unido los jugadores necesarios		
 		min_jugadores = 5		
 		if len(game.playerlist) >= min_jugadores:
 			save_game(cid, "Game in starting state", game)
 			game.startgame()
-			bot.send_message(game.cid, "El Storyteller debe poner aqui el comando /storyteller para ser reconocido como tal")
+			await bot.send_message(game.cid, "El Storyteller debe poner aqui el comando /storyteller para ser reconocido como tal")
 		else:
-			bot.send_message(game.cid, "Falta el numero mínimo de jugadores. Faltan: %s " % (str(min_jugadores - len(game.playerlist))))
+			await bot.send_message(game.cid, "Falta el numero mínimo de jugadores. Faltan: %s " % (str(min_jugadores - len(game.playerlist))))
 
-def command_storyteller(update: Update, context: CallbackContext):
+async def command_storyteller(update: Update, context: CallbackContext):
 	bot = context.bot	
 	uid = update.message.from_user.id
 	cid = update.message.chat_id	
@@ -423,20 +424,20 @@ def command_storyteller(update: Update, context: CallbackContext):
 	fname = update.message.from_user.first_name.replace("_", " ")
 
 	if game.find_player(fname) is not None:
-		bot.send_message(game.cid, f"{fname} no puedes ser storyteller si eres jugador, haz /leave he intenta nuevamente.")
+		await bot.send_message(game.cid, f"{fname} no puedes ser storyteller si eres jugador, haz /leave he intenta nuevamente.")
 	if game.storyteller is None:
 		game.storyteller = uid
-		bot.send_message(game.cid, f"El Storyteller es: {fname}, teman por sus vidas Aldeanos!!!")
+		await bot.send_message(game.cid, f"El Storyteller es: {fname}, teman por sus vidas Aldeanos!!!")
 		game.shuffle_player_sequence()
 		game.set_script("Trouble Brewing")
-		bot.send_message(game.cid, f"Jugaremos Trouble Brewing, ya que es el unico modulo que tengo XD")
-		bot.send_message(uid, "Eres el storyteller, prepara los roles y cuando quieras reparte los roles")
-		bot.send_message(uid, "Con /firstnight en el grupo se hará la primera noche (No hace nada actualmente)")
-		bot.send_message(uid, "Con /day comenzarás el primer día y luego con /night pasarás a la noche. Para ir al siguiente dia, pones /day nuevamente.")
+		await bot.send_message(game.cid, f"Jugaremos Trouble Brewing, ya que es el unico modulo que tengo XD")
+		await bot.send_message(uid, "Eres el storyteller, prepara los roles y cuando quieras reparte los roles")
+		await bot.send_message(uid, "Con /firstnight en el grupo se hará la primera noche (No hace nada actualmente)")
+		await bot.send_message(uid, "Con /day comenzarás el primer día y luego con /night pasarás a la noche. Para ir al siguiente dia, pones /day nuevamente.")
 	else:
-		bot.send_message(game.cid, f"La partida ya tiene storyteller, vete de aquí maldito usurpador!!!")
+		await bot.send_message(game.cid, f"La partida ya tiene storyteller, vete de aquí maldito usurpador!!!")
 
-def command_delete(update: Update, context: CallbackContext):
+async def command_delete(update: Update, context: CallbackContext):
 	bot = context.bot
 	args = context.args
 	log.info('command_cancelgame called {}'.format(args))
@@ -446,47 +447,47 @@ def command_delete(update: Update, context: CallbackContext):
 	if len(args) > 0 and uid == ADMIN[0]:
 		cid = int(args[0])	
 	try:
-		delete_game(cid)
+		await delete_game(cid)
 		if cid in GamesController.games.keys():
 			del GamesController.games[cid]
-		bot.send_message(cid, "Borrado exitoso.")
+		await bot.send_message(cid, "Borrado exitoso.")
 	except Exception as e:
-		bot.send_message(cid, "El borrado ha fallado debido a: "+str(e))
+		await bot.send_message(cid, "El borrado ha fallado debido a: "+str(e))
 
 @storyteller
-def command_firstnight(update: Update, context: CallbackContext):
+async def command_firstnight(update: Update, context: CallbackContext):
 	bot = context.bot	
 	# uid = update.message.from_user.id
 	cid = update.message.chat_id
 	game = get_game(cid)
-	bot.send_message(game.cid, f"Comienza la primera noche, todos... cierren los ojos...")
+	await bot.send_message(game.cid, f"Comienza la primera noche, todos... cierren los ojos...")
 
 @storyteller
-def command_day(update: Update, context: CallbackContext):
+async def command_day(update: Update, context: CallbackContext):
 	bot = context.bot	
 	cid = update.message.chat_id
 	game = get_game(cid)
 	game.set_day()
-	bot.send_message(game.cid, "Todos, abran los ojos...")
+	await bot.send_message(game.cid, "Todos, abran los ojos...")
 	save_game(cid, "Day", game)
 	if game.board.state.day == 1:
-		bot.send_message(game.cid, """En el recondito pueblo de ravenswood bluff los aldeanos se despiertan por un grito ahogado en el centro del pueblo, al llegar encuentran a su querido storyteller empelado en una de las manecillas del reloj.
+		await bot.send_message(game.cid, """En el recondito pueblo de ravenswood bluff los aldeanos se despiertan por un grito ahogado en el centro del pueblo, al llegar encuentran a su querido storyteller empelado en una de las manecillas del reloj.
 
 Esto es la obra de un demonio que mata durante la noche, pero durante el día toma la forma de uno de ustedes; su trabajo es encontrarlo y vengar a las almas de los caídos por el.
 Mucha suerte""")
 
 @storyteller
-def command_night(update: Update, context: CallbackContext):
+async def command_night(update: Update, context: CallbackContext):
 	bot = context.bot	
 	cid = update.message.chat_id
 	game = get_game(cid)
 	game.set_night()	
-	bot.send_message(game.cid, "Todos, cierren los ojos...")
+	await bot.send_message(game.cid, "Todos, cierren los ojos...")
 	save_game(cid, "Night", game)	
 	
 
 @storyteller
-def command_kill(update: Update, context: CallbackContext):
+async def command_kill(update: Update, context: CallbackContext):
 	bot = context.bot	
 	args = context.args
 	cid = update.message.chat_id
@@ -497,7 +498,7 @@ def command_kill(update: Update, context: CallbackContext):
 	if game is None:
 		games_with_me_as_storyteller = get_games_with_me_as_storyteller(uid)
 		if len(games_with_me_as_storyteller) == 0:
-			bot.send_message(cid, "*No estas dirigiendo ningun juego de Blood*", ParseMode.MARKDOWN)
+			await bot.send_message(cid, "*No estas dirigiendo ningun juego de Blood*", ParseMode.MARKDOWN)
 			return
 		elif len(games_with_me_as_storyteller) == 1:
 			# Si solo esta en un solo juego hago la accion directa
@@ -508,26 +509,26 @@ def command_kill(update: Update, context: CallbackContext):
 			if result_kill[0]:
 				save_game(cid, f"Matamos a {player_name}", game)
 			# Me lo mando en privado porque la intencion fue hacerlo en privado		
-			bot.send_message(uid, result_kill[1], ParseMode.MARKDOWN)
+			await bot.send_message(uid, result_kill[1], ParseMode.MARKDOWN)
 			result_validate_end_game = game.validate_end_of_game()
 			if result_validate_end_game:
-				bot.send_message(game.storyteller, result_validate_end_game)
+				await bot.send_message(game.storyteller, result_validate_end_game)
 		else:
 			# More than one game
 			btnMarkup = create_choose_buttons(uid, ' '.join(args), "kill_player", games_with_me_as_storyteller, context)
-			bot.send_message(uid, "En cual de estos grupos quieres hacer la acción?", reply_markup=btnMarkup)
+			await bot.send_message(uid, "En cual de estos grupos quieres hacer la acción?", reply_markup=btnMarkup)
 	else:
 		# Busco el jugador a matar
 		player_name = ' '.join(args)		
 		result_kill = game.kill_player(player_name)
 		if result_kill[0]:
 			save_game(cid, f"Matamos a {player_name}", game)
-		bot.send_message(game.cid, result_kill[1], ParseMode.MARKDOWN)
+		await bot.send_message(game.cid, result_kill[1], ParseMode.MARKDOWN)
 		result_validate_end_game = game.validate_end_of_game()
 		if result_validate_end_game:
-			bot.send_message(game.storyteller, result_validate_end_game)
+			await bot.send_message(game.storyteller, result_validate_end_game)
 
-def get_games_with_me_as_storyteller(uid):
+async def get_games_with_me_as_storyteller(uid):
 	games = load_and_get_games()
 	games_with_me_as_storyteller = [game for game in games if game.storyteller == uid and game.board != None]
 	return games_with_me_as_storyteller
@@ -551,7 +552,7 @@ def create_choose_buttons(uid, data, action, game_list, context):
 	return btnMarkup
 
 @storyteller
-def command_execute(update: Update, context: CallbackContext):
+async def command_execute(update: Update, context: CallbackContext):
 	bot = context.bot	
 	args = context.args
 	cid = update.message.chat_id
@@ -559,21 +560,21 @@ def command_execute(update: Update, context: CallbackContext):
 	result_execute = game.execute_player()
 	if result_execute[0]:
 		save_game(cid, f"Execute", game)			
-	bot.send_message(game.cid, result_execute[1])	
+	await bot.send_message(game.cid, result_execute[1])	
 
-def command_players(update: Update, context: CallbackContext):
+async def command_players(update: Update, context: CallbackContext):
 	bot = context.bot	
 	uid = update.message.from_user.id
 	cid = update.message.chat_id	
 	game = get_game(cid)	
 	if not game:
-		bot.send_message(game.cid, "No hay partida en este grupo")		
+		await bot.send_message(game.cid, "No hay partida en este grupo")		
 	jugadoresActuales = "Los jugadores que se han unido al momento son:\n"	
 	for player in game.playerlist.values():
 		jugadoresActuales += f"{player_call(player)}\n"			
-	bot.send_message(game.cid, jugadoresActuales, ParseMode.MARKDOWN)
+	await bot.send_message(game.cid, jugadoresActuales, ParseMode.MARKDOWN)
 
-def command_leave(update: Update, context: CallbackContext):
+async def command_leave(update: Update, context: CallbackContext):
 	bot = context.bot
 	cid = update.message.chat_id
 	uid = update.effective_user.id
@@ -581,17 +582,17 @@ def command_leave(update: Update, context: CallbackContext):
 	game = get_game(cid)
 
 	if not game:
-		bot.send_message(cid, '‼‼*No hay juego del que salir*‼‼', ParseMode.MARKDOWN)
+		await bot.send_message(cid, '‼‼*No hay juego del que salir*‼‼', ParseMode.MARKDOWN)
 	else:
 		if False:
-			bot.send_message(cid, '‼‼*El juego ya empezo y el admin no permite salir de juegos ya empezados*‼‼', ParseMode.MARKDOWN)
+			await bot.send_message(cid, '‼‼*El juego ya empezo y el admin no permite salir de juegos ya empezados*‼‼', ParseMode.MARKDOWN)
 		else:
 			game.remove_from_player_sequence(game.find_player(fname))
 			del game.playerlist[uid]
-			bot.send_message(cid, '‼‼*Has salido exitosamente del juego*‼‼', ParseMode.MARKDOWN)
+			await bot.send_message(cid, '‼‼*Has salido exitosamente del juego*‼‼', ParseMode.MARKDOWN)
 
 @player
-def command_claim(update: Update, context: CallbackContext):
+async def command_claim(update: Update, context: CallbackContext):
 	bot = context.bot
 	args = context.args
 	#game.pedrote = 3
@@ -607,22 +608,22 @@ def command_claim(update: Update, context: CallbackContext):
 					#Data is being claimed
 					claimtext = ' '.join(args)
 					claimtexttohistory = f"El jugador {game.playerlist[uid].name} declara: {claimtext}"
-					bot.send_message(cid, f"Tu declaración: {claimtext} fue agregada al historial.")
+					await bot.send_message(cid, f"Tu declaración: {claimtext} fue agregada al historial.")
 					game.history.append(claimtexttohistory)
 					log.info(game.history)
 					save_game(cid, "Claim", game)
 				else:					
-					bot.send_message(cid, "Debes mandar un mensaje para hacer una declaración.")
+					await bot.send_message(cid, "Debes mandar un mensaje para hacer una declaración.")
 
 			else:
-				bot.send_message(cid, "Debes ser un jugador del partido para declarar algo.")				
+				await bot.send_message(cid, "Debes ser un jugador del partido para declarar algo.")				
 		else:
-			bot.send_message(cid, "No hay juego en este chat. Crea un nuevo juego con /newgame")
+			await bot.send_message(cid, "No hay juego en este chat. Crea un nuevo juego con /newgame")
 	except Exception as e:
-		bot.send_message(cid, str(e))
+		await bot.send_message(cid, str(e))
 		log.error("Unknown error: " + str(e))  
 
-def command_history(update: Update, context: CallbackContext):
+async def command_history(update: Update, context: CallbackContext):
 	bot = context.bot
 	#game.pedrote = 3
 	#Send message of executing command   
@@ -633,7 +634,7 @@ def command_history(update: Update, context: CallbackContext):
 
 	game = get_game(cid)
 	if game:			
-		#bot.send_message(cid, "Current round: " + str(game.board.state.currentround + 1))
+		#await bot.send_message(cid, "Current round: " + str(game.board.state.currentround + 1))
 		uid = update.message.from_user.id
 		game.groupName = groupName
 		history_text_list = []
@@ -646,24 +647,24 @@ def command_history(update: Update, context: CallbackContext):
 				history_text = f"{x}\n\n"
 		history_text_list.append(history_text)
 		for history_text_item in history_text_list:
-			bot.send_message(uid, history_text_item, ParseMode.MARKDOWN)
+			await bot.send_message(uid, history_text_item, ParseMode.MARKDOWN)
 		# if len(history_textContinue) > 0:
-		# 	bot.send_message(uid, history_textContinue, ParseMode.MARKDOWN)
-		#bot.send_message(cid, "I sent you the history to our private chat")			
+		# 	await bot.send_message(uid, history_textContinue, ParseMode.MARKDOWN)
+		#await bot.send_message(cid, "I sent you the history to our private chat")			
 	else:
-		bot.send_message(cid, "No hay juego en este chat. Crea un nuevo juego con /newgame")	
+		await bot.send_message(cid, "No hay juego en este chat. Crea un nuevo juego con /newgame")	
 
 @restricted
-def command_debug(update: Update, context: CallbackContext):
+async def command_debug(update: Update, context: CallbackContext):
 	bot = context.bot	
 	# uid = update.message.from_user.id
 	cid = update.message.chat_id
 	game = get_game(cid)
 	game.is_debugging = True if not game.is_debugging else False
-	bot.send_message(cid, "Debug Mode: ON" if game.is_debugging else "Debug Mode: OFF")
+	await bot.send_message(cid, "Debug Mode: ON" if game.is_debugging else "Debug Mode: OFF")
 
 @player
-def command_whisper(update: Update, context: CallbackContext):
+async def command_whisper(update: Update, context: CallbackContext):
 	bot = context.bot	
 	uid = update.message.from_user.id
 	cid = update.message.chat_id
@@ -672,20 +673,20 @@ def command_whisper(update: Update, context: CallbackContext):
 	whispering_result = game.start_whisper(uid, ' '.join(args))
 	if whispering_result[0]:
 		save_game(cid, "Wshiper Created", game)
-	bot.send_message(cid, whispering_result[1])
+	await bot.send_message(cid, whispering_result[1])
 
 @player
-def command_endwhisper(update: Update, context: CallbackContext):
+async def command_endwhisper(update: Update, context: CallbackContext):
 	bot = context.bot	
 	uid = update.message.from_user.id
 	cid = update.message.chat_id
 	game = get_game(cid)	
 	whisper_message = game.end_whisper(uid)		
 	save_game(cid, "Claim", game)
-	bot.send_message(game.cid, whisper_message)	
+	await bot.send_message(game.cid, whisper_message)	
 
 @player
-def command_nominate(update: Update, context: CallbackContext):
+async def command_nominate(update: Update, context: CallbackContext):
 	bot = context.bot	
 	args = context.args
 	cid = update.message.chat_id
@@ -695,14 +696,14 @@ def command_nominate(update: Update, context: CallbackContext):
 	
 	# Si no estan habilitadas las nominaciones
 	if not game.board.state.can_nominate:
-		bot.send_message(cid, "El storyteller no ha habilitado las nominaciones")
+		await bot.send_message(cid, "El storyteller no ha habilitado las nominaciones")
 		return
 	if game.board.state.accuser is not None:
-		bot.send_message(cid, "Ya hay una nominación en curso.")
+		await bot.send_message(cid, "Ya hay una nominación en curso.")
 		return
 	# Si no hay suficentes parametros para nominar (jugador y acusacion)
 	if len(data) != 2:
-		bot.send_message(game.cid, "Debes ingresar /nominate [Nombre jugador en Board];Texto Acusación")
+		await bot.send_message(game.cid, "Debes ingresar /nominate [Nombre jugador en Board];Texto Acusación")
 		return
 		
 	# Busco el jugador a acusar
@@ -710,10 +711,10 @@ def command_nominate(update: Update, context: CallbackContext):
 	defender = game.find_player(player_name)
 	accuser = game.playerlist[uid]
 	if accuser.dead:
-		bot.send_message(cid, "Un jugador muerto no puede nominar")
+		await bot.send_message(cid, "Un jugador muerto no puede nominar")
 		return
 	if defender is None:
-		bot.send_message(cid, "El jugador ingresado no existe")
+		await bot.send_message(cid, "El jugador ingresado no existe")
 		return
 	
 
@@ -726,11 +727,11 @@ def command_nominate(update: Update, context: CallbackContext):
 	message_nomination = f"De repente {player_call(accuser)} se levanta y señala con el dedo a {player_call(defender)} deberias ir a la horca!\nMotivo: {game.board.state.accusation}"
 	game.history.append(message_nomination)
 	save_game(cid, f"Se nomino a: {defender.name}", game)		
-	bot.send_message(game.cid, message_nomination, ParseMode.MARKDOWN)
-	bot.send_message(game.cid, f"{player_call(defender)} debes hacer tu defensa con /defense Defensa", ParseMode.MARKDOWN)	
+	await bot.send_message(game.cid, message_nomination, ParseMode.MARKDOWN)
+	await bot.send_message(game.cid, f"{player_call(defender)} debes hacer tu defensa con /defense Defensa", ParseMode.MARKDOWN)	
 
 @player
-def command_defense(update: Update, context: CallbackContext):
+async def command_defense(update: Update, context: CallbackContext):
 	bot = context.bot	
 	args = context.args
 	cid = update.message.chat_id
@@ -743,41 +744,41 @@ def command_defense(update: Update, context: CallbackContext):
 		# log.info(uid)
 
 		if state.defender.uid != uid:
-			bot.send_message(game.cid, f"El mensaje debe ser enviado por {player_call(state.defender)}")
+			await bot.send_message(game.cid, f"El mensaje debe ser enviado por {player_call(state.defender)}")
 		defensa = " ".join(args)
 		result_text_defensa = game.set_defense(defensa)		
-		bot.send_message(game.cid, result_text_defensa[0], ParseMode.MARKDOWN)		
+		await bot.send_message(game.cid, result_text_defensa[0], ParseMode.MARKDOWN)		
 		# Si es la primera que se hace defense se avanza el reloj
 		if result_text_defensa[1]:
-			bot.send_message(cid, result_text_defensa[2], ParseMode.MARKDOWN)
+			await bot.send_message(cid, result_text_defensa[2], ParseMode.MARKDOWN)
 		board_text = game.board.print_board(game)
-		board_message = bot.send_message(cid, board_text, ParseMode.MARKDOWN)
+		board_message = await bot.send_message(cid, board_text, ParseMode.MARKDOWN)
 		game.board_message_id = board_message.message_id
 		save_game(cid, "Defensa acusacion", game)
 	else:
-		bot.send_message(game.cid, "Debes ingresar algo para tu defensa")
+		await bot.send_message(game.cid, "Debes ingresar algo para tu defensa")
 
 @storyteller
-def command_clear(update: Update, context: CallbackContext):
+async def command_clear(update: Update, context: CallbackContext):
 	bot = context.bot
 	cid = update.message.chat_id
 	game = get_game(cid)
 	game.clear_nomination()
-	bot.send_message(cid, "Se eliminó la acusación actual")
+	await bot.send_message(cid, "Se eliminó la acusación actual")
 	save_game(cid, "Fix", game)
 
 @storyteller
-def command_toggle_nominations(update: Update, context: CallbackContext):
+async def command_toggle_nominations(update: Update, context: CallbackContext):
 	bot = context.bot
 	cid = update.message.chat_id
 	game = get_game(cid)
 	game.toggle_nominations()
 	msg = "abierto" if game.board.state.can_nominate else "cerrado"
-	bot.send_message(cid, f"Se han {msg} las nominaciones")
+	await bot.send_message(cid, f"Se han {msg} las nominaciones")
 	save_game(cid, "Fix", game)
 	
 @storyteller
-def command_set_player_order(update: Update, context: CallbackContext):
+async def command_set_player_order(update: Update, context: CallbackContext):
 	bot = context.bot	
 	args = context.args
 	cid = update.message.chat_id
@@ -785,10 +786,10 @@ def command_set_player_order(update: Update, context: CallbackContext):
 	players = ' '.join(args)
 	game.set_playerorder(players.split(","))
 	save_game(cid, "Jugadores seteados", game)
-	bot.send_message(game.cid, "Jugadores reorganizados")
+	await bot.send_message(game.cid, "Jugadores reorganizados")
 
 @player
-def command_tick(update: Update, context: CallbackContext):
+async def command_tick(update: Update, context: CallbackContext):
 	bot = context.bot
 	cid = update.message.chat_id
 	uid = update.message.from_user.id
@@ -798,22 +799,22 @@ def command_tick(update: Update, context: CallbackContext):
 	if result[0]:
 		save_game(cid, "Cloak Advance", game)
 		update_board(bot, game, cid)
-	bot.send_message(cid, result[1], ParseMode.MARKDOWN)
+	await bot.send_message(cid, result[1], ParseMode.MARKDOWN)
 
-def update_board(bot, game, cid):
+async def update_board(bot, game, cid):
 	board_text = game.board.print_board(game)
 	# Si hay un board anterior lo borro
 	try:
 		if game.board_message_id:
 			bot.deleteMessage(chat_id = cid, message_id = game.board_message_id)
-			# bot.edit_message_text(board_text, cid, game.board_message_id, parse_mode=ParseMode.MARKDOWN)
+			# await bot.edit_message_text(board_text, cid, game.board_message_id, parse_mode=ParseMode.MARKDOWN)
 	except:
 		log.info("No se pudo borrar mensaje anterior asi que se pone el nuevo")
-	board_msg = bot.send_message(cid, board_text, ParseMode.MARKDOWN)
+	board_msg = await bot.send_message(cid, board_text, ParseMode.MARKDOWN)
 	game.board_message_id = board_msg.message_id
 
 @player
-def command_vote(update: Update, context: CallbackContext):
+async def command_vote(update: Update, context: CallbackContext):
 	bot = context.bot
 	cid = update.message.chat_id
 	uid = update.message.from_user.id
@@ -833,17 +834,17 @@ def command_vote(update: Update, context: CallbackContext):
 				voter.has_last_vote = False
 			save_game(cid, "Vote", game)
 			board_text = game.board.print_board(game)
-			update_board(bot, game, cid)
+			await update_board(bot, game, cid)
 			if game.get_current_voter().uid == uid:
-				bot.send_message(cid, "Has votado, puedes pasar al proximo jugador con /tick", ParseMode.MARKDOWN)
+				await bot.send_message(cid, "Has votado, puedes pasar al proximo jugador con /tick", ParseMode.MARKDOWN)
 		else:
-			bot.send_message(cid, "No puedes votar ya que estas muerto y has gastado tu voto haz /tick", ParseMode.MARKDOWN)
+			await bot.send_message(cid, "No puedes votar ya que estas muerto y has gastado tu voto haz /tick", ParseMode.MARKDOWN)
 	else:
-		bot.send_message(cid, "No puedes modificar tu voto porque ha pasado tu turno", ParseMode.MARKDOWN)
+		await bot.send_message(cid, "No puedes modificar tu voto porque ha pasado tu turno", ParseMode.MARKDOWN)
 
 
 @player
-def command_refresh(update: Update, context: CallbackContext):
+async def command_refresh(update: Update, context: CallbackContext):
 	bot = context.bot
 	cid = update.message.chat_id
 	uid = update.message.from_user.id
@@ -852,10 +853,10 @@ def command_refresh(update: Update, context: CallbackContext):
 	player.name = update.message.from_user.first_name.replace("_", " ")
 	player.nick = update.message.from_user.username
 	save_game(cid, "Refresh Player Info", game)
-	bot.send_message(cid, "Se ha modificado exitosamente al jugador", ParseMode.MARKDOWN)
+	await bot.send_message(cid, "Se ha modificado exitosamente al jugador", ParseMode.MARKDOWN)
 
 @player
-def command_info(update: Update, context: CallbackContext):
+async def command_info(update: Update, context: CallbackContext):
 	bot = context.bot
 	cid = update.message.chat_id
 	uid = update.message.from_user.id
@@ -864,7 +865,7 @@ def command_info(update: Update, context: CallbackContext):
 	
 	if player is not None:
 		role_data = game.get_role_info(player.role)
-		bot.send_message(uid, f"""*Datos del jugador:*
+		await bot.send_message(uid, f"""*Datos del jugador:*
 Nombre: {player.name}
 Nick: {player.nick}
 Rol: {role_data["name"]}
@@ -873,7 +874,7 @@ Afiliation : {player.afiliation}
 Tipo de personaje: {role_data["team"]}""", ParseMode.MARKDOWN)
 
 @player
-def command_clearvote(update: Update, context: CallbackContext):
+async def command_clearvote(update: Update, context: CallbackContext):
 	bot = context.bot
 	cid = update.message.chat_id
 	uid = update.message.from_user.id
@@ -890,14 +891,14 @@ def command_clearvote(update: Update, context: CallbackContext):
 			voter.has_last_vote = True
 		save_game(cid, "Clear Vote", game)
 		board_text = game.board.print_board(game)
-		update_board(bot, game, cid)
+		await update_board(bot, game, cid)
 		if game.get_current_voter().uid == uid:
-			bot.send_message(cid, "Has eliminado tu voto, puedes pasar al proximo jugador con /tick o votar con /vote", ParseMode.MARKDOWN)
+			await bot.send_message(cid, "Has eliminado tu voto, puedes pasar al proximo jugador con /tick o votar con /vote", ParseMode.MARKDOWN)
 	else:
-		bot.send_message(cid, "*No puedes modificar tu voto porque ha pasado tu turno*", ParseMode.MARKDOWN)
+		await bot.send_message(cid, "*No puedes modificar tu voto porque ha pasado tu turno*", ParseMode.MARKDOWN)
 
 @storyteller
-def command_chopping(update: Update, context: CallbackContext):
+async def command_chopping(update: Update, context: CallbackContext):
 	bot = context.bot	
 	uid = update.message.from_user.id
 	cid = update.message.chat_id
@@ -909,12 +910,12 @@ def command_chopping(update: Update, context: CallbackContext):
 		state.chopping_block = state.defender
 		state.chopping_block_votes = list(state.votes.values()).count("si")
 		save_game(cid, "Chopping block", game)
-		update_board(bot, game, cid)
+		await update_board(bot, game, cid)
 	else:
-		bot.send_message(cid, "No hay acusado para mandar al chopping block")
+		await bot.send_message(cid, "No hay acusado para mandar al chopping block")
 	# pone al defender actuan en el chopping block
 
-def print_notes(game, uid, bot):
+async def print_notes(game, uid, bot):
 	history_text = "Notas partida en *{}*:\n\n".format(game.groupName)
 	history_textContinue = "" 
 	for x in game.playerlist[uid].notes:
@@ -923,11 +924,11 @@ def print_notes(game, uid, bot):
 		else:
 			history_textContinue += x + "\n\n"
 
-	bot.send_message(uid, history_text, ParseMode.MARKDOWN)
+	await bot.send_message(uid, history_text, ParseMode.MARKDOWN)
 	if len(history_textContinue) > 0:
-		bot.send_message(uid, history_textContinue, ParseMode.MARKDOWN)
+		await bot.send_message(uid, history_textContinue, ParseMode.MARKDOWN)
 
-def command_notes(update: Update, context: CallbackContext):
+async def command_notes(update: Update, context: CallbackContext):
 	bot = context.bot
 	cid = update.message.chat_id
 	uid = update.message.from_user.id
@@ -937,7 +938,7 @@ def command_notes(update: Update, context: CallbackContext):
 	games_with_the_player = [game for game in games if uid in game.playerlist and game.board != None]
 
 	if len(games_with_the_player) == 0:
-		bot.send_message(cid, "*No estas en ningun juego de Blood*", ParseMode.MARKDOWN)
+		await bot.send_message(cid, "*No estas en ningun juego de Blood*", ParseMode.MARKDOWN)
 	elif len(games_with_the_player) == 1:
 		# Si solo esta en un solo juego hago la accion directa
 		# Si es agregar entonces agrego la nota
@@ -946,10 +947,10 @@ def command_notes(update: Update, context: CallbackContext):
 			notes = ' '.join(args)
 			first.add_note(uid, notes)
 			save_game(first.cid, "Notes", first)
-			bot.send_message(cid, f"{notes} fue agregada a la partida {first.groupName}", ParseMode.MARKDOWN)
+			await bot.send_message(cid, f"{notes} fue agregada a la partida {first.groupName}", ParseMode.MARKDOWN)
 		else:
 			# Show notes
-			print_notes(first, uid, bot)
+			await print_notes(first, uid, bot)
 	else:
 		btns = []
 		for game in games_with_the_player:
@@ -967,21 +968,21 @@ def command_notes(update: Update, context: CallbackContext):
 		datos = "-1*choosegameblood" + str(uid)
 		btns.append([InlineKeyboardButton(txtBoton, callback_data=datos)])
 		btnMarkup = InlineKeyboardMarkup(btns)
-		bot.send_message(uid, "En cual de estos grupos quieres hacer la acción?", reply_markup=btnMarkup)
+		await bot.send_message(uid, "En cual de estos grupos quieres hacer la acción?", reply_markup=btnMarkup)
 
 
 
 @player
-def command_call(update: Update, context: CallbackContext):
+async def command_call(update: Update, context: CallbackContext):
 	bot = context.bot
 	cid = update.message.chat_id
 	# uid = update.message.from_user.id
 	game = get_game(cid)
 	message = game.get_call_message()
-	bot.send_message(game.cid, message, ParseMode.MARKDOWN)
+	await bot.send_message(game.cid, message, ParseMode.MARKDOWN)
 
 @storyteller
-def command_setrole(update: Update, context: CallbackContext):
+async def command_setrole(update: Update, context: CallbackContext):
 	bot = context.bot
 	cid = update.message.chat_id
 	uid = update.message.from_user.id
@@ -989,7 +990,7 @@ def command_setrole(update: Update, context: CallbackContext):
 
 	games_with_me_as_storyteller = get_games_with_me_as_storyteller(uid)
 	if len(games_with_me_as_storyteller) == 0:
-		bot.send_message(cid, "*No estas dirigiendo ningun juego de Blood*", ParseMode.MARKDOWN)
+		await bot.send_message(cid, "*No estas dirigiendo ningun juego de Blood*", ParseMode.MARKDOWN)
 	elif len(games_with_me_as_storyteller) == 1:
 		# Si solo esta en un solo juego hago la accion directa
 		# Si es agregar entonces agrego la nota
@@ -999,14 +1000,14 @@ def command_setrole(update: Update, context: CallbackContext):
 			data_string = ' '.join(args)
 			data = data_string.split(";")
 			if len(data) != 2:
-				bot.send_message(cid, f"Te falta poner algun argumento es /setrole Usuario;Role", ParseMode.MARKDOWN)
+				await bot.send_message(cid, f"Te falta poner algun argumento es /setrole Usuario;Role", ParseMode.MARKDOWN)
 				return
 			elif len(data) == 2:
 				message = game.set_role(data[0], data[1])
 				save_game(first.cid, "setrole", first)
-				bot.send_message(cid, message, ParseMode.MARKDOWN)			
+				await bot.send_message(cid, message, ParseMode.MARKDOWN)			
 		else:
-			bot.send_message(cid, f"Tienes que poner /setrole Usuario;Role", ParseMode.MARKDOWN)
+			await bot.send_message(cid, f"Tienes que poner /setrole Usuario;Role", ParseMode.MARKDOWN)
 	else:
 		btns = []
 		for game in games_with_me_as_storyteller:
@@ -1024,15 +1025,15 @@ def command_setrole(update: Update, context: CallbackContext):
 		datos = "-1*choosegameblood" + str(uid)
 		btns.append([InlineKeyboardButton(txtBoton, callback_data=datos)])
 		btnMarkup = InlineKeyboardMarkup(btns)
-		bot.send_message(uid, "En cual de estos grupos quieres hacer la acción?", reply_markup=btnMarkup)
+		await bot.send_message(uid, "En cual de estos grupos quieres hacer la acción?", reply_markup=btnMarkup)
 
-def command_id(update: Update, context: CallbackContext):
+async def command_id(update: Update, context: CallbackContext):
 	bot = context.bot
 	cid = update.message.chat_id
-	bot.send_message(cid, f"El id del usuario es {update.effective_user.id}", ParseMode.MARKDOWN)
+	await bot.send_message(cid, f"El id del usuario es {update.effective_user.id}", ParseMode.MARKDOWN)
 
 
-def command_travel(update: Update, context: CallbackContext):
+async def command_travel(update: Update, context: CallbackContext):
 	bot = context.bot
 	cid = update.message.chat_id
 	uid = update.message.from_user.id
@@ -1040,15 +1041,15 @@ def command_travel(update: Update, context: CallbackContext):
 	nick = update.message.from_user.username
 	game = get_game(cid)
 	if uid in game.playerlist:
-		bot.send_message(cid, f"*{fname}* ya estas en el pueblo.", ParseMode.MARKDOWN)
+		await bot.send_message(cid, f"*{fname}* ya estas en el pueblo.", ParseMode.MARKDOWN)
 		return
 	game.add_player(uid, fname, nick)
 	game.add_traveller(uid)
 	save_game(cid, "Notes", game)
-	bot.send_message(cid, f"Todos observan como *{fname}* llega al pueblo", ParseMode.MARKDOWN)
+	await bot.send_message(cid, f"Todos observan como *{fname}* llega al pueblo", ParseMode.MARKDOWN)
 
 
-def callback_timer(update: Update, context: CallbackContext):
+async def callback_timer(update: Update, context: CallbackContext):
 	cid = update.message.chat_id
 	bot = context.bot
 	job_queue = context.job_queue
@@ -1073,10 +1074,10 @@ def callback_timer(update: Update, context: CallbackContext):
 		else:
 			msg = 'Se pone timer para {} horas!'.format(minutos/60)
 
-		bot.send_message(chat_id=update.message.chat_id, text=msg)
-		job_queue.run_once(callback_alarm, minutos*60, context=[update.message.chat_id, mensaje])
+		await bot.send_message(chat_id=update.message.chat_id, text=msg)
+		job_queue.run_once(callback_alarm, minutos*60, data=[update.message.chat_id, mensaje])
 
-def callback_alarm(context: CallbackContext):
+async def callback_alarm(context: CallbackContext):
 	job = context.job
 	cid = job.context[0]
 	mensaje = job.context[1]
@@ -1086,7 +1087,7 @@ def callback_alarm(context: CallbackContext):
 		context.bot.send_message(cid, '‼‼*Acordate de {}*‼‼'.format(mensaje), ParseMode.MARKDOWN)
 
 @storyteller
-def command_getreminders(update: Update, context: CallbackContext):
+async def command_getreminders(update: Update, context: CallbackContext):
 	bot = context.bot
 	cid = update.message.chat_id
 	uid = update.message.from_user.id
@@ -1095,9 +1096,9 @@ def command_getreminders(update: Update, context: CallbackContext):
 	reminders_text = ""
 	for player in game.player_sequence:
 		reminders_text += f"{game.get_player_reminders(player.name)}\n"
-	bot.send_message(uid, reminders_text, ParseMode.MARKDOWN)
+	await bot.send_message(uid, reminders_text, ParseMode.MARKDOWN)
 
-def command_readgamejson(update: Update, context: CallbackContext):
+async def command_readgamejson(update: Update, context: CallbackContext):
 	bot = context.bot
 	cid = update.message.chat_id
 	uid = update.message.from_user.id
@@ -1107,19 +1108,19 @@ def command_readgamejson(update: Update, context: CallbackContext):
 
 	games_with_me_as_storyteller = get_games_with_me_as_storyteller(uid)
 	if len(games_with_me_as_storyteller) == 0:
-		bot.send_message(cid, "*No estas dirigiendo ningun juego de Blood*", ParseMode.MARKDOWN)
+		await bot.send_message(cid, "*No estas dirigiendo ningun juego de Blood*", ParseMode.MARKDOWN)
 		return
 	elif len(games_with_me_as_storyteller) == 1:
 		game = games_with_me_as_storyteller[0]
 		message = game.load_json_data(game_data)
 		save_game(game.cid, "load_json_data", game)
-		bot.send_message(cid, message, ParseMode.MARKDOWN)	
+		await bot.send_message(cid, message, ParseMode.MARKDOWN)	
 	else:
 		btnMarkup = create_choose_buttons(uid, game_data, "load_json_data", games_with_me_as_storyteller, context)
-		bot.send_message(uid, "En cual de estos grupos quieres hacer la acción?", reply_markup=btnMarkup)
+		await bot.send_message(uid, "En cual de estos grupos quieres hacer la acción?", reply_markup=btnMarkup)
 		return
 
-def command_getjsondata(update: Update, context: CallbackContext):
+async def command_getjsondata(update: Update, context: CallbackContext):
 	bot = context.bot
 	cid = update.message.chat_id
 	game = get_game(cid)
@@ -1129,60 +1130,60 @@ def command_getjsondata(update: Update, context: CallbackContext):
 		playersjsonTxt += f'{{"name":"{player.name}","id":"","role":"","reminders":[],"isVoteless":false,"isDead":false,"pronouns":""}},'
 
 	json = f'{{"bluffs":[],"edition":{{"id":"tb"}},"roles":"","fabled":[],"players":[{playersjsonTxt[:-1]}]}}'
-	bot.send_message(cid, json)
+	await bot.send_message(cid, json)
 
-def command_grimoire(update: Update, context: CallbackContext):
+async def command_grimoire(update: Update, context: CallbackContext):
 	bot = context.bot
 	cid = update.message.chat_id
 	uid = update.message.from_user.id
 	games_with_me_as_storyteller = get_games_with_me_as_storyteller(uid)
 	if len(games_with_me_as_storyteller) == 0:
-		bot.send_message(cid, "*No estas dirigiendo ningun juego de Blood*", ParseMode.MARKDOWN)
+		await bot.send_message(cid, "*No estas dirigiendo ningun juego de Blood*", ParseMode.MARKDOWN)
 		return
 	elif len(games_with_me_as_storyteller) == 1:
 		game = games_with_me_as_storyteller[0]
 		message = game.board.print_grimoire(game)
-		bot.send_message(uid, message, ParseMode.MARKDOWN)	
+		await bot.send_message(uid, message, ParseMode.MARKDOWN)	
 	else:
 		btnMarkup = create_choose_buttons(uid, "", "print_grimoire", games_with_me_as_storyteller, context)
-		bot.send_message(uid, "En cual de estos grupos quieres hacer la acción?", reply_markup=btnMarkup)
+		await bot.send_message(uid, "En cual de estos grupos quieres hacer la acción?", reply_markup=btnMarkup)
 		return
 
 @restricted
-def command_bug(update: Update, context: CallbackContext):
+async def command_bug(update: Update, context: CallbackContext):
 	bot = context.bot
 	cid = update.message.chat_id
 	uid = update.message.from_user.id
 	args = " ".join(context.args)
 	result = create_github_issue(args, "bug")
-	bot.send_message(cid, result)
+	await bot.send_message(cid, result)
 
 @restricted
-def command_feature(update: Update, context: CallbackContext):
+async def command_feature(update: Update, context: CallbackContext):
 	bot = context.bot
 	cid = update.message.chat_id
 	uid = update.message.from_user.id
 	args = " ".join(context.args)
 	result = create_github_issue(args, "enhancement")
-	bot.send_message(cid, result)
+	await bot.send_message(cid, result)
 
 @restricted
-def command_reload(update: Update, context: CallbackContext):
+async def command_reload(update: Update, context: CallbackContext):
 	bot = context.bot
 	cid = update.message.chat_id
 	uid = update.message.from_user.id
 	args = " ".join(context.args)
 	result = reload_last_workflow()
-	bot.send_message(cid, result)
+	await bot.send_message(cid, result)
 
 @restricted
-def command_list_issues(update: Update, context: CallbackContext):
+async def command_list_issues(update: Update, context: CallbackContext):
 	bot = context.bot
 	cid = update.message.chat_id
 	# uid = update.message.from_user.id
 	# args = " ".join(context.args)
 	result = get_github_issues()
-	bot.send_message(cid, result, ParseMode.HTML)
+	await bot.send_message(cid, result, ParseMode.HTML)
 
 def reload_last_workflow():
 	github_token_workflow = os.environ.get('github_token_workflow', None)
@@ -1245,7 +1246,7 @@ def create_github_issue(args, tipo):
 	else:
 		return f"El servicio de github retorno codigo: {result.status_code} y el json es: {result.json()}"
 
-def callback_choose_game_blood(update: Update, context: CallbackContext):
+async def callback_choose_game_blood(update: Update, context: CallbackContext):
 	bot = context.bot
 	callback = update.callback_query
 	log.info('callback_choose_game_blood called: %s' % callback.data)	
@@ -1253,7 +1254,7 @@ def callback_choose_game_blood(update: Update, context: CallbackContext):
 	cid, uid = int(regex.group(1)), int(regex.group(3)),
 	
 	if cid == -1:
-		bot.edit_message_text("Cancelado", uid, callback.message.message_id)
+		await bot.edit_message_text("Cancelado", uid, callback.message.message_id)
 		return
 	
 	game = get_game(cid)
@@ -1261,7 +1262,7 @@ def callback_choose_game_blood(update: Update, context: CallbackContext):
 	
 	informacion = context.user_data[uid]
 	accion = context.user_data["accion"]
-	bot.edit_message_text(mensaje_edit, uid, callback.message.message_id)
+	await bot.edit_message_text(mensaje_edit, uid, callback.message.message_id)
 	
 	if accion == "notas":
 		if len(informacion) > 0 :
@@ -1272,33 +1273,33 @@ def callback_choose_game_blood(update: Update, context: CallbackContext):
 	elif accion == "setrole":
 		data = informacion.split(";")
 		if len(data) != 2:
-			bot.send_message(cid, f"Te falta poner algun argumento es /setrole Usuario;Role", ParseMode.MARKDOWN)
+			await bot.send_message(cid, f"Te falta poner algun argumento es /setrole Usuario;Role", ParseMode.MARKDOWN)
 			return
 		elif len(data) == 2:
 			message = game.set_role(data[0], data[1])
 			save_game(game.cid, "setrole", game)
-			bot.send_message(cid, message, ParseMode.MARKDOWN)
+			await bot.send_message(cid, message, ParseMode.MARKDOWN)
 	elif accion == "kill_player":
 		player_name = informacion
 		result_kill = game.kill_player(player_name)
 		if result_kill[0]:
 			save_game(cid, f"Matamos a {player_name}", game)			
-		bot.send_message(uid, result_kill[1], ParseMode.MARKDOWN)
+		await bot.send_message(uid, result_kill[1], ParseMode.MARKDOWN)
 		result_validate_end_game = game.validate_end_of_game()
 		if result_validate_end_game:
-			bot.send_message(game.storyteller, result_validate_end_game)
+			await bot.send_message(game.storyteller, result_validate_end_game)
 	elif accion == "load_json_data":
 		context.user_data[uid]
 		message = game.load_json_data(informacion)
 		save_game(game.cid, "load_json_data", game)
-		bot.send_message(cid, message, ParseMode.MARKDOWN)
+		await bot.send_message(cid, message, ParseMode.MARKDOWN)
 	elif accion == "print_grimoire":
 		message = game.board.print_grimoire(game)
-		bot.send_message(cid, message, ParseMode.MARKDOWN)
+		await bot.send_message(cid, message, ParseMode.MARKDOWN)
 
 
 @restricted
-def command_fix(update: Update, context: CallbackContext):
+async def command_fix(update: Update, context: CallbackContext):
 	bot = context.bot
 	cid = update.message.chat_id
 	game = get_game(cid)
@@ -1310,13 +1311,13 @@ def command_fix(update: Update, context: CallbackContext):
 	# for player in game.player_sequence:
 	# 	player.whispering_count = 0
 	
-	bot.send_message(cid, "Fixed")
+	await bot.send_message(cid, "Fixed")
 	save_game(cid, "Fix", game)
 
 def save_game(cid, groupName, game):
 	#Check if game is in DB first
-	conn = psycopg2.connect(
-		database=url.path[1:],
+	conn = psycopg.connect(
+		dbname=url.path[1:],
 		user=url.username,
 		password=url.password,
 		host=url.hostname,
@@ -1345,9 +1346,9 @@ def save_game(cid, groupName, game):
 		conn.commit()
 	conn.close()
 
-def delete_game(cid):
-	conn = psycopg2.connect(
-		database=url.path[1:],
+async def delete_game(cid):
+	conn = psycopg.connect(
+		dbname=url.path[1:],
 		user=url.username,
 		password=url.password,
 		host=url.hostname,

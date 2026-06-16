@@ -4,11 +4,12 @@ import datetime
 #import ast
 import jsonpickle
 import os
-import psycopg2
+import psycopg
 import urllib.parse
 
 	
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ParseMode, Update, Update
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
+from telegram.constants import ParseMode
 from telegram.ext import (CallbackContext)
 from Werewords.Boardgamebox.Pregunta import Pregunta as Pregunta
 
@@ -31,7 +32,7 @@ log.basicConfig(
         level=log.INFO)
 logger = log.getLogger(__name__)
 
-def command_ask(update: Update, context: CallbackContext):
+async def command_ask(update: Update, context: CallbackContext):
 	bot = context.bot
 	args = context.args
 
@@ -45,15 +46,15 @@ def command_ask(update: Update, context: CallbackContext):
 			game = get_game(cid)
 
 			if uid not in game.playerlist:
-				bot.send_message(cid, "Debes ser un jugador del partido para preguntar algo.")
+				await bot.send_message(cid, "Debes ser un jugador del partido para preguntar algo.")
 				return
 
 			if uid == game.board.state.mayor.uid:
-				bot.send_message(cid, "Mayor vos no podes hacer preguntas!")
+				await bot.send_message(cid, "Mayor vos no podes hacer preguntas!")
 				return
 
 			if game.board.state.fase_actual != "preguntar":
-				bot.send_message(cid, "No es momento de preguntar!")
+				await bot.send_message(cid, "No es momento de preguntar!")
 				return
 
 			if game.board.state.preguntas_restantes > 0:				
@@ -71,17 +72,17 @@ def command_ask(update: Update, context: CallbackContext):
 
 				#chat_data[uid] = pregunta
 				simple_choose_buttons(bot, game.cid, index, game.cid, "askWW", pregunta, opciones_botones, False)
-				save(bot, game.cid)
+				await save(bot, game.cid)
 			else:
 				mensaje_error = "Ya no hay preguntas restantes"
-				bot.send_message(uid, mensaje_error)
+				await bot.send_message(uid, mensaje_error)
 		else:
-			bot.send_message(uid, mensaje_error)
+			await bot.send_message(uid, mensaje_error)
 	except Exception as e:
-		bot.send_message(uid, str(e))
+		await bot.send_message(uid, str(e))
 		log.error("Unknown error: " + str(e))
 
-def command_toofar(update: Update, context: CallbackContext):
+async def command_toofar(update: Update, context: CallbackContext):
 	bot = context.bot
 	# Se crean botones y pone pregunta para el mayor.
 	try:
@@ -92,20 +93,20 @@ def command_toofar(update: Update, context: CallbackContext):
 
 		if uid != game.board.state.mayor.uid:
 			jugador_presiono = game.playerlist[uid]
-			bot.send_message(cid, "*{}* tu *NO* puedes usar este comando!".format(jugador_presiono.name), parse_mode=ParseMode.MARKDOWN)
+			await bot.send_message(cid, "*{}* tu *NO* puedes usar este comando!".format(jugador_presiono.name), parse_mode=ParseMode.MARKDOWN)
 			return
 		else:
 			if game.board.state.muy_lejos:
 				game.board.state.muy_lejos = False
 				game.history.append("MUY LEJOS")
-				bot.send_message(cid, "*MUY LEJOS*", parse_mode=ParseMode.MARKDOWN)
+				await bot.send_message(cid, "*MUY LEJOS*", parse_mode=ParseMode.MARKDOWN)
 			else:
-				bot.send_message(cid, "YA se ha usado el token de *MUY LEJOS*!", parse_mode=ParseMode.MARKDOWN)
+				await bot.send_message(cid, "YA se ha usado el token de *MUY LEJOS*!", parse_mode=ParseMode.MARKDOWN)
 	except Exception as e:
-		bot.send_message(uid, str(e))
+		await bot.send_message(uid, str(e))
 		log.error("Unknown error: " + str(e))
 
-def command_soclose(update: Update, context: CallbackContext):
+async def command_soclose(update: Update, context: CallbackContext):
 	bot = context.bot
 	# Se crean botones y pone pregunta para el mayor.
 	try:
@@ -116,20 +117,20 @@ def command_soclose(update: Update, context: CallbackContext):
 
 		if uid != game.board.state.mayor.uid:
 			jugador_presiono = game.playerlist[uid]
-			bot.send_message(cid, "*{}* tu *NO* puedes usar este comando!".format(jugador_presiono.name), parse_mode=ParseMode.MARKDOWN)
+			await bot.send_message(cid, "*{}* tu *NO* puedes usar este comando!".format(jugador_presiono.name), parse_mode=ParseMode.MARKDOWN)
 			return
 		else:
 			if game.board.state.muy_cerca:
 				game.board.state.muy_cerca = False
 				game.history.append("MUY CERCA")
-				bot.send_message(cid, "*MUY CERCA*", parse_mode=ParseMode.MARKDOWN)
+				await bot.send_message(cid, "*MUY CERCA*", parse_mode=ParseMode.MARKDOWN)
 			else:
-				bot.send_message(cid, "YA se ha usado el token de *Muy CERCA*!", parse_mode=ParseMode.MARKDOWN)
+				await bot.send_message(cid, "YA se ha usado el token de *Muy CERCA*!", parse_mode=ParseMode.MARKDOWN)
 	except Exception as e:
-		bot.send_message(uid, str(e))
+		await bot.send_message(uid, str(e))
 		log.error("Unknown error: " + str(e))
 
-def command_call(context, game):
+async def command_call(context, game):
 	try:
 		bot = context.bot
 		if game.board.state.fase_actual == "preguntar":
@@ -138,7 +139,7 @@ def command_call(context, game):
 			
 			if hay_pendientes:
 				msg = "{} tienes preguntas pendientes".format(player_call(game.get_mayor()))
-				bot.send_message(game.cid, msg, parse_mode=ParseMode.MARKDOWN)				
+				await bot.send_message(game.cid, msg, parse_mode=ParseMode.MARKDOWN)				
 				for idx, val in enumerate(game.board.state.preguntas_pendientes):
 					if val.respuesta is None:					
 						opciones_botones = { "Si" : "Si", "No" : "No", "Tal Vez" : "Tal Vez"}
@@ -152,7 +153,7 @@ def command_call(context, game):
 				for player in game.playerlist.values():
 					if player.rol != "Mayor":
 						msg += "{} ".format(player_call(player))
-				bot.send_message(game.cid, msg, parse_mode=ParseMode.MARKDOWN)
+				await bot.send_message(game.cid, msg, parse_mode=ParseMode.MARKDOWN)
 		elif game.board.state.fase_actual == "votacion_desenmascarar":
 			start = game.dateinitvote
 			stop = datetime.now()          
@@ -186,17 +187,17 @@ def command_call(context, game):
 					WerewordsController.resolve_lobos(bot, game, context.job_queue)
 					return 		
 					
-				bot.send_message(game.cid, text=history_text, parse_mode=ParseMode.MARKDOWN)
+				await bot.send_message(game.cid, text=history_text, parse_mode=ParseMode.MARKDOWN)
 			else:
-				bot.send_message(game.cid, "Cinco minutos deben pasar para pedir que se vote!")
+				await bot.send_message(game.cid, "Cinco minutos deben pasar para pedir que se vote!")
 			
 			
 
 		
 	except Exception as e:
-		bot.send_message(game.cid, str(e))
+		await bot.send_message(game.cid, str(e))
 
-def callback_timer(update: Update, context: CallbackContext):
+async def callback_timer(update: Update, context: CallbackContext):
 	bot = context.bot
 	args = context.args
 	job_queue = context.job_queue
@@ -207,7 +208,7 @@ def callback_timer(update: Update, context: CallbackContext):
 	if len(args) == 0:
 		args = ["8","28"]
 
-	bot.send_message(chat_id=cid, text='Comienzen a preguntar hay {} minutos y {} preguntas!'.format(args[0], args[1]))
+	await send_message(chat_id=cid, text='Comienzen a preguntar hay {} minutos y {} preguntas!'.format(args[0], args[1]))
 	
 	game = get_game(cid)
 
@@ -220,9 +221,9 @@ def callback_timer(update: Update, context: CallbackContext):
 	# Paso los minutos a segundos y le resto los segundos del primer warning
 	segundos_totales = (int(args[0])-1)*60
 
-	job_queue.run_once(callback_alarm, segundos_totales, context=contexto, name=game.cid)
+	job_queue.run_once(callback_alarm, segundos_totales, data=contexto, name=game.cid)
 
-def callback_alarm(context: CallbackContext):
+async def callback_alarm(context: CallbackContext):
 	job = context.job
 	bot = context.bot
 	cid = job.context[1]
@@ -237,20 +238,20 @@ def callback_alarm(context: CallbackContext):
 	
 	game.board.state.warning -= 30
 	
-	save(bot, game.cid)	
+	await save(bot, game.cid)	
 	# Si hay tiempo de warning re ejecuto con tiempo restante.
 	job_queue = job.context[0]
 	if game.board.state.warning >= 0:		
 		contexto = [job_queue, game.cid]
 		tiempo_restante = game.board.state.warning + 30
-		bot.send_message(cid, '️‼‼*️️️Quedan {} segundos*‼‼'.format(tiempo_restante), parse_mode=ParseMode.MARKDOWN)
+		await bot.send_message(cid, '️‼‼*️️️Quedan {} segundos*‼‼'.format(tiempo_restante), parse_mode=ParseMode.MARKDOWN)
 		# Se hace una alerta de que queda 1 minuto, y luego de 30 segundos ambos con internvalos de 30 segundos.
-		job_queue.run_once(callback_alarm, 30, context=contexto, name=game.cid)
+		job_queue.run_once(callback_alarm, 30, data=contexto, name=game.cid)
 	else:
-		bot.send_message(cid, text='‼‼*️️️El tiempo ha terminado*‼‼', parse_mode=ParseMode.MARKDOWN)
+		await bot.send_message(cid, text='‼‼*️️️El tiempo ha terminado*‼‼', parse_mode=ParseMode.MARKDOWN)
 		WerewordsController.resolve(bot, game, job_queue)
 
-def command_undo(update: Update, context: CallbackContext):
+async def command_undo(update: Update, context: CallbackContext):
 	bot = context.bot
 	cid = update.message.chat_id
 
@@ -273,12 +274,12 @@ def command_undo(update: Update, context: CallbackContext):
 					game.board.state.correcto = True
 
 				ultima_pregunta_respondida.respuesta = None
-				bot.send_message(cid, '‼‼Se hizo undo de ultima pregunta: {}‼‼'.format(ultima_pregunta_respondida.pregunta), parse_mode=ParseMode.MARKDOWN)
+				await bot.send_message(cid, '‼‼Se hizo undo de ultima pregunta: {}‼‼'.format(ultima_pregunta_respondida.pregunta), parse_mode=ParseMode.MARKDOWN)
 				return
 		return bot.send_message(cid, text=msg, parse_mode=ParseMode.MARKDOWN)
 				
 	else:
-		bot.send_message(cid, text='‼‼*️️️No se puede hacer UNDO ahora*‼‼', parse_mode=ParseMode.MARKDOWN)
+		await bot.send_message(cid, text='‼‼*️️️No se puede hacer UNDO ahora*‼‼', parse_mode=ParseMode.MARKDOWN)
 
 
 
