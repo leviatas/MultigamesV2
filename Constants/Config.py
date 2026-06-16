@@ -3,12 +3,12 @@ ADMIN = [387393551, 441820689, 445782140] #your telegram ID
 #Leviatas Ale Cadogan
 STATS = "../stats.json"
 
-JUEGOS_DISPONIBLES = {        
+JUEGOS_DISPONIBLES = {
         "LostExpedition" : {
                 "comandos" : {
                     "LostExpedition" : "Lost Expedition"
                 },
-                "restriccion" : "admin",                
+                "restriccion" : "admin",
         },
         "JustOne" : {
                 "comandos" : {
@@ -21,7 +21,7 @@ JUEGOS_DISPONIBLES = {
                     "SistemaD100" : "SistemaD100"
                 },
                 "permitir_ingreso_tardio" : True
-        },	
+        },
 	"SayAnything" : {
                 "comandos" : {
                     "SayAnything" : "Say Anything"
@@ -39,31 +39,31 @@ JUEGOS_DISPONIBLES = {
                     "Wavelength" : "Wavelength"
                 },
 		"permitir_ingreso_tardio" : True
-		
+
         },
 	"Decrypt" : {
                 "comandos" : {
                     "Decrypt" : "Decrypt"
                 },
 		"permitir_ingreso_tardio" : True
-		
+
         },
         "Resistance" : {
                 "comandos" : {
                     "Resistance" : "Resistance"
                 },
-                "restriccion" : "admin"		
+                "restriccion" : "admin"
         },
         "Deception" : {
                 "comandos" : {
                     "Deception" : "Deception"
                 },
-                "restriccion" : "admin"		
+                "restriccion" : "admin"
         },
         "Werewords" : {
                 "comandos" : {
                     "Werewords" : "Werewords"
-                },	
+                },
         },
         "Unanimo" : {
                 "comandos" : {
@@ -75,6 +75,12 @@ JUEGOS_DISPONIBLES = {
                 "comandos" : {
                     "SecretoCodigo" : "Secreto Código"
                 },
+        },
+	"SpyFall" : {
+                "comandos" : {
+                    "SpyFall" : "Spy Fall"
+                },
+		"permitir_ingreso_tardio" : True
         },
 }
 
@@ -92,13 +98,13 @@ HOJAS_AYUDA = {
 		"*Variantes de una misma familia de palabras* Ej: Princesa y Principe\n" + \
 		"*Las variantes de una misma palabra: los plurales, diferencias de genero" + \
 		" y faltas de ortografia no cuenta como diferencias reales* Ej: Principe y Principes, " + \
-		"Panadero y Panadera, Tobogán y Tovogan son identicas.",	
+		"Panadero y Panadera, Tobogán y Tovogan son identicas.",
         "LostExpedition" : "Eventos amarillos son obligatorios\n" + \
 		"Eventos rojo son obligatorios pero tenes que elegir 1\n"  + \
-		"Eventos Azules son opcionales"        
+		"Eventos Azules son opcionales"
 }
 
-MODULOS_DISPONIBES = {        
+MODULOS_DISPONIBES = {
         "LostExpedition" : {
                 "Solitario" : {
                         "comandos" : {
@@ -107,20 +113,20 @@ MODULOS_DISPONIBES = {
                         "min_jugadores" : 1,
                         "max_jugadores" : 1
                 },
-                "Cooperativo" : {                        
+                "Cooperativo" : {
                         "comandos" : {
                             "Cooperativo" : "Cooperativo"
                         },
                         "min_jugadores" : 2,
                         "max_jugadores" : 5
                 },
-                "Competitivo" : {                        
+                "Competitivo" : {
                         "comandos" : {
                             "Competitivo" : "Competitivo"
                         },
                         "min_jugadores" : 2,
                         "max_jugadores" : 2
-                } 
+                }
         },
         "JustOne" : {
                 "Cooperativo" : {
@@ -136,7 +142,7 @@ MODULOS_DISPONIBES = {
                         },
                         "min_jugadores" : 1,
                         "max_jugadores" : 15
-                } 
+                }
         },
 	"SayAnything" : {
                 "Cooperativo" : {
@@ -145,7 +151,7 @@ MODULOS_DISPONIBES = {
                         },
                         "min_jugadores" : 4,
                         "max_jugadores" : 8
-                } 
+                }
         },
         "SistemaD100" : {
                 "Cooperativo" : {
@@ -154,7 +160,7 @@ MODULOS_DISPONIBES = {
                         },
                         "min_jugadores" : 1,
                         "max_jugadores" : 99
-                } 
+                }
         },
 	"Wavelength" : {
                 "Cooperativo" : {
@@ -163,7 +169,7 @@ MODULOS_DISPONIBES = {
                         },
                         "min_jugadores" : 4,
                         "max_jugadores" : 20
-                } 
+                }
         },
 	"Arcana" : {
                 "Cooperativo" : {
@@ -172,7 +178,7 @@ MODULOS_DISPONIBES = {
                         },
                         "min_jugadores" : 1,
                         "max_jugadores" : 7
-                } 
+                }
         },
 	"Decrypt" : {
                 "Cooperativo" : {
@@ -181,7 +187,7 @@ MODULOS_DISPONIBES = {
                         },
                         "min_jugadores" : 4,
                         "max_jugadores" : 20
-                } 
+                }
         },
         "Resistance" : {
                 "Cooperativo" : {
@@ -190,7 +196,7 @@ MODULOS_DISPONIBES = {
                         },
                         "min_jugadores" : 5,
                         "max_jugadores" : 10
-                } 
+                }
         },
         "Deception" : {
                 "Cooperativo" : {
@@ -199,7 +205,7 @@ MODULOS_DISPONIBES = {
                         },
                         "min_jugadores" : 1,
                         "max_jugadores" : 12
-                } 
+                }
         },
         "Werewords" : {
                 "Cooperativo" : {
@@ -208,7 +214,7 @@ MODULOS_DISPONIBES = {
                         },
                         "min_jugadores" : 1,
                         "max_jugadores" : 20
-                } 
+                }
         },
         "Unanimo" : {
                 "Cooperativo" : {
@@ -233,6 +239,15 @@ MODULOS_DISPONIBES = {
                         },
                         "min_jugadores" : 2,
                         "max_jugadores" : 2
+                }
+        },
+	"SpyFall" : {
+                "Cooperativo" : {
+                        "comandos" : {
+                            "Cooperativo" : "Cooperativo"
+                        },
+                        "min_jugadores" : 3,
+                        "max_jugadores" : 10
                 }
         },
 }
