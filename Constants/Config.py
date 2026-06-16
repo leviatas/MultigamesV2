@@ -87,6 +87,12 @@ JUEGOS_DISPONIBLES = {
                     "Insider" : "Insider"
                 },
         },
+	"BattlestarGalactica" : {
+                "comandos" : {
+                    "BattlestarGalactica" : "Battlestar Galactica"
+                },
+                "restriccion" : "admin",
+        },
 }
 
 
@@ -268,6 +274,15 @@ MODULOS_DISPONIBES = {
                         },
                         "min_jugadores" : 4,
                         "max_jugadores" : 8
+                }
+        },
+	"BattlestarGalactica" : {
+                "Base" : {
+                        "comandos" : {
+                            "Base" : "Juego Base"
+                        },
+                        "min_jugadores" : 3,
+                        "max_jugadores" : 6
                 }
         },
 }

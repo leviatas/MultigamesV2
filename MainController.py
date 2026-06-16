@@ -34,6 +34,7 @@ import Unanimo.Controller as UnanimoController
 import SecretoCodigo.Controller as SecretoCodigoController
 import SpyFall.Controller as SpyFallController
 import Insider.Controller as InsiderController
+import BattlestarGalactica.Controller as BSGController
 
 # Importo los comandos de los juegos que vaya agregando
 import JustOne.Commands as JustoneCommands
@@ -48,6 +49,7 @@ import Unanimo.Commands as UnanimoCommands
 import SecretoCodigo.Commands as SecretoCodigoCommands
 import SpyFall.Commands as SpyFallCommands
 import Insider.Commands as InsiderCommands
+import BattlestarGalactica.Commands as BSGCommands
 
 from Constants.Cards import playerSets, actions
 from Constants.Config import TOKEN, STATS, ADMIN
@@ -137,6 +139,9 @@ async def init_game(bot, game):
 	elif game.tipo == "Insider":
 		game.create_board()
 		await InsiderController.init_game(bot, game)
+	elif game.tipo == "BattlestarGalactica":
+		game.create_board()
+		await BSGController.init_game(bot, game)
 
 
 async def init_lost_expedition(bot, game, player_number):
@@ -813,6 +818,18 @@ def main(stop_event):
 	app.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)\*insiderVotar\*(-?[0-9]*)\*([0-9]*)", callback=InsiderCommands.callback_insider_votar))
 	app.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)\*insiderDesempate\*(-?[0-9]*)\*(-?[0-9]*)", callback=InsiderCommands.callback_insider_desempate))
 	app.add_handler(CallbackQueryHandler(pattern=r"(-[0-9]*)\*chooseendInsider\*(.*)\*([0-9]*)", callback=InsiderController.callback_finish_game_buttons_insider))
+
+	# Handlers de Battlestar Galactica
+	app.add_handler(CommandHandler("lealtad", BSGCommands.command_lealtad))
+	app.add_handler(CommandHandler("mano", BSGCommands.command_mano))
+	app.add_handler(CommandHandler("estado", BSGCommands.command_estado))
+	app.add_handler(CommandHandler("accion", BSGCommands.command_accion))
+	app.add_handler(CommandHandler("crisis", BSGCommands.command_crisis))
+	app.add_handler(CommandHandler("aportar", BSGCommands.command_aportar))
+	app.add_handler(CommandHandler("resolver", BSGCommands.command_resolver))
+	app.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)\*bsgPick\*([a-z_]*)\*(-?[0-9]*)", callback=BSGCommands.callback_bsg_pick))
+	app.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)\*bsgAccion\*([a-z]*)\*(-?[0-9]*)", callback=BSGCommands.callback_bsg_accion))
+	app.add_handler(CallbackQueryHandler(pattern=r"(-[0-9]*)\*chooseendBSG\*(.*)\*([0-9]*)", callback=BSGController.callback_finish_game_buttons_bsg))
 
 	app.add_handler(CommandHandler("status", command_status))
 

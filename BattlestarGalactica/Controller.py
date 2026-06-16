@@ -1,0 +1,583 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+"""
+Battlestar Galactica — Controller (Capa 1: fundamentos + bucle central).
+
+Implementado en esta capa:
+- Setup completo: selección de personajes, reparto de lealtad, títulos
+  (Presidente/Almirante), recursos y pistas iniciales, manos de habilidad.
+- Bucle de turno: Recibir Habilidades → (Acción simplificada) → Crisis.
+- Chequeos de habilidad con mazo de Destino.
+- Fase del Agente Durmiente (distancia 4).
+- Salto FTL, condiciones de victoria/derrota.
+
+Pendiente para capas siguientes (claramente acotado):
+- Combate espacial detallado (vipers/raiders/basestars), abordaje.
+- Acciones de ubicación completas, Quórum, súper crisis.
+- Habilidades específicas de cada personaje y cartas de habilidad con efecto.
+- Roster completo de cartas de crisis.
+"""
+
+import logging as log
+import random
+import re
+
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
+from telegram.constants import ParseMode
+from telegram.ext import CallbackContext
+
+from Utils import get_game, save, simple_choose_buttons, player_call
+from Constants.Config import ADMIN
+from BattlestarGalactica.Boardgamebox.Game import Game
+from BattlestarGalactica.Constants import Characters, Locations, Skills, Crisis, Loyalty
+
+import GamesController
+
+log.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=log.INFO)
+logger = log.getLogger(__name__)
+
+
+# ===================== SETUP =====================
+
+async def init_game(bot, game):
+    try:
+        log.info("BSG init_game called")
+        game.shuffle_player_sequence()
+        st = game.board.state
+
+        # Construir mazos
+        st.skill_decks = Skills.construir_todos_los_mazos()
+        for color in st.skill_decks:
+            random.shuffle(st.skill_decks[color])
+        st.skill_discards = {color: [] for color in Skills.COLORES}
+
+        # Mazo de Destino: 2 cartas de cada color, barajadas
+        st.destiny_deck = []
+        for color in Skills.COLORES:
+            for _ in range(2):
+                if st.skill_decks[color]:
+                    st.destiny_deck.append(st.skill_decks[color].pop())
+        random.shuffle(st.destiny_deck)
+
+        # Mazo de crisis
+        st.crisis_deck = [dict(c) for c in Crisis.CRISIS_DECK]
+        random.shuffle(st.crisis_deck)
+        st.crisis_discard = []
+
+        # Orden de selección de personajes = orden de jugadores
+        st.orden_seleccion = [p.uid for p in game.player_sequence]
+        st.indice_seleccion = 0
+        st.fase_actual = "Seleccion de Personajes"
+
+        await bot.send_message(
+            game.cid,
+            "🚀 *¡Comienza Battlestar Galactica!*\n\n"
+            "Primero cada jugador elige su personaje, en orden. "
+            "Luego se repartirán las cartas de lealtad en privado (¿quién es Cylon?).",
+            parse_mode=ParseMode.MARKDOWN,
+        )
+        await pedir_seleccion_personaje(bot, game)
+        await save(bot, game.cid)
+    except Exception as e:
+        logger.error(f"BSG init_game error: {e}")
+        await bot.send_message(ADMIN[0], f"BSG init_game error: {e}")
+        raise
+
+
+async def pedir_seleccion_personaje(bot, game):
+    st = game.board.state
+    if st.indice_seleccion >= len(st.orden_seleccion):
+        await finalizar_setup(bot, game)
+        return
+
+    uid = st.orden_seleccion[st.indice_seleccion]
+    player = game.playerlist[uid]
+    elegidos = set(st.personajes_elegidos.values())
+
+    btns = []
+    for tipo in Characters.TIPOS:
+        emoji = Characters.EMOJI_TIPO[tipo]
+        for key, pj in Characters.personajes_por_tipo(tipo).items():
+            if key in elegidos:
+                continue
+            btns.append([InlineKeyboardButton(
+                f"{emoji} {pj['nombre']} ({tipo})",
+                callback_data=f"{game.cid}*bsgPick*{key}*{uid}"
+            )])
+
+    await bot.send_message(
+        game.cid,
+        f"🎭 {player_call(player)}, elige tu personaje:",
+        reply_markup=InlineKeyboardMarkup(btns),
+        parse_mode=ParseMode.MARKDOWN,
+    )
+
+
+async def asignar_personaje(bot, game, uid, key):
+    st = game.board.state
+    pj = Characters.PERSONAJES[key]
+    player = game.playerlist[uid]
+    player.personaje = key
+    player.tipo = pj["tipo"]
+    player.ubicacion = pj["ubicacion"]
+    st.personajes_elegidos[uid] = key
+
+    await bot.send_message(
+        uid,
+        f"{Characters.EMOJI_TIPO[pj['tipo']]} Eres *{pj['nombre']}* ({pj['tipo']}).\n\n"
+        f"*Habilidad:* {pj['habilidad']}\n"
+        f"*Desventaja:* {pj['desventaja']}\n"
+        f"📍 Ubicación inicial: {Locations.UBICACIONES[pj['ubicacion']]['nombre']}",
+        parse_mode=ParseMode.MARKDOWN,
+    )
+    st.indice_seleccion += 1
+    await pedir_seleccion_personaje(bot, game)
+
+
+async def finalizar_setup(bot, game):
+    st = game.board.state
+    st.fase_actual = "Repartiendo Lealtad"
+
+    # --- Construir y repartir mazo de lealtad ---
+    num = len(game.playerlist)
+    num_bb = sum(1 for p in game.playerlist.values()
+                 if p.personaje in ("baltar", "boomer"))
+    st.loyalty_deck = Loyalty.construir_mazo_lealtad(num, num_bb)
+    random.shuffle(st.loyalty_deck)
+
+    for uid, player in game.playerlist.items():
+        pj = Characters.PERSONAJES[player.personaje]
+        cantidad = 1 + pj.get("loyalty_extra", 0)
+        for _ in range(cantidad):
+            if st.loyalty_deck:
+                player.loyalty_cards.append(st.loyalty_deck.pop())
+        player.is_cylon = Loyalty.CYLON in player.loyalty_cards
+        await _dm_lealtad(bot, player)
+
+    # --- Títulos ---
+    _asignar_titulos(game)
+    pres = game.playerlist.get(st.presidente_uid)
+    alm = game.playerlist.get(st.almirante_uid)
+
+    # --- Manos de habilidad iniciales ---
+    for player in game.playerlist.values():
+        _robar_skills(st, player)
+        await _dm_mano(bot, player)
+
+    st.fase_actual = "En Juego"
+    st.player_counter = 0
+    st.active_player = game.player_sequence[0]
+
+    await bot.send_message(
+        game.cid,
+        "🃏 *Cartas de lealtad repartidas* (revisen su privado).\n\n"
+        f"🏛️ Presidente: *{pres.name if pres else '—'}*\n"
+        f"🎖️ Almirante: *{alm.name if alm else '—'}*\n\n"
+        "La flota parte. ¡Sobrevivan hasta la distancia 8!",
+        parse_mode=ParseMode.MARKDOWN,
+    )
+    await bot.send_message(game.cid, game.board.print_board(game), parse_mode=ParseMode.MARKDOWN)
+    await save(bot, game.cid)
+    await iniciar_turno(bot, game)
+
+
+def _asignar_titulos(game):
+    st = game.board.state
+    uids = [p.uid for p in game.player_sequence]
+
+    # Presidente: Roslin si está; si no, un Político; si no, el primero.
+    pres = next((u for u in uids if game.playerlist[u].personaje == "roslin"), None)
+    if pres is None:
+        pres = next((u for u in uids if game.playerlist[u].tipo == "Politico"), uids[0])
+    # Almirante: Adama si está; si no, un Militar; si no, otro distinto al pres.
+    alm = next((u for u in uids if game.playerlist[u].personaje == "adama"), None)
+    if alm is None:
+        alm = next((u for u in uids if game.playerlist[u].tipo == "Militar" and u != pres), None)
+    if alm is None:
+        alm = next((u for u in uids if u != pres), uids[0])
+
+    st.presidente_uid = pres
+    st.almirante_uid = alm
+    game.playerlist[pres].titulos.append("Presidente")
+    game.playerlist[alm].titulos.append("Almirante")
+
+
+def _robar_skills(st, player):
+    pj = Characters.PERSONAJES[player.personaje]
+    for color in pj["skill_set"]:
+        carta = _robar_carta_color(st, color)
+        if carta:
+            player.skill_hand.append(carta)
+
+
+def _robar_carta_color(st, color):
+    if not st.skill_decks.get(color):
+        # Rebarajar descartes de ese color
+        if st.skill_discards.get(color):
+            st.skill_decks[color] = st.skill_discards[color]
+            st.skill_discards[color] = []
+            random.shuffle(st.skill_decks[color])
+    if st.skill_decks.get(color):
+        return st.skill_decks[color].pop()
+    return None
+
+
+async def _dm_lealtad(bot, player):
+    cartas = player.loyalty_cards
+    es_cylon = Loyalty.CYLON in cartas
+    es_simp = Loyalty.SIMPATIZANTE in cartas
+    if es_cylon:
+        txt = ("🤖 *ERES UN CYLON.*\nSabotea a la flota sin que te descubran. "
+               "Podrás revelarte más adelante para causar más daño.")
+    elif es_simp:
+        txt = ("🕵️ Tienes la carta de *Simpatizante*. Su efecto se resolverá en la "
+               "Fase del Agente Durmiente.")
+    else:
+        txt = "🧑 *No eres un Cylon* (por ahora). Ayuda a la flota a sobrevivir."
+    await bot.send_message(player.uid, txt, parse_mode=ParseMode.MARKDOWN)
+
+
+async def _dm_mano(bot, player):
+    if not player.skill_hand:
+        return
+    lineas = [f"{i+1}. {Skills.EMOJI_COLOR[c['color']]} {c['color']} {c['valor']}"
+              for i, c in enumerate(player.skill_hand)]
+    await bot.send_message(
+        player.uid,
+        "🃏 *Tu mano de habilidad:*\n" + "\n".join(lineas),
+        parse_mode=ParseMode.MARKDOWN,
+    )
+
+
+# ===================== BUCLE DE TURNO =====================
+
+async def iniciar_turno(bot, game):
+    st = game.board.state
+    if st.ganador:
+        return
+    player = st.active_player
+
+    # Recibir habilidades
+    _robar_skills(st, player)
+    await _dm_mano(bot, player)
+
+    await bot.send_message(
+        game.cid,
+        f"🎬 *Turno de {player.name}* (recibió cartas de habilidad).\n"
+        f"Usa `/accion` para tu acción y luego se revelará una *Crisis*, "
+        f"o `/crisis` para ir directo a la crisis.",
+        parse_mode=ParseMode.MARKDOWN,
+    )
+    await save(bot, game.cid)
+
+
+async def avanzar_turno(bot, game):
+    st = game.board.state
+    if st.ganador:
+        return
+    seq = game.player_sequence
+    st.player_counter = (st.player_counter + 1) % len(seq)
+    st.active_player = seq[st.player_counter]
+    await iniciar_turno(bot, game)
+
+
+# ===================== CRISIS =====================
+
+async def robar_crisis(bot, game):
+    st = game.board.state
+    if not st.crisis_deck:
+        st.crisis_deck = st.crisis_discard
+        st.crisis_discard = []
+        random.shuffle(st.crisis_deck)
+    if not st.crisis_deck:
+        await bot.send_message(game.cid, "No quedan cartas de crisis.")
+        return
+    crisis = st.crisis_deck.pop()
+    st.crisis_actual = crisis
+
+    await bot.send_message(
+        game.cid,
+        f"⚠️ *CRISIS: {crisis['titulo']}*\n_{crisis['texto']}_",
+        parse_mode=ParseMode.MARKDOWN,
+    )
+
+    if crisis["tipo"] == "chequeo":
+        await abrir_chequeo(bot, game, crisis)
+    else:
+        await aplicar_efectos(bot, game, crisis.get("efectos", []))
+        await cerrar_crisis(bot, game, crisis)
+
+
+async def abrir_chequeo(bot, game, crisis):
+    st = game.board.state
+    colores = crisis["colores"]
+    emojis = " ".join(Skills.EMOJI_COLOR[c] for c in colores)
+    st.skill_check = {
+        "crisis_id": crisis["id"],
+        "colores": colores,
+        "dificultad": crisis["dificultad"],
+        "aportes": {},   # uid -> lista de cartas
+    }
+    await bot.send_message(
+        game.cid,
+        f"🎲 *Chequeo de habilidad* — dificultad *{crisis['dificultad']}*.\n"
+        f"Colores positivos: {emojis} ({', '.join(colores)}).\n\n"
+        f"Cada jugador puede aportar cartas en privado con `/aportar N` (número de carta de su mano). "
+        f"Cuando todos hayan aportado, el Almirante o el jugador activo usa `/resolver`.",
+        parse_mode=ParseMode.MARKDOWN,
+    )
+    await save(bot, game.cid)
+
+
+async def aportar_carta(bot, game, uid, indice):
+    st = game.board.state
+    if not st.skill_check:
+        await bot.send_message(uid, "No hay ningún chequeo de habilidad abierto.")
+        return
+    player = game.playerlist.get(uid)
+    if not player or indice < 1 or indice > len(player.skill_hand):
+        await bot.send_message(uid, "Número de carta inválido.")
+        return
+    carta = player.skill_hand.pop(indice - 1)
+    st.skill_check["aportes"].setdefault(uid, []).append(carta)
+    await bot.send_message(
+        uid,
+        f"Aportaste {Skills.EMOJI_COLOR[carta['color']]} {carta['color']} {carta['valor']} "
+        f"(boca abajo).",
+        parse_mode=ParseMode.MARKDOWN,
+    )
+    await _dm_mano(bot, player)
+    await save(bot, game.cid)
+
+
+async def resolver_chequeo(bot, game):
+    st = game.board.state
+    sc = st.skill_check
+    if not sc:
+        await bot.send_message(game.cid, "No hay chequeo abierto.")
+        return
+
+    colores = sc["colores"]
+    total = 0
+    detalle = []
+    # Aportes de jugadores
+    todas = []
+    for uid, cartas in sc["aportes"].items():
+        for c in cartas:
+            todas.append(c)
+    # 2 cartas de destino
+    destino = _robar_destino(st, 2)
+    for c in destino:
+        todas.append(c)
+
+    random.shuffle(todas)  # ocultar quién aportó qué
+    for c in todas:
+        signo = Skills.signo_para_check(c["color"], colores)
+        total += signo * c["valor"]
+        detalle.append(f"{Skills.EMOJI_COLOR[c['color']]}{'+' if signo>0 else '-'}{c['valor']}")
+        st.skill_discards.setdefault(c["color"], []).append(c)
+
+    crisis = st.crisis_actual
+    exito = total >= sc["dificultad"]
+    await bot.send_message(
+        game.cid,
+        f"🎲 Resultado del chequeo: *{total}* vs dificultad *{sc['dificultad']}* → "
+        f"{'✅ ÉXITO' if exito else '❌ FRACASO'}\n"
+        f"Cartas: {' '.join(detalle) if detalle else '(ninguna)'}",
+        parse_mode=ParseMode.MARKDOWN,
+    )
+    st.skill_check = None
+    efectos = crisis["exito"] if exito else crisis["fracaso"]
+    await aplicar_efectos(bot, game, efectos)
+    await cerrar_crisis(bot, game, crisis)
+
+
+def _robar_destino(st, n):
+    cartas = []
+    for _ in range(n):
+        if not st.destiny_deck:
+            # Reconstruir destino con 2 de cada color de los descartes/mazos
+            for color in Skills.COLORES:
+                for _ in range(2):
+                    c = _robar_carta_color(st, color)
+                    if c:
+                        st.destiny_deck.append(c)
+            random.shuffle(st.destiny_deck)
+        if st.destiny_deck:
+            cartas.append(st.destiny_deck.pop())
+    return cartas
+
+
+async def cerrar_crisis(bot, game, crisis):
+    st = game.board.state
+    st.crisis_discard.append(crisis)
+    st.crisis_actual = None
+
+    # Avance de preparación de salto por iconos de la crisis
+    jump_icons = crisis.get("jump", 0)
+    if jump_icons:
+        st.jump_prep = min(st.jump_prep_max, st.jump_prep + jump_icons)
+        await bot.send_message(
+            game.cid,
+            f"⏫ Preparación de salto: {st.jump_prep}/{st.jump_prep_max}",
+            parse_mode=ParseMode.MARKDOWN,
+        )
+
+    # Autojump si el track está lleno
+    if st.jump_prep >= st.jump_prep_max:
+        await ejecutar_salto(bot, game, auto=True)
+
+    if await _chequear_fin(bot, game):
+        return
+
+    await bot.send_message(game.cid, game.board.print_board(game), parse_mode=ParseMode.MARKDOWN)
+    await avanzar_turno(bot, game)
+
+
+# ===================== EFECTOS / RECURSOS =====================
+
+async def aplicar_efectos(bot, game, efectos):
+    st = game.board.state
+    for ef in efectos or []:
+        tipo = ef.get("tipo")
+        if tipo == "recurso":
+            await modificar_recurso(bot, game, ef["recurso"], ef["delta"])
+        elif tipo == "raiders":
+            st.raiders += ef["cantidad"]
+            await bot.send_message(game.cid, f"👾 Aparecen {ef['cantidad']} Raiders (total: {st.raiders}).")
+        elif tipo == "mensaje":
+            await bot.send_message(game.cid, ef["texto"])
+
+
+async def modificar_recurso(bot, game, recurso, delta):
+    st = game.board.state
+    actual = getattr(st, recurso)
+    nuevo = max(0, actual + delta)
+    setattr(st, recurso, nuevo)
+    emoji = {"comida": "🍞", "combustible": "⛽", "moral": "🙂", "poblacion": "👥"}.get(recurso, "")
+    signo = "+" if delta >= 0 else ""
+    await bot.send_message(
+        game.cid,
+        f"{emoji} {recurso.capitalize()}: {actual} → {nuevo} ({signo}{delta})",
+    )
+
+
+# ===================== SALTO / SLEEPER =====================
+
+async def ejecutar_salto(bot, game, auto=False):
+    st = game.board.state
+    st.jump_prep = 0
+    st.distancia = min(st.objetivo_distancia, st.distancia + 1)
+    await bot.send_message(
+        game.cid,
+        f"🌌 *¡SALTO FTL!* La flota avanza. Distancia: *{st.distancia}/{st.objetivo_distancia}*.",
+        parse_mode=ParseMode.MARKDOWN,
+    )
+    # Fase del Agente Durmiente
+    if not st.sleeper_hecho and st.distancia >= Loyalty.DISTANCIA_SLEEPER:
+        await fase_durmiente(bot, game)
+
+
+async def fase_durmiente(bot, game):
+    st = game.board.state
+    st.sleeper_hecho = True
+    await bot.send_message(
+        game.cid,
+        "😴 *Fase del Agente Durmiente* — se reparte una nueva carta de lealtad a cada jugador.",
+        parse_mode=ParseMode.MARKDOWN,
+    )
+    for uid, player in game.playerlist.items():
+        if st.loyalty_deck:
+            carta = st.loyalty_deck.pop()
+            player.loyalty_cards.append(carta)
+            if carta == Loyalty.CYLON and not player.is_cylon:
+                player.is_cylon = True
+            await _dm_lealtad(bot, player)
+
+
+# ===================== FIN DE PARTIDA =====================
+
+async def _chequear_fin(bot, game):
+    st = game.board.state
+    # Derrota: algún recurso en 0
+    for recurso, nombre in [("comida", "Comida"), ("combustible", "Combustible"),
+                            ("moral", "Moral"), ("poblacion", "Población")]:
+        if getattr(st, recurso) <= 0:
+            await terminar(bot, game, "Cylons", f"El recurso *{nombre}* llegó a 0.")
+            return True
+    # Victoria humana
+    if st.distancia >= st.objetivo_distancia:
+        await terminar(bot, game, "Humanos", "La flota alcanzó la distancia objetivo. ¡Llegaron a Kobol!")
+        return True
+    return False
+
+
+async def terminar(bot, game, ganador, razon):
+    st = game.board.state
+    st.ganador = ganador
+    st.razon_fin = razon
+    st.fase_actual = "Finalizado"
+    await save(bot, game.cid)
+
+    # Revelar Cylons
+    cylons = [p.name for p in game.playerlist.values() if p.is_cylon]
+    cylon_txt = ", ".join(cylons) if cylons else "ninguno"
+    emoji = "🧑‍🚀" if ganador == "Humanos" else "🤖"
+    await bot.send_message(
+        game.cid,
+        f"{emoji} *¡Ganan los {ganador}!*\n\n{razon}\n\n"
+        f"🤖 Cylons en la partida: *{cylon_txt}*",
+        parse_mode=ParseMode.MARKDOWN,
+    )
+    await continue_playing(bot, game)
+
+
+async def continue_playing(bot, game):
+    opciones_botones = {
+        "Nuevo": "Nuevo partido con nuevos jugadores",
+        "Mismos": "Misma partida, mismos jugadores",
+    }
+    await simple_choose_buttons(
+        bot, game.cid, 1, game.cid,
+        "chooseendBSG",
+        "¿Quieres continuar jugando?",
+        opciones_botones,
+    )
+
+
+async def callback_finish_game_buttons_bsg(update: Update, context: CallbackContext):
+    bot = context.bot
+    callback = update.callback_query
+    try:
+        regex = re.search(r"(-[0-9]*)\*chooseendBSG\*(.*)\*([0-9]*)", callback.data)
+        cid, opcion, uid = int(regex.group(1)), regex.group(2), int(regex.group(3))
+        try:
+            await bot.edit_message_text(f"Has elegido: {opcion}", cid, callback.message.message_id)
+        except Exception:
+            await bot.edit_message_text(f"Has elegido: {opcion}", uid, callback.message.message_id)
+
+        game = get_game(cid)
+        groupName, tipo, modo = game.groupName, game.tipo, game.modo
+        players = game.playerlist.copy()
+
+        new_game = Game(cid, uid, groupName, tipo, modo)
+        GamesController.games[cid] = new_game
+
+        if opcion == "Nuevo":
+            await bot.send_message(
+                cid,
+                "Cada jugador puede unirse con /join. El iniciador puede escribir /startgame cuando todos estén listos.",
+            )
+            return
+
+        # Reiniciar con los mismos jugadores
+        new_game.playerlist = {}
+        for p_uid, old in players.items():
+            new_game.add_player(p_uid, old.name)
+        new_game.board = None
+        new_game.create_board()
+        new_game.player_sequence = []
+        await init_game(bot, new_game)
+    except Exception as e:
+        await bot.send_message(ADMIN[0], f'callback_finish_game_buttons_bsg error: {e}')
+        await bot.send_message(ADMIN[0], callback.data)
