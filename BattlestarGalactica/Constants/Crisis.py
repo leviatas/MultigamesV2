@@ -167,3 +167,41 @@ CRISIS_DECK = [
         "activar_cylons": True,
     },
 ]
+
+
+# Mazo de SÚPER CRISIS: efectos potentes que dispara un Cylon al revelarse.
+# (Set inicial; el juego base tiene varias más.)  # VERIFICAR / COMPLETAR
+SUPER_CRISIS_DECK = [
+    {
+        "id": "asalto_masivo",
+        "titulo": "Asalto Masivo",
+        "texto": "Una oleada de Raiders cae sobre la flota.",
+        "efectos": [{"tipo": "raiders", "cantidad": 3},
+                    {"tipo": "mensaje", "texto": "¡La flota es asediada!"}],
+    },
+    {
+        "id": "sabotaje_combustible",
+        "titulo": "Sabotaje de Combustible",
+        "texto": "Los tanques de tylium son saboteados.",
+        "efectos": [{"tipo": "recurso", "recurso": "combustible", "delta": -2}],
+    },
+    {
+        "id": "terror_flota",
+        "titulo": "Terror en la Flota",
+        "texto": "El pánico cunde entre los civiles.",
+        "efectos": [{"tipo": "recurso", "recurso": "moral", "delta": -2}],
+    },
+    {
+        "id": "abordaje_total",
+        "titulo": "Abordaje Total",
+        "texto": "Centuriones inundan los pasillos de Galactica.",
+        "efectos": [{"tipo": "centuriones", "delta": 2}],
+    },
+    {
+        "id": "refuerzos_cylon",
+        "titulo": "Refuerzos Cylon",
+        "texto": "Una Basestar llega con refuerzos.",
+        "efectos": [{"tipo": "basestar", "cantidad": 1},
+                    {"tipo": "raiders", "cantidad": 2}],
+    },
+]
