@@ -64,6 +64,10 @@ async def init_game(bot, game):
         random.shuffle(st.crisis_deck)
         st.crisis_discard = []
 
+        # Mazo de súper crisis (para Cylons revelados)
+        st.super_crisis_deck = [dict(c) for c in Crisis.SUPER_CRISIS_DECK]
+        random.shuffle(st.super_crisis_deck)
+
         # Orden de selección de personajes = orden de jugadores
         st.orden_seleccion = [p.uid for p in game.player_sequence]
         st.indice_seleccion = 0
@@ -555,6 +559,95 @@ async def _destruir_civil(bot, game):
         await bot.send_message(game.cid, "🛰️💀 Nave civil destruida (estaba vacía).")
 
 
+# ===================== SABOTAJE CYLON =====================
+
+# Acciones disponibles para un Cylon revelado, según su ubicación Cylon.
+ACCIONES_CYLON = {
+    "cylon_fleet": ["launch_raiders", "launch_basestar"],
+    "caprica": ["sabotage", "board"],
+    "resurrection_ship": ["launch_raiders", "sabotage"],
+    "human_fleet": ["sabotage", "board"],
+}
+
+ETIQUETA_ACCION_CYLON = {
+    "launch_raiders": "👾 Lanzar 2 Raiders",
+    "launch_basestar": "🛸 Traer una Basestar",
+    "sabotage": "🔧💥 Sabotear un recurso (-1)",
+    "board": "🔺 Avanzar abordaje (+1)",
+}
+
+
+async def revelar_cylon(bot, game, uid):
+    """Un jugador con carta de Cylon se revela y desata su poder."""
+    st = game.board.state
+    player = game.playerlist[uid]
+    if not player.is_cylon:
+        await bot.send_message(uid, "No eres un Cylon. No puedes revelarte.")
+        return
+    if player.revealed:
+        await bot.send_message(uid, "Ya estás revelado.")
+        return
+
+    player.revealed = True
+    player.en_calabozo = False
+    if uid not in st.cylons_revelados:
+        st.cylons_revelados.append(uid)
+    # Pierde sus títulos humanos
+    if uid == st.presidente_uid:
+        st.presidente_uid = None
+        player.titulos = [t for t in player.titulos if t != "Presidente"]
+    if uid == st.almirante_uid:
+        st.almirante_uid = None
+        player.titulos = [t for t in player.titulos if t != "Almirante"]
+    # Se traslada al lado Cylon
+    player.ubicacion = "cylon_fleet"
+    player.skill_hand = []
+
+    await bot.send_message(
+        game.cid,
+        f"🤖 *¡{player.name} se revela como CYLON!* Se traslada a la Flota Cylon.",
+        parse_mode=ParseMode.MARKDOWN,
+    )
+
+    # Desata una súper crisis
+    if st.super_crisis_deck:
+        sc = st.super_crisis_deck.pop()
+        await bot.send_message(
+            game.cid,
+            f"☠️ *SÚPER CRISIS: {sc['titulo']}*\n_{sc['texto']}_",
+            parse_mode=ParseMode.MARKDOWN,
+        )
+        await aplicar_efectos(bot, game, sc.get("efectos", []))
+
+    await save(bot, game.cid)
+    if await _chequear_fin(bot, game):
+        return
+
+
+async def ejecutar_accion_cylon(bot, game, uid, accion):
+    """Acción de un Cylon revelado en su turno."""
+    st = game.board.state
+    if accion == "launch_raiders":
+        st.raiders += 2
+        await bot.send_message(game.cid, f"👾 El Cylon lanza 2 Raiders (total: {st.raiders}).")
+    elif accion == "launch_basestar":
+        st.basestars += 1
+        await bot.send_message(game.cid, f"🛸 El Cylon trae una Basestar (total: {st.basestars}).")
+    elif accion == "sabotage":
+        # Sabotea el recurso no nulo más bajo (más dañino)
+        recursos = {"comida": st.comida, "combustible": st.combustible,
+                    "moral": st.moral, "poblacion": st.poblacion}
+        candidatos = {k: v for k, v in recursos.items() if v > 0}
+        objetivo = min(candidatos, key=candidatos.get) if candidatos else "moral"
+        await modificar_recurso(bot, game, objetivo, -1)
+    elif accion == "board":
+        st.centuriones = min(st.centuriones_max, st.centuriones + 1)
+        await bot.send_message(game.cid, f"🔺 Abordaje Cylon: {st.centuriones}/{st.centuriones_max}")
+    else:
+        await bot.send_message(game.cid, "Acción Cylon no disponible.")
+    await save(bot, game.cid)
+
+
 # ===================== CRISIS =====================
 
 async def robar_crisis(bot, game):
@@ -725,6 +818,9 @@ async def aplicar_efectos(bot, game, efectos):
         elif tipo == "raiders":
             st.raiders += ef["cantidad"]
             await bot.send_message(game.cid, f"👾 Aparecen {ef['cantidad']} Raiders (total: {st.raiders}).")
+        elif tipo == "basestar":
+            st.basestars += ef["cantidad"]
+            await bot.send_message(game.cid, f"🛸 Aparece(n) {ef['cantidad']} Basestar(s) (total: {st.basestars}).")
         elif tipo == "centuriones":
             st.centuriones = max(0, st.centuriones + ef["delta"])
             await bot.send_message(game.cid, f"🔺 Centuriones: {st.centuriones}/{st.centuriones_max}")

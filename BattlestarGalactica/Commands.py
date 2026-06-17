@@ -32,7 +32,8 @@ async def command_call(bot, game):
         await bot.send_message(
             game.cid,
             f"🚀 *BSG en curso* — turno de *{st.active_player.name}*.\n"
-            "Acción: `/accion` · Crisis: `/crisis` · Tablero: `/estado`",
+            "Mover: `/mover` · Acción: `/accion` · Crisis: `/crisis` · Tablero: `/estado`\n"
+            "Cylons ocultos: `/revelar` para revelarte. Presidente/Almirante: `/encarcelar` · `/liberar`",
             parse_mode=ParseMode.MARKDOWN,
         )
 
@@ -160,8 +161,23 @@ async def command_accion(update: Update, context: CallbackContext):
         await bot.send_message(cid, "Estás en el calabozo y no puedes realizar acciones.")
         return
 
-    acciones = BSGController.ACCIONES_UBICACION.get(player.ubicacion, [])
     ubic = Locations.UBICACIONES.get(player.ubicacion, {}).get("nombre", "—")
+
+    # Cylon revelado: acciones de sabotaje según su ubicación Cylon
+    if player.revealed:
+        acciones = BSGController.ACCIONES_CYLON.get(player.ubicacion, [])
+        if not acciones:
+            await bot.send_message(cid, f"📍 {ubic}: sin acción Cylon aquí. Usa `/mover` o `/crisis`.",
+                                   parse_mode=ParseMode.MARKDOWN)
+            return
+        btns = [[InlineKeyboardButton(BSGController.ETIQUETA_ACCION_CYLON[a],
+                                      callback_data=f"{cid}*bsgCylon*{a}*{uid}")]
+                for a in acciones]
+        await bot.send_message(cid, f"🤖 *{ubic}* — acción Cylon:",
+                               reply_markup=InlineKeyboardMarkup(btns), parse_mode=ParseMode.MARKDOWN)
+        return
+
+    acciones = BSGController.ACCIONES_UBICACION.get(player.ubicacion, [])
     if not acciones:
         await bot.send_message(cid, f"📍 {ubic}: no hay acción disponible aquí. Usa `/crisis`.",
                                parse_mode=ParseMode.MARKDOWN)
@@ -314,6 +330,9 @@ async def command_aportar(update: Update, context: CallbackContext):
     if not game.board.state.skill_check:
         await bot.send_message(uid, "No hay ningún chequeo de habilidad abierto.")
         return
+    if game.playerlist[uid].en_calabozo:
+        await bot.send_message(uid, "Estás en el calabozo y no puedes aportar cartas.")
+        return
     if not args or not args[0].isdigit():
         await bot.send_message(uid, "Uso: `/aportar N` (N = número de carta de tu mano).", parse_mode=ParseMode.MARKDOWN)
         return
@@ -339,3 +358,188 @@ async def command_resolver(update: Update, context: CallbackContext):
         await bot.send_message(cid, "Solo el Almirante, el jugador activo o un admin pueden resolver.")
         return
     await BSGController.resolver_chequeo(bot, game)
+
+
+async def callback_bsg_cylon(update: Update, context: CallbackContext):
+    """Acción de sabotaje de un Cylon revelado."""
+    bot = context.bot
+    callback = update.callback_query
+    presser = callback.from_user.id
+    try:
+        regex = re.search(r"(-?[0-9]*)\*bsgCylon\*([a-z0-9_]*)\*(-?[0-9]*)", callback.data)
+        cid = int(regex.group(1))
+        accion = regex.group(2)
+        target = int(regex.group(3))
+        game = get_game(cid)
+        if not _validar(game):
+            await callback.answer("Partida no encontrada.")
+            return
+        st = game.board.state
+        player = game.playerlist.get(presser)
+        if not player or not player.revealed or presser != target:
+            await callback.answer("No puedes hacer esto.")
+            return
+        if not st.active_player or st.active_player.uid != presser:
+            await callback.answer("No es tu turno.")
+            return
+        await callback.answer("Sabotaje ejecutado.")
+        try:
+            await bot.edit_message_text("Acción Cylon ejecutada.", cid, callback.message.message_id)
+        except Exception:
+            pass
+        await BSGController.ejecutar_accion_cylon(bot, game, presser, accion)
+        if not st.ganador:
+            await bot.send_message(cid, "Ahora se revela la *Crisis*. Usa `/crisis`.", parse_mode=ParseMode.MARKDOWN)
+    except Exception as e:
+        logger.error(f"callback_bsg_cylon error: {e}")
+        try:
+            await callback.answer("Error.")
+        except Exception:
+            pass
+        await bot.send_message(ADMIN[0], f"BSG cylon error: {e}")
+
+
+async def command_revelar(update: Update, context: CallbackContext):
+    """Un Cylon se revela (puede usarse desde el grupo o el privado)."""
+    bot = context.bot
+    cid = update.message.chat_id
+    uid = update.message.from_user.id
+    game = get_game(cid)
+    if not _validar(game):
+        # permitir desde privado: buscar su partida
+        for g in GamesController.games.values():
+            if getattr(g, "tipo", None) == "BattlestarGalactica" and uid in getattr(g, "playerlist", {}):
+                game = g
+                break
+    if not game or not game.board:
+        await bot.send_message(uid, "No estás en una partida activa de BSG.")
+        return
+    if uid not in game.playerlist:
+        await bot.send_message(uid, "No estás en esta partida.")
+        return
+    await BSGController.revelar_cylon(bot, game, uid)
+
+
+async def command_encarcelar(update: Update, context: CallbackContext):
+    """El Presidente o Almirante envía a un jugador (sospechoso) al calabozo."""
+    bot = context.bot
+    cid = update.message.chat_id
+    uid = update.message.from_user.id
+    game = get_game(cid)
+    if not _validar(game):
+        await bot.send_message(cid, "No hay partida de Battlestar Galactica activa aquí.")
+        return
+    st = game.board.state
+    if uid != st.presidente_uid and uid != st.almirante_uid and uid not in ADMIN:
+        await bot.send_message(cid, "Solo el Presidente o el Almirante pueden ordenar un arresto.")
+        return
+    btns = []
+    for p_uid, p in game.playerlist.items():
+        if p_uid == uid or p.en_calabozo or p.revealed:
+            continue
+        btns.append([InlineKeyboardButton(p.name, callback_data=f"{cid}*bsgBrig*{p_uid}*{uid}")])
+    if not btns:
+        await bot.send_message(cid, "No hay jugadores a los que arrestar.")
+        return
+    await bot.send_message(cid, "🚔 ¿A quién envías al calabozo?", reply_markup=InlineKeyboardMarkup(btns))
+
+
+async def callback_bsg_brig(update: Update, context: CallbackContext):
+    bot = context.bot
+    callback = update.callback_query
+    presser = callback.from_user.id
+    try:
+        regex = re.search(r"(-?[0-9]*)\*bsgBrig\*(-?[0-9]*)\*(-?[0-9]*)", callback.data)
+        cid = int(regex.group(1))
+        objetivo = int(regex.group(2))
+        ordenante = int(regex.group(3))
+        game = get_game(cid)
+        if not _validar(game):
+            await callback.answer("Partida no encontrada.")
+            return
+        st = game.board.state
+        if presser != ordenante or (presser != st.presidente_uid and presser != st.almirante_uid and presser not in ADMIN):
+            await callback.answer("No puedes ordenar esto.")
+            return
+        p = game.playerlist.get(objetivo)
+        if not p:
+            await callback.answer("Jugador no encontrado.")
+            return
+        p.en_calabozo = True
+        p.ubicacion = "brig"
+        await callback.answer("Arrestado.")
+        try:
+            await bot.edit_message_text(f"{p.name} fue enviado al calabozo.", cid, callback.message.message_id)
+        except Exception:
+            pass
+        await bot.send_message(cid, f"🚔 *{p.name}* está ahora en el calabozo.", parse_mode=ParseMode.MARKDOWN)
+        await save(bot, game.cid)
+    except Exception as e:
+        logger.error(f"callback_bsg_brig error: {e}")
+        try:
+            await callback.answer("Error.")
+        except Exception:
+            pass
+        await bot.send_message(ADMIN[0], f"BSG brig error: {e}")
+
+
+async def command_liberar(update: Update, context: CallbackContext):
+    """El Presidente o Almirante libera a un jugador del calabozo."""
+    bot = context.bot
+    cid = update.message.chat_id
+    uid = update.message.from_user.id
+    game = get_game(cid)
+    if not _validar(game):
+        await bot.send_message(cid, "No hay partida de Battlestar Galactica activa aquí.")
+        return
+    st = game.board.state
+    if uid != st.presidente_uid and uid != st.almirante_uid and uid not in ADMIN:
+        await bot.send_message(cid, "Solo el Presidente o el Almirante pueden liberar a alguien.")
+        return
+    btns = []
+    for p_uid, p in game.playerlist.items():
+        if p.en_calabozo:
+            btns.append([InlineKeyboardButton(p.name, callback_data=f"{cid}*bsgFree*{p_uid}*{uid}")])
+    if not btns:
+        await bot.send_message(cid, "No hay nadie en el calabozo.")
+        return
+    await bot.send_message(cid, "🔓 ¿A quién liberas?", reply_markup=InlineKeyboardMarkup(btns))
+
+
+async def callback_bsg_free(update: Update, context: CallbackContext):
+    bot = context.bot
+    callback = update.callback_query
+    presser = callback.from_user.id
+    try:
+        regex = re.search(r"(-?[0-9]*)\*bsgFree\*(-?[0-9]*)\*(-?[0-9]*)", callback.data)
+        cid = int(regex.group(1))
+        objetivo = int(regex.group(2))
+        ordenante = int(regex.group(3))
+        game = get_game(cid)
+        if not _validar(game):
+            await callback.answer("Partida no encontrada.")
+            return
+        st = game.board.state
+        if presser != ordenante or (presser != st.presidente_uid and presser != st.almirante_uid and presser not in ADMIN):
+            await callback.answer("No puedes ordenar esto.")
+            return
+        p = game.playerlist.get(objetivo)
+        if not p:
+            await callback.answer("Jugador no encontrado.")
+            return
+        p.en_calabozo = False
+        p.ubicacion = "sickbay"
+        await callback.answer("Liberado.")
+        try:
+            await bot.edit_message_text(f"{p.name} fue liberado del calabozo.", cid, callback.message.message_id)
+        except Exception:
+            pass
+        await bot.send_message(cid, f"🔓 *{p.name}* sale del calabozo (Enfermería).", parse_mode=ParseMode.MARKDOWN)
+        await save(bot, game.cid)
+    except Exception as e:
+        logger.error(f"callback_bsg_free error: {e}")
+        try:
+            await callback.answer("Error.")
+        except Exception:
+            pass
+        await bot.send_message(ADMIN[0], f"BSG free error: {e}")

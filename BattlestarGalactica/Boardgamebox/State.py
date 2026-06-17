@@ -38,6 +38,7 @@ class State(BaseState):
         self.crisis_deck = []
         self.crisis_discard = []
         self.crisis_actual = None         # dict de la crisis en curso
+        self.super_crisis_deck = []       # mazo de súper crisis (Cylons revelados)
 
         # --- Chequeo de habilidad en curso ---
         self.skill_check = None           # dict: {crisis, colores, dificultad, aportes:{uid:[cartas]}, ...}
