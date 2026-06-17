@@ -158,7 +158,8 @@ async def command_accion(update: Update, context: CallbackContext):
         return
 
     player = game.playerlist[uid]
-    if player.en_calabozo:
+    # En el calabozo solo se permite el intento de fuga (chequeo del Calabozo).
+    if player.en_calabozo and player.ubicacion != "brig":
         await bot.send_message(cid, "Estás en el calabozo y no puedes realizar acciones.")
         return
 
@@ -209,6 +210,24 @@ async def callback_bsg_accion(update: Update, context: CallbackContext):
             await callback.answer("No es tu acción.")
             return
 
+        # Acciones que requieren elegir un personaje objetivo → mostrar botonera
+        if accion in BSGController.ACCIONES_CON_OBJETIVO:
+            await callback.answer()
+            btns = []
+            for p_uid, p in game.playerlist.items():
+                if accion == "brig_check" and (p.en_calabozo or p.revealed):
+                    continue
+                btns.append([InlineKeyboardButton(p.name, callback_data=f"{cid}*bsgTarget*{accion}*{p_uid}")])
+            if not btns:
+                await bot.send_message(cid, "No hay objetivos válidos.")
+                return
+            try:
+                await bot.edit_message_text("Elige el objetivo:", cid, callback.message.message_id,
+                                            reply_markup=InlineKeyboardMarkup(btns))
+            except Exception:
+                await bot.send_message(cid, "Elige el objetivo:", reply_markup=InlineKeyboardMarkup(btns))
+            return
+
         await callback.answer("Acción realizada.")
         try:
             await bot.edit_message_text("Acción elegida.", cid, callback.message.message_id)
@@ -219,7 +238,7 @@ async def callback_bsg_accion(update: Update, context: CallbackContext):
             await BSGController.ejecutar_accion_ubicacion(bot, game, presser, accion)
         else:
             await bot.send_message(cid, f"{game.playerlist[presser].name} pasa su acción.")
-        if not st.ganador:
+        if not st.ganador and not st.skill_check:
             await bot.send_message(cid, "Ahora se revela la *Crisis*. Usa `/crisis`.", parse_mode=ParseMode.MARKDOWN)
     except Exception as e:
         logger.error(f"callback_bsg_accion error: {e}")
@@ -228,6 +247,42 @@ async def callback_bsg_accion(update: Update, context: CallbackContext):
         except Exception:
             pass
         await bot.send_message(ADMIN[0], f"BSG accion error: {e}")
+
+
+async def callback_bsg_target(update: Update, context: CallbackContext):
+    """Selección de objetivo para una acción de ubicación con chequeo."""
+    bot = context.bot
+    callback = update.callback_query
+    presser = callback.from_user.id
+    try:
+        regex = re.search(r"(-?[0-9]*)\*bsgTarget\*([a-z0-9_]*)\*(-?[0-9]*)", callback.data)
+        cid = int(regex.group(1))
+        accion = regex.group(2)
+        objetivo = int(regex.group(3))
+        game = get_game(cid)
+        if not _validar(game):
+            await callback.answer("Partida no encontrada.")
+            return
+        st = game.board.state
+        if not st.active_player or st.active_player.uid != presser:
+            await callback.answer("No es tu acción.")
+            return
+        if objetivo not in game.playerlist:
+            await callback.answer("Objetivo inválido.")
+            return
+        await callback.answer("Objetivo elegido.")
+        try:
+            await bot.edit_message_text(f"Objetivo: {game.playerlist[objetivo].name}", cid, callback.message.message_id)
+        except Exception:
+            pass
+        await BSGController.ejecutar_accion_ubicacion(bot, game, presser, accion, objetivo=objetivo)
+    except Exception as e:
+        logger.error(f"callback_bsg_target error: {e}")
+        try:
+            await callback.answer("Error.")
+        except Exception:
+            pass
+        await bot.send_message(ADMIN[0], f"BSG target error: {e}")
 
 
 async def command_mover(update: Update, context: CallbackContext):
