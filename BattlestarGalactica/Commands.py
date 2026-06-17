@@ -154,12 +154,24 @@ async def command_accion(update: Update, context: CallbackContext):
     if st.fase_actual != "En Juego" or not st.active_player or st.active_player.uid != uid:
         await bot.send_message(cid, "No es tu turno de acción.")
         return
-    btns = [
-        [InlineKeyboardButton("⏫ Preparar salto (+1)", callback_data=f"{cid}*bsgAccion*prep*{uid}")],
-        [InlineKeyboardButton("🔫 Disparar a un Raider", callback_data=f"{cid}*bsgAccion*shoot*{uid}")],
-        [InlineKeyboardButton("⏭️ Pasar", callback_data=f"{cid}*bsgAccion*pass*{uid}")],
-    ]
-    await bot.send_message(cid, "Elige tu acción:", reply_markup=InlineKeyboardMarkup(btns))
+
+    player = game.playerlist[uid]
+    if player.en_calabozo:
+        await bot.send_message(cid, "Estás en el calabozo y no puedes realizar acciones.")
+        return
+
+    acciones = BSGController.ACCIONES_UBICACION.get(player.ubicacion, [])
+    ubic = Locations.UBICACIONES.get(player.ubicacion, {}).get("nombre", "—")
+    if not acciones:
+        await bot.send_message(cid, f"📍 {ubic}: no hay acción disponible aquí. Usa `/crisis`.",
+                               parse_mode=ParseMode.MARKDOWN)
+        return
+    btns = [[InlineKeyboardButton(BSGController.ETIQUETA_ACCION[a],
+                                  callback_data=f"{cid}*bsgAccion*{a}*{uid}")]
+            for a in acciones]
+    btns.append([InlineKeyboardButton("⏭️ Pasar", callback_data=f"{cid}*bsgAccion*pass*{uid}")])
+    await bot.send_message(cid, f"📍 *{ubic}* — elige tu acción:",
+                           reply_markup=InlineKeyboardMarkup(btns), parse_mode=ParseMode.MARKDOWN)
 
 
 async def callback_bsg_accion(update: Update, context: CallbackContext):
@@ -167,7 +179,7 @@ async def callback_bsg_accion(update: Update, context: CallbackContext):
     callback = update.callback_query
     presser = callback.from_user.id
     try:
-        regex = re.search(r"(-?[0-9]*)\*bsgAccion\*([a-z]*)\*(-?[0-9]*)", callback.data)
+        regex = re.search(r"(-?[0-9]*)\*bsgAccion\*([a-z0-9_]*)\*(-?[0-9]*)", callback.data)
         cid = int(regex.group(1))
         accion = regex.group(2)
         target = int(regex.group(3))
@@ -180,26 +192,18 @@ async def callback_bsg_accion(update: Update, context: CallbackContext):
             await callback.answer("No es tu acción.")
             return
 
-        msg = ""
-        if accion == "prep":
-            st.jump_prep = min(st.jump_prep_max, st.jump_prep + 1)
-            msg = f"⏫ Preparación de salto: {st.jump_prep}/{st.jump_prep_max}"
-        elif accion == "shoot":
-            if st.raiders > 0:
-                st.raiders -= 1
-                msg = f"🔫 Derribas un Raider (quedan {st.raiders})."
-            else:
-                msg = "No hay Raiders a los que disparar."
-        else:
-            msg = "Pasas tu acción."
-
         await callback.answer("Acción realizada.")
         try:
-            await bot.edit_message_text(msg, cid, callback.message.message_id)
+            await bot.edit_message_text("Acción elegida.", cid, callback.message.message_id)
         except Exception:
-            await bot.send_message(cid, msg)
-        await save(bot, game.cid)
-        await bot.send_message(cid, "Ahora se revela la *Crisis*. Usa `/crisis`.", parse_mode=ParseMode.MARKDOWN)
+            pass
+
+        if accion != "pass":
+            await BSGController.ejecutar_accion_ubicacion(bot, game, presser, accion)
+        else:
+            await bot.send_message(cid, f"{game.playerlist[presser].name} pasa su acción.")
+        if not st.ganador:
+            await bot.send_message(cid, "Ahora se revela la *Crisis*. Usa `/crisis`.", parse_mode=ParseMode.MARKDOWN)
     except Exception as e:
         logger.error(f"callback_bsg_accion error: {e}")
         try:
@@ -207,6 +211,67 @@ async def callback_bsg_accion(update: Update, context: CallbackContext):
         except Exception:
             pass
         await bot.send_message(ADMIN[0], f"BSG accion error: {e}")
+
+
+async def command_mover(update: Update, context: CallbackContext):
+    """El jugador activo elige una ubicación a la que moverse."""
+    bot = context.bot
+    cid = update.message.chat_id
+    uid = update.message.from_user.id
+    game = get_game(cid)
+    if not _validar(game):
+        await bot.send_message(cid, "No hay partida de Battlestar Galactica activa aquí.")
+        return
+    st = game.board.state
+    if st.fase_actual != "En Juego" or not st.active_player or st.active_player.uid != uid:
+        await bot.send_message(cid, "No es tu turno.")
+        return
+    player = game.playerlist[uid]
+    es_cylon_revelado = player.revealed
+    btns = []
+    for key, info in Locations.UBICACIONES.items():
+        if info.get("es_cylon") and not es_cylon_revelado:
+            continue
+        if not info.get("es_cylon") and es_cylon_revelado:
+            continue
+        if key == player.ubicacion:
+            continue
+        btns.append([InlineKeyboardButton(info["nombre"], callback_data=f"{cid}*bsgMover*{key}*{uid}")])
+    await bot.send_message(cid, "📍 ¿A dónde quieres moverte?",
+                           reply_markup=InlineKeyboardMarkup(btns))
+
+
+async def callback_bsg_mover(update: Update, context: CallbackContext):
+    bot = context.bot
+    callback = update.callback_query
+    presser = callback.from_user.id
+    try:
+        regex = re.search(r"(-?[0-9]*)\*bsgMover\*([a-z_]*)\*(-?[0-9]*)", callback.data)
+        cid = int(regex.group(1))
+        destino = regex.group(2)
+        target = int(regex.group(3))
+        game = get_game(cid)
+        if not _validar(game):
+            await callback.answer("Partida no encontrada.")
+            return
+        st = game.board.state
+        if not st.active_player or st.active_player.uid != presser or presser != target:
+            await callback.answer("No es tu turno.")
+            return
+        await callback.answer("Te moviste.")
+        try:
+            await bot.edit_message_text("Movimiento realizado.", cid, callback.message.message_id)
+        except Exception:
+            pass
+        await BSGController.mover_jugador(bot, game, presser, destino)
+        await bot.send_message(cid, "Ahora usa `/accion`.", parse_mode=ParseMode.MARKDOWN)
+    except Exception as e:
+        logger.error(f"callback_bsg_mover error: {e}")
+        try:
+            await callback.answer("Error.")
+        except Exception:
+            pass
+        await bot.send_message(ADMIN[0], f"BSG mover error: {e}")
 
 
 async def command_crisis(update: Update, context: CallbackContext):
