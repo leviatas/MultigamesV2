@@ -33,7 +33,8 @@ async def command_call(bot, game):
             game.cid,
             f"🚀 *BSG en curso* — turno de *{st.active_player.name}*.\n"
             "Mover: `/mover` · Acción: `/accion` · Crisis: `/crisis` · Tablero: `/estado`\n"
-            "Cylons ocultos: `/revelar` para revelarte. Presidente/Almirante: `/encarcelar` · `/liberar`",
+            "Habilidad: `/habilidad` · Presidente: `/quorum` · Cylons: `/revelar`\n"
+            "Presidente/Almirante: `/encarcelar` · `/liberar`",
             parse_mode=ParseMode.MARKDOWN,
         )
 
@@ -418,6 +419,80 @@ async def command_revelar(update: Update, context: CallbackContext):
         await bot.send_message(uid, "No estás en esta partida.")
         return
     await BSGController.revelar_cylon(bot, game, uid)
+
+
+async def command_habilidad(update: Update, context: CallbackContext):
+    """Usa la habilidad de una vez por juego del personaje."""
+    bot = context.bot
+    cid = update.message.chat_id
+    uid = update.message.from_user.id
+    game = get_game(cid)
+    if not _validar(game):
+        for g in GamesController.games.values():
+            if getattr(g, "tipo", None) == "BattlestarGalactica" and uid in getattr(g, "playerlist", {}):
+                game = g
+                break
+    if not game or not game.board:
+        await bot.send_message(uid, "No estás en una partida activa de BSG.")
+        return
+    if uid not in game.playerlist:
+        await bot.send_message(uid, "No estás en esta partida.")
+        return
+    await BSGController.usar_habilidad(bot, game, uid)
+
+
+async def command_quorum(update: Update, context: CallbackContext):
+    """El Presidente juega una carta de Quórum de su mano."""
+    bot = context.bot
+    cid = update.message.chat_id
+    uid = update.message.from_user.id
+    game = get_game(cid)
+    if not _validar(game):
+        await bot.send_message(cid, "No hay partida de Battlestar Galactica activa aquí.")
+        return
+    st = game.board.state
+    if uid != st.presidente_uid and uid not in ADMIN:
+        await bot.send_message(cid, "Solo el Presidente puede jugar cartas de Quórum.")
+        return
+    player = game.playerlist[uid]
+    if not player.quorum_hand:
+        await bot.send_message(cid, "No tienes cartas de Quórum. Róbalas en la Oficina del Presidente.")
+        return
+    btns = [[InlineKeyboardButton(c["titulo"], callback_data=f"{cid}*bsgQuorum*{i+1}*{uid}")]
+            for i, c in enumerate(player.quorum_hand)]
+    await bot.send_message(cid, "🏛️ ¿Qué carta de Quórum juegas?", reply_markup=InlineKeyboardMarkup(btns))
+
+
+async def callback_bsg_quorum(update: Update, context: CallbackContext):
+    bot = context.bot
+    callback = update.callback_query
+    presser = callback.from_user.id
+    try:
+        regex = re.search(r"(-?[0-9]*)\*bsgQuorum\*([0-9]*)\*(-?[0-9]*)", callback.data)
+        cid = int(regex.group(1))
+        indice = int(regex.group(2))
+        ordenante = int(regex.group(3))
+        game = get_game(cid)
+        if not _validar(game):
+            await callback.answer("Partida no encontrada.")
+            return
+        st = game.board.state
+        if presser != ordenante or (presser != st.presidente_uid and presser not in ADMIN):
+            await callback.answer("Solo el Presidente.")
+            return
+        await callback.answer("Carta jugada.")
+        try:
+            await bot.edit_message_text("Carta de Quórum jugada.", cid, callback.message.message_id)
+        except Exception:
+            pass
+        await BSGController.jugar_quorum(bot, game, presser, indice)
+    except Exception as e:
+        logger.error(f"callback_bsg_quorum error: {e}")
+        try:
+            await callback.answer("Error.")
+        except Exception:
+            pass
+        await bot.send_message(ADMIN[0], f"BSG quorum error: {e}")
 
 
 async def command_encarcelar(update: Update, context: CallbackContext):

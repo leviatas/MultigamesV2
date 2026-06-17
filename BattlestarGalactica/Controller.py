@@ -29,7 +29,7 @@ from telegram.ext import CallbackContext
 from Utils import get_game, save, simple_choose_buttons, player_call
 from Constants.Config import ADMIN
 from BattlestarGalactica.Boardgamebox.Game import Game
-from BattlestarGalactica.Constants import Characters, Locations, Skills, Crisis, Loyalty
+from BattlestarGalactica.Constants import Characters, Locations, Skills, Crisis, Loyalty, Quorum
 
 import GamesController
 
@@ -67,6 +67,11 @@ async def init_game(bot, game):
         # Mazo de súper crisis (para Cylons revelados)
         st.super_crisis_deck = [dict(c) for c in Crisis.SUPER_CRISIS_DECK]
         random.shuffle(st.super_crisis_deck)
+
+        # Mazo de Quórum (para el Presidente)
+        st.quorum_deck = [dict(c) for c in Quorum.QUORUM_DECK]
+        random.shuffle(st.quorum_deck)
+        st.quorum_discard = []
 
         # Orden de selección de personajes = orden de jugadores
         st.orden_seleccion = [p.uid for p in game.player_sequence]
@@ -324,7 +329,7 @@ ACCIONES_UBICACION = {
     "admiral_quarters": ["jump", "nuke"],
     "research": ["draw2"],
     "press_room": ["draw1"],
-    "president_office": ["draw1"],
+    "president_office": ["draw_quorum"],
     "sickbay": ["heal"],
     "brig": [],
 }
@@ -341,6 +346,7 @@ ETIQUETA_ACCION = {
     "nuke": "☢️ Ataque nuclear",
     "draw2": "🃏 Robar 2 cartas de habilidad",
     "draw1": "🃏 Robar 1 carta de habilidad",
+    "draw_quorum": "🏛️ Robar una carta de Quórum",
     "heal": "🩺 Curarse",
 }
 
@@ -389,6 +395,11 @@ async def ejecutar_accion_ubicacion(bot, game, uid, accion):
         await _robar_n_skills(bot, game, player, 2)
     elif accion == "draw1":
         await _robar_n_skills(bot, game, player, 1)
+    elif accion == "draw_quorum":
+        if uid != st.presidente_uid and uid not in ADMIN:
+            await bot.send_message(game.cid, "Solo el Presidente puede robar cartas de Quórum.")
+            return
+        await robar_quorum(bot, game, uid)
     elif accion == "heal":
         await bot.send_message(game.cid, f"🩺 {player.name} se recupera en la enfermería.")
     else:
@@ -648,6 +659,142 @@ async def ejecutar_accion_cylon(bot, game, uid, accion):
     await save(bot, game.cid)
 
 
+# ===================== HABILIDADES DE PERSONAJE =====================
+# Habilidad de "una vez por juego" de cada personaje. Las mecánicas reflejan
+# el espíritu de cada habilidad; los textos exactos están en Characters.py
+# marcados con VERIFICAR para contrastar con el reglamento.
+
+async def usar_habilidad(bot, game, uid):
+    st = game.board.state
+    player = game.playerlist.get(uid)
+    if not player or not player.personaje:
+        return
+    if player.habilidad_usada:
+        await bot.send_message(uid, "Ya usaste tu habilidad de una vez por juego.")
+        return
+    if player.revealed:
+        await bot.send_message(uid, "Un Cylon revelado no puede usar habilidades humanas.")
+        return
+
+    pj = player.personaje
+    nombre = Characters.PERSONAJES[pj]["nombre"]
+    aplicada = True
+
+    if pj == "baltar":
+        cartas = ", ".join(player.loyalty_cards) if player.loyalty_cards else "ninguna"
+        await bot.send_message(uid, f"🔎 Tus cartas de lealtad: {cartas}")
+        await bot.send_message(game.cid, f"🔎 *{nombre}* analiza información secreta.", parse_mode=ParseMode.MARKDOWN)
+    elif pj == "roslin":
+        robadas = 0
+        for _ in range(2):
+            if st.quorum_deck:
+                player.quorum_hand.append(st.quorum_deck.pop())
+                robadas += 1
+        await bot.send_message(game.cid, f"🏛️ *{nombre}* usa su Mandato Ejecutivo y roba {robadas} cartas de Quórum.", parse_mode=ParseMode.MARKDOWN)
+    elif pj == "zarek":
+        if st.presidente_uid and st.presidente_uid != uid:
+            antiguo = game.playerlist.get(st.presidente_uid)
+            if antiguo and "Presidente" in antiguo.titulos:
+                antiguo.titulos.remove("Presidente")
+        st.presidente_uid = uid
+        if "Presidente" not in player.titulos:
+            player.titulos.append("Presidente")
+        await bot.send_message(game.cid, f"🏛️ *{nombre}* maniobra políticamente y asume la Presidencia.", parse_mode=ParseMode.MARKDOWN)
+    elif pj == "adama":
+        if st.skill_check:
+            st.skill_check["bonus"] = st.skill_check.get("bonus", 0) + 3
+            await bot.send_message(game.cid, f"🎖️ *{nombre}* usa Cadena de Mando: +3 al chequeo actual.", parse_mode=ParseMode.MARKDOWN)
+        else:
+            await bot.send_message(uid, "No hay un chequeo abierto para potenciar.")
+            aplicada = False
+    elif pj == "tigh":
+        descartados = 0
+        for p in game.playerlist.values():
+            if p.uid != uid and p.skill_hand:
+                c = p.skill_hand.pop()
+                st.skill_discards.setdefault(c["color"], []).append(c)
+                descartados += 1
+        await bot.send_message(game.cid, f"🎖️ *{nombre}* Declara Emergencia: {descartados} jugador(es) descartan una carta.", parse_mode=ParseMode.MARKDOWN)
+    elif pj == "apollo":
+        await _lanzar_viper(bot, game)
+        await _viper_ataca(bot, game)
+        await bot.send_message(game.cid, f"✈️ *{nombre}* despega y ataca (habilidad).", parse_mode=ParseMode.MARKDOWN)
+    elif pj == "starbuck":
+        rep = st.vipers_danados
+        st.vipers_reserva += st.vipers_danados
+        st.vipers_danados = 0
+        if st.raiders > 0:
+            st.raiders -= 1
+        await bot.send_message(game.cid, f"✈️ *{nombre}* (Top Gun): repara {rep} Viper(s) y derriba un Raider.", parse_mode=ParseMode.MARKDOWN)
+    elif pj == "boomer":
+        if st.raiders > 0:
+            st.raiders -= 1
+            await bot.send_message(game.cid, f"✈️ *{nombre}* (Piloto Natural) derriba un Raider.", parse_mode=ParseMode.MARKDOWN)
+        else:
+            await bot.send_message(uid, "No hay Raiders a los que atacar.")
+            aplicada = False
+    elif pj == "tyrol":
+        rep = st.vipers_danados
+        st.vipers_reserva += st.vipers_danados
+        st.vipers_danados = 0
+        await bot.send_message(game.cid, f"🔧 *{nombre}* (Jefe de Cubierta) repara {rep} Viper(s) dañado(s).", parse_mode=ParseMode.MARKDOWN)
+    elif pj == "helo":
+        liberados = 0
+        for p in game.playerlist.values():
+            if p.en_calabozo:
+                p.en_calabozo = False
+                p.ubicacion = "sickbay"
+                liberados += 1
+        await bot.send_message(game.cid, f"🩺 *{nombre}* (Brújula Moral) libera a {liberados} preso(s) del calabozo.", parse_mode=ParseMode.MARKDOWN)
+    else:
+        aplicada = False
+
+    if aplicada:
+        player.habilidad_usada = True
+        await save(bot, game.cid)
+        if await _chequear_fin(bot, game):
+            return
+
+
+# ===================== QUÓRUM =====================
+
+async def robar_quorum(bot, game, uid):
+    st = game.board.state
+    player = game.playerlist[uid]
+    if not st.quorum_deck:
+        st.quorum_deck = st.quorum_discard
+        st.quorum_discard = []
+        random.shuffle(st.quorum_deck)
+    if not st.quorum_deck:
+        await bot.send_message(game.cid, "No quedan cartas de Quórum.")
+        return
+    carta = st.quorum_deck.pop()
+    player.quorum_hand.append(carta)
+    await bot.send_message(game.cid, f"🏛️ El Presidente roba una carta de Quórum.")
+    await bot.send_message(uid, f"🏛️ Robaste de Quórum: *{carta['titulo']}* — _{carta['texto']}_", parse_mode=ParseMode.MARKDOWN)
+
+
+async def jugar_quorum(bot, game, uid, indice):
+    st = game.board.state
+    player = game.playerlist[uid]
+    if uid != st.presidente_uid and uid not in ADMIN:
+        await bot.send_message(uid, "Solo el Presidente puede jugar cartas de Quórum.")
+        return
+    if indice < 1 or indice > len(player.quorum_hand):
+        await bot.send_message(uid, "Carta de Quórum inválida.")
+        return
+    carta = player.quorum_hand.pop(indice - 1)
+    await bot.send_message(
+        game.cid,
+        f"🏛️ *Quórum: {carta['titulo']}*\n_{carta['texto']}_",
+        parse_mode=ParseMode.MARKDOWN,
+    )
+    await aplicar_efectos(bot, game, carta.get("efectos", []))
+    st.quorum_discard.append(carta)
+    await save(bot, game.cid)
+    await _chequear_fin(bot, game)
+
+
 # ===================== CRISIS =====================
 
 async def robar_crisis(bot, game):
@@ -744,6 +891,12 @@ async def resolver_chequeo(bot, game):
         detalle.append(f"{Skills.EMOJI_COLOR[c['color']]}{'+' if signo>0 else '-'}{c['valor']}")
         st.skill_discards.setdefault(c["color"], []).append(c)
 
+    # Bono de habilidades (p. ej. Cadena de Mando de Adama)
+    bonus = sc.get("bonus", 0)
+    if bonus:
+        total += bonus
+        detalle.append(f"⭐{'+' if bonus>0 else ''}{bonus}")
+
     crisis = st.crisis_actual
     exito = total >= sc["dificultad"]
     await bot.send_message(
@@ -816,8 +969,15 @@ async def aplicar_efectos(bot, game, efectos):
         if tipo == "recurso":
             await modificar_recurso(bot, game, ef["recurso"], ef["delta"])
         elif tipo == "raiders":
-            st.raiders += ef["cantidad"]
-            await bot.send_message(game.cid, f"👾 Aparecen {ef['cantidad']} Raiders (total: {st.raiders}).")
+            cant = ef["cantidad"]
+            st.raiders = max(0, st.raiders + cant)
+            if cant >= 0:
+                await bot.send_message(game.cid, f"👾 Aparecen {cant} Raiders (total: {st.raiders}).")
+            else:
+                await bot.send_message(game.cid, f"🔫 Se eliminan {-cant} Raiders (total: {st.raiders}).")
+        elif tipo == "vipers":
+            st.vipers_reserva += ef["cantidad"]
+            await bot.send_message(game.cid, f"✈️ Llegan {ef['cantidad']} Vipers a la reserva (total reserva: {st.vipers_reserva}).")
         elif tipo == "basestar":
             st.basestars += ef["cantidad"]
             await bot.send_message(game.cid, f"🛸 Aparece(n) {ef['cantidad']} Basestar(s) (total: {st.basestars}).")
