@@ -1,61 +1,116 @@
 # -*- coding: utf-8 -*-
 """
-Mazo de Quórum (juego base) — SET INICIAL representativo.
+Mazo de Quórum del JUEGO BASE (hoja "Quorum Cards", Module=B).
 
-Las cartas de Quórum las roba/juega el Presidente. Aquí se modelan con
-efectos globales que el motor ya entiende (recursos, naves, centuriones).
-El roster completo y los efectos dirigidos a jugadores se completarán en
-una capa posterior.  # VERIFICAR / COMPLETAR
+Cada carta:
+  id, titulo, texto (oficial)
+  draw_politics : (opcional) nº de cartas de Política que roba el Presidente al jugarla
+  target_efecto : (opcional) "brig" | "pardon" | "mutiny" | "mugshots" → requiere objetivo
+  efectos       : (opcional) lista de efectos inmediatos (soporta "roll")
+  keep          : (opcional) True si la carta permanece en juego (efecto continuo
+                  descrito en el texto; no totalmente modelado)
 
-Esquema:
-  id      : identificador
-  titulo  : nombre
-  texto   : descripción
-  efectos : lista de efectos (ver aplicar_efectos en el Controller)
+Efecto "roll": {"tipo":"roll","rango":[min,max],"exito":[...],"fracaso":[...]}
+  Tira 1d8; aplica 'exito' si cae en [min,max] (inclusive), si no 'fracaso'.
 """
 
 QUORUM_DECK = [
     {
-        "id": "voto_confianza",
-        "titulo": "Voto de Confianza",
-        "texto": "El Quórum respalda al gobierno.",
-        "efectos": [{"tipo": "recurso", "recurso": "moral", "delta": 1}],
+        "id": "inspirational_speech",
+        "titulo": "Discurso Inspirador",
+        "texto": "Tira 1d8: con 6-8, +1 Moral.",
+        "efectos": [{"tipo": "roll", "rango": [6, 8],
+                     "exito": [{"tipo": "recurso", "recurso": "moral", "delta": 1}],
+                     "fracaso": [{"tipo": "mensaje", "texto": "El discurso no cala."}]}],
     },
     {
-        "id": "racionamiento",
-        "titulo": "Racionamiento Eficiente",
-        "texto": "Se optimizan las reservas de comida.",
-        "efectos": [{"tipo": "recurso", "recurso": "comida", "delta": 1}],
+        "id": "inspirational_speech_2",
+        "titulo": "Discurso Inspirador",
+        "texto": "Tira 1d8: con 6-8, +1 Moral.",
+        "efectos": [{"tipo": "roll", "rango": [6, 8],
+                     "exito": [{"tipo": "recurso", "recurso": "moral", "delta": 1}],
+                     "fracaso": [{"tipo": "mensaje", "texto": "El discurso no cala."}]}],
     },
     {
-        "id": "reabastecimiento",
-        "titulo": "Reabastecimiento de Tylium",
-        "texto": "Una operación minera recupera combustible.",
-        "efectos": [{"tipo": "recurso", "recurso": "combustible", "delta": 1}],
+        "id": "food_rationing",
+        "titulo": "Racionamiento de Comida",
+        "texto": "Tira 1d8: con 6-8, +1 Comida.",
+        "efectos": [{"tipo": "roll", "rango": [6, 8],
+                     "exito": [{"tipo": "recurso", "recurso": "comida", "delta": 1}],
+                     "fracaso": [{"tipo": "mensaje", "texto": "El racionamiento no rinde."}]}],
     },
     {
-        "id": "contraataque",
-        "titulo": "Orden de Contraataque",
-        "texto": "La flota repele a los cazas Cylon.",
-        "efectos": [{"tipo": "raiders", "cantidad": -2}],
+        "id": "brutal_force",
+        "titulo": "Autorización de Fuerza Brutal",
+        "texto": "Destruye 3 Raiders (o 1 centurión). Tira 1d8: con 1-2, -1 Población.",
+        "efectos": [{"tipo": "raiders", "cantidad": -3},
+                    {"tipo": "roll", "rango": [1, 2],
+                     "exito": [{"tipo": "recurso", "recurso": "poblacion", "delta": -1}],
+                     "fracaso": [{"tipo": "mensaje", "texto": "Sin bajas civiles."}]}],
     },
     {
-        "id": "refuerzo_vipers",
-        "titulo": "Refuerzo de Vipers",
-        "texto": "Llegan Vipers de reserva.",
-        "efectos": [{"tipo": "vipers", "cantidad": 2}],
+        "id": "brutal_force_2",
+        "titulo": "Autorización de Fuerza Brutal",
+        "texto": "Destruye 3 Raiders (o 1 centurión). Tira 1d8: con 1-2, -1 Población.",
+        "efectos": [{"tipo": "raiders", "cantidad": -3},
+                    {"tipo": "roll", "rango": [1, 2],
+                     "exito": [{"tipo": "recurso", "recurso": "poblacion", "delta": -1}],
+                     "fracaso": [{"tipo": "mensaje", "texto": "Sin bajas civiles."}]}],
     },
     {
-        "id": "ley_marcial",
-        "titulo": "Ley Marcial",
-        "texto": "Se refuerza la seguridad interna de Galactica.",
-        "efectos": [{"tipo": "centuriones", "delta": -1}],
+        "id": "arrest_order",
+        "titulo": "Orden de Arresto",
+        "texto": "Envía a un personaje al Calabozo.",
+        "target_efecto": "brig",
     },
     {
-        "id": "asignacion_recursos",
-        "titulo": "Asignación de Recursos",
-        "texto": "El gobierno coordina la moral de la flota.",
-        "efectos": [{"tipo": "recurso", "recurso": "moral", "delta": 1},
-                    {"tipo": "recurso", "recurso": "poblacion", "delta": 1}],
+        "id": "presidential_pardon",
+        "titulo": "Indulto Presidencial",
+        "texto": "Saca a otro personaje del Calabozo a una ubicación de Galactica.",
+        "target_efecto": "pardon",
+    },
+    {
+        "id": "encourage_mutiny",
+        "titulo": "Fomentar Motín",
+        "texto": "Elige a un jugador (no Almirante). Tira 1d8: con 1-2, -1 Moral; con 3-8, se vuelve Almirante.",
+        "target_efecto": "mutiny",
+    },
+    {
+        "id": "release_mugshots",
+        "titulo": "Difundir Fichas Cylon",
+        "texto": "Elige un jugador y mira 1 de sus cartas de lealtad al azar. Tira 1d8: con 1-3, -1 Moral.",
+        "target_efecto": "mugshots",
+    },
+    {
+        "id": "accept_prophecy",
+        "titulo": "Aceptar la Profecía",
+        "texto": "Roba 1 carta de habilidad. (Permanece en juego: la próxima activación de "
+                 "Administración o del Camarote del Almirante para nombrar Presidente tiene +2 dificultad.)",
+        "draw_politics": 1,
+        "keep": True,
+    },
+    {
+        "id": "assign_mission_specialist",
+        "titulo": "Asignar Especialista de Misión",
+        "texto": "Roba 2 cartas de Política y asigna un Especialista. En el próximo salto, el "
+                 "Especialista elige el destino en lugar del Almirante. (Permanece en juego.)",
+        "draw_politics": 2,
+        "keep": True,
+    },
+    {
+        "id": "assign_arbitrator",
+        "titulo": "Asignar Árbitro",
+        "texto": "Roba 2 cartas de Política y elige a otro jugador (Árbitro). Cuando alguien active el "
+                 "Camarote del Almirante, el Árbitro puede mover la dificultad ±3. (Permanece en juego.)",
+        "draw_politics": 2,
+        "keep": True,
+    },
+    {
+        "id": "assign_vice_president",
+        "titulo": "Asignar Vicepresidente",
+        "texto": "Roba 2 cartas de Política y nombra un Vicepresidente. Solo el VP puede llegar a "
+                 "Presidente vía Administración. (Permanece en juego.)",
+        "draw_politics": 2,
+        "keep": True,
     },
 ]

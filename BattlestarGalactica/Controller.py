@@ -869,7 +869,69 @@ async def jugar_quorum(bot, game, uid, indice):
         f"🏛️ *Quórum: {carta['titulo']}*\n_{carta['texto']}_",
         parse_mode=ParseMode.MARKDOWN,
     )
+
+    # Robar cartas de Política para el Presidente (cartas de asignación)
+    if carta.get("draw_politics"):
+        for _ in range(carta["draw_politics"]):
+            await _robar_color(bot, game, player, Skills.POLITICA)
+
+    # Carta con objetivo: esperar selección
+    if carta.get("target_efecto"):
+        st.quorum_pendiente = carta
+        await save(bot, game.cid)
+        return  # el resto se resuelve al elegir objetivo
+
     await aplicar_efectos(bot, game, carta.get("efectos", []))
+    if carta.get("keep"):
+        await bot.send_message(game.cid, "📌 (Esta carta permanece en juego; su efecto continuo se adjudica según el texto.)")
+    else:
+        st.quorum_discard.append(carta)
+    await save(bot, game.cid)
+    await _chequear_fin(bot, game)
+
+
+async def resolver_quorum_objetivo(bot, game, objetivo_uid):
+    """Aplica el efecto de una carta de Quórum dirigida a un objetivo."""
+    st = game.board.state
+    carta = st.quorum_pendiente
+    st.quorum_pendiente = None
+    if not carta:
+        return
+    objetivo = game.playerlist.get(objetivo_uid)
+    if not objetivo:
+        return
+    ef = carta["target_efecto"]
+    if ef == "brig":
+        objetivo.en_calabozo = True
+        objetivo.ubicacion = "brig"
+        await bot.send_message(game.cid, f"🚔 *{objetivo.name}* es enviado al Calabozo.", parse_mode=ParseMode.MARKDOWN)
+    elif ef == "pardon":
+        objetivo.en_calabozo = False
+        objetivo.ubicacion = "command"
+        await bot.send_message(game.cid, f"🔓 *{objetivo.name}* es indultado y sale del Calabozo.", parse_mode=ParseMode.MARKDOWN)
+    elif ef == "mutiny":
+        r = _d8()
+        if r <= 2:
+            await bot.send_message(game.cid, f"🎲 Tirada {r}: el motín fracasa.")
+            await modificar_recurso(bot, game, "moral", -1)
+        else:
+            ant = game.playerlist.get(st.almirante_uid)
+            if ant and "Almirante" in ant.titulos:
+                ant.titulos.remove("Almirante")
+            st.almirante_uid = objetivo.uid
+            if "Almirante" not in objetivo.titulos:
+                objetivo.titulos.append("Almirante")
+            await bot.send_message(game.cid, f"🎲 Tirada {r}: *{objetivo.name}* se vuelve Almirante.", parse_mode=ParseMode.MARKDOWN)
+    elif ef == "mugshots":
+        cartas = ", ".join(objetivo.loyalty_cards) if objetivo.loyalty_cards else "ninguna"
+        await bot.send_message(st.presidente_uid or ADMIN[0],
+                               f"🔎 Lealtad de {objetivo.name}: {cartas}")
+        await bot.send_message(game.cid, f"🔎 El Presidente revisa la ficha de *{objetivo.name}*.", parse_mode=ParseMode.MARKDOWN)
+        r = _d8()
+        if r <= 3:
+            await bot.send_message(game.cid, f"🎲 Tirada {r}: -1 Moral.")
+            await modificar_recurso(bot, game, "moral", -1)
+
     st.quorum_discard.append(carta)
     await save(bot, game.cid)
     await _chequear_fin(bot, game)
@@ -1220,6 +1282,12 @@ async def aplicar_efectos(bot, game, efectos):
             await bot.send_message(game.cid, f"⏫ Preparación de salto: {st.jump_prep}/{st.jump_prep_max}")
         elif tipo == "destruir_civil":
             await _destruir_civil(bot, game)
+        elif tipo == "roll":
+            r = _d8()
+            lo, hi = ef.get("rango", [6, 8])
+            ok = lo <= r <= hi
+            await bot.send_message(game.cid, f"🎲 Tirada: *{r}* ({'éxito' if ok else 'fallo'} en {lo}-{hi})", parse_mode=ParseMode.MARKDOWN)
+            await aplicar_efectos(bot, game, ef["exito"] if ok else ef.get("fracaso", []))
         elif tipo == "mensaje":
             await bot.send_message(game.cid, ef["texto"])
 

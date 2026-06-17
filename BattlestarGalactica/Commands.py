@@ -657,6 +657,25 @@ async def callback_bsg_quorum(update: Update, context: CallbackContext):
         except Exception:
             pass
         await BSGController.jugar_quorum(bot, game, presser, indice)
+        # Si la carta requiere objetivo, mostrar botonera
+        carta = st.quorum_pendiente
+        if carta:
+            ef = carta.get("target_efecto")
+            btns = []
+            for p_uid, p in game.playerlist.items():
+                if ef == "pardon" and not p.en_calabozo:
+                    continue
+                if ef == "brig" and (p.en_calabozo or p.revealed):
+                    continue
+                if ef == "mutiny" and (p_uid == st.almirante_uid or p.revealed):
+                    continue
+                btns.append([InlineKeyboardButton(p.name, callback_data=f"{cid}*bsgQTarget*x*{p_uid}")])
+            if not btns:
+                await bot.send_message(cid, "No hay objetivos válidos; la carta se descarta.")
+                st.quorum_discard.append(carta); st.quorum_pendiente = None
+            else:
+                await bot.send_message(cid, "🏛️ Elige el objetivo de la carta de Quórum:",
+                                       reply_markup=InlineKeyboardMarkup(btns))
     except Exception as e:
         logger.error(f"callback_bsg_quorum error: {e}")
         try:
@@ -664,6 +683,44 @@ async def callback_bsg_quorum(update: Update, context: CallbackContext):
         except Exception:
             pass
         await bot.send_message(ADMIN[0], f"BSG quorum error: {e}")
+
+
+async def callback_bsg_qtarget(update: Update, context: CallbackContext):
+    """Objetivo elegido para una carta de Quórum dirigida."""
+    bot = context.bot
+    callback = update.callback_query
+    presser = callback.from_user.id
+    try:
+        regex = re.search(r"(-?[0-9]*)\*bsgQTarget\*[a-z]*\*(-?[0-9]*)", callback.data)
+        cid = int(regex.group(1))
+        objetivo = int(regex.group(2))
+        game = get_game(cid)
+        if not _validar(game):
+            await callback.answer("Partida no encontrada.")
+            return
+        st = game.board.state
+        if presser != st.presidente_uid and presser not in ADMIN:
+            await callback.answer("Solo el Presidente.")
+            return
+        if not st.quorum_pendiente:
+            await callback.answer("No hay carta pendiente.")
+            return
+        if objetivo not in game.playerlist:
+            await callback.answer("Objetivo inválido.")
+            return
+        await callback.answer("Objetivo elegido.")
+        try:
+            await bot.edit_message_text(f"Objetivo: {game.playerlist[objetivo].name}", cid, callback.message.message_id)
+        except Exception:
+            pass
+        await BSGController.resolver_quorum_objetivo(bot, game, objetivo)
+    except Exception as e:
+        logger.error(f"callback_bsg_qtarget error: {e}")
+        try:
+            await callback.answer("Error.")
+        except Exception:
+            pass
+        await bot.send_message(ADMIN[0], f"BSG qtarget error: {e}")
 
 
 async def command_encarcelar(update: Update, context: CallbackContext):
