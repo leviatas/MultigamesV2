@@ -134,8 +134,7 @@ async def asignar_personaje(bot, game, uid, key):
     await bot.send_message(
         uid,
         f"{Characters.EMOJI_TIPO[pj['tipo']]} Eres *{pj['nombre']}* ({pj['tipo']}).\n\n"
-        f"*Habilidad:* {pj['habilidad']}\n"
-        f"*Desventaja:* {pj['desventaja']}\n"
+        f"*Habilidades:*\n{pj['abilities']}\n\n"
         f"📍 Ubicación inicial: {Locations.UBICACIONES[pj['ubicacion']]['nombre']}",
         parse_mode=ParseMode.MARKDOWN,
     )
@@ -171,10 +170,8 @@ async def finalizar_setup(bot, game):
     # --- Flota inicial ---
     _colocar_flota_inicial(st)
 
-    # --- Manos de habilidad iniciales ---
-    for player in game.playerlist.values():
-        _robar_skills(st, player)
-        await _dm_mano(bot, player)
+    # En el juego base no se reparte mano inicial: cada jugador roba en el
+    # paso de Recibir Habilidades al comienzo de su turno.
 
     st.fase_actual = "En Juego"
     st.player_counter = 0
@@ -214,9 +211,13 @@ def _asignar_titulos(game):
     game.playerlist[alm].titulos.append("Almirante")
 
 
-def _robar_skills(st, player):
+def _robar_skills(st, player, cantidad=3):
+    """Roba 'cantidad' cartas de habilidad de los colores del set del personaje.
+    En el juego base se roban 3 por turno, repartidas entre los colores permitidos."""
     pj = Characters.PERSONAJES[player.personaje]
-    for color in pj["skill_set"]:
+    pool = pj["skill_set"]
+    for _ in range(cantidad):
+        color = random.choice(pool)
         carta = _robar_carta_color(st, color)
         if carta:
             player.skill_hand.append(carta)
@@ -692,14 +693,16 @@ async def usar_habilidad(bot, game, uid):
                 robadas += 1
         await bot.send_message(game.cid, f"🏛️ *{nombre}* usa su Mandato Ejecutivo y roba {robadas} cartas de Quórum.", parse_mode=ParseMode.MARKDOWN)
     elif pj == "zarek":
-        if st.presidente_uid and st.presidente_uid != uid:
-            antiguo = game.playerlist.get(st.presidente_uid)
-            if antiguo and "Presidente" in antiguo.titulos:
-                antiguo.titulos.remove("Presidente")
-        st.presidente_uid = uid
-        if "Presidente" not in player.titulos:
-            player.titulos.append("Presidente")
-        await bot.send_message(game.cid, f"🏛️ *{nombre}* maniobra políticamente y asume la Presidencia.", parse_mode=ParseMode.MARKDOWN)
+        # Tácticas Heterodoxas: pierde 1 población para ganar 1 de otro recurso (el más bajo).
+        if st.poblacion <= 1:
+            await bot.send_message(uid, "No tienes suficiente población para usar esta habilidad.")
+            aplicada = False
+        else:
+            await modificar_recurso(bot, game, "poblacion", -1)
+            otros = {"comida": st.comida, "combustible": st.combustible, "moral": st.moral}
+            objetivo = min(otros, key=otros.get)
+            await modificar_recurso(bot, game, objetivo, 1)
+            await bot.send_message(game.cid, f"🏛️ *{nombre}* usa Tácticas Heterodoxas (−1 población, +1 {objetivo}).", parse_mode=ParseMode.MARKDOWN)
     elif pj == "adama":
         if st.skill_check:
             st.skill_check["bonus"] = st.skill_check.get("bonus", 0) + 3
@@ -708,13 +711,19 @@ async def usar_habilidad(bot, game, uid):
             await bot.send_message(uid, "No hay un chequeo abierto para potenciar.")
             aplicada = False
     elif pj == "tigh":
-        descartados = 0
-        for p in game.playerlist.values():
-            if p.uid != uid and p.skill_hand:
-                c = p.skill_hand.pop()
-                st.skill_discards.setdefault(c["color"], []).append(c)
-                descartados += 1
-        await bot.send_message(game.cid, f"🎖️ *{nombre}* Declara Emergencia: {descartados} jugador(es) descartan una carta.", parse_mode=ParseMode.MARKDOWN)
+        # Declarar Ley Marcial: entrega el título de Presidente al Almirante.
+        alm = st.almirante_uid
+        if not alm:
+            await bot.send_message(uid, "No hay Almirante al que entregar la Presidencia.")
+            aplicada = False
+        else:
+            ant = game.playerlist.get(st.presidente_uid)
+            if ant and "Presidente" in ant.titulos:
+                ant.titulos.remove("Presidente")
+            st.presidente_uid = alm
+            if "Presidente" not in game.playerlist[alm].titulos:
+                game.playerlist[alm].titulos.append("Presidente")
+            await bot.send_message(game.cid, f"🎖️ *{nombre}* Declara Ley Marcial: la Presidencia pasa al Almirante.", parse_mode=ParseMode.MARKDOWN)
     elif pj == "apollo":
         await _lanzar_viper(bot, game)
         await _viper_ataca(bot, game)
@@ -1137,12 +1146,20 @@ async def fase_durmiente(bot, game):
         parse_mode=ParseMode.MARKDOWN,
     )
     for uid, player in game.playerlist.items():
-        if st.loyalty_deck:
-            carta = st.loyalty_deck.pop()
-            player.loyalty_cards.append(carta)
-            if carta == Loyalty.CYLON and not player.is_cylon:
-                player.is_cylon = True
-            await _dm_lealtad(bot, player)
+        pj = Characters.PERSONAJES.get(player.personaje, {})
+        # Boomer recibe 2 cartas en la fase durmiente y va al Calabozo
+        cantidad = 1 + pj.get("sleeper_extra", 0)
+        for _ in range(cantidad):
+            if st.loyalty_deck:
+                carta = st.loyalty_deck.pop()
+                player.loyalty_cards.append(carta)
+                if carta == Loyalty.CYLON and not player.is_cylon:
+                    player.is_cylon = True
+        if pj.get("sleeper_to_brig") and not player.revealed:
+            player.en_calabozo = True
+            player.ubicacion = "brig"
+            await bot.send_message(game.cid, f"🚔 {player.name} es trasladado al Calabozo (Agente Durmiente).")
+        await _dm_lealtad(bot, player)
 
 
 # ===================== FIN DE PARTIDA =====================
