@@ -817,9 +817,107 @@ async def robar_crisis(bot, game):
 
     if crisis["tipo"] == "chequeo":
         await abrir_chequeo(bot, game, crisis)
+    elif crisis["tipo"] == "eleccion":
+        await abrir_eleccion(bot, game, crisis)
+    elif crisis["tipo"] == "voto":
+        await abrir_voto(bot, game, crisis)
     else:
         await aplicar_efectos(bot, game, crisis.get("efectos", []))
         await cerrar_crisis(bot, game, crisis)
+
+
+# ---- Crisis de decisión ----
+
+async def abrir_eleccion(bot, game, crisis):
+    st = game.board.state
+    if crisis.get("decisor") == "presidente" and st.presidente_uid:
+        decisor = game.playerlist[st.presidente_uid]
+    else:
+        decisor = st.active_player
+    st.skill_check = None
+    btns = [[InlineKeyboardButton(op["label"], callback_data=f"{game.cid}*bsgEleccion*{i}*{decisor.uid}")]
+            for i, op in enumerate(crisis["opciones"])]
+    await bot.send_message(
+        game.cid,
+        f"🤔 *Decisión* — {player_call(decisor)} debe elegir:",
+        reply_markup=InlineKeyboardMarkup(btns),
+        parse_mode=ParseMode.MARKDOWN,
+    )
+    await save(bot, game.cid)
+
+
+async def resolver_eleccion(bot, game, indice):
+    st = game.board.state
+    crisis = st.crisis_actual
+    if not crisis or indice < 0 or indice >= len(crisis["opciones"]):
+        return
+    opcion = crisis["opciones"][indice]
+    await bot.send_message(game.cid, f"➡️ Se elige: *{opcion['label']}*", parse_mode=ParseMode.MARKDOWN)
+    await aplicar_efectos(bot, game, opcion.get("efectos", []))
+    await cerrar_crisis(bot, game, crisis)
+
+
+# ---- Crisis de voto ----
+
+async def abrir_voto(bot, game, crisis):
+    st = game.board.state
+    st.crisis_vote = {"votos": {}, "n_opciones": len(crisis["opciones"])}
+    btns = [[InlineKeyboardButton(op["label"], callback_data=f"{game.cid}*bsgCrisisVoto*{i}*0")]
+            for i, op in enumerate(crisis["opciones"])]
+    await bot.send_message(
+        game.cid,
+        "🗳️ *Votación de crisis* — todos los jugadores (no presos ni Cylons revelados) votan. "
+        "Gana la mayoría:",
+        reply_markup=InlineKeyboardMarkup(btns),
+        parse_mode=ParseMode.MARKDOWN,
+    )
+    await save(bot, game.cid)
+
+
+def _votantes_validos(game):
+    return [p for p in game.playerlist.values() if not p.en_calabozo and not p.revealed]
+
+
+async def registrar_voto_crisis(bot, game, uid, indice):
+    st = game.board.state
+    vote = st.crisis_vote
+    if not vote:
+        return
+    player = game.playerlist.get(uid)
+    if not player or player.en_calabozo or player.revealed:
+        return
+    vote["votos"][uid] = indice
+    if len(vote["votos"]) >= len(_votantes_validos(game)):
+        await resolver_voto_crisis(bot, game)
+    else:
+        await save(bot, game.cid)
+
+
+async def resolver_voto_crisis(bot, game):
+    st = game.board.state
+    crisis = st.crisis_actual
+    vote = st.crisis_vote
+    st.crisis_vote = None
+    if not crisis or not vote:
+        return
+    conteo = {}
+    for idx in vote["votos"].values():
+        conteo[idx] = conteo.get(idx, 0) + 1
+    if not conteo:
+        ganadora = 0
+    else:
+        maxv = max(conteo.values())
+        empatadas = [i for i, c in conteo.items() if c == maxv]
+        # Desempate: el Presidente decide; si no, la primera opción.
+        ganadora = empatadas[0]
+        if len(empatadas) > 1 and st.presidente_uid in vote["votos"]:
+            pres_voto = vote["votos"][st.presidente_uid]
+            if pres_voto in empatadas:
+                ganadora = pres_voto
+    opcion = crisis["opciones"][ganadora]
+    await bot.send_message(game.cid, f"🗳️ Gana la opción: *{opcion['label']}*", parse_mode=ParseMode.MARKDOWN)
+    await aplicar_efectos(bot, game, opcion.get("efectos", []))
+    await cerrar_crisis(bot, game, crisis)
 
 
 async def abrir_chequeo(bot, game, crisis):

@@ -166,6 +166,72 @@ CRISIS_DECK = [
         "jump": 1,
         "activar_cylons": True,
     },
+
+    # ---- Crisis de DECISIÓN (el decisor elige una opción) ----
+    {
+        "id": "reparto_recursos",
+        "titulo": "Reparto de Recursos",
+        "texto": "El gobierno debe decidir qué priorizar.",
+        "tipo": "eleccion",
+        "decisor": "presidente",
+        "opciones": [
+            {"label": "🍞 Priorizar comida",
+             "efectos": [{"tipo": "recurso", "recurso": "comida", "delta": 1},
+                         {"tipo": "recurso", "recurso": "moral", "delta": -1}]},
+            {"label": "🙂 Priorizar moral",
+             "efectos": [{"tipo": "recurso", "recurso": "moral", "delta": 1},
+                         {"tipo": "recurso", "recurso": "comida", "delta": -1}]},
+        ],
+        "jump": 1,
+        "activar_cylons": False,
+    },
+    {
+        "id": "ruta_arriesgada",
+        "titulo": "Ruta Arriesgada",
+        "texto": "El jugador al mando elige la ruta de salto.",
+        "tipo": "eleccion",
+        "decisor": "activo",
+        "opciones": [
+            {"label": "⚡ Ruta corta (-2 combustible)",
+             "efectos": [{"tipo": "recurso", "recurso": "combustible", "delta": -2}]},
+            {"label": "🛡️ Ruta segura (aparecen 2 Raiders)",
+             "efectos": [{"tipo": "raiders", "cantidad": 2}]},
+        ],
+        "jump": 0,
+        "activar_cylons": True,
+    },
+
+    # ---- Crisis de VOTO (todos votan; gana la mayoría) ----
+    {
+        "id": "ley_emergencia",
+        "titulo": "Ley de Emergencia",
+        "texto": "El Quórum vota una medida drástica para levantar el ánimo.",
+        "tipo": "voto",
+        "opciones": [
+            {"label": "✅ A favor",
+             "efectos": [{"tipo": "recurso", "recurso": "moral", "delta": 2},
+                         {"tipo": "recurso", "recurso": "poblacion", "delta": -1}]},
+            {"label": "❌ En contra",
+             "efectos": [{"tipo": "mensaje", "texto": "La medida se rechaza; todo sigue igual."}]},
+        ],
+        "jump": 1,
+        "activar_cylons": False,
+    },
+    {
+        "id": "evacuacion",
+        "titulo": "Evacuación de Emergencia",
+        "texto": "¿Sacrificar combustible para salvar vidas?",
+        "tipo": "voto",
+        "opciones": [
+            {"label": "🚀 Evacuar (-2 combustible, +1 población)",
+             "efectos": [{"tipo": "recurso", "recurso": "combustible", "delta": -2},
+                         {"tipo": "recurso", "recurso": "poblacion", "delta": 1}]},
+            {"label": "⛔ No evacuar (-1 moral)",
+             "efectos": [{"tipo": "recurso", "recurso": "moral", "delta": -1}]},
+        ],
+        "jump": 0,
+        "activar_cylons": True,
+    },
 ]
 
 

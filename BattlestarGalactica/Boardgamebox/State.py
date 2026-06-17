@@ -44,6 +44,7 @@ class State(BaseState):
 
         # --- Chequeo de habilidad en curso ---
         self.skill_check = None           # dict: {crisis, colores, dificultad, aportes:{uid:[cartas]}, ...}
+        self.crisis_vote = None           # dict: {opciones, votos:{uid:idx}} para crisis de voto
 
         # --- Naves ---
         self.vipers_reserva = 8
