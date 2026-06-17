@@ -1005,7 +1005,7 @@ async def abrir_chequeo(bot, game, crisis):
     colores = crisis["colores"]
     emojis = " ".join(Skills.EMOJI_COLOR[c] for c in colores)
     st.skill_check = {
-        "crisis_id": crisis["id"],
+        "crisis_id": crisis.get("id", crisis.get("titulo")),
         "colores": colores,
         "dificultad": crisis["dificultad"],
         "aportes": {},   # uid -> lista de cartas
@@ -1168,6 +1168,11 @@ async def aplicar_efectos(bot, game, efectos):
         elif tipo == "centuriones":
             st.centuriones = max(0, st.centuriones + ef["delta"])
             await bot.send_message(game.cid, f"🔺 Centuriones: {st.centuriones}/{st.centuriones_max}")
+        elif tipo == "jump_prep":
+            st.jump_prep = max(0, min(st.jump_prep_max, st.jump_prep + ef["delta"]))
+            await bot.send_message(game.cid, f"⏫ Preparación de salto: {st.jump_prep}/{st.jump_prep_max}")
+        elif tipo == "destruir_civil":
+            await _destruir_civil(bot, game)
         elif tipo == "mensaje":
             await bot.send_message(game.cid, ef["texto"])
 
