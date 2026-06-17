@@ -896,7 +896,10 @@ async def robar_crisis(bot, game):
     )
 
     if crisis["tipo"] == "chequeo":
-        await abrir_chequeo(bot, game, crisis)
+        if crisis.get("alternativa"):
+            await abrir_decision_crisis(bot, game, crisis)
+        else:
+            await abrir_chequeo(bot, game, crisis)
     elif crisis["tipo"] == "eleccion":
         await abrir_eleccion(bot, game, crisis)
     elif crisis["tipo"] == "voto":
@@ -906,14 +909,58 @@ async def robar_crisis(bot, game):
         await cerrar_crisis(bot, game, crisis)
 
 
+def _decisor_uid(game, decisor):
+    st = game.board.state
+    if decisor == "presidente" and st.presidente_uid:
+        return st.presidente_uid
+    if decisor == "almirante" and st.almirante_uid:
+        return st.almirante_uid
+    return st.active_player.uid
+
+
+# ---- Crisis con opción "OR": el decisor elige chequeo o alternativa ----
+
+async def abrir_decision_crisis(bot, game, crisis):
+    st = game.board.state
+    st.skill_check = None
+    duid = _decisor_uid(game, crisis.get("decisor", "activo"))
+    decisor = game.playerlist[duid]
+    colores = " ".join(Skills.EMOJI_COLOR[c] for c in crisis["colores"])
+    btns = [
+        [InlineKeyboardButton(f"🎲 Intentar chequeo (dif. {crisis['dificultad']}) {colores}",
+                              callback_data=f"{game.cid}*bsgCrisisOpt*check*{duid}")],
+        [InlineKeyboardButton(crisis["alternativa"]["label"],
+                              callback_data=f"{game.cid}*bsgCrisisOpt*alt*{duid}")],
+    ]
+    await bot.send_message(
+        game.cid,
+        f"🤔 {player_call(decisor)} elige: arriesgar el *chequeo* o tomar la *alternativa*.",
+        reply_markup=InlineKeyboardMarkup(btns),
+        parse_mode=ParseMode.MARKDOWN,
+    )
+    await save(bot, game.cid)
+
+
+async def resolver_decision_crisis(bot, game, opcion):
+    st = game.board.state
+    crisis = st.crisis_actual
+    if not crisis:
+        return
+    if opcion == "check":
+        await abrir_chequeo(bot, game, crisis)
+    else:
+        alt = crisis.get("alternativa", {})
+        await bot.send_message(game.cid, f"🛡️ Se toma la alternativa: *{alt.get('label','')}*", parse_mode=ParseMode.MARKDOWN)
+        await aplicar_efectos(bot, game, alt.get("efectos", []))
+        await cerrar_crisis(bot, game, crisis)
+
+
 # ---- Crisis de decisión ----
 
 async def abrir_eleccion(bot, game, crisis):
     st = game.board.state
-    if crisis.get("decisor") == "presidente" and st.presidente_uid:
-        decisor = game.playerlist[st.presidente_uid]
-    else:
-        decisor = st.active_player
+    duid = _decisor_uid(game, crisis.get("decisor", "activo"))
+    decisor = game.playerlist[duid]
     st.skill_check = None
     btns = [[InlineKeyboardButton(op["label"], callback_data=f"{game.cid}*bsgEleccion*{i}*{decisor.uid}")]
             for i, op in enumerate(crisis["opciones"])]

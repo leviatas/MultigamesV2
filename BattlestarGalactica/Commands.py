@@ -407,6 +407,45 @@ async def callback_bsg_eleccion(update: Update, context: CallbackContext):
         await bot.send_message(ADMIN[0], f"BSG eleccion error: {e}")
 
 
+async def callback_bsg_crisis_opt(update: Update, context: CallbackContext):
+    """El decisor de una crisis con 'OR' elige chequeo o alternativa."""
+    bot = context.bot
+    callback = update.callback_query
+    presser = callback.from_user.id
+    try:
+        regex = re.search(r"(-?[0-9]*)\*bsgCrisisOpt\*([a-z]*)\*(-?[0-9]*)", callback.data)
+        cid = int(regex.group(1))
+        opcion = regex.group(2)
+        decisor = int(regex.group(3))
+        game = get_game(cid)
+        if not _validar(game):
+            await callback.answer("Partida no encontrada.")
+            return
+        st = game.board.state
+        if not st.crisis_actual or st.crisis_actual.get("tipo") != "chequeo" or not st.crisis_actual.get("alternativa"):
+            await callback.answer("Ya no hay decisión pendiente.")
+            return
+        if st.skill_check:
+            await callback.answer("El chequeo ya está abierto.")
+            return
+        if presser != decisor and presser not in ADMIN:
+            await callback.answer("No te toca decidir.")
+            return
+        await callback.answer("Decisión tomada.")
+        try:
+            await bot.edit_message_text("Decisión tomada.", cid, callback.message.message_id)
+        except Exception:
+            pass
+        await BSGController.resolver_decision_crisis(bot, game, opcion)
+    except Exception as e:
+        logger.error(f"callback_bsg_crisis_opt error: {e}")
+        try:
+            await callback.answer("Error.")
+        except Exception:
+            pass
+        await bot.send_message(ADMIN[0], f"BSG crisis opt error: {e}")
+
+
 async def callback_bsg_crisis_voto(update: Update, context: CallbackContext):
     """Voto de un jugador en una crisis de voto."""
     bot = context.bot
