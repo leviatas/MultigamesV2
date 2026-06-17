@@ -158,7 +158,8 @@ async def command_accion(update: Update, context: CallbackContext):
         return
 
     player = game.playerlist[uid]
-    if player.en_calabozo:
+    # En el calabozo solo se permite el intento de fuga (chequeo del Calabozo).
+    if player.en_calabozo and player.ubicacion != "brig":
         await bot.send_message(cid, "Estás en el calabozo y no puedes realizar acciones.")
         return
 
@@ -209,6 +210,24 @@ async def callback_bsg_accion(update: Update, context: CallbackContext):
             await callback.answer("No es tu acción.")
             return
 
+        # Acciones que requieren elegir un personaje objetivo → mostrar botonera
+        if accion in BSGController.ACCIONES_CON_OBJETIVO:
+            await callback.answer()
+            btns = []
+            for p_uid, p in game.playerlist.items():
+                if accion == "brig_check" and (p.en_calabozo or p.revealed):
+                    continue
+                btns.append([InlineKeyboardButton(p.name, callback_data=f"{cid}*bsgTarget*{accion}*{p_uid}")])
+            if not btns:
+                await bot.send_message(cid, "No hay objetivos válidos.")
+                return
+            try:
+                await bot.edit_message_text("Elige el objetivo:", cid, callback.message.message_id,
+                                            reply_markup=InlineKeyboardMarkup(btns))
+            except Exception:
+                await bot.send_message(cid, "Elige el objetivo:", reply_markup=InlineKeyboardMarkup(btns))
+            return
+
         await callback.answer("Acción realizada.")
         try:
             await bot.edit_message_text("Acción elegida.", cid, callback.message.message_id)
@@ -219,7 +238,7 @@ async def callback_bsg_accion(update: Update, context: CallbackContext):
             await BSGController.ejecutar_accion_ubicacion(bot, game, presser, accion)
         else:
             await bot.send_message(cid, f"{game.playerlist[presser].name} pasa su acción.")
-        if not st.ganador:
+        if not st.ganador and not st.skill_check:
             await bot.send_message(cid, "Ahora se revela la *Crisis*. Usa `/crisis`.", parse_mode=ParseMode.MARKDOWN)
     except Exception as e:
         logger.error(f"callback_bsg_accion error: {e}")
@@ -228,6 +247,42 @@ async def callback_bsg_accion(update: Update, context: CallbackContext):
         except Exception:
             pass
         await bot.send_message(ADMIN[0], f"BSG accion error: {e}")
+
+
+async def callback_bsg_target(update: Update, context: CallbackContext):
+    """Selección de objetivo para una acción de ubicación con chequeo."""
+    bot = context.bot
+    callback = update.callback_query
+    presser = callback.from_user.id
+    try:
+        regex = re.search(r"(-?[0-9]*)\*bsgTarget\*([a-z0-9_]*)\*(-?[0-9]*)", callback.data)
+        cid = int(regex.group(1))
+        accion = regex.group(2)
+        objetivo = int(regex.group(3))
+        game = get_game(cid)
+        if not _validar(game):
+            await callback.answer("Partida no encontrada.")
+            return
+        st = game.board.state
+        if not st.active_player or st.active_player.uid != presser:
+            await callback.answer("No es tu acción.")
+            return
+        if objetivo not in game.playerlist:
+            await callback.answer("Objetivo inválido.")
+            return
+        await callback.answer("Objetivo elegido.")
+        try:
+            await bot.edit_message_text(f"Objetivo: {game.playerlist[objetivo].name}", cid, callback.message.message_id)
+        except Exception:
+            pass
+        await BSGController.ejecutar_accion_ubicacion(bot, game, presser, accion, objetivo=objetivo)
+    except Exception as e:
+        logger.error(f"callback_bsg_target error: {e}")
+        try:
+            await callback.answer("Error.")
+        except Exception:
+            pass
+        await bot.send_message(ADMIN[0], f"BSG target error: {e}")
 
 
 async def command_mover(update: Update, context: CallbackContext):
@@ -307,10 +362,87 @@ async def command_crisis(update: Update, context: CallbackContext):
     if st.skill_check:
         await bot.send_message(cid, "Ya hay un chequeo abierto. Resuélvelo con `/resolver`.")
         return
+    if st.crisis_actual:
+        await bot.send_message(cid, "Ya hay una crisis pendiente de resolver.")
+        return
     if st.active_player and st.active_player.uid != uid and uid not in ADMIN:
         await bot.send_message(cid, "Solo el jugador activo (o un admin) revela la crisis.")
         return
     await BSGController.robar_crisis(bot, game)
+
+
+async def callback_bsg_eleccion(update: Update, context: CallbackContext):
+    """El decisor de una crisis de decisión elige una opción."""
+    bot = context.bot
+    callback = update.callback_query
+    presser = callback.from_user.id
+    try:
+        regex = re.search(r"(-?[0-9]*)\*bsgEleccion\*([0-9]*)\*(-?[0-9]*)", callback.data)
+        cid = int(regex.group(1))
+        indice = int(regex.group(2))
+        decisor = int(regex.group(3))
+        game = get_game(cid)
+        if not _validar(game):
+            await callback.answer("Partida no encontrada.")
+            return
+        st = game.board.state
+        if not st.crisis_actual or st.crisis_actual.get("tipo") != "eleccion":
+            await callback.answer("Ya no hay decisión pendiente.")
+            return
+        if presser != decisor and presser not in ADMIN:
+            await callback.answer("No te toca decidir.")
+            return
+        await callback.answer("Decisión tomada.")
+        try:
+            await bot.edit_message_text("Decisión tomada.", cid, callback.message.message_id)
+        except Exception:
+            pass
+        await BSGController.resolver_eleccion(bot, game, indice)
+    except Exception as e:
+        logger.error(f"callback_bsg_eleccion error: {e}")
+        try:
+            await callback.answer("Error.")
+        except Exception:
+            pass
+        await bot.send_message(ADMIN[0], f"BSG eleccion error: {e}")
+
+
+async def callback_bsg_crisis_voto(update: Update, context: CallbackContext):
+    """Voto de un jugador en una crisis de voto."""
+    bot = context.bot
+    callback = update.callback_query
+    voter = callback.from_user.id
+    try:
+        regex = re.search(r"(-?[0-9]*)\*bsgCrisisVoto\*([0-9]*)\*(-?[0-9]*)", callback.data)
+        cid = int(regex.group(1))
+        indice = int(regex.group(2))
+        game = get_game(cid)
+        if not _validar(game):
+            await callback.answer("Partida no encontrada.")
+            return
+        st = game.board.state
+        if not st.crisis_vote:
+            await callback.answer("La votación ya terminó.")
+            return
+        p = game.playerlist.get(voter)
+        if not p:
+            await callback.answer("No estás en la partida.")
+            return
+        if p.en_calabozo or p.revealed:
+            await callback.answer("No puedes votar.")
+            return
+        if voter in st.crisis_vote["votos"]:
+            await callback.answer("Ya votaste.")
+            return
+        await callback.answer("Voto registrado.")
+        await BSGController.registrar_voto_crisis(bot, game, voter, indice)
+    except Exception as e:
+        logger.error(f"callback_bsg_crisis_voto error: {e}")
+        try:
+            await callback.answer("Error.")
+        except Exception:
+            pass
+        await bot.send_message(ADMIN[0], f"BSG crisis voto error: {e}")
 
 
 async def command_aportar(update: Update, context: CallbackContext):

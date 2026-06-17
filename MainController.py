@@ -840,6 +840,9 @@ def main(stop_event):
 	app.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)\*bsgBrig\*(-?[0-9]*)\*(-?[0-9]*)", callback=BSGCommands.callback_bsg_brig))
 	app.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)\*bsgFree\*(-?[0-9]*)\*(-?[0-9]*)", callback=BSGCommands.callback_bsg_free))
 	app.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)\*bsgQuorum\*([0-9]*)\*(-?[0-9]*)", callback=BSGCommands.callback_bsg_quorum))
+	app.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)\*bsgEleccion\*([0-9]*)\*(-?[0-9]*)", callback=BSGCommands.callback_bsg_eleccion))
+	app.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)\*bsgCrisisVoto\*([0-9]*)\*(-?[0-9]*)", callback=BSGCommands.callback_bsg_crisis_voto))
+	app.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)\*bsgTarget\*([a-z0-9_]*)\*(-?[0-9]*)", callback=BSGCommands.callback_bsg_target))
 	app.add_handler(CallbackQueryHandler(pattern=r"(-[0-9]*)\*chooseendBSG\*(.*)\*([0-9]*)", callback=BSGController.callback_finish_game_buttons_bsg))
 
 	app.add_handler(CommandHandler("status", command_status))

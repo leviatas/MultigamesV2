@@ -134,8 +134,7 @@ async def asignar_personaje(bot, game, uid, key):
     await bot.send_message(
         uid,
         f"{Characters.EMOJI_TIPO[pj['tipo']]} Eres *{pj['nombre']}* ({pj['tipo']}).\n\n"
-        f"*Habilidad:* {pj['habilidad']}\n"
-        f"*Desventaja:* {pj['desventaja']}\n"
+        f"*Habilidades:*\n{pj['abilities']}\n\n"
         f"📍 Ubicación inicial: {Locations.UBICACIONES[pj['ubicacion']]['nombre']}",
         parse_mode=ParseMode.MARKDOWN,
     )
@@ -171,10 +170,8 @@ async def finalizar_setup(bot, game):
     # --- Flota inicial ---
     _colocar_flota_inicial(st)
 
-    # --- Manos de habilidad iniciales ---
-    for player in game.playerlist.values():
-        _robar_skills(st, player)
-        await _dm_mano(bot, player)
+    # En el juego base no se reparte mano inicial: cada jugador roba en el
+    # paso de Recibir Habilidades al comienzo de su turno.
 
     st.fase_actual = "En Juego"
     st.player_counter = 0
@@ -214,9 +211,13 @@ def _asignar_titulos(game):
     game.playerlist[alm].titulos.append("Almirante")
 
 
-def _robar_skills(st, player):
+def _robar_skills(st, player, cantidad=3):
+    """Roba 'cantidad' cartas de habilidad de los colores del set del personaje.
+    En el juego base se roban 3 por turno, repartidas entre los colores permitidos."""
     pj = Characters.PERSONAJES[player.personaje]
-    for color in pj["skill_set"]:
+    pool = pj["skill_set"]
+    for _ in range(cantidad):
+        color = random.choice(pool)
         carta = _robar_carta_color(st, color)
         if carta:
             player.skill_hand.append(carta)
@@ -320,103 +321,174 @@ def _d8():
     return random.randint(1, 8)
 
 
-# Acciones disponibles por ubicación (clave -> lista de acciones)
+# Acciones disponibles por ubicación (clave -> lista de acciones), según el set oficial.
 ACCIONES_UBICACION = {
+    "ftl": ["jump"],
     "weapons": ["shoot_raider", "shoot_basestar"],
-    "hangar": ["launch", "repair"],
-    "command": ["viper_attack", "repel"],
-    "ftl": ["prep"],
-    "admiral_quarters": ["jump", "nuke"],
-    "research": ["draw2"],
-    "press_room": ["draw1"],
+    "command": ["activate_vipers"],
+    "communications": ["peek_civiles"],
+    "admiral_quarters": ["brig_check"],
+    "research": ["draw_eng", "draw_tac"],
+    "hangar": ["launch"],
+    "armory": ["armory_attack"],
+    "sickbay": [],
+    "brig": ["brig_escape"],
+    "press_room": ["draw_politics"],
     "president_office": ["draw_quorum"],
-    "sickbay": ["heal"],
-    "brig": [],
+    "administration": ["president_check"],
 }
+
+# Acciones que requieren elegir un personaje objetivo (abren chequeo de ubicación)
+ACCIONES_CON_OBJETIVO = {"brig_check": "brig", "president_check": "president"}
 
 ETIQUETA_ACCION = {
+    "jump": "🌌 Saltar la flota (FTL)",
     "shoot_raider": "🔫 Disparar a un Raider",
     "shoot_basestar": "💥 Disparar a una Basestar",
-    "launch": "✈️ Lanzar un Viper",
-    "repair": "🔧 Reparar Vipers dañados",
-    "viper_attack": "✈️🔫 Viper ataca a un Raider",
-    "repel": "🪖 Repeler centuriones (-1)",
-    "prep": "⏫ Preparar salto (+1)",
-    "jump": "🌌 Ejecutar salto FTL",
-    "nuke": "☢️ Ataque nuclear",
-    "draw2": "🃏 Robar 2 cartas de habilidad",
-    "draw1": "🃏 Robar 1 carta de habilidad",
+    "activate_vipers": "✈️ Activar Vipers (atacan Raiders)",
+    "peek_civiles": "🔭 Inspeccionar naves civiles",
+    "brig_check": "🚔 Enviar a alguien al Calabozo (chequeo)",
+    "draw_eng": "🟡 Robar 1 carta de Ingeniería",
+    "draw_tac": "🔴 Robar 1 carta de Táctica",
+    "launch": "✈️ Lanzarte en un Viper",
+    "armory_attack": "🪖 Atacar a un centurión",
+    "draw_politics": "🟢 Robar 2 cartas de Política",
     "draw_quorum": "🏛️ Robar una carta de Quórum",
-    "heal": "🩺 Curarse",
+    "president_check": "🏛️ Dar la Presidencia (chequeo)",
 }
 
 
-async def ejecutar_accion_ubicacion(bot, game, uid, accion):
+async def ejecutar_accion_ubicacion(bot, game, uid, accion, objetivo=None):
     """Resuelve la acción de ubicación elegida por el jugador activo."""
     st = game.board.state
     player = game.playerlist[uid]
 
-    if accion == "shoot_raider":
+    if accion == "jump":
+        # FTL Control: saltar si el track no está en zona roja (proxy: prep >= 2)
+        if st.jump_prep < 2:
+            await bot.send_message(game.cid, "El track de salto aún no está listo (necesita avanzar más por crisis).")
+            return
+        await ejecutar_salto(bot, game, auto=False)
+    elif accion == "shoot_raider":
         await _disparar(bot, game, "raider")
     elif accion == "shoot_basestar":
         await _disparar(bot, game, "basestar")
+    elif accion == "activate_vipers":
+        # Comando: activar hasta 2 Vipers sin tripular para atacar
+        await _viper_ataca(bot, game)
+        if st.vipers_espacio > 0 and st.raiders > 0:
+            await _viper_ataca(bot, game)
+    elif accion == "peek_civiles":
+        info = ", ".join(c["recurso"] or "vacía" for c in st.civiles) or "ninguna"
+        await bot.send_message(uid, f"🔭 Cargas de las naves civiles: {info}")
+        await bot.send_message(game.cid, f"🔭 {player.name} inspecciona las naves civiles.")
+    elif accion == "draw_eng":
+        await _robar_color(bot, game, player, Skills.INGENIERIA)
+    elif accion == "draw_tac":
+        await _robar_color(bot, game, player, Skills.TACTICA)
     elif accion == "launch":
         await _lanzar_viper(bot, game)
-    elif accion == "repair":
-        reparados = st.vipers_danados
-        st.vipers_reserva += st.vipers_danados
-        st.vipers_danados = 0
-        await bot.send_message(game.cid, f"🔧 {reparados} Viper(s) reparado(s).")
-    elif accion == "viper_attack":
-        await _viper_ataca(bot, game)
-    elif accion == "repel":
-        if st.centuriones > 0:
-            st.centuriones -= 1
-            await bot.send_message(game.cid, f"🪖 Repeles a los centuriones ({st.centuriones}/{st.centuriones_max}).")
+        await bot.send_message(game.cid, f"✈️ {player.name} se lanza en un Viper.")
+    elif accion == "armory_attack":
+        if st.centuriones <= 0:
+            await bot.send_message(game.cid, "No hay centuriones en el track de abordaje.")
         else:
-            await bot.send_message(game.cid, "No hay centuriones a bordo.")
-    elif accion == "prep":
-        st.jump_prep = min(st.jump_prep_max, st.jump_prep + 1)
-        await bot.send_message(game.cid, f"⏫ Preparación de salto: {st.jump_prep}/{st.jump_prep_max}")
-    elif accion == "jump":
-        if uid != st.almirante_uid and uid not in ADMIN:
-            await bot.send_message(game.cid, "Solo el Almirante puede ejecutar el salto.")
-            return
-        if st.jump_prep < 2:
-            await bot.send_message(game.cid, "La preparación de salto aún no es suficiente (mín. 2).")
-            return
-        await ejecutar_salto(bot, game, auto=False)
-    elif accion == "nuke":
-        if uid != st.almirante_uid and uid not in ADMIN:
-            await bot.send_message(game.cid, "Solo el Almirante puede lanzar el ataque nuclear.")
-            return
-        await _nuke(bot, game)
-    elif accion == "draw2":
-        await _robar_n_skills(bot, game, player, 2)
-    elif accion == "draw1":
-        await _robar_n_skills(bot, game, player, 1)
+            r = _d8()
+            if r >= 7:
+                st.centuriones -= 1
+                await bot.send_message(game.cid, f"🪖 Tirada {r}: ¡centurión destruido! ({st.centuriones}/{st.centuriones_max})")
+            else:
+                await bot.send_message(game.cid, f"🪖 Tirada {r}: el centurión resiste.")
+    elif accion == "draw_politics":
+        await _robar_color(bot, game, player, Skills.POLITICA)
+        await _robar_color(bot, game, player, Skills.POLITICA)
     elif accion == "draw_quorum":
         if uid != st.presidente_uid and uid not in ADMIN:
             await bot.send_message(game.cid, "Solo el Presidente puede robar cartas de Quórum.")
             return
         await robar_quorum(bot, game, uid)
-    elif accion == "heal":
-        await bot.send_message(game.cid, f"🩺 {player.name} se recupera en la enfermería.")
+    elif accion in ("brig_check", "president_check"):
+        await abrir_chequeo_ubicacion(bot, game, uid, accion, objetivo)
+        return  # el chequeo se resuelve aparte; no guardar dos veces
+    elif accion == "brig_escape":
+        await abrir_chequeo_ubicacion(bot, game, uid, accion, uid)
+        return
     else:
         await bot.send_message(game.cid, "Acción no disponible.")
     await save(bot, game.cid)
 
 
-async def _robar_n_skills(bot, game, player, n):
-    pj = Characters.PERSONAJES[player.personaje]
-    colores = pj["skill_set"]
-    for i in range(n):
-        color = colores[i % len(colores)]
-        carta = _robar_carta_color(game.board.state, color)
-        if carta:
-            player.skill_hand.append(carta)
-    await bot.send_message(game.cid, f"🃏 {player.name} roba {n} carta(s) de habilidad.")
+async def _robar_color(bot, game, player, color):
+    carta = _robar_carta_color(game.board.state, color)
+    if carta:
+        player.skill_hand.append(carta)
+    await bot.send_message(game.cid, f"🃏 {player.name} roba 1 carta ({color}).")
     await _dm_mano(bot, player)
+
+
+# ---- Chequeos de habilidad asociados a una acción de ubicación ----
+
+async def abrir_chequeo_ubicacion(bot, game, actor_uid, accion, objetivo_uid):
+    st = game.board.state
+    # Determinar ubicación y su check
+    player = game.playerlist[actor_uid]
+    info = Locations.UBICACIONES.get(player.ubicacion, {})
+    check = info.get("check")
+    if not check:
+        await bot.send_message(game.cid, "Aquí no hay un chequeo disponible.")
+        return
+    if st.skill_check:
+        await bot.send_message(game.cid, "Ya hay un chequeo abierto.")
+        return
+    efecto = check["efecto"]
+    st.skill_check = {
+        "ubicacion_accion": efecto,
+        "actor_uid": actor_uid,
+        "objetivo_uid": objetivo_uid,
+        "colores": check["colores"],
+        "dificultad": check["dificultad"],
+        "aportes": {},
+    }
+    emojis = " ".join(Skills.EMOJI_COLOR[c] for c in check["colores"])
+    obj = game.playerlist.get(objetivo_uid)
+    obj_txt = f" sobre *{obj.name}*" if obj and objetivo_uid != actor_uid else ""
+    await bot.send_message(
+        game.cid,
+        f"🎲 *Chequeo de acción*{obj_txt} — dificultad *{check['dificultad']}*.\n"
+        f"Colores positivos: {emojis}.\n"
+        f"Aporten con `/aportar N` y resuelvan con `/resolver`.",
+        parse_mode=ParseMode.MARKDOWN,
+    )
+    await save(bot, game.cid)
+
+
+async def _resolver_chequeo_ubicacion(bot, game, sc, total, exito):
+    """Aplica el resultado de un chequeo asociado a una acción de ubicación."""
+    st = game.board.state
+    efecto = sc["ubicacion_accion"]
+    objetivo = game.playerlist.get(sc.get("objetivo_uid"))
+    st.skill_check = None
+    if not exito:
+        await bot.send_message(game.cid, "❌ El chequeo de acción falla; no ocurre nada.")
+        await save(bot, game.cid)
+        return
+    if efecto == "brig" and objetivo:
+        objetivo.en_calabozo = True
+        objetivo.ubicacion = "brig"
+        await bot.send_message(game.cid, f"🚔 *{objetivo.name}* es enviado al Calabozo.", parse_mode=ParseMode.MARKDOWN)
+    elif efecto == "president" and objetivo:
+        ant = game.playerlist.get(st.presidente_uid)
+        if ant and "Presidente" in ant.titulos:
+            ant.titulos.remove("Presidente")
+        st.presidente_uid = objetivo.uid
+        if "Presidente" not in objetivo.titulos:
+            objetivo.titulos.append("Presidente")
+        await bot.send_message(game.cid, f"🏛️ *{objetivo.name}* recibe el título de Presidente.", parse_mode=ParseMode.MARKDOWN)
+    elif efecto == "escape" and objetivo:
+        objetivo.en_calabozo = False
+        objetivo.ubicacion = "sickbay"
+        await bot.send_message(game.cid, f"🔓 *{objetivo.name}* sale del Calabozo (Enfermería).", parse_mode=ParseMode.MARKDOWN)
+    await save(bot, game.cid)
 
 
 async def _disparar(bot, game, objetivo):
@@ -692,14 +764,16 @@ async def usar_habilidad(bot, game, uid):
                 robadas += 1
         await bot.send_message(game.cid, f"🏛️ *{nombre}* usa su Mandato Ejecutivo y roba {robadas} cartas de Quórum.", parse_mode=ParseMode.MARKDOWN)
     elif pj == "zarek":
-        if st.presidente_uid and st.presidente_uid != uid:
-            antiguo = game.playerlist.get(st.presidente_uid)
-            if antiguo and "Presidente" in antiguo.titulos:
-                antiguo.titulos.remove("Presidente")
-        st.presidente_uid = uid
-        if "Presidente" not in player.titulos:
-            player.titulos.append("Presidente")
-        await bot.send_message(game.cid, f"🏛️ *{nombre}* maniobra políticamente y asume la Presidencia.", parse_mode=ParseMode.MARKDOWN)
+        # Tácticas Heterodoxas: pierde 1 población para ganar 1 de otro recurso (el más bajo).
+        if st.poblacion <= 1:
+            await bot.send_message(uid, "No tienes suficiente población para usar esta habilidad.")
+            aplicada = False
+        else:
+            await modificar_recurso(bot, game, "poblacion", -1)
+            otros = {"comida": st.comida, "combustible": st.combustible, "moral": st.moral}
+            objetivo = min(otros, key=otros.get)
+            await modificar_recurso(bot, game, objetivo, 1)
+            await bot.send_message(game.cid, f"🏛️ *{nombre}* usa Tácticas Heterodoxas (−1 población, +1 {objetivo}).", parse_mode=ParseMode.MARKDOWN)
     elif pj == "adama":
         if st.skill_check:
             st.skill_check["bonus"] = st.skill_check.get("bonus", 0) + 3
@@ -708,13 +782,19 @@ async def usar_habilidad(bot, game, uid):
             await bot.send_message(uid, "No hay un chequeo abierto para potenciar.")
             aplicada = False
     elif pj == "tigh":
-        descartados = 0
-        for p in game.playerlist.values():
-            if p.uid != uid and p.skill_hand:
-                c = p.skill_hand.pop()
-                st.skill_discards.setdefault(c["color"], []).append(c)
-                descartados += 1
-        await bot.send_message(game.cid, f"🎖️ *{nombre}* Declara Emergencia: {descartados} jugador(es) descartan una carta.", parse_mode=ParseMode.MARKDOWN)
+        # Declarar Ley Marcial: entrega el título de Presidente al Almirante.
+        alm = st.almirante_uid
+        if not alm:
+            await bot.send_message(uid, "No hay Almirante al que entregar la Presidencia.")
+            aplicada = False
+        else:
+            ant = game.playerlist.get(st.presidente_uid)
+            if ant and "Presidente" in ant.titulos:
+                ant.titulos.remove("Presidente")
+            st.presidente_uid = alm
+            if "Presidente" not in game.playerlist[alm].titulos:
+                game.playerlist[alm].titulos.append("Presidente")
+            await bot.send_message(game.cid, f"🎖️ *{nombre}* Declara Ley Marcial: la Presidencia pasa al Almirante.", parse_mode=ParseMode.MARKDOWN)
     elif pj == "apollo":
         await _lanzar_viper(bot, game)
         await _viper_ataca(bot, game)
@@ -817,9 +897,107 @@ async def robar_crisis(bot, game):
 
     if crisis["tipo"] == "chequeo":
         await abrir_chequeo(bot, game, crisis)
+    elif crisis["tipo"] == "eleccion":
+        await abrir_eleccion(bot, game, crisis)
+    elif crisis["tipo"] == "voto":
+        await abrir_voto(bot, game, crisis)
     else:
         await aplicar_efectos(bot, game, crisis.get("efectos", []))
         await cerrar_crisis(bot, game, crisis)
+
+
+# ---- Crisis de decisión ----
+
+async def abrir_eleccion(bot, game, crisis):
+    st = game.board.state
+    if crisis.get("decisor") == "presidente" and st.presidente_uid:
+        decisor = game.playerlist[st.presidente_uid]
+    else:
+        decisor = st.active_player
+    st.skill_check = None
+    btns = [[InlineKeyboardButton(op["label"], callback_data=f"{game.cid}*bsgEleccion*{i}*{decisor.uid}")]
+            for i, op in enumerate(crisis["opciones"])]
+    await bot.send_message(
+        game.cid,
+        f"🤔 *Decisión* — {player_call(decisor)} debe elegir:",
+        reply_markup=InlineKeyboardMarkup(btns),
+        parse_mode=ParseMode.MARKDOWN,
+    )
+    await save(bot, game.cid)
+
+
+async def resolver_eleccion(bot, game, indice):
+    st = game.board.state
+    crisis = st.crisis_actual
+    if not crisis or indice < 0 or indice >= len(crisis["opciones"]):
+        return
+    opcion = crisis["opciones"][indice]
+    await bot.send_message(game.cid, f"➡️ Se elige: *{opcion['label']}*", parse_mode=ParseMode.MARKDOWN)
+    await aplicar_efectos(bot, game, opcion.get("efectos", []))
+    await cerrar_crisis(bot, game, crisis)
+
+
+# ---- Crisis de voto ----
+
+async def abrir_voto(bot, game, crisis):
+    st = game.board.state
+    st.crisis_vote = {"votos": {}, "n_opciones": len(crisis["opciones"])}
+    btns = [[InlineKeyboardButton(op["label"], callback_data=f"{game.cid}*bsgCrisisVoto*{i}*0")]
+            for i, op in enumerate(crisis["opciones"])]
+    await bot.send_message(
+        game.cid,
+        "🗳️ *Votación de crisis* — todos los jugadores (no presos ni Cylons revelados) votan. "
+        "Gana la mayoría:",
+        reply_markup=InlineKeyboardMarkup(btns),
+        parse_mode=ParseMode.MARKDOWN,
+    )
+    await save(bot, game.cid)
+
+
+def _votantes_validos(game):
+    return [p for p in game.playerlist.values() if not p.en_calabozo and not p.revealed]
+
+
+async def registrar_voto_crisis(bot, game, uid, indice):
+    st = game.board.state
+    vote = st.crisis_vote
+    if not vote:
+        return
+    player = game.playerlist.get(uid)
+    if not player or player.en_calabozo or player.revealed:
+        return
+    vote["votos"][uid] = indice
+    if len(vote["votos"]) >= len(_votantes_validos(game)):
+        await resolver_voto_crisis(bot, game)
+    else:
+        await save(bot, game.cid)
+
+
+async def resolver_voto_crisis(bot, game):
+    st = game.board.state
+    crisis = st.crisis_actual
+    vote = st.crisis_vote
+    st.crisis_vote = None
+    if not crisis or not vote:
+        return
+    conteo = {}
+    for idx in vote["votos"].values():
+        conteo[idx] = conteo.get(idx, 0) + 1
+    if not conteo:
+        ganadora = 0
+    else:
+        maxv = max(conteo.values())
+        empatadas = [i for i, c in conteo.items() if c == maxv]
+        # Desempate: el Presidente decide; si no, la primera opción.
+        ganadora = empatadas[0]
+        if len(empatadas) > 1 and st.presidente_uid in vote["votos"]:
+            pres_voto = vote["votos"][st.presidente_uid]
+            if pres_voto in empatadas:
+                ganadora = pres_voto
+    opcion = crisis["opciones"][ganadora]
+    await bot.send_message(game.cid, f"🗳️ Gana la opción: *{opcion['label']}*", parse_mode=ParseMode.MARKDOWN)
+    await aplicar_efectos(bot, game, opcion.get("efectos", []))
+    await cerrar_crisis(bot, game, crisis)
 
 
 async def abrir_chequeo(bot, game, crisis):
@@ -897,7 +1075,6 @@ async def resolver_chequeo(bot, game):
         total += bonus
         detalle.append(f"⭐{'+' if bonus>0 else ''}{bonus}")
 
-    crisis = st.crisis_actual
     exito = total >= sc["dificultad"]
     await bot.send_message(
         game.cid,
@@ -906,6 +1083,13 @@ async def resolver_chequeo(bot, game):
         f"Cartas: {' '.join(detalle) if detalle else '(ninguna)'}",
         parse_mode=ParseMode.MARKDOWN,
     )
+
+    # Chequeo asociado a una acción de ubicación (no es una crisis)
+    if sc.get("ubicacion_accion"):
+        await _resolver_chequeo_ubicacion(bot, game, sc, total, exito)
+        return
+
+    crisis = st.crisis_actual
     st.skill_check = None
     efectos = crisis["exito"] if exito else crisis["fracaso"]
     await aplicar_efectos(bot, game, efectos)
@@ -1039,12 +1223,20 @@ async def fase_durmiente(bot, game):
         parse_mode=ParseMode.MARKDOWN,
     )
     for uid, player in game.playerlist.items():
-        if st.loyalty_deck:
-            carta = st.loyalty_deck.pop()
-            player.loyalty_cards.append(carta)
-            if carta == Loyalty.CYLON and not player.is_cylon:
-                player.is_cylon = True
-            await _dm_lealtad(bot, player)
+        pj = Characters.PERSONAJES.get(player.personaje, {})
+        # Boomer recibe 2 cartas en la fase durmiente y va al Calabozo
+        cantidad = 1 + pj.get("sleeper_extra", 0)
+        for _ in range(cantidad):
+            if st.loyalty_deck:
+                carta = st.loyalty_deck.pop()
+                player.loyalty_cards.append(carta)
+                if carta == Loyalty.CYLON and not player.is_cylon:
+                    player.is_cylon = True
+        if pj.get("sleeper_to_brig") and not player.revealed:
+            player.en_calabozo = True
+            player.ubicacion = "brig"
+            await bot.send_message(game.cid, f"🚔 {player.name} es trasladado al Calabozo (Agente Durmiente).")
+        await _dm_lealtad(bot, player)
 
 
 # ===================== FIN DE PARTIDA =====================
