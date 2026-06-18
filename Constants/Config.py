@@ -91,7 +91,6 @@ JUEGOS_DISPONIBLES = {
                 "comandos" : {
                     "BattlestarGalactica" : "Battlestar Galactica"
                 },
-                "restriccion" : "admin",
         },
 }
 
