@@ -2,30 +2,35 @@
 """
 Configuración del mazo de Lealtad (Loyalty) del juego base.
 
-Datos confirmados:
-- El total de cartas de lealtad repartidas es el doble del número de jugadores
+Datos confirmados contra el reglamento oficial:
+- Composición inicial del mazo de lealtad por número de jugadores:
+      Jugadores | "Eres un Cylon" | "No eres un Cylon"
+          3     |        1        |        5
+          4     |        1        |        6
+          5     |        2        |        8
+          6     |        2        |        9
+- El total de cartas repartidas es el doble del número de jugadores
   (1 por jugador al inicio + 1 por jugador en la Fase del Agente Durmiente).
+- La carta "Eres un Simpatizante" (Sympathizer) se incluye en partidas de 4 y 6
+  jugadores; se añade tras la primera ronda, por lo que aparece en la Fase del
+  Agente Durmiente.
+- Se añade 1 carta "No eres un Cylon" extra por cada Baltar o Boomer en juego
+  (Baltar recibe 2 cartas al inicio; Boomer recibe 2 en la Fase Durmiente).
 - La Fase del Agente Durmiente ocurre tras alcanzar la distancia 4 (mitad del
   recorrido hacia la distancia 8).
-- La carta "Eres un Simpatizante" (Sympathizer) se incluye en partidas de 4 y 6
-  jugadores.
-- Se añade 1 carta "No eres un Cylon" extra por cada Baltar o Boomer en juego.
-
-PENDIENTE DE VERIFICACIÓN: el número exacto de cartas "Eres un Cylon" por
-cantidad de jugadores. Los valores de abajo son los de uso común; ajustar
-contra el reglamento oficial si difieren.  # VERIFICAR
 """
 
 CYLON = "cylon"
 HUMANO = "humano"
 SIMPATIZANTE = "simpatizante"
 
-# Número de cartas "Eres un Cylon" en el mazo, por cantidad de jugadores.
+# Número de cartas "Eres un Cylon" en el mazo, por cantidad de jugadores
+# (valores oficiales del reglamento del juego base).
 CYLON_CARDS_POR_JUGADORES = {
-    3: 1,   # VERIFICAR
-    4: 2,   # VERIFICAR
-    5: 2,   # VERIFICAR
-    6: 3,   # VERIFICAR
+    3: 1,
+    4: 1,
+    5: 2,
+    6: 2,
 }
 
 # La Sympathizer se usa en partidas con número par de jugadores (4 y 6).

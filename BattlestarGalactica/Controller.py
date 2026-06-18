@@ -170,12 +170,20 @@ async def finalizar_setup(bot, game):
     # --- Flota inicial ---
     _colocar_flota_inicial(st)
 
-    # En el juego base no se reparte mano inicial: cada jugador roba en el
-    # paso de Recibir Habilidades al comienzo de su turno.
+    # --- Mano inicial de habilidades (regla del juego base) ---
+    # Todos los jugadores EXCEPTO el primero roban 3 cartas de habilidad al
+    # empezar. El primer jugador robará su mano normal en su primer turno (su
+    # ventaja es jugar primero).
+    primer_jugador = game.player_sequence[0]
+    for player in game.player_sequence:
+        if player.uid == primer_jugador.uid:
+            continue
+        _robar_skills(st, player, 3)
+        await _dm_mano(bot, player)
 
     st.fase_actual = "En Juego"
     st.player_counter = 0
-    st.active_player = game.player_sequence[0]
+    st.active_player = primer_jugador
 
     await bot.send_message(
         game.cid,
