@@ -127,7 +127,7 @@ async def command_mano(update: Update, context: CallbackContext):
     if not player.skill_hand:
         await bot.send_message(uid, "No tienes cartas de habilidad.")
         return
-    lineas = [f"{i+1}. {Skills.EMOJI_COLOR[c['color']]} {c['color']} {c['valor']}"
+    lineas = [f"{i+1}. {Skills.EMOJI_COLOR[c['color']]} {c['color']} {c['valor']} — _{c.get('nombre','')}_"
               for i, c in enumerate(player.skill_hand)]
     await bot.send_message(uid, "🃏 *Tu mano:*\n" + "\n".join(lineas), parse_mode=ParseMode.MARKDOWN)
 

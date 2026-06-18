@@ -1,14 +1,22 @@
 # -*- coding: utf-8 -*-
 """
-Mazos de habilidad (5 colores) y configuración de chequeos de habilidad.
+Mazos de habilidad (5 colores) del juego base, con la composición y las cartas
+nombradas oficiales (hoja "Skill cards", Game=B).
 
-En el juego base hay 5 colores de habilidad. Cada chequeo de habilidad suma
-las cartas aportadas (boca abajo) más 2 cartas del mazo de Destino (Destiny),
-y se compara contra la dificultad de la crisis.
+Composición por color: 8×valor1, 6×valor2, 4×valor3, 2×valor4, 1×valor5 (21 cartas).
 
-Para esta capa modelamos cada carta de habilidad como {color, valor}. Las
-cartas con efectos especiales (p. ej. "Reparaciones", "Maniobra de evasión")
-se incorporarán como `nombre`/`efecto` en una capa posterior.  # VERIFICAR
+Cada carta: {color, valor, nombre, texto}. El nombre/efecto depende del color y
+de un umbral de valor:
+  Política       → Consolidate Power (todos los valores)
+  Liderazgo  1-2 → Executive Order      | 3-5 → Declare Emergency
+  Táctica    1-2 → Launch Scout         | 3-5 → Strategic Planning
+  Pilotaje   1-2 → Evasive Maneuvers    | 3-5 → Maximum Firepower
+  Ingeniería 1-2 → Repair               | 3-5 → Scientific Research
+
+Efectos implementados automáticamente al aportarse a un chequeo:
+  - Declare Emergency: reduce la dificultad del chequeo en 2 (máx. 1 por chequeo).
+  - Scientific Research: todas las cartas de Ingeniería del chequeo cuentan en positivo.
+Las demás (acción/intervención) se muestran por su texto (juego interactivo futuro).
 """
 
 POLITICA = "Politica"
@@ -20,39 +28,53 @@ INGENIERIA = "Ingenieria"
 COLORES = [POLITICA, LIDERAZGO, TACTICA, PILOTAJE, INGENIERIA]
 
 EMOJI_COLOR = {
-    POLITICA: "🟢",     # verde
-    LIDERAZGO: "🟣",    # morado
-    TACTICA: "🔴",      # rojo
-    PILOTAJE: "🔵",     # azul
-    INGENIERIA: "🟡",   # amarillo
+    POLITICA: "🟢", LIDERAZGO: "🟣", TACTICA: "🔴", PILOTAJE: "🔵", INGENIERIA: "🟡",
 }
 
-# Distribución de valores por color (aproximada del juego base).  # VERIFICAR
-# Cada entrada: valor -> cantidad de cartas de ese valor en el mazo del color.
-DISTRIBUCION_VALORES = {
-    1: 3,
-    2: 3,
-    3: 4,
-    4: 3,
-    5: 2,
+# Composición oficial por color (valor -> cantidad)
+DISTRIBUCION_VALORES = {1: 8, 2: 6, 3: 4, 4: 2, 5: 1}
+
+# Texto de cada habilidad nombrada
+TEXTOS = {
+    "Consolidate Power": "Acción: roba 2 cartas de habilidad de cualquier tipo (incluso fuera de tu set).",
+    "Executive Order": "Acción: elige a otro jugador; puede moverse y tomar 1 acción, o no moverse y tomar 2.",
+    "Declare Emergency": "Se juega tras totalizar un chequeo: reduce su dificultad en 2 (máx. 1 por chequeo).",
+    "Launch Scout": "Acción: arriesga 1 Raptor y tira un dado para mirar/reordenar el mazo de Crisis o Destino.",
+    "Strategic Planning": "Se juega antes de una tirada de dado: súmale 2 (máx. 1 por tirada).",
+    "Evasive Maneuvers": "Se juega tras atacar a un Viper: repite la tirada (si está tripulado, -2 al nuevo resultado).",
+    "Maximum Firepower": "Acción: estando pilotando un Viper, ataca hasta 4 veces.",
+    "Repair": "Acción: repara tu ubicación; en la Cubierta de Hangar, repara hasta 2 Vipers dañados.",
+    "Scientific Research": "Se juega antes de añadir cartas a un chequeo: todas las de Ingeniería cuentan en positivo.",
 }
+
+
+def nombre_carta(color, valor):
+    if color == POLITICA:
+        return "Consolidate Power"
+    if color == LIDERAZGO:
+        return "Executive Order" if valor <= 2 else "Declare Emergency"
+    if color == TACTICA:
+        return "Launch Scout" if valor <= 2 else "Strategic Planning"
+    if color == PILOTAJE:
+        return "Evasive Maneuvers" if valor <= 2 else "Maximum Firepower"
+    if color == INGENIERIA:
+        return "Repair" if valor <= 2 else "Scientific Research"
+    return ""
 
 
 def construir_mazo_color(color):
-    """Devuelve la lista de cartas {color, valor} de un color."""
     mazo = []
     for valor, cantidad in DISTRIBUCION_VALORES.items():
+        nombre = nombre_carta(color, valor)
         for _ in range(cantidad):
-            mazo.append({"color": color, "valor": valor})
+            mazo.append({"color": color, "valor": valor, "nombre": nombre,
+                         "texto": TEXTOS.get(nombre, "")})
     return mazo
 
 
 def construir_todos_los_mazos():
-    """Devuelve un dict color -> lista de cartas barajables."""
     return {color: construir_mazo_color(color) for color in COLORES}
 
 
-# Colores considerados "positivos" en un chequeo. En BSG, los colores que NO
-# están en la lista de habilidades permitidas de la crisis suman en NEGATIVO.
 def signo_para_check(color_carta, colores_permitidos):
     return 1 if color_carta in colores_permitidos else -1

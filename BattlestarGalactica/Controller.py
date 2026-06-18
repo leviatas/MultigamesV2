@@ -253,7 +253,7 @@ async def _dm_lealtad(bot, player):
 async def _dm_mano(bot, player):
     if not player.skill_hand:
         return
-    lineas = [f"{i+1}. {Skills.EMOJI_COLOR[c['color']]} {c['color']} {c['valor']}"
+    lineas = [f"{i+1}. {Skills.EMOJI_COLOR[c['color']]} {c['color']} {c['valor']} — _{c.get('nombre','')}_"
               for i, c in enumerate(player.skill_hand)]
     await bot.send_message(
         player.uid,
@@ -1166,6 +1166,10 @@ async def resolver_chequeo(bot, game):
     for uid, cartas in sc["aportes"].items():
         for c in cartas:
             todas.append(c)
+    # Habilidades de cartas jugadas en el chequeo (solo aportes de jugadores)
+    nombres = [c.get("nombre") for c in todas]
+    scientific = "Scientific Research" in nombres   # Ingeniería cuenta en positivo
+    declare_emergency = nombres.count("Declare Emergency")
     # 2 cartas de destino
     destino = _robar_destino(st, 2)
     for c in destino:
@@ -1173,7 +1177,10 @@ async def resolver_chequeo(bot, game):
 
     random.shuffle(todas)  # ocultar quién aportó qué
     for c in todas:
-        signo = Skills.signo_para_check(c["color"], colores)
+        if scientific and c["color"] == Skills.INGENIERIA:
+            signo = 1
+        else:
+            signo = Skills.signo_para_check(c["color"], colores)
         total += signo * c["valor"]
         detalle.append(f"{Skills.EMOJI_COLOR[c['color']]}{'+' if signo>0 else '-'}{c['valor']}")
         st.skill_discards.setdefault(c["color"], []).append(c)
@@ -1184,10 +1191,20 @@ async def resolver_chequeo(bot, game):
         total += bonus
         detalle.append(f"⭐{'+' if bonus>0 else ''}{bonus}")
 
-    exito = total >= sc["dificultad"]
+    # Dificultad efectiva (Declare Emergency reduce 2, máx 1 por chequeo)
+    dificultad = sc["dificultad"]
+    notas = []
+    if declare_emergency:
+        dificultad -= 2
+        notas.append("Declare Emergency −2 dif.")
+    if scientific:
+        notas.append("Scientific Research: Ingeniería positiva")
+
+    exito = total >= dificultad
+    extra = (" (" + "; ".join(notas) + ")") if notas else ""
     await bot.send_message(
         game.cid,
-        f"🎲 Resultado del chequeo: *{total}* vs dificultad *{sc['dificultad']}* → "
+        f"🎲 Resultado del chequeo: *{total}* vs dificultad *{dificultad}*{extra} → "
         f"{'✅ ÉXITO' if exito else '❌ FRACASO'}\n"
         f"Cartas: {' '.join(detalle) if detalle else '(ninguna)'}",
         parse_mode=ParseMode.MARKDOWN,
