@@ -182,10 +182,13 @@ async def finalizar_setup(bot, game):
         "🃏 *Cartas de lealtad repartidas* (revisen su privado).\n\n"
         f"🏛️ Presidente: *{pres.name if pres else '—'}*\n"
         f"🎖️ Almirante: *{alm.name if alm else '—'}*\n\n"
+        "🛸 *Despliegue inicial:* 1 Basestar y 3 Raiders acechan frente a Galactica, "
+        "con 2 Vipers en el espacio y 2 naves civiles a proteger.\n\n"
         "La flota parte. ¡Sobrevivan hasta la distancia 8!",
         parse_mode=ParseMode.MARKDOWN,
     )
     await bot.send_message(game.cid, game.board.print_board(game), parse_mode=ParseMode.MARKDOWN)
+    await bot.send_message(game.cid, game.board.print_map(game), parse_mode=ParseMode.MARKDOWN)
     await save(bot, game.cid)
     await iniciar_turno(bot, game)
 
@@ -280,7 +283,8 @@ async def iniciar_turno(bot, game):
         f"🎬 *Turno de {player.name}* (recibió cartas de habilidad).\n"
         f"📍 Estás en: *{ubic}*\n\n"
         f"`/mover` para cambiar de ubicación · `/accion` para la acción de tu ubicación · "
-        f"luego `/crisis` para revelar la crisis.",
+        f"luego `/crisis` para revelar la crisis.\n"
+        f"Consulta `/mapa` para ver la flota y dónde está cada jugador.",
         parse_mode=ParseMode.MARKDOWN,
     )
     await save(bot, game.cid)
@@ -298,23 +302,44 @@ async def avanzar_turno(bot, game):
 
 # ===================== FLOTA / COMBATE ESPACIAL =====================
 
+# Distribución de carga de las naves civiles (juego base). Cada nave civil
+# lleva una carga oculta hasta que es destruida: algunas transportan un recurso
+# y otras van vacías.
+CIVILES_CARGAS = [
+    {"recurso": "combustible", "cantidad": 1},
+    {"recurso": "combustible", "cantidad": 1},
+    {"recurso": "poblacion", "cantidad": 1},
+    {"recurso": "poblacion", "cantidad": 1},
+    {"recurso": "moral", "cantidad": 1},
+    {"recurso": None, "cantidad": 0},
+    {"recurso": None, "cantidad": 0},
+    {"recurso": None, "cantidad": 0},
+]
+
+
 def _colocar_flota_inicial(st):
-    """Despliega vipers iniciales y naves civiles con carga oculta."""
-    n_vipers = min(3, st.vipers_reserva)
+    """Despliega la disposición inicial del juego base sobre el tablero:
+    - 2 Vipers en el espacio (lanzados desde la reserva).
+    - 1 Basestar y 3 Raiders como amenaza Cylon inicial frente a Galactica.
+    - 2 Naves civiles en el espacio (con carga oculta); el resto queda en reserva.
+    """
+    # Vipers: 2 en el espacio
+    n_vipers = min(2, st.vipers_reserva)
     st.vipers_reserva -= n_vipers
     st.vipers_espacio += n_vipers
 
-    cargas = [
-        {"recurso": "poblacion", "cantidad": 1},
-        {"recurso": "poblacion", "cantidad": 1},
-        {"recurso": "moral", "cantidad": 1},
-        {"recurso": "combustible", "cantidad": 1},
-        {"recurso": None, "cantidad": 0},
-        {"recurso": None, "cantidad": 0},
-    ]
-    random.shuffle(cargas)
-    st.civiles = cargas
-    st.naves_civiles = len(cargas)
+    # Amenaza Cylon inicial
+    st.basestars = 1
+    st.basestar_hits = 0
+    st.raiders = 3
+
+    # Naves civiles: barajar el mazo de cargas, colocar 2 en el espacio y
+    # dejar el resto en la pila para reponerlas durante la partida.
+    pila = [dict(c) for c in CIVILES_CARGAS]
+    random.shuffle(pila)
+    st.civiles = [pila.pop() for _ in range(min(2, len(pila)))]
+    st.civiles_pile = pila
+    st.naves_civiles = len(st.civiles)
 
 
 def _d8():

@@ -823,6 +823,7 @@ def main(stop_event):
 	app.add_handler(CommandHandler("lealtad", BSGCommands.command_lealtad))
 	app.add_handler(CommandHandler("mano", BSGCommands.command_mano))
 	app.add_handler(CommandHandler("estado", BSGCommands.command_estado))
+	app.add_handler(CommandHandler("mapa", BSGCommands.command_mapa))
 	app.add_handler(CommandHandler("accion", BSGCommands.command_accion))
 	app.add_handler(CommandHandler("mover", BSGCommands.command_mover))
 	app.add_handler(CommandHandler("crisis", BSGCommands.command_crisis))

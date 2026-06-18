@@ -32,7 +32,7 @@ async def command_call(bot, game):
         await bot.send_message(
             game.cid,
             f"🚀 *BSG en curso* — turno de *{st.active_player.name}*.\n"
-            "Mover: `/mover` · Acción: `/accion` · Crisis: `/crisis` · Tablero: `/estado`\n"
+            "Mover: `/mover` · Acción: `/accion` · Crisis: `/crisis` · Tablero: `/estado` · Mapa: `/mapa`\n"
             "Habilidad: `/habilidad` · Presidente: `/quorum` · Cylons: `/revelar`\n"
             "Presidente/Almirante: `/encarcelar` · `/liberar`",
             parse_mode=ParseMode.MARKDOWN,
@@ -141,6 +141,17 @@ async def command_estado(update: Update, context: CallbackContext):
         await bot.send_message(cid, "No hay partida de Battlestar Galactica activa aquí.")
         return
     await bot.send_message(cid, game.board.print_board(game), parse_mode=ParseMode.MARKDOWN)
+
+
+async def command_mapa(update: Update, context: CallbackContext):
+    """Muestra el mapa textual de la flota (ubicaciones y espacio)."""
+    bot = context.bot
+    cid = update.message.chat_id
+    game = get_game(cid)
+    if not _validar(game):
+        await bot.send_message(cid, "No hay partida de Battlestar Galactica activa aquí.")
+        return
+    await bot.send_message(cid, game.board.print_map(game), parse_mode=ParseMode.MARKDOWN)
 
 
 async def command_accion(update: Update, context: CallbackContext):
