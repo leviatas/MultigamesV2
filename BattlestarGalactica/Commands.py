@@ -379,6 +379,13 @@ async def command_crisis(update: Update, context: CallbackContext):
     if st.active_player and st.active_player.uid != uid and uid not in ADMIN:
         await bot.send_message(cid, "Solo el jugador activo (o un admin) revela la crisis.")
         return
+    # Los jugadores Cylon revelados no roban crisis: con esto terminan su turno.
+    if st.active_player and st.active_player.revealed:
+        await bot.send_message(
+            cid, f"🤖 {st.active_player.name} termina su turno (los Cylon no roban crisis)."
+        )
+        await BSGController.avanzar_turno(bot, game)
+        return
     await BSGController.robar_crisis(bot, game)
 
 
@@ -572,7 +579,7 @@ async def callback_bsg_cylon(update: Update, context: CallbackContext):
             pass
         await BSGController.ejecutar_accion_cylon(bot, game, presser, accion)
         if not st.ganador:
-            await bot.send_message(cid, "Ahora se revela la *Crisis*. Usa `/crisis`.", parse_mode=ParseMode.MARKDOWN)
+            await bot.send_message(cid, "Usa `/crisis` para *terminar tu turno*.", parse_mode=ParseMode.MARKDOWN)
     except Exception as e:
         logger.error(f"callback_bsg_cylon error: {e}")
         try:
