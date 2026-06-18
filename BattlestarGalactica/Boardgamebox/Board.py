@@ -18,6 +18,16 @@ _GALACTICA = ["command", "ftl", "weapons", "hangar", "armory",
 _COLONIAL = ["press_room", "president_office", "administration"]
 _CYLON = ["caprica", "cylon_fleet", "human_fleet", "resurrection_ship"]
 
+# Áreas del espacio alrededor de Galactica (disposición del juego base):
+# la amenaza Cylon aparece al frente, los Vipers se lanzan por los dos tubos
+# (babor/estribor) y las naves civiles viajan en la retaguardia.
+AREAS_ESPACIO = [
+    ("frente", "🔴 Frente (proa)"),
+    ("babor", "🚀 Babor (tubo de lanzamiento)"),
+    ("estribor", "🚀 Estribor (tubo de lanzamiento)"),
+    ("popa", "🛰️ Popa (retaguardia)"),
+]
+
 
 class Board(BaseBoard):
     def __init__(self, playercount, game):
@@ -55,12 +65,38 @@ class Board(BaseBoard):
             board += f"{marca}{player.name} ({pj}){revel}\n"
         return board
 
+    def _layout_espacio(self):
+        """Distribuye las naves del espacio entre las áreas para el mapa.
+
+        El motor guarda las naves como totales (el combate es abstracto, sin
+        movimiento por área), así que se reparten según la disposición del
+        juego base: la amenaza Cylon (Basestars + Raiders) al frente, los Vipers
+        en los dos tubos de lanzamiento y las naves civiles donde estén ubicadas
+        (por defecto, en la retaguardia).
+        """
+        st = self.state
+        layout = {a[0]: {"basestars": 0, "raiders": 0, "vipers": 0, "civiles": 0}
+                  for a in AREAS_ESPACIO}
+        layout["frente"]["basestars"] = st.basestars
+        layout["frente"]["raiders"] = st.raiders
+        # Vipers en vuelo: repartidos entre los dos tubos de lanzamiento.
+        v = st.vipers_espacio
+        layout["babor"]["vipers"] = (v + 1) // 2
+        layout["estribor"]["vipers"] = v // 2
+        # Naves civiles: cada una en su área (por defecto, popa).
+        for c in st.civiles:
+            area = c.get("area", "popa")
+            if area not in layout:
+                area = "popa"
+            layout[area]["civiles"] += 1
+        return layout
+
     def print_map(self, game):
         """Mapa textual de la flota (ubicaciones + espacio), sin imágenes.
 
-        Muestra cada nave (Galactica, Colonial One y las localizaciones Cylon)
-        con sus ubicaciones y los jugadores presentes en cada una, además del
-        estado del espacio (Vipers, Raiders, Basestars, naves civiles, abordaje).
+        Muestra el espacio dividido en áreas (con las naves en cada una) y cada
+        nave (Galactica, Colonial One y las localizaciones Cylon) con sus
+        ubicaciones y los jugadores presentes en cada una.
         """
         st = self.state
 
@@ -85,13 +121,23 @@ class Board(BaseBoard):
             return "\n".join(lineas)
 
         cuerpo = "═════════════ ESPACIO ═════════════\n"
-        cuerpo += (f"  ✈️ Vipers vuelo:{st.vipers_espacio} "
-                   f"dañados:{st.vipers_danados} reserva:{st.vipers_reserva}\n")
-        cuerpo += f"  👾 Raiders:{st.raiders}   🛸 Basestars:{st.basestars}"
-        if st.basestars and st.basestar_hits:
-            cuerpo += f" (impactos {st.basestar_hits}/3)"
-        cuerpo += (f"\n  🛰️ Naves civiles:{len(st.civiles)}   "
-                   f"🔺 Abordaje:{st.centuriones}/{st.centuriones_max}\n\n")
+        layout = self._layout_espacio()
+        for area_id, etiqueta in AREAS_ESPACIO:
+            cont = layout[area_id]
+            piezas = []
+            if cont["basestars"]:
+                extra = f" (impactos {st.basestar_hits}/3)" if st.basestar_hits else ""
+                piezas.append(f"🛸×{cont['basestars']}{extra}")
+            if cont["raiders"]:
+                piezas.append(f"👾×{cont['raiders']}")
+            if cont["vipers"]:
+                piezas.append(f"✈️×{cont['vipers']}")
+            if cont["civiles"]:
+                piezas.append(f"🛰️×{cont['civiles']}")
+            cuerpo += f"  {etiqueta}: {'  '.join(piezas) if piezas else '—'}\n"
+        cuerpo += (f"  🅿️ Reserva vipers: {st.vipers_reserva}   "
+                   f"🛠️ dañados: {st.vipers_danados}\n")
+        cuerpo += f"  🔺 Abordaje (centuriones): {st.centuriones}/{st.centuriones_max}\n\n"
         cuerpo += "──────────── GALÁCTICA ────────────\n" + _bloque(_GALACTICA) + "\n\n"
         cuerpo += "─────────── COLONIAL ONE ──────────\n" + _bloque(_COLONIAL) + "\n\n"
         cuerpo += "──────── LOCALIZACIONES CYLON ──────\n" + _bloque(_CYLON)

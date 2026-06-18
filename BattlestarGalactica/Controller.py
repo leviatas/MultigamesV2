@@ -341,11 +341,15 @@ def _colocar_flota_inicial(st):
     st.basestar_hits = 0
     st.raiders = 3
 
-    # Naves civiles: barajar el mazo de cargas, colocar 2 en el espacio y
-    # dejar el resto en la pila para reponerlas durante la partida.
+    # Naves civiles: barajar el mazo de cargas, colocar 2 en el espacio (en la
+    # retaguardia/popa) y dejar el resto en la pila para reponerlas luego.
     pila = [dict(c) for c in CIVILES_CARGAS]
     random.shuffle(pila)
-    st.civiles = [pila.pop() for _ in range(min(2, len(pila)))]
+    st.civiles = []
+    for _ in range(min(2, len(pila))):
+        carga = pila.pop()
+        carga["area"] = "popa"
+        st.civiles.append(carga)
     st.civiles_pile = pila
     st.naves_civiles = len(st.civiles)
 
