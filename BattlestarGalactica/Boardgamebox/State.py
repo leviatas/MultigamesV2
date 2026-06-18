@@ -57,7 +57,9 @@ class State(BaseState):
         self.nuke_usado = False           # ataque nuclear del Almirante (1 por juego)
 
         # --- Naves civiles (cada una con carga oculta) ---
-        self.civiles = []                 # lista de dicts {recurso, cantidad}
+        self.civiles = []                 # naves civiles en el espacio: dicts {recurso, cantidad}
+        self.civiles_pile = []            # naves civiles aún no desplegadas (reserva)
+        self.naves_civiles = 0            # cantidad de civiles en el espacio (derivado de civiles)
 
         # --- Abordaje / centuriones en Galactica ---
         self.centuriones = 0              # avance del abordaje
