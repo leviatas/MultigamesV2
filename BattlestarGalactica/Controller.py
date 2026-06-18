@@ -234,6 +234,39 @@ def _robar_skills(st, player, cantidad=3):
             player.skill_hand.append(carta)
 
 
+def _robar_skills_cylon(st, player, cantidad=2):
+    """Un Cylon revelado roba 'cantidad' cartas de habilidad de CUALQUIER tipo
+    (regla del paso Recibir Habilidades para jugadores Cylon)."""
+    for _ in range(cantidad):
+        color = random.choice(Skills.COLORES)
+        carta = _robar_carta_color(st, color)
+        if carta:
+            player.skill_hand.append(carta)
+
+
+LIMITE_MANO = 10
+
+
+async def _descartar_hasta_limite(bot, game, player):
+    """Al final del turno, descarta hasta el límite de 10 cartas de habilidad.
+    El motor descarta automáticamente las de menor fuerza (las menos útiles)."""
+    sobran = len(player.skill_hand) - LIMITE_MANO
+    if sobran <= 0:
+        return
+    st = game.board.state
+    # Ordenar por fuerza ascendente y descartar las más débiles.
+    player.skill_hand.sort(key=lambda c: c.get("valor", 0))
+    descartadas = [player.skill_hand.pop(0) for _ in range(sobran)]
+    for c in descartadas:
+        st.skill_discards.setdefault(c["color"], []).append(c)
+    await bot.send_message(
+        player.uid,
+        f"🗑️ Tenías más de {LIMITE_MANO} cartas; se descartaron {sobran} "
+        f"(las de menor fuerza).",
+    )
+    await _dm_mano(bot, player)
+
+
 def _robar_carta_color(st, color):
     if not st.skill_decks.get(color):
         # Rebarajar descartes de ese color
@@ -281,11 +314,28 @@ async def iniciar_turno(bot, game):
         return
     player = st.active_player
 
+    ubic = Locations.UBICACIONES.get(player.ubicacion, {}).get("nombre", "—")
+
+    if player.revealed:
+        # Jugador Cylon: roba 2 cartas de cualquier tipo y NO roba crisis.
+        _robar_skills_cylon(st, player)
+        await _dm_mano(bot, player)
+        await bot.send_message(
+            game.cid,
+            f"🤖 *Turno del Cylon {player.name}* (robó 2 cartas de habilidad).\n"
+            f"📍 Estás en: *{ubic}*\n\n"
+            f"`/mover` y `/accion` para sabotear · luego `/crisis` para *terminar tu turno* "
+            f"(los Cylon no roban crisis).\n"
+            f"Consulta `/mapa` para ver la flota.",
+            parse_mode=ParseMode.MARKDOWN,
+        )
+        await save(bot, game.cid)
+        return
+
     # Recibir habilidades
     _robar_skills(st, player)
     await _dm_mano(bot, player)
 
-    ubic = Locations.UBICACIONES.get(player.ubicacion, {}).get("nombre", "—")
     await bot.send_message(
         game.cid,
         f"🎬 *Turno de {player.name}* (recibió cartas de habilidad).\n"
@@ -302,6 +352,9 @@ async def avanzar_turno(bot, game):
     st = game.board.state
     if st.ganador:
         return
+    # Fin del turno del jugador activo: descartar hasta el límite de mano.
+    if st.active_player:
+        await _descartar_hasta_limite(bot, game, st.active_player)
     seq = game.player_sequence
     st.player_counter = (st.player_counter + 1) % len(seq)
     st.active_player = seq[st.player_counter]
