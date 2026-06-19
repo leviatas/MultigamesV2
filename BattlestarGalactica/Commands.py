@@ -24,6 +24,14 @@ def _validar(game):
     return game and game.tipo == "BattlestarGalactica" and game.board
 
 
+def _turno_de(st, uid):
+    """¿Puede actuar este jugador? Es el jugador activo o tiene una Orden
+    Ejecutiva (acción extra) vigente este turno."""
+    if st.active_player and st.active_player.uid == uid:
+        return True
+    return uid == getattr(st, "bonus_actor", None)
+
+
 async def command_call(bot, game):
     if not game.board:
         return
@@ -193,23 +201,23 @@ async def command_jugar(update: Update, context: CallbackContext):
         return
     st = game.board.state
     player = game.playerlist[uid]
-    if st.fase_actual != "En Juego" or not st.active_player or st.active_player.uid != uid:
+    if st.fase_actual != "En Juego" or not _turno_de(st, uid):
         await bot.send_message(uid, "Solo puedes jugar cartas de acción en tu turno.")
         return
     if player.revealed:
         await bot.send_message(uid, "Un Cylon revelado no usa cartas de habilidad humanas.")
         return
     jugables = [(i, c) for i, c in enumerate(player.skill_hand)
-                if c.get("nombre") in BSGController.CARTAS_ACCION]
+                if c.get("nombre") in BSGController.CARTAS_JUGABLES]
     if not jugables:
-        await bot.send_message(uid, "No tienes cartas de *acción* jugables ahora. "
+        await bot.send_message(uid, "No tienes cartas jugables ahora. "
                                     "(Declare Emergency / Scientific Research se aportan a un chequeo con `/aportar`.)",
                                parse_mode=ParseMode.MARKDOWN)
         return
     btns = [[InlineKeyboardButton(f"{Skills.EMOJI_COLOR[c['color']]} {c.get('nombre')} ({c['valor']})",
                                   callback_data=f"{game.cid}*bsgJugar*card_{i + 1}*{uid}")]
             for i, c in jugables]
-    await bot.send_message(uid, "🃏 *Jugar carta de acción:*",
+    await bot.send_message(uid, "🃏 *Jugar carta de habilidad:*",
                            reply_markup=InlineKeyboardMarkup(btns), parse_mode=ParseMode.MARKDOWN)
 
 
@@ -241,19 +249,40 @@ async def callback_bsg_jugar(update: Update, context: CallbackContext):
                 await callback.answer("Carta inválida.")
                 return
             nombre = player.skill_hand[idx - 1].get("nombre")
-            if nombre not in BSGController.CARTAS_ACCION:
-                await callback.answer("Esa carta no es de acción.")
+            if nombre not in BSGController.CARTAS_JUGABLES:
+                await callback.answer("Esa carta no se juega así.")
                 return
             await callback.answer("Carta jugada.")
             if nombre == "Consolidate Power":
                 player.skill_hand.pop(idx - 1)
-                st.play_pending = {"tipo": "consolidate", "uid": presser, "restantes": 2}
+                st.play_pending = {"tipo": "draw", "uid": presser, "restantes": 2,
+                                   "label": "Consolidación de Poder"}
                 await BSGController.save(bot, cid)
                 btns = [[InlineKeyboardButton(f"{Skills.EMOJI_COLOR[c]} {c}",
                                               callback_data=f"{cid}*bsgJugar*cp_{c}*{presser}")]
                         for c in Skills.COLORES]
                 await bot.send_message(presser, "🟢 *Consolidación de Poder* — elige el tipo (robarás 2):",
                                        reply_markup=InlineKeyboardMarkup(btns), parse_mode=ParseMode.MARKDOWN)
+            elif nombre == "Executive Order":
+                otros = [p for p in game.playerlist.values()
+                         if p.uid != presser and not p.revealed and not p.en_calabozo]
+                if not otros:
+                    await bot.send_message(presser, "No hay otro jugador válido a quien dar la orden.")
+                    return
+                btns = [[InlineKeyboardButton(p.name, callback_data=f"{cid}*bsgJugar*eo_{p.uid}*{presser}")]
+                        for p in otros]
+                await bot.send_message(presser, "📋 *Orden Ejecutiva* — elige a quién dar una acción extra:",
+                                       reply_markup=InlineKeyboardMarkup(btns), parse_mode=ParseMode.MARKDOWN)
+            elif nombre == "Strategic Planning":
+                ok = await BSGController.carta_strategic_planning(bot, game, player)
+                if ok:
+                    player.skill_hand.pop(idx - 1)
+                await BSGController.save(bot, cid)
+            elif nombre == "Evasive Maneuvers":
+                ok = await BSGController.carta_evasive(bot, game, player)
+                if ok:
+                    player.skill_hand.pop(idx - 1)
+                await BSGController.save(bot, cid)
             elif nombre == "Launch Scout":
                 player.skill_hand.pop(idx - 1)
                 st.play_pending = {"tipo": "scout", "uid": presser}
@@ -276,14 +305,24 @@ async def callback_bsg_jugar(update: Update, context: CallbackContext):
                 await BSGController.save(bot, cid)
         elif token.startswith("cp_"):
             await callback.answer()
-            await BSGController.carta_consolidate_color(bot, game, presser, token[3:])
+            await BSGController.carta_draw_color(bot, game, presser, token[3:])
             pp = st.play_pending
-            if pp and pp.get("tipo") == "consolidate":
+            if pp and pp.get("tipo") == "draw":
                 btns = [[InlineKeyboardButton(f"{Skills.EMOJI_COLOR[c]} {c}",
                                               callback_data=f"{cid}*bsgJugar*cp_{c}*{presser}")]
                         for c in Skills.COLORES]
                 await bot.send_message(presser, f"Elige el tipo de la siguiente carta ({pp['restantes']} restante):",
                                        reply_markup=InlineKeyboardMarkup(btns))
+        elif token.startswith("eo_"):
+            await callback.answer()
+            objetivo_uid = int(token[3:])
+            ok = await BSGController.carta_executive_order(bot, game, presser, objetivo_uid)
+            if ok:
+                for j, c in enumerate(player.skill_hand):
+                    if c.get("nombre") == "Executive Order":
+                        player.skill_hand.pop(j)
+                        break
+                await BSGController.save(bot, cid)
         elif token in ("ls_keep", "ls_bottom"):
             await callback.answer()
             await BSGController.carta_scout_resolve(bot, game, presser, token == "ls_keep")
@@ -328,7 +367,7 @@ async def command_accion(update: Update, context: CallbackContext):
         await bot.send_message(cid, "No hay partida de Battlestar Galactica activa aquí.")
         return
     st = game.board.state
-    if st.fase_actual != "En Juego" or not st.active_player or st.active_player.uid != uid:
+    if st.fase_actual != "En Juego" or not _turno_de(st, uid):
         await bot.send_message(cid, "No es tu turno de acción.")
         return
     if _esperando_robo(st, uid):
@@ -399,7 +438,7 @@ async def callback_bsg_accion(update: Update, context: CallbackContext):
             await callback.answer("Partida no encontrada.")
             return
         st = game.board.state
-        if not st.active_player or st.active_player.uid != presser or presser != target:
+        if not _turno_de(st, presser) or presser != target:
             await callback.answer("No es tu acción.")
             return
 
@@ -496,7 +535,7 @@ async def callback_bsg_area(update: Update, context: CallbackContext):
             await callback.answer("Partida no encontrada.")
             return
         st = game.board.state
-        if not st.active_player or st.active_player.uid != presser or presser != target:
+        if not _turno_de(st, presser) or presser != target:
             await callback.answer("No es tu acción.")
             return
         await callback.answer("Área seleccionada.")
@@ -531,7 +570,7 @@ async def callback_bsg_target(update: Update, context: CallbackContext):
             await callback.answer("Partida no encontrada.")
             return
         st = game.board.state
-        if not st.active_player or st.active_player.uid != presser:
+        if not _turno_de(st, presser):
             await callback.answer("No es tu acción.")
             return
         if objetivo not in game.playerlist:
@@ -562,7 +601,7 @@ async def command_mover(update: Update, context: CallbackContext):
         await bot.send_message(cid, "No hay partida de Battlestar Galactica activa aquí.")
         return
     st = game.board.state
-    if st.fase_actual != "En Juego" or not st.active_player or st.active_player.uid != uid:
+    if st.fase_actual != "En Juego" or not _turno_de(st, uid):
         await bot.send_message(cid, "No es tu turno.")
         return
     if _esperando_robo(st, uid):
@@ -601,7 +640,7 @@ async def callback_bsg_mover(update: Update, context: CallbackContext):
             await callback.answer("Partida no encontrada.")
             return
         st = game.board.state
-        if not st.active_player or st.active_player.uid != presser or presser != target:
+        if not _turno_de(st, presser) or presser != target:
             await callback.answer("No es tu turno.")
             return
         await callback.answer("Te moviste.")

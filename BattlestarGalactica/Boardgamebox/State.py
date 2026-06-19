@@ -54,6 +54,11 @@ class State(BaseState):
         # --- Carta de habilidad de acción en curso (multi-paso) ---
         self.play_pending = None          # dict: {tipo, uid, ...} para Consolidate/Scout
 
+        # --- Efectos reactivos de cartas de habilidad (se arman y se consumen) ---
+        self.bonus_actor = None           # uid con acción extra este turno (Executive Order)
+        self.dado_bonus = 0               # +N a la próxima tirada de ataque (Strategic Planning)
+        self.evasive_armed = False        # Maniobras Evasivas armadas (defensa de Viper)
+
         # --- Naves: modelo posicional por áreas del espacio ---
         self.areas = [Space.nueva_area() for _ in range(Space.N_AREAS)]
         self.vipers_reserva = 8
