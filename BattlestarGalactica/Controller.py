@@ -13,13 +13,15 @@ Implementado en esta capa:
 - Combate espacial posicional: Vipers tripulados, Heavy Raiders, abordaje.
 - Daño a Galactica por ubicaciones e iconos de activación Cylon por crisis.
 
-- Cartas de habilidad de acción jugables (Consolidate Power, Repair, Maximum
-  Firepower, Launch Scout) y habilidades 1/juego de cada personaje.
+- Cartas de habilidad jugables con /jugar: de acción (Consolidate Power,
+  Repair, Maximum Firepower, Launch Scout, Executive Order) y reactivas que se
+  arman (Strategic Planning +2 al ataque, Evasive Maneuvers reroll defensivo).
+- Habilidades 1/juego de cada personaje, más pasivas: Adama (fuerza 1 positiva),
+  Tyrol (mano 8), Apollo (descartes al azar), Baltar (roba carta tras la Crisis).
 
 Pendiente para capas siguientes (claramente acotado):
 - Acciones de ubicación completas, Quórum, súper crisis.
-- Cartas de habilidad reactivas (Strategic Planning, Evasive Maneuvers,
-  Executive Order) y resto de habilidades pasivas de personaje.
+- Pasivas de personaje restantes (Roslin, Zarek, Tigh, Helo, Starbuck, Boomer).
 - Roster completo de cartas de crisis con sus efectos de éxito/fracaso.
 """
 
@@ -257,8 +259,12 @@ async def _descartar_hasta_limite(bot, game, player):
     if sobran <= 0:
         return
     st = game.board.state
-    # Ordenar por fuerza ascendente y descartar las más débiles.
-    player.skill_hand.sort(key=lambda c: c.get("valor", 0))
+    # Apollo 'Cabezadura': los descartes forzados son al azar (no elige el motor).
+    if getattr(player, "personaje", None) == "apollo" and not player.revealed:
+        random.shuffle(player.skill_hand)
+    else:
+        # Ordenar por fuerza ascendente y descartar las más débiles.
+        player.skill_hand.sort(key=lambda c: c.get("valor", 0))
     descartadas = [player.skill_hand.pop(0) for _ in range(sobran)]
     for c in descartadas:
         st.skill_discards.setdefault(c["color"], []).append(c)
@@ -429,6 +435,10 @@ async def avanzar_turno(bot, game):
     # Fin del turno del jugador activo: descartar hasta el límite de mano.
     if st.active_player:
         await _descartar_hasta_limite(bot, game, st.active_player)
+    # Los efectos reactivos armados caducan al cambiar de turno.
+    st.bonus_actor = None
+    st.dado_bonus = 0
+    st.evasive_armed = False
     seq = game.player_sequence
     st.player_counter = (st.player_counter + 1) % len(seq)
     st.active_player = seq[st.player_counter]
@@ -478,6 +488,16 @@ def _colocar_flota_inicial(st):
 
 def _d8():
     return random.randint(1, 8)
+
+
+def _tirar_ataque(st):
+    """Tirada de ataque del bando humano. Consume el +N armado por
+    'Strategic Planning' (Planificación Estratégica), si lo hay."""
+    base = random.randint(1, 8)
+    bonus = getattr(st, "dado_bonus", 0)
+    if bonus:
+        st.dado_bonus = 0
+    return base + bonus
 
 
 # ---- Helpers de áreas y combate posicional ----
@@ -654,7 +674,7 @@ async def ejecutar_accion_ubicacion(bot, game, uid, accion, objetivo=None):
         if not st.boarding_party:
             await bot.send_message(game.cid, "No hay centuriones a bordo de Galactica.")
         else:
-            r = _d8()
+            r = _tirar_ataque(st)
             if r >= 7:
                 _destruir_centurion_avanzado(st)
                 await bot.send_message(game.cid, f"🪖 Tirada {r}: ¡centurión destruido! (a bordo: {st.total_centuriones()})")
@@ -783,7 +803,7 @@ async def _disparar(bot, game, objetivo, area_idx):
         if area["raiders"] <= 0:
             await bot.send_message(game.cid, f"No hay Raiders en {Space.nombre(area_idx)}.")
             return
-        r = _d8()
+        r = _tirar_ataque(st)
         if r >= 3:   # tabla de combate: Raider destruido con 3-8
             area["raiders"] -= 1
             await bot.send_message(game.cid, f"🔫 Tirada {r}: ¡Raider destruido en {Space.nombre(area_idx)}! (quedan {area['raiders']})")
@@ -793,7 +813,7 @@ async def _disparar(bot, game, objetivo, area_idx):
         if not area["basestars"]:
             await bot.send_message(game.cid, f"No hay Basestars en {Space.nombre(area_idx)}.")
             return
-        r = _d8()
+        r = _tirar_ataque(st)
         if r >= 5:   # Galactica vs Basestar: daña con 5-8
             await _danar_basestar(bot, game, area_idx)
         else:
@@ -849,7 +869,7 @@ async def _pilot_atacar(bot, game, player):
     st = game.board.state
     i = player.viper_area
     area = st.areas[i]
-    r = _d8()
+    r = _tirar_ataque(st)
     if area["raiders"] > 0:
         if r >= 3:
             area["raiders"] -= 1
@@ -942,7 +962,7 @@ async def _nuke(bot, game, area_idx=None):
         area_idx = objetivos[0]
     st.nuke_usado = True
     area = st.areas[area_idx]
-    r = _d8()
+    r = _tirar_ataque(st)
     await bot.send_message(game.cid, f"☢️ *¡ATAQUE NUCLEAR!* Tirada {r} sobre {Space.nombre(area_idx)}.", parse_mode=ParseMode.MARKDOWN)
     if r <= 2:
         await _danar_basestar(bot, game, area_idx, cantidad=2)
@@ -1143,6 +1163,13 @@ async def _activar_un_raider(bot, game, i):
     if pilotos:
         piloto = random.choice(pilotos)
         r = _d8()
+        # Maniobras Evasivas: si están armadas, se repite la tirada con -2
+        # (favorece a la defensa) y se consumen.
+        if getattr(st, "evasive_armed", False):
+            st.evasive_armed = False
+            nuevo = max(1, _d8() - 2)
+            await bot.send_message(game.cid, f"🌀 Maniobras Evasivas: se repite la tirada ({r} → {nuevo}).")
+            r = nuevo
         if r == 8:
             piloto.viper_area = None
             piloto.ubicacion = "sickbay"
@@ -1609,6 +1636,23 @@ async def resolver_quorum_objetivo(bot, game, objetivo_uid):
 
 # ===================== CRISIS =====================
 
+async def _baltar_intuicion(bot, game):
+    """Pasiva de Baltar: tras robar una Crisis roba 1 carta de habilidad
+    del tipo que elija (incluso fuera de su set)."""
+    st = game.board.state
+    ap = st.active_player
+    if not ap or getattr(ap, "personaje", None) != "baltar" or ap.revealed:
+        return
+    if st.play_pending:   # no pisar otro robo de cartas en curso
+        return
+    st.play_pending = {"tipo": "draw", "uid": ap.uid, "restantes": 1, "label": "Intuición Delirante"}
+    btns = [[InlineKeyboardButton(f"{Skills.EMOJI_COLOR[c]} {c}",
+                                  callback_data=f"{game.cid}*bsgJugar*cp_{c}*{ap.uid}")]
+            for c in Skills.COLORES]
+    await bot.send_message(ap.uid, "🔮 *Intuición Delirante* — elige el tipo de carta a robar:",
+                           reply_markup=InlineKeyboardMarkup(btns), parse_mode=ParseMode.MARKDOWN)
+
+
 async def robar_crisis(bot, game):
     st = game.board.state
     if not st.crisis_deck:
@@ -1626,6 +1670,9 @@ async def robar_crisis(bot, game):
         f"⚠️ *CRISIS: {crisis['titulo']}*\n_{crisis['texto']}_",
         parse_mode=ParseMode.MARKDOWN,
     )
+
+    # Baltar 'Intuición Delirante': tras robar una Crisis, roba 1 carta de habilidad a elección.
+    await _baltar_intuicion(bot, game)
 
     if crisis["tipo"] == "chequeo":
         if crisis.get("alternativa"):
@@ -1801,17 +1848,21 @@ async def abrir_chequeo(bot, game, crisis):
 
 
 # ===================== CARTAS DE HABILIDAD (ACCIÓN) =====================
-# Cartas que se pueden JUGAR como acción por su efecto (las demás se aportan a
-# chequeos por su valor o se juegan en momentos concretos —próxima capa—).
-CARTAS_ACCION = {"Consolidate Power", "Repair", "Maximum Firepower", "Launch Scout"}
+# Cartas de ACCIÓN: se juegan por su efecto como acción del turno.
+CARTAS_ACCION = {"Consolidate Power", "Repair", "Maximum Firepower",
+                 "Launch Scout", "Executive Order"}
 
-# Cuándo se usan las cartas que no son acción autónoma (mensaje informativo).
+# Cartas REACTIVAS que se ARMAN en tu turno y se consumen en el siguiente
+# disparo/ataque relevante.
+CARTAS_ARMABLES = {"Strategic Planning", "Evasive Maneuvers"}
+
+# Conjunto completo de cartas que el comando /jugar puede activar.
+CARTAS_JUGABLES = CARTAS_ACCION | CARTAS_ARMABLES
+
+# Cuándo se usan las cartas que no se juegan con /jugar (mensaje informativo).
 CUANDO_SE_JUEGAN = {
     "Declare Emergency": "se aporta a un chequeo (reduce su dificultad en 2).",
     "Scientific Research": "se aporta a un chequeo (Ingeniería cuenta en positivo).",
-    "Strategic Planning": "se juega antes de una tirada de dado (próxima capa).",
-    "Evasive Maneuvers": "se juega al ser atacado un Viper (próxima capa).",
-    "Executive Order": "concede una acción a otro jugador (próxima capa).",
 }
 
 
@@ -1855,19 +1906,21 @@ async def carta_max_firepower(bot, game, player):
     return True
 
 
-async def carta_consolidate_color(bot, game, uid, color):
-    """Consolidación de Poder: roba 1 carta del color elegido (de 2 en total)."""
+async def carta_draw_color(bot, game, uid, color):
+    """Robo de cartas con elección de color (Consolidación de Poder e
+    Intuición Delirante de Baltar). Roba 1 carta del color elegido por paso."""
     st = game.board.state
     pp = st.play_pending
-    if not pp or pp.get("tipo") != "consolidate" or pp.get("uid") != uid:
+    if not pp or pp.get("tipo") != "draw" or pp.get("uid") != uid:
         return
     player = game.playerlist[uid]
+    etiqueta = pp.get("label", "Robo de habilidad")
     carta = _robar_carta_color(st, color)
     if carta:
         player.skill_hand.append(carta)
         await bot.send_message(
             uid,
-            f"➕ *Consolidación de Poder*: robaste {Skills.EMOJI_COLOR[carta['color']]} {color} {carta['valor']}.",
+            f"➕ *{etiqueta}*: robaste {Skills.EMOJI_COLOR[carta['color']]} {color} {carta['valor']}.",
             parse_mode=ParseMode.MARKDOWN,
         )
     else:
@@ -1877,6 +1930,44 @@ async def carta_consolidate_color(bot, game, uid, color):
         st.play_pending = None
         await _dm_mano(bot, player)
     await save(bot, game.cid)
+
+
+async def carta_strategic_planning(bot, game, player):
+    """Planificación Estratégica: arma +2 a tu próxima tirada de ataque."""
+    st = game.board.state
+    if st.dado_bonus:
+        await bot.send_message(player.uid, "Ya tienes una Planificación Estratégica armada.")
+        return False
+    st.dado_bonus = 2
+    await bot.send_message(game.cid, f"📐 {player.name} arma *Planificación Estratégica*: +2 a la próxima tirada de ataque humana.", parse_mode=ParseMode.MARKDOWN)
+    return True
+
+
+async def carta_evasive(bot, game, player):
+    """Maniobras Evasivas: arma una repetición (-2) del próximo ataque a un Viper tripulado."""
+    st = game.board.state
+    if st.evasive_armed:
+        await bot.send_message(player.uid, "Ya tienes Maniobras Evasivas armadas.")
+        return False
+    st.evasive_armed = True
+    await bot.send_message(game.cid, f"🌀 {player.name} arma *Maniobras Evasivas*: el próximo ataque a un Viper tripulado se repetirá con −2.", parse_mode=ParseMode.MARKDOWN)
+    return True
+
+
+async def carta_executive_order(bot, game, uid, objetivo_uid):
+    """Orden Ejecutiva: concede a otro jugador una acción extra durante este turno."""
+    st = game.board.state
+    objetivo = game.playerlist.get(objetivo_uid)
+    if not objetivo or objetivo_uid == uid:
+        await bot.send_message(uid, "Debes elegir a OTRO jugador.")
+        return False
+    if objetivo.revealed or objetivo.en_calabozo:
+        await bot.send_message(uid, "No puedes dar la orden a un Cylon revelado ni a un preso.")
+        return False
+    st.bonus_actor = objetivo_uid
+    await bot.send_message(game.cid, f"📋 {game.playerlist[uid].name} da una *Orden Ejecutiva*: {objetivo.name} recibe una acción extra este turno (`/accion` o `/mover`).", parse_mode=ParseMode.MARKDOWN)
+    await bot.send_message(objetivo_uid, "📋 Recibiste una *Orden Ejecutiva*: puedes usar `/accion` o `/mover` durante este turno.", parse_mode=ParseMode.MARKDOWN)
+    return True
 
 
 async def carta_scout_resolve(bot, game, uid, mantener):
