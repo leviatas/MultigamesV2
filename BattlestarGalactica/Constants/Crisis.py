@@ -749,6 +749,12 @@ SUPER_CRISIS_DECK = [
         "efectos": [{"tipo": "centuriones", "delta": 2}],
     },
     {
+        "id": "oleada_heavy_raiders",
+        "titulo": "Oleada de Heavy Raiders",
+        "texto": "Heavy Raiders se lanzan hacia el hangar de Galactica.",
+        "efectos": [{"tipo": "heavy_raiders", "cantidad": 2}],
+    },
+    {
         "id": "refuerzos_cylon",
         "titulo": "Refuerzos Cylon",
         "texto": "Una Basestar llega con refuerzos.",

@@ -60,13 +60,20 @@ class State(BaseState):
         # --- Naves civiles aún no desplegadas (con carga oculta) ---
         self.civiles_pile = []
 
-        # --- Daño a Galactica (6 tokens = destruida → derrota humana) ---
-        self.galactica_danos = 0
+        # --- Daño a Galactica por ubicaciones (tokens de avería) ---
+        # Cada token avería una ubicación de Galactica (deshabilita su acción
+        # hasta repararla). Cuando las 6 ubicaciones quedan averiadas, Galactica
+        # es destruida (derrota humana).
+        self.galactica_damage = []        # claves de ubicaciones averiadas
         self.galactica_danos_max = 6
 
-        # --- Abordaje / centuriones en Galactica ---
-        self.centuriones = 0              # avance del abordaje
-        self.centuriones_max = 4          # al llegar, Galactica es tomada (Cylons ganan)
+        # --- Partida de Abordaje (centuriones dentro de Galactica) ---
+        # Cada centurión es una posición entera 1..boarding_breach en el track;
+        # al alcanzar la casilla final (boarding_breach) toman Galactica (derrota
+        # humana). Los Heavy Raiders aterrizan y desembarcan centuriones en la
+        # primera casilla; el Almirante puede atacarlos desde la Armería.
+        self.boarding_party = []          # posiciones de los centuriones a bordo
+        self.boarding_breach = 4          # casilla final = Galactica abordada
 
         # --- Cylons revelados ---
         self.cylons_revelados = []        # uids
@@ -85,5 +92,17 @@ class State(BaseState):
     def total_vipers_espacio(self):
         return sum(a["vipers"] for a in self.areas)
 
+    def total_heavy_raiders(self):
+        return sum(a.get("heavy_raiders", 0) for a in self.areas)
+
     def total_civiles(self):
         return sum(len(a["civiles"]) for a in self.areas)
+
+    def total_centuriones(self):
+        return len(self.boarding_party)
+
+    def total_danos_galactica(self):
+        return len(self.galactica_damage)
+
+    def ubicacion_averiada(self, key):
+        return key in self.galactica_damage

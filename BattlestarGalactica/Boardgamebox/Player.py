@@ -15,3 +15,4 @@ class Player(BasePlayer):
         self.quorum_hand = []          # cartas de Quórum (Presidente)
         self.en_calabozo = False
         self.habilidad_usada = False   # habilidad de "una vez por juego"
+        self.viper_area = None         # índice de área si pilota un Viper (None = en una ubicación)
