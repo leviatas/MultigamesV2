@@ -844,6 +844,8 @@ def main(stop_event):
 	app.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)\*bsgFree\*(-?[0-9]*)\*(-?[0-9]*)", callback=BSGCommands.callback_bsg_free))
 	app.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)\*bsgQuorum\*([0-9]*)\*(-?[0-9]*)", callback=BSGCommands.callback_bsg_quorum))
 	app.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)\*bsgQTarget\*[a-z]*\*(-?[0-9]*)", callback=BSGCommands.callback_bsg_qtarget))
+	app.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)\*bsgQDraw\*(-?[0-9]*)", callback=BSGCommands.callback_bsg_qdraw))
+	app.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)\*bsgCivil\*(-?[0-9]+)\*(-?[0-9]*)", callback=BSGCommands.callback_bsg_civil))
 	app.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)\*bsgEleccion\*([0-9]*)\*(-?[0-9]*)", callback=BSGCommands.callback_bsg_eleccion))
 	app.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)\*bsgCrisisOpt\*([a-z]*)\*(-?[0-9]*)", callback=BSGCommands.callback_bsg_crisis_opt))
 	app.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)\*bsgCrisisVoto\*([0-9]*)\*(-?[0-9]*)", callback=BSGCommands.callback_bsg_crisis_voto))

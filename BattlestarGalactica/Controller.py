@@ -23,8 +23,15 @@ Implementado en esta capa:
   ciertas ubicaciones), Helo (repite 1 tirada de ataque/turno), Starbuck (aviso
   de acciones extra al pilotar).
 
+- Acciones de ubicación completas: Comunicaciones reposiciona naves civiles, y
+  la Oficina del Presidente roba 1 carta de Quórum y permite robar otra o jugar.
+- Quórum (poderes presidenciales): cartas inmediatas/dirigidas y las que
+  permanecen en juego — Aceptar la Profecía (+2 al chequeo de Presidente),
+  Especialista de Misión (elige destino en el próximo salto), Árbitro (±3 en el
+  Camarote del Almirante) y Vicepresidente (único candidato a la Presidencia).
+
 Pendiente para capas siguientes (claramente acotado):
-- Acciones de ubicación completas, Quórum, súper crisis.
+- Súper crisis (mazo y resolución).
 - Roster completo de cartas de crisis con sus efectos de éxito/fracaso.
 """
 
@@ -675,6 +682,14 @@ async def ejecutar_accion_ubicacion(bot, game, uid, accion, objetivo=None):
         info = "\n".join(lineas) or "ninguna"
         await bot.send_message(uid, f"🔭 Cargas de las naves civiles:\n{info}")
         await bot.send_message(game.cid, f"🔭 {player.name} inspecciona las naves civiles.")
+        # Comunicaciones: además, puedes reposicionar una nave civil hacia la
+        # retaguardia (Popa), lejos de la amenaza Cylon de la proa.
+        btns = [[InlineKeyboardButton(f"🚚 Mover civil de {Space.nombre(i)} a {Space.nombre(_paso_hacia(i, [Space.AREA_POPA]))}",
+                                      callback_data=f"{game.cid}*bsgCivil*{i}*{uid}")]
+                for i, a in enumerate(st.areas) if a["civiles"] and i != Space.AREA_POPA]
+        btns.append([InlineKeyboardButton("✅ No mover", callback_data=f"{game.cid}*bsgCivil*-1*{uid}")])
+        await bot.send_message(uid, "🔭 ¿Reposicionar una nave civil?",
+                               reply_markup=InlineKeyboardMarkup(btns))
     elif accion == "draw_eng":
         await _robar_color(bot, game, player, Skills.INGENIERIA)
     elif accion == "draw_tac":
@@ -707,6 +722,11 @@ async def ejecutar_accion_ubicacion(bot, game, uid, accion, objetivo=None):
             await bot.send_message(game.cid, "Solo el Presidente puede robar cartas de Quórum.")
             return
         await robar_quorum(bot, game, uid)
+        # Oficina del Presidente: tras robar 1, puedes robar otra o jugar una (/quorum).
+        btns = [[InlineKeyboardButton("🏛️ Robar otra carta", callback_data=f"{game.cid}*bsgQDraw*{uid}"),
+                 InlineKeyboardButton("✅ Terminar", callback_data=f"{game.cid}*bsgQDraw*0")]]
+        await bot.send_message(uid, "🏛️ Puedes *robar otra* carta de Quórum o *terminar* (y jugar una con `/quorum`).",
+                               reply_markup=InlineKeyboardMarkup(btns), parse_mode=ParseMode.MARKDOWN)
     elif accion in ("brig_check", "president_check"):
         await abrir_chequeo_ubicacion(bot, game, uid, accion, objetivo)
         return  # el chequeo se resuelve aparte; no guardar dos veces
@@ -741,12 +761,17 @@ async def abrir_chequeo_ubicacion(bot, game, actor_uid, accion, objetivo_uid):
         await bot.send_message(game.cid, "Ya hay un chequeo abierto.")
         return
     efecto = check["efecto"]
+    dificultad = check["dificultad"]
+    # Poder presidencial "Aceptar la Profecía": +2 al chequeo de Administración.
+    if efecto == "president" and st.profecia_pendiente:
+        dificultad += 2 * st.profecia_pendiente
+        st.profecia_pendiente = 0
     st.skill_check = {
         "ubicacion_accion": efecto,
         "actor_uid": actor_uid,
         "objetivo_uid": objetivo_uid,
         "colores": check["colores"],
-        "dificultad": check["dificultad"],
+        "dificultad": dificultad,
         "aportes": {},
     }
     emojis = " ".join(Skills.EMOJI_COLOR[c] for c in check["colores"])
@@ -754,7 +779,7 @@ async def abrir_chequeo_ubicacion(bot, game, actor_uid, accion, objetivo_uid):
     obj_txt = f" sobre *{obj.name}*" if obj and objetivo_uid != actor_uid else ""
     await bot.send_message(
         game.cid,
-        f"🎲 *Chequeo de acción*{obj_txt} — dificultad *{check['dificultad']}*.\n"
+        f"🎲 *Chequeo de acción*{obj_txt} — dificultad *{dificultad}*.\n"
         f"Colores positivos: {emojis}.\n"
         f"Aporten con `/aportar N` y resuelvan con `/resolver`.",
         parse_mode=ParseMode.MARKDOWN,
@@ -789,6 +814,14 @@ async def _ofrecer_modificador_dificultad(bot, game):
                      InlineKeyboardButton("No usar", callback_data=f"{game.cid}*bsgMod*0*{tigh.uid}")]]
             await bot.send_message(tigh.uid, "🎖️ *Odio a los Cylons*: puedes reducir en 3 la dificultad de este chequeo.",
                                    reply_markup=InlineKeyboardMarkup(btns), parse_mode=ParseMode.MARKDOWN)
+        # Poder presidencial "Árbitro": ajusta ±3 los chequeos del Camarote del Almirante.
+        arb = game.playerlist.get(st.arbitro_uid)
+        if arb and not arb.revealed:
+            btns = [[InlineKeyboardButton("➖3", callback_data=f"{game.cid}*bsgMod*-3*{arb.uid}"),
+                     InlineKeyboardButton("➕3", callback_data=f"{game.cid}*bsgMod*3*{arb.uid}"),
+                     InlineKeyboardButton("No usar", callback_data=f"{game.cid}*bsgMod*0*{arb.uid}")]]
+            await bot.send_message(arb.uid, "⚖️ *Árbitro*: puedes mover la dificultad de este chequeo en ±3.",
+                                   reply_markup=InlineKeyboardMarkup(btns), parse_mode=ParseMode.MARKDOWN)
     elif loc in ("administration", "brig"):
         zarek = _buscar_personaje(game, "zarek")
         if zarek:
@@ -800,23 +833,28 @@ async def _ofrecer_modificador_dificultad(bot, game):
 
 
 async def aplicar_modificador_dificultad(bot, game, uid, delta):
-    """Aplica el ajuste de dificultad de Tigh/Zarek al chequeo de acción abierto."""
+    """Aplica el ajuste de dificultad de Tigh/Zarek (pasiva) o del Árbitro (poder
+    presidencial) al chequeo de acción abierto."""
     st = game.board.state
     sc = st.skill_check
     if not sc or not sc.get("ubicacion_accion"):
         await bot.send_message(uid, "Ya no hay un chequeo de acción abierto.")
         return
     p = game.playerlist.get(uid)
-    if not p or p.revealed or p.personaje not in ("tigh", "zarek"):
+    if not p or p.revealed:
+        return
+    es_pj = p.personaje in ("tigh", "zarek")
+    es_arbitro = uid == st.arbitro_uid
+    if not es_pj and not es_arbitro:
         return
     if delta == 0:
         await bot.send_message(uid, "No modificas la dificultad.")
         return
     sc["dificultad"] = max(0, sc["dificultad"] + delta)
-    nombre = Characters.PERSONAJES[p.personaje]["nombre"]
+    etiqueta = "El Árbitro" if es_arbitro and not es_pj else Characters.PERSONAJES[p.personaje]["nombre"]
     await bot.send_message(
         game.cid,
-        f"🎚️ *{nombre}* ajusta la dificultad del chequeo en {'+' if delta > 0 else ''}{delta} (ahora *{sc['dificultad']}*).",
+        f"🎚️ *{etiqueta}* ajusta la dificultad del chequeo en {'+' if delta > 0 else ''}{delta} (ahora *{sc['dificultad']}*).",
         parse_mode=ParseMode.MARKDOWN,
     )
     await save(bot, game.cid)
@@ -843,6 +881,9 @@ async def _resolver_chequeo_ubicacion(bot, game, sc, total, exito):
         st.presidente_uid = objetivo.uid
         if "Presidente" not in objetivo.titulos:
             objetivo.titulos.append("Presidente")
+        # Si era el Vicepresidente, asume la Presidencia y se libera el puesto de VP.
+        if objetivo.uid == st.vicepresidente_uid:
+            st.vicepresidente_uid = None
         await bot.send_message(game.cid, f"🏛️ *{objetivo.name}* recibe el título de Presidente.", parse_mode=ParseMode.MARKDOWN)
     elif efecto == "escape" and objetivo:
         objetivo.en_calabozo = False
@@ -860,6 +901,26 @@ def _paso_hacia(i, objetivos):
     dcw = min(Space.distancia(cw, j) for j in objetivos)
     dccw = min(Space.distancia(ccw, j) for j in objetivos)
     return cw if dcw <= dccw else ccw
+
+
+async def mover_civil(bot, game, area_idx):
+    """Comunicaciones: mueve una nave civil del área dada un paso hacia la Popa."""
+    st = game.board.state
+    if area_idx < 0:
+        return
+    if not (0 <= area_idx < Space.N_AREAS) or not st.areas[area_idx]["civiles"]:
+        await bot.send_message(game.cid, "No hay naves civiles que mover en esa área.")
+        return
+    destino = _paso_hacia(area_idx, [Space.AREA_POPA])
+    if destino is None or destino == area_idx:
+        return
+    civil = st.areas[area_idx]["civiles"].pop()
+    st.areas[destino]["civiles"].append(civil)
+    await bot.send_message(
+        game.cid,
+        f"🚚 Una nave civil se reposiciona de {Space.nombre(area_idx)} a {Space.nombre(destino)}.",
+    )
+    await save(bot, game.cid)
 
 
 def _quitar_raider(st):
@@ -1707,6 +1768,15 @@ async def resolver_quorum_objetivo(bot, game, objetivo_uid):
         if r <= 3:
             await bot.send_message(game.cid, f"🎲 Tirada {r}: -1 Moral.")
             await modificar_recurso(bot, game, "moral", -1)
+    elif ef == "specialist":
+        st.especialista_uid = objetivo.uid
+        await bot.send_message(game.cid, f"🧭 *{objetivo.name}* es nombrado Especialista de Misión: elegirá el destino del próximo salto.", parse_mode=ParseMode.MARKDOWN)
+    elif ef == "arbitrator":
+        st.arbitro_uid = objetivo.uid
+        await bot.send_message(game.cid, f"⚖️ *{objetivo.name}* es nombrado Árbitro: podrá ajustar ±3 los chequeos del Camarote del Almirante.", parse_mode=ParseMode.MARKDOWN)
+    elif ef == "vicepresident":
+        st.vicepresidente_uid = objetivo.uid
+        await bot.send_message(game.cid, f"🎖️ *{objetivo.name}* es nombrado Vicepresidente: solo el VP podrá acceder a la Presidencia vía Administración.", parse_mode=ParseMode.MARKDOWN)
 
     st.quorum_discard.append(carta)
     await save(bot, game.cid)
@@ -2347,6 +2417,14 @@ async def aplicar_efectos(bot, game, efectos):
             await aplicar_efectos(bot, game, ef["exito"] if ok else ef.get("fracaso", []))
         elif tipo == "mensaje":
             await bot.send_message(game.cid, ef["texto"])
+        elif tipo == "prophecy":
+            st.profecia_pendiente += 1
+            await bot.send_message(
+                game.cid,
+                "🔮 *Profecía aceptada*: el próximo chequeo de Administración para nombrar "
+                "Presidente tendrá +2 de dificultad.",
+                parse_mode=ParseMode.MARKDOWN,
+            )
 
 
 async def modificar_recurso(bot, game, recurso, delta):
@@ -2369,6 +2447,17 @@ async def ejecutar_salto(bot, game, auto=False):
     st.jump_prep = 0
     # La carta de destino del salto avanza 1 o 2 unidades de distancia.
     avance = random.choice([1, 1, 2])
+    # Poder presidencial "Especialista de Misión": elige el destino (mejor avance)
+    # en este salto y luego cesa en el cargo.
+    esp = game.playerlist.get(st.especialista_uid)
+    if esp:
+        avance = 2
+        st.especialista_uid = None
+        await bot.send_message(
+            game.cid,
+            f"🧭 *{esp.name}* (Especialista de Misión) guía el salto y elige el mejor destino.",
+            parse_mode=ParseMode.MARKDOWN,
+        )
     st.distancia = min(st.objetivo_distancia, st.distancia + avance)
 
     # Tras el salto: las naves Cylon no siguen a la flota; los Vipers regresan a

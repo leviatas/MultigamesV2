@@ -23,6 +23,12 @@ class State(BaseState):
         self.presidente_uid = None
         self.almirante_uid = None
 
+        # --- Poderes presidenciales (cartas de Quórum que permanecen en juego) ---
+        self.vicepresidente_uid = None    # solo el VP puede llegar a Presidente vía Administración
+        self.arbitro_uid = None           # puede mover ±3 la dificultad del Camarote del Almirante
+        self.especialista_uid = None      # elige el destino en el próximo salto
+        self.profecia_pendiente = 0       # cargas de +2 dificultad al próximo chequeo de Presidente
+
         # --- Selección de personajes ---
         self.personajes_elegidos = {}     # uid -> clave personaje
         self.orden_seleccion = []         # uids en orden de elegir
