@@ -59,6 +59,10 @@ class State(BaseState):
         self.dado_bonus = 0               # +N a la próxima tirada de ataque (Strategic Planning)
         self.evasive_armed = False        # Maniobras Evasivas armadas (defensa de Viper)
 
+        # --- Pasivas de personaje con estado propio ---
+        self.roslin_choice = None         # [crisis_a, crisis_b] pendiente de elección (Roslin)
+        self.reroll_armed = False         # repetición de tirada de ataque armada (Helo, 1/turno)
+
         # --- Naves: modelo posicional por áreas del espacio ---
         self.areas = [Space.nueva_area() for _ in range(Space.N_AREAS)]
         self.vipers_reserva = 8

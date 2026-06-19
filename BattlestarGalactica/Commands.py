@@ -335,6 +335,62 @@ async def callback_bsg_jugar(update: Update, context: CallbackContext):
         await bot.send_message(ADMIN[0], f"BSG jugar error: {e}")
 
 
+async def callback_bsg_crisis_sel(update: Update, context: CallbackContext):
+    """Elección de Crisis de Roslin (Visiones Religiosas)."""
+    bot = context.bot
+    callback = update.callback_query
+    presser = callback.from_user.id
+    try:
+        regex = re.search(r"(-?[0-9]*)\*bsgCrisisSel\*([01])\*(-?[0-9]*)", callback.data)
+        cid = int(regex.group(1))
+        idx = int(regex.group(2))
+        target = int(regex.group(3))
+        game = get_game(cid)
+        if not _validar(game):
+            await callback.answer("Partida no encontrada.")
+            return
+        if presser != target:
+            await callback.answer("No es tu elección.")
+            return
+        await callback.answer("Crisis elegida.")
+        await BSGController.resolver_roslin(bot, game, presser, idx)
+    except Exception as e:
+        logger.error(f"callback_bsg_crisis_sel error: {e}")
+        try:
+            await callback.answer("Error.")
+        except Exception:
+            pass
+        await bot.send_message(ADMIN[0], f"BSG crisis_sel error: {e}")
+
+
+async def callback_bsg_mod(update: Update, context: CallbackContext):
+    """Ajuste de dificultad de Tigh/Zarek sobre un chequeo de acción."""
+    bot = context.bot
+    callback = update.callback_query
+    presser = callback.from_user.id
+    try:
+        regex = re.search(r"(-?[0-9]*)\*bsgMod\*(-?[0-9]+)\*(-?[0-9]*)", callback.data)
+        cid = int(regex.group(1))
+        delta = int(regex.group(2))
+        target = int(regex.group(3))
+        game = get_game(cid)
+        if not _validar(game):
+            await callback.answer("Partida no encontrada.")
+            return
+        if presser != target:
+            await callback.answer("No es para ti.")
+            return
+        await callback.answer("Hecho.")
+        await BSGController.aplicar_modificador_dificultad(bot, game, presser, delta)
+    except Exception as e:
+        logger.error(f"callback_bsg_mod error: {e}")
+        try:
+            await callback.answer("Error.")
+        except Exception:
+            pass
+        await bot.send_message(ADMIN[0], f"BSG mod error: {e}")
+
+
 async def command_estado(update: Update, context: CallbackContext):
     """Muestra el tablero/estado de la partida."""
     bot = context.bot

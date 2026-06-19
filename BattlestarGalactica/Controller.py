@@ -16,12 +16,15 @@ Implementado en esta capa:
 - Cartas de habilidad jugables con /jugar: de acción (Consolidate Power,
   Repair, Maximum Firepower, Launch Scout, Executive Order) y reactivas que se
   arman (Strategic Planning +2 al ataque, Evasive Maneuvers reroll defensivo).
-- Habilidades 1/juego de cada personaje, más pasivas: Adama (fuerza 1 positiva),
-  Tyrol (mano 8), Apollo (descartes al azar), Baltar (roba carta tras la Crisis).
+- Habilidades 1/juego de cada personaje y pasivas de los 9 personajes: Adama
+  (fuerza 1 positiva), Tyrol (mano 8), Apollo (descartes al azar), Baltar (roba
+  carta tras la Crisis), Roslin (roba 2 Crisis y elige 1), Boomer (mira la
+  próxima Crisis al final de su turno), Tigh/Zarek (ajustan dificultad de
+  ciertas ubicaciones), Helo (repite 1 tirada de ataque/turno), Starbuck (aviso
+  de acciones extra al pilotar).
 
 Pendiente para capas siguientes (claramente acotado):
 - Acciones de ubicación completas, Quórum, súper crisis.
-- Pasivas de personaje restantes (Roslin, Zarek, Tigh, Helo, Starbuck, Boomer).
 - Roster completo de cartas de crisis con sus efectos de éxito/fracaso.
 """
 
@@ -323,6 +326,17 @@ async def iniciar_turno(bot, game):
         return
     player = st.active_player
 
+    # Pasivas al inicio del turno
+    if not player.revealed:
+        if player.personaje == "helo":
+            st.reroll_armed = True   # Oficial ECO: 1 repetición de tirada este turno
+        elif player.personaje == "starbuck" and getattr(player, "viper_area", None) is not None:
+            await bot.send_message(
+                game.cid,
+                f"✈️ *Piloto Experta*: {player.name} empieza pilotando un Viper y puede tomar acciones extra.",
+                parse_mode=ParseMode.MARKDOWN,
+            )
+
     # Paso "Recibir Habilidades": el jugador elige el color de cada carta.
     if player.revealed:
         pool = list(Skills.COLORES)          # Cylon revelado: cualquier tipo
@@ -439,6 +453,7 @@ async def avanzar_turno(bot, game):
     st.bonus_actor = None
     st.dado_bonus = 0
     st.evasive_armed = False
+    st.reroll_armed = False
     seq = game.player_sequence
     st.player_counter = (st.player_counter + 1) % len(seq)
     st.active_player = seq[st.player_counter]
@@ -491,9 +506,13 @@ def _d8():
 
 
 def _tirar_ataque(st):
-    """Tirada de ataque del bando humano. Consume el +N armado por
-    'Strategic Planning' (Planificación Estratégica), si lo hay."""
+    """Tirada de ataque del bando humano. Aplica las pasivas/cartas que afectan
+    la tirada: Helo 'Oficial ECO' (repite 1/turno y se queda con la mejor) y
+    'Strategic Planning' (Planificación Estratégica, +N armado)."""
     base = random.randint(1, 8)
+    if getattr(st, "reroll_armed", False):
+        st.reroll_armed = False
+        base = max(base, random.randint(1, 8))
     bonus = getattr(st, "dado_bonus", 0)
     if bonus:
         st.dado_bonus = 0
@@ -738,6 +757,66 @@ async def abrir_chequeo_ubicacion(bot, game, actor_uid, accion, objetivo_uid):
         f"🎲 *Chequeo de acción*{obj_txt} — dificultad *{check['dificultad']}*.\n"
         f"Colores positivos: {emojis}.\n"
         f"Aporten con `/aportar N` y resuelvan con `/resolver`.",
+        parse_mode=ParseMode.MARKDOWN,
+    )
+    await save(bot, game.cid)
+    await _ofrecer_modificador_dificultad(bot, game)
+
+
+def _buscar_personaje(game, pj):
+    """Devuelve el jugador (no revelado) que encarna al personaje dado, o None."""
+    for p in game.playerlist.values():
+        if getattr(p, "personaje", None) == pj and not p.revealed:
+            return p
+    return None
+
+
+async def _ofrecer_modificador_dificultad(bot, game):
+    """Ofrece a Tigh (Camarote del Almirante, −3) o Zarek (Administración/Calabozo,
+    ±2) modificar la dificultad de un chequeo de acción de ubicación recién abierto."""
+    st = game.board.state
+    sc = st.skill_check
+    if not sc or not sc.get("ubicacion_accion"):
+        return
+    actor = game.playerlist.get(sc.get("actor_uid"))
+    if not actor:
+        return
+    loc = actor.ubicacion
+    if loc == "admiral_quarters":
+        tigh = _buscar_personaje(game, "tigh")
+        if tigh:
+            btns = [[InlineKeyboardButton("➖3 dificultad", callback_data=f"{game.cid}*bsgMod*-3*{tigh.uid}"),
+                     InlineKeyboardButton("No usar", callback_data=f"{game.cid}*bsgMod*0*{tigh.uid}")]]
+            await bot.send_message(tigh.uid, "🎖️ *Odio a los Cylons*: puedes reducir en 3 la dificultad de este chequeo.",
+                                   reply_markup=InlineKeyboardMarkup(btns), parse_mode=ParseMode.MARKDOWN)
+    elif loc in ("administration", "brig"):
+        zarek = _buscar_personaje(game, "zarek")
+        if zarek:
+            btns = [[InlineKeyboardButton("➖2", callback_data=f"{game.cid}*bsgMod*-2*{zarek.uid}"),
+                     InlineKeyboardButton("➕2", callback_data=f"{game.cid}*bsgMod*2*{zarek.uid}"),
+                     InlineKeyboardButton("No usar", callback_data=f"{game.cid}*bsgMod*0*{zarek.uid}")]]
+            await bot.send_message(zarek.uid, "🏛️ *Amigos en las Sombras*: puedes modificar la dificultad de este chequeo en ±2.",
+                                   reply_markup=InlineKeyboardMarkup(btns), parse_mode=ParseMode.MARKDOWN)
+
+
+async def aplicar_modificador_dificultad(bot, game, uid, delta):
+    """Aplica el ajuste de dificultad de Tigh/Zarek al chequeo de acción abierto."""
+    st = game.board.state
+    sc = st.skill_check
+    if not sc or not sc.get("ubicacion_accion"):
+        await bot.send_message(uid, "Ya no hay un chequeo de acción abierto.")
+        return
+    p = game.playerlist.get(uid)
+    if not p or p.revealed or p.personaje not in ("tigh", "zarek"):
+        return
+    if delta == 0:
+        await bot.send_message(uid, "No modificas la dificultad.")
+        return
+    sc["dificultad"] = max(0, sc["dificultad"] + delta)
+    nombre = Characters.PERSONAJES[p.personaje]["nombre"]
+    await bot.send_message(
+        game.cid,
+        f"🎚️ *{nombre}* ajusta la dificultad del chequeo en {'+' if delta > 0 else ''}{delta} (ahora *{sc['dificultad']}*).",
         parse_mode=ParseMode.MARKDOWN,
     )
     await save(bot, game.cid)
@@ -1662,7 +1741,51 @@ async def robar_crisis(bot, game):
     if not st.crisis_deck:
         await bot.send_message(game.cid, "No quedan cartas de crisis.")
         return
+
+    ap = st.active_player
+    # Roslin 'Visiones Religiosas': roba 2 Crisis, elige 1 y la otra va al fondo.
+    if (ap and getattr(ap, "personaje", None) == "roslin" and not ap.revealed
+            and len(st.crisis_deck) >= 2):
+        c0 = st.crisis_deck.pop()
+        c1 = st.crisis_deck.pop()
+        st.roslin_choice = [c0, c1]
+        btns = [
+            [InlineKeyboardButton(f"① {c0['titulo']}", callback_data=f"{game.cid}*bsgCrisisSel*0*{ap.uid}")],
+            [InlineKeyboardButton(f"② {c1['titulo']}", callback_data=f"{game.cid}*bsgCrisisSel*1*{ap.uid}")],
+        ]
+        await bot.send_message(
+            ap.uid,
+            "🔮 *Visiones Religiosas* — robaste 2 Crisis; elige cuál resolver (la otra al fondo):\n\n"
+            f"① *{c0['titulo']}*\n_{c0['texto'][:140]}_\n\n"
+            f"② *{c1['titulo']}*\n_{c1['texto'][:140]}_",
+            reply_markup=InlineKeyboardMarkup(btns), parse_mode=ParseMode.MARKDOWN,
+        )
+        await bot.send_message(game.cid, "🔮 La Presidenta consulta sus visiones (elige la Crisis en privado)…", parse_mode=ParseMode.MARKDOWN)
+        await save(bot, game.cid)
+        return
+
     crisis = st.crisis_deck.pop()
+    await _presentar_crisis(bot, game, crisis)
+
+
+async def resolver_roslin(bot, game, uid, idx):
+    """Resuelve la elección de Visiones Religiosas de Roslin."""
+    st = game.board.state
+    pares = st.roslin_choice
+    if not pares or idx not in (0, 1):
+        return
+    if not st.active_player or st.active_player.uid != uid:
+        return
+    elegida = pares[idx]
+    otra = pares[1 - idx]
+    st.crisis_deck.insert(0, otra)   # la descartada va al fondo del mazo
+    st.roslin_choice = None
+    await _presentar_crisis(bot, game, elegida)
+
+
+async def _presentar_crisis(bot, game, crisis):
+    """Anuncia la Crisis elegida, dispara la pasiva de Baltar y la despacha."""
+    st = game.board.state
     st.crisis_actual = crisis
 
     await bot.send_message(
@@ -2134,8 +2257,31 @@ async def cerrar_crisis(bot, game, crisis):
     if await _chequear_fin(bot, game):
         return
 
+    # Boomer 'Reconocimiento': al final de su turno mira la próxima Crisis.
+    await _boomer_reconocimiento(bot, game)
+
     await bot.send_message(game.cid, game.board.print_board(game), parse_mode=ParseMode.MARKDOWN)
     await avanzar_turno(bot, game)
+
+
+async def _boomer_reconocimiento(bot, game):
+    """Pasiva de Boomer: al final de su turno mira la carta superior del mazo de
+    Crisis y decide dejarla arriba o enviarla al fondo (reusa el flujo de Sonda)."""
+    st = game.board.state
+    ap = st.active_player
+    if not ap or getattr(ap, "personaje", None) != "boomer" or ap.revealed:
+        return
+    if not st.crisis_deck or st.play_pending:
+        return
+    st.play_pending = {"tipo": "scout", "uid": ap.uid}
+    top = st.crisis_deck[-1]
+    btns = [[InlineKeyboardButton("⬆️ Mantener arriba", callback_data=f"{game.cid}*bsgJugar*ls_keep*{ap.uid}"),
+             InlineKeyboardButton("⬇️ Enviar al fondo", callback_data=f"{game.cid}*bsgJugar*ls_bottom*{ap.uid}")]]
+    await bot.send_message(
+        ap.uid,
+        f"🔭 *Reconocimiento* — próxima Crisis: *{top['titulo']}*\n_{top['texto'][:160]}_\n¿Mantenerla arriba o enviarla al fondo?",
+        reply_markup=InlineKeyboardMarkup(btns), parse_mode=ParseMode.MARKDOWN,
+    )
 
 
 # ===================== EFECTOS / RECURSOS =====================
