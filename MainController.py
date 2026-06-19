@@ -847,6 +847,7 @@ def main(stop_event):
 	app.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)\*bsgCrisisOpt\*([a-z]*)\*(-?[0-9]*)", callback=BSGCommands.callback_bsg_crisis_opt))
 	app.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)\*bsgCrisisVoto\*([0-9]*)\*(-?[0-9]*)", callback=BSGCommands.callback_bsg_crisis_voto))
 	app.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)\*bsgTarget\*([a-z0-9_]*)\*(-?[0-9]*)", callback=BSGCommands.callback_bsg_target))
+	app.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)\*bsgArea\*([a-z_]+)_([0-9]+)\*(-?[0-9]*)", callback=BSGCommands.callback_bsg_area))
 	app.add_handler(CallbackQueryHandler(pattern=r"(-[0-9]*)\*chooseendBSG\*(.*)\*([0-9]*)", callback=BSGController.callback_finish_game_buttons_bsg))
 
 	app.add_handler(CommandHandler("status", command_status))
