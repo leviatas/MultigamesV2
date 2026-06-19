@@ -47,6 +47,9 @@ class State(BaseState):
         self.skill_check = None           # dict: {crisis, colores, dificultad, aportes:{uid:[cartas]}, ...}
         self.crisis_vote = None           # dict: {opciones, votos:{uid:idx}} para crisis de voto
 
+        # --- Paso "Recibir Habilidades" en curso (elección de color) ---
+        self.skill_draw = None            # dict: {uid, restantes, pool:[colores]}
+
         # --- Naves ---
         self.vipers_reserva = 8
         self.vipers_espacio = 0

@@ -234,16 +234,6 @@ def _robar_skills(st, player, cantidad=3):
             player.skill_hand.append(carta)
 
 
-def _robar_skills_cylon(st, player, cantidad=2):
-    """Un Cylon revelado roba 'cantidad' cartas de habilidad de CUALQUIER tipo
-    (regla del paso Recibir Habilidades para jugadores Cylon)."""
-    for _ in range(cantidad):
-        color = random.choice(Skills.COLORES)
-        carta = _robar_carta_color(st, color)
-        if carta:
-            player.skill_hand.append(carta)
-
-
 LIMITE_MANO = 10
 
 
@@ -314,38 +304,109 @@ async def iniciar_turno(bot, game):
         return
     player = st.active_player
 
-    ubic = Locations.UBICACIONES.get(player.ubicacion, {}).get("nombre", "—")
-
+    # Paso "Recibir Habilidades": el jugador elige el color de cada carta.
     if player.revealed:
-        # Jugador Cylon: roba 2 cartas de cualquier tipo y NO roba crisis.
-        _robar_skills_cylon(st, player)
-        await _dm_mano(bot, player)
+        pool = list(Skills.COLORES)          # Cylon revelado: cualquier tipo
+        cantidad = 2
+        encabezado = f"🤖 *Turno del Cylon {player.name}*"
+    else:
+        pj = Characters.PERSONAJES[player.personaje]
+        pool = _colores_distintos(pj["skill_set"])
+        cantidad = 3
+        encabezado = f"🎬 *Turno de {player.name}*"
+
+    st.skill_draw = {"uid": player.uid, "restantes": cantidad, "pool": pool}
+    await bot.send_message(
+        game.cid,
+        f"{encabezado} — *Recibir Habilidades*.\n"
+        f"{player.name} está eligiendo el tipo de sus cartas (en privado)…",
+        parse_mode=ParseMode.MARKDOWN,
+    )
+    await save(bot, game.cid)
+    await _prompt_color_skill(bot, game)
+
+
+def _colores_distintos(skill_set):
+    """Colores distintos del set del personaje, en el orden estándar."""
+    return [c for c in Skills.COLORES if c in skill_set]
+
+
+async def _prompt_color_skill(bot, game):
+    """Pide por privado al jugador activo el color de la siguiente carta a robar."""
+    st = game.board.state
+    sd = st.skill_draw
+    if not sd:
+        return
+    player = game.playerlist.get(sd["uid"])
+    if not player:
+        return
+    btns = [[InlineKeyboardButton(
+                f"{Skills.EMOJI_COLOR[c]} {c}",
+                callback_data=f"{game.cid}*bsgDraw*{c}*{player.uid}")]
+            for c in sd["pool"]]
+    await bot.send_message(
+        player.uid,
+        f"🃏 *Recibir Habilidades* — te quedan *{sd['restantes']}* carta(s) por robar.\n"
+        f"Elige el tipo de la siguiente carta:",
+        reply_markup=InlineKeyboardMarkup(btns),
+        parse_mode=ParseMode.MARKDOWN,
+    )
+
+
+async def elegir_color_skill(bot, game, uid, color):
+    """Roba 1 carta del color elegido; al terminar, anuncia el resto del turno."""
+    st = game.board.state
+    sd = st.skill_draw
+    if not sd or sd["uid"] != uid or color not in sd["pool"]:
+        return
+    player = game.playerlist[uid]
+    carta = _robar_carta_color(st, color)
+    if carta:
+        player.skill_hand.append(carta)
+        await bot.send_message(
+            uid,
+            f"➕ Robaste {Skills.EMOJI_COLOR[carta['color']]} {carta['color']} {carta['valor']} "
+            f"— _{carta.get('nombre','')}_",
+            parse_mode=ParseMode.MARKDOWN,
+        )
+    else:
+        await bot.send_message(uid, f"(No quedan cartas de {color}.)")
+    sd["restantes"] -= 1
+    if sd["restantes"] > 0:
+        await save(bot, game.cid)
+        await _prompt_color_skill(bot, game)
+        return
+    st.skill_draw = None
+    await _dm_mano(bot, player)
+    await save(bot, game.cid)
+    await _anunciar_turno(bot, game)
+
+
+async def _anunciar_turno(bot, game):
+    """Anuncia en el grupo las acciones disponibles tras Recibir Habilidades."""
+    st = game.board.state
+    player = st.active_player
+    ubic = Locations.UBICACIONES.get(player.ubicacion, {}).get("nombre", "—")
+    if player.revealed:
         await bot.send_message(
             game.cid,
-            f"🤖 *Turno del Cylon {player.name}* (robó 2 cartas de habilidad).\n"
+            f"🤖 *{player.name}* recibió sus cartas.\n"
             f"📍 Estás en: *{ubic}*\n\n"
             f"`/mover` y `/accion` para sabotear · luego `/crisis` para *terminar tu turno* "
             f"(los Cylon no roban crisis).\n"
             f"Consulta `/mapa` para ver la flota.",
             parse_mode=ParseMode.MARKDOWN,
         )
-        await save(bot, game.cid)
-        return
-
-    # Recibir habilidades
-    _robar_skills(st, player)
-    await _dm_mano(bot, player)
-
-    await bot.send_message(
-        game.cid,
-        f"🎬 *Turno de {player.name}* (recibió cartas de habilidad).\n"
-        f"📍 Estás en: *{ubic}*\n\n"
-        f"`/mover` para cambiar de ubicación · `/accion` para la acción de tu ubicación · "
-        f"luego `/crisis` para revelar la crisis.\n"
-        f"Consulta `/mapa` para ver la flota y dónde está cada jugador.",
-        parse_mode=ParseMode.MARKDOWN,
-    )
-    await save(bot, game.cid)
+    else:
+        await bot.send_message(
+            game.cid,
+            f"🎬 *{player.name}* recibió sus cartas de habilidad.\n"
+            f"📍 Estás en: *{ubic}*\n\n"
+            f"`/mover` para cambiar de ubicación · `/accion` para la acción de tu ubicación · "
+            f"luego `/crisis` para revelar la crisis.\n"
+            f"Consulta `/mapa` para ver la flota y dónde está cada jugador.",
+            parse_mode=ParseMode.MARKDOWN,
+        )
 
 
 async def avanzar_turno(bot, game):

@@ -86,6 +86,48 @@ async def callback_bsg_pick(update: Update, context: CallbackContext):
         await bot.send_message(ADMIN[0], f"BSG pick error: {e}")
 
 
+async def callback_bsg_draw(update: Update, context: CallbackContext):
+    """El jugador activo elige el color de la siguiente carta a robar (privado)."""
+    bot = context.bot
+    callback = update.callback_query
+    presser = callback.from_user.id
+    try:
+        regex = re.search(r"(-?[0-9]*)\*bsgDraw\*([A-Za-z]*)\*(-?[0-9]*)", callback.data)
+        cid = int(regex.group(1))
+        color = regex.group(2)
+        target = int(regex.group(3))
+        game = get_game(cid)
+        if not _validar(game):
+            await callback.answer("Partida no encontrada.")
+            return
+        st = game.board.state
+        if not st.skill_draw or st.skill_draw["uid"] != presser or presser != target:
+            await callback.answer("No es tu robo de cartas.")
+            return
+        if color not in st.skill_draw["pool"]:
+            await callback.answer("Color no disponible.")
+            return
+        await callback.answer(f"Robaste {color}.")
+        try:
+            await bot.edit_message_reply_markup(presser, callback.message.message_id, reply_markup=None)
+        except Exception:
+            pass
+        await BSGController.elegir_color_skill(bot, game, presser, color)
+    except Exception as e:
+        logger.error(f"callback_bsg_draw error: {e}")
+        try:
+            await callback.answer("Error.")
+        except Exception:
+            pass
+        await bot.send_message(ADMIN[0], f"BSG draw error: {e}")
+
+
+def _esperando_robo(st, uid):
+    """True si el jugador activo aún debe elegir sus cartas de Recibir Habilidades."""
+    return bool(st.skill_draw and st.active_player and st.active_player.uid == uid
+                and st.skill_draw["uid"] == uid)
+
+
 async def command_lealtad(update: Update, context: CallbackContext):
     """Muestra al jugador su personaje y su lealtad por privado."""
     bot = context.bot
@@ -166,6 +208,9 @@ async def command_accion(update: Update, context: CallbackContext):
     st = game.board.state
     if st.fase_actual != "En Juego" or not st.active_player or st.active_player.uid != uid:
         await bot.send_message(cid, "No es tu turno de acción.")
+        return
+    if _esperando_robo(st, uid):
+        await bot.send_message(cid, "Primero elige tus cartas de habilidad (revisa tu privado).")
         return
 
     player = game.playerlist[uid]
@@ -309,6 +354,9 @@ async def command_mover(update: Update, context: CallbackContext):
     if st.fase_actual != "En Juego" or not st.active_player or st.active_player.uid != uid:
         await bot.send_message(cid, "No es tu turno.")
         return
+    if _esperando_robo(st, uid):
+        await bot.send_message(cid, "Primero elige tus cartas de habilidad (revisa tu privado).")
+        return
     player = game.playerlist[uid]
     es_cylon_revelado = player.revealed
     btns = []
@@ -378,6 +426,9 @@ async def command_crisis(update: Update, context: CallbackContext):
         return
     if st.active_player and st.active_player.uid != uid and uid not in ADMIN:
         await bot.send_message(cid, "Solo el jugador activo (o un admin) revela la crisis.")
+        return
+    if st.active_player and _esperando_robo(st, st.active_player.uid):
+        await bot.send_message(cid, "Primero elige tus cartas de habilidad (revisa tu privado).")
         return
     # Los jugadores Cylon revelados no roban crisis: con esto terminan su turno.
     if st.active_player and st.active_player.revealed:
