@@ -113,7 +113,8 @@ async def callback_bsg_draw(update: Update, context: CallbackContext):
         if not st.skill_draw or st.skill_draw["uid"] != presser or presser != target:
             await callback.answer("No es tu robo de cartas.")
             return
-        if color not in st.skill_draw["pool"]:
+        slots = st.skill_draw.get("slots")
+        if not slots or color not in slots[0]:
             await callback.answer("Color no disponible.")
             return
         await callback.answer(f"Robaste {color}.")

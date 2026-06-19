@@ -9,6 +9,13 @@ NOTA: el motor implementa la habilidad de "Acción una vez por juego" de forma
 aproximada en algunos casos (ver Controller.usar_habilidad). El texto mostrado
 es el oficial. Las ubicaciones iniciales que no existen aún como ubicación
 jugable propia se mapean a la más cercana (marcado con  # map).
+
+Formato de "skill_set": lista de *slots*; cada turno (paso "Recibir Habilidades")
+se roba el set completo, un slot = una carta.
+  - Un color (str) → slot FIJO: siempre se roba ese color (p. ej. Adama: 3
+    Liderazgo + 2 Táctica).
+  - Una lista de colores → slot de ELECCIÓN: el jugador elige uno de esos colores
+    (p. ej. Apolo: 2 slots [Liderazgo/Política]).
 """
 
 # Colores de habilidad
@@ -113,7 +120,8 @@ PERSONAJES = {
         "tipo": "Piloto",
         "ubicacion": "hangar",  # map: Sector 5/6 (empieza pilotando un Viper)
         "titulo": None,
-        "skill_set": [PILOTAJE, PILOTAJE, TACTICA, POLITICA, LIDERAZGO],
+        # 1 Táctica + 2 Pilotaje (fijos) + 2 cartas a elegir Liderazgo/Política.
+        "skill_set": [TACTICA, PILOTAJE, PILOTAJE, [LIDERAZGO, POLITICA], [LIDERAZGO, POLITICA]],
         "abilities": (
             "Piloto de Viper Alerta: cuando se coloca un Viper desde la reserva, puedes pilotarlo y tomar 1 acción "
             "(estando en una ubicación de Galactica, salvo el calabozo).\n"
