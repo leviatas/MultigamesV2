@@ -262,7 +262,7 @@ async def callback_bsg_jugar(update: Update, context: CallbackContext):
                 btns = [[InlineKeyboardButton(f"{Skills.EMOJI_COLOR[c]} {c}",
                                               callback_data=f"{cid}*bsgJugar*cp_{c}*{presser}")]
                         for c in Skills.COLORES]
-                await bot.send_message(presser, "🟢 *Consolidación de Poder* — elige el tipo (robarás 2):",
+                await bot.send_message(presser, "🟡 *Consolidación de Poder* — elige el tipo (robarás 2):",
                                        reply_markup=InlineKeyboardMarkup(btns), parse_mode=ParseMode.MARKDOWN)
             elif nombre == "Executive Order":
                 otros = [p for p in game.playerlist.values()

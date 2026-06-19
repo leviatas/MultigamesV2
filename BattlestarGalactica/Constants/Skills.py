@@ -27,8 +27,11 @@ INGENIERIA = "Ingenieria"
 
 COLORES = [POLITICA, LIDERAZGO, TACTICA, PILOTAJE, INGENIERIA]
 
+# Colores oficiales de las cartas del juego:
+#   🟡 Amarillo = Política | 🟢 Verde = Liderazgo | 🟣 Violeta = Táctica
+#   🔴 Rojo = Pilotaje    | 🔵 Azul = Ingeniería
 EMOJI_COLOR = {
-    POLITICA: "🟢", LIDERAZGO: "🟣", TACTICA: "🔴", PILOTAJE: "🔵", INGENIERIA: "🟡",
+    POLITICA: "🟡", LIDERAZGO: "🟢", TACTICA: "🟣", PILOTAJE: "🔴", INGENIERIA: "🔵",
 }
 
 # Composición oficial por color (valor -> cantidad)
