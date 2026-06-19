@@ -904,6 +904,42 @@ async def callback_bsg_crisis_voto(update: Update, context: CallbackContext):
         await bot.send_message(ADMIN[0], f"BSG crisis voto error: {e}")
 
 
+async def callback_bsg_crisis_target(update: Update, context: CallbackContext):
+    """El decisor de un efecto de crisis elige un personaje objetivo."""
+    bot = context.bot
+    callback = update.callback_query
+    presser = callback.from_user.id
+    try:
+        regex = re.search(r"(-?[0-9]*)\*bsgCrisisTgt\*(none|-?[0-9]+)\*(-?[0-9]*)", callback.data)
+        cid = int(regex.group(1))
+        target_token = regex.group(2)
+        chooser = int(regex.group(3))
+        game = get_game(cid)
+        if not _validar(game):
+            await callback.answer("Partida no encontrada.")
+            return
+        st = game.board.state
+        if not st.target_select:
+            await callback.answer("Ya no hay selección pendiente.")
+            return
+        if presser != chooser and presser not in ADMIN:
+            await callback.answer("No te toca elegir.")
+            return
+        await callback.answer("Objetivo elegido.")
+        try:
+            await bot.edit_message_text("Objetivo elegido.", cid, callback.message.message_id)
+        except Exception:
+            pass
+        await BSGController.resolver_eleccion_objetivo(bot, game, target_token)
+    except Exception as e:
+        logger.error(f"callback_bsg_crisis_target error: {e}")
+        try:
+            await callback.answer("Error.")
+        except Exception:
+            pass
+        await bot.send_message(ADMIN[0], f"BSG crisis target error: {e}")
+
+
 async def command_aportar(update: Update, context: CallbackContext):
     """Aporta una carta de la mano a un chequeo de habilidad (por privado)."""
     bot = context.bot
