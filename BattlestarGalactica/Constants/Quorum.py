@@ -5,10 +5,11 @@ Mazo de Quórum del JUEGO BASE (hoja "Quorum Cards", Module=B).
 Cada carta:
   id, titulo, texto (oficial)
   draw_politics : (opcional) nº de cartas de Política que roba el Presidente al jugarla
-  target_efecto : (opcional) "brig" | "pardon" | "mutiny" | "mugshots" → requiere objetivo
-  efectos       : (opcional) lista de efectos inmediatos (soporta "roll")
+  target_efecto : (opcional) "brig" | "pardon" | "mutiny" | "mugshots" |
+                  "specialist" | "arbitrator" | "vicepresident" → requiere objetivo
+  efectos       : (opcional) lista de efectos inmediatos (soporta "roll", "prophecy")
   keep          : (opcional) True si la carta permanece en juego (efecto continuo
-                  descrito en el texto; no totalmente modelado)
+                  descrito en el texto; modelado con estado dedicado en State)
 
 Efecto "roll": {"tipo":"roll","rango":[min,max],"exito":[...],"fracaso":[...]}
   Tira 1d8; aplica 'exito' si cae en [min,max] (inclusive), si no 'fracaso'.
@@ -84,10 +85,10 @@ QUORUM_DECK = [
     {
         "id": "accept_prophecy",
         "titulo": "Aceptar la Profecía",
-        "texto": "Roba 1 carta de habilidad. (Permanece en juego: la próxima activación de "
-                 "Administración o del Camarote del Almirante para nombrar Presidente tiene +2 dificultad.)",
+        "texto": "Roba 1 carta de Política. (Permanece en juego: el próximo chequeo de "
+                 "Administración para nombrar Presidente tiene +2 de dificultad.)",
         "draw_politics": 1,
-        "keep": True,
+        "efectos": [{"tipo": "prophecy"}],
     },
     {
         "id": "assign_mission_specialist",
@@ -95,7 +96,7 @@ QUORUM_DECK = [
         "texto": "Roba 2 cartas de Política y asigna un Especialista. En el próximo salto, el "
                  "Especialista elige el destino en lugar del Almirante. (Permanece en juego.)",
         "draw_politics": 2,
-        "keep": True,
+        "target_efecto": "specialist",
     },
     {
         "id": "assign_arbitrator",
@@ -103,7 +104,7 @@ QUORUM_DECK = [
         "texto": "Roba 2 cartas de Política y elige a otro jugador (Árbitro). Cuando alguien active el "
                  "Camarote del Almirante, el Árbitro puede mover la dificultad ±3. (Permanece en juego.)",
         "draw_politics": 2,
-        "keep": True,
+        "target_efecto": "arbitrator",
     },
     {
         "id": "assign_vice_president",
@@ -111,6 +112,6 @@ QUORUM_DECK = [
         "texto": "Roba 2 cartas de Política y nombra un Vicepresidente. Solo el VP puede llegar a "
                  "Presidente vía Administración. (Permanece en juego.)",
         "draw_politics": 2,
-        "keep": True,
+        "target_efecto": "vicepresident",
     },
 ]

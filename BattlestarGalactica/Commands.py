@@ -364,7 +364,7 @@ async def callback_bsg_crisis_sel(update: Update, context: CallbackContext):
 
 
 async def callback_bsg_mod(update: Update, context: CallbackContext):
-    """Ajuste de dificultad de Tigh/Zarek sobre un chequeo de acción."""
+    """Ajuste de dificultad de Tigh/Zarek (pasiva) o del Árbitro (Quórum) sobre un chequeo de acción."""
     bot = context.bot
     callback = update.callback_query
     presser = callback.from_user.id
@@ -542,6 +542,9 @@ async def callback_bsg_accion(update: Update, context: CallbackContext):
             btns = []
             for p_uid, p in game.playerlist.items():
                 if accion == "brig_check" and (p.en_calabozo or p.revealed):
+                    continue
+                # Poder presidencial "Vicepresidente": solo el VP puede llegar a Presidente.
+                if accion == "president_check" and st.vicepresidente_uid and p_uid != st.vicepresidente_uid:
                     continue
                 btns.append([InlineKeyboardButton(p.name, callback_data=f"{cid}*bsgTarget*{accion}*{p_uid}")])
             if not btns:
@@ -1048,6 +1051,12 @@ async def callback_bsg_quorum(update: Update, context: CallbackContext):
                     continue
                 if ef == "mutiny" and (p_uid == st.almirante_uid or p.revealed):
                     continue
+                # Poderes presidenciales: no se asignan a Cylons revelados.
+                if ef in ("specialist", "arbitrator", "vicepresident") and p.revealed:
+                    continue
+                # El Árbitro y el Vicepresidente deben ser otro jugador.
+                if ef in ("arbitrator", "vicepresident") and p_uid == presser:
+                    continue
                 btns.append([InlineKeyboardButton(p.name, callback_data=f"{cid}*bsgQTarget*x*{p_uid}")])
             if not btns:
                 await bot.send_message(cid, "No hay objetivos válidos; la carta se descarta.")
@@ -1062,6 +1071,77 @@ async def callback_bsg_quorum(update: Update, context: CallbackContext):
         except Exception:
             pass
         await bot.send_message(ADMIN[0], f"BSG quorum error: {e}")
+
+
+async def callback_bsg_qdraw(update: Update, context: CallbackContext):
+    """Oficina del Presidente: robar una segunda carta de Quórum (o terminar)."""
+    bot = context.bot
+    callback = update.callback_query
+    presser = callback.from_user.id
+    try:
+        regex = re.search(r"(-?[0-9]*)\*bsgQDraw\*(-?[0-9]*)", callback.data)
+        cid = int(regex.group(1))
+        target = int(regex.group(2))
+        game = get_game(cid)
+        if not _validar(game):
+            await callback.answer("Partida no encontrada.")
+            return
+        st = game.board.state
+        try:
+            await bot.edit_message_text("🏛️ Oficina del Presidente.", cid, callback.message.message_id)
+        except Exception:
+            pass
+        if target == 0:
+            await callback.answer("Listo.")
+            return
+        if presser != target or (presser != st.presidente_uid and presser not in ADMIN):
+            await callback.answer("Solo el Presidente.")
+            return
+        await callback.answer("Robas otra carta.")
+        await BSGController.robar_quorum(bot, game, presser)
+        await BSGController.save(bot, cid)
+    except Exception as e:
+        logger.error(f"callback_bsg_qdraw error: {e}")
+        try:
+            await callback.answer("Error.")
+        except Exception:
+            pass
+        await bot.send_message(ADMIN[0], f"BSG qdraw error: {e}")
+
+
+async def callback_bsg_civil(update: Update, context: CallbackContext):
+    """Comunicaciones: reposicionar una nave civil hacia la retaguardia."""
+    bot = context.bot
+    callback = update.callback_query
+    presser = callback.from_user.id
+    try:
+        regex = re.search(r"(-?[0-9]*)\*bsgCivil\*(-?[0-9]+)\*(-?[0-9]*)", callback.data)
+        cid = int(regex.group(1))
+        area_idx = int(regex.group(2))
+        target = int(regex.group(3))
+        game = get_game(cid)
+        if not _validar(game):
+            await callback.answer("Partida no encontrada.")
+            return
+        if presser != target:
+            await callback.answer("No es para ti.")
+            return
+        try:
+            await bot.edit_message_text("🔭 Comunicaciones.", cid, callback.message.message_id)
+        except Exception:
+            pass
+        if area_idx < 0:
+            await callback.answer("Sin cambios.")
+            return
+        await callback.answer("Nave civil movida.")
+        await BSGController.mover_civil(bot, game, area_idx)
+    except Exception as e:
+        logger.error(f"callback_bsg_civil error: {e}")
+        try:
+            await callback.answer("Error.")
+        except Exception:
+            pass
+        await bot.send_message(ADMIN[0], f"BSG civil error: {e}")
 
 
 async def callback_bsg_qtarget(update: Update, context: CallbackContext):
