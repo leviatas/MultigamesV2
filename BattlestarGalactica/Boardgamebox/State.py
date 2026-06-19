@@ -1,4 +1,5 @@
 from Boardgamebox.State import State as BaseState
+from BattlestarGalactica.Constants import Space
 
 
 class State(BaseState):
@@ -47,19 +48,21 @@ class State(BaseState):
         self.skill_check = None           # dict: {crisis, colores, dificultad, aportes:{uid:[cartas]}, ...}
         self.crisis_vote = None           # dict: {opciones, votos:{uid:idx}} para crisis de voto
 
-        # --- Naves ---
+        # --- Paso "Recibir Habilidades" en curso (elección de color) ---
+        self.skill_draw = None            # dict: {uid, restantes, pool:[colores]}
+
+        # --- Naves: modelo posicional por áreas del espacio ---
+        self.areas = [Space.nueva_area() for _ in range(Space.N_AREAS)]
         self.vipers_reserva = 8
-        self.vipers_espacio = 0
-        self.vipers_danados = 0
-        self.raiders = 0
-        self.basestars = 0
-        self.basestar_hits = 0            # impactos acumulados sobre basestars
+        self.vipers_danados = 0           # Vipers dañados (fuera de combate hasta reparar)
         self.nuke_usado = False           # ataque nuclear del Almirante (1 por juego)
 
-        # --- Naves civiles (cada una con carga oculta) ---
-        self.civiles = []                 # naves civiles en el espacio: dicts {recurso, cantidad}
-        self.civiles_pile = []            # naves civiles aún no desplegadas (reserva)
-        self.naves_civiles = 0            # cantidad de civiles en el espacio (derivado de civiles)
+        # --- Naves civiles aún no desplegadas (con carga oculta) ---
+        self.civiles_pile = []
+
+        # --- Daño a Galactica (6 tokens = destruida → derrota humana) ---
+        self.galactica_danos = 0
+        self.galactica_danos_max = 6
 
         # --- Abordaje / centuriones en Galactica ---
         self.centuriones = 0              # avance del abordaje
@@ -71,3 +74,16 @@ class State(BaseState):
         # --- Resultado ---
         self.ganador = None               # "Humanos" | "Cylons" | None
         self.razon_fin = None
+
+    # --- Totales derivados del modelo posicional de naves ---
+    def total_raiders(self):
+        return sum(a["raiders"] for a in self.areas)
+
+    def total_basestars(self):
+        return sum(len(a["basestars"]) for a in self.areas)
+
+    def total_vipers_espacio(self):
+        return sum(a["vipers"] for a in self.areas)
+
+    def total_civiles(self):
+        return sum(len(a["civiles"]) for a in self.areas)

@@ -835,6 +835,7 @@ def main(stop_event):
 	app.add_handler(CommandHandler("encarcelar", BSGCommands.command_encarcelar))
 	app.add_handler(CommandHandler("liberar", BSGCommands.command_liberar))
 	app.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)\*bsgPick\*([a-z_]*)\*(-?[0-9]*)", callback=BSGCommands.callback_bsg_pick))
+	app.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)\*bsgDraw\*([A-Za-z]*)\*(-?[0-9]*)", callback=BSGCommands.callback_bsg_draw))
 	app.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)\*bsgAccion\*([a-z0-9_]*)\*(-?[0-9]*)", callback=BSGCommands.callback_bsg_accion))
 	app.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)\*bsgMover\*([a-z_]*)\*(-?[0-9]*)", callback=BSGCommands.callback_bsg_mover))
 	app.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)\*bsgCylon\*([a-z0-9_]*)\*(-?[0-9]*)", callback=BSGCommands.callback_bsg_cylon))
@@ -846,6 +847,7 @@ def main(stop_event):
 	app.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)\*bsgCrisisOpt\*([a-z]*)\*(-?[0-9]*)", callback=BSGCommands.callback_bsg_crisis_opt))
 	app.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)\*bsgCrisisVoto\*([0-9]*)\*(-?[0-9]*)", callback=BSGCommands.callback_bsg_crisis_voto))
 	app.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)\*bsgTarget\*([a-z0-9_]*)\*(-?[0-9]*)", callback=BSGCommands.callback_bsg_target))
+	app.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)\*bsgArea\*([a-z_]+)_([0-9]+)\*(-?[0-9]*)", callback=BSGCommands.callback_bsg_area))
 	app.add_handler(CallbackQueryHandler(pattern=r"(-[0-9]*)\*chooseendBSG\*(.*)\*([0-9]*)", callback=BSGController.callback_finish_game_buttons_bsg))
 
 	app.add_handler(CommandHandler("status", command_status))

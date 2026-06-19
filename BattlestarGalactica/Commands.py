@@ -6,7 +6,7 @@ import logging as log
 import re
 
 import BattlestarGalactica.Controller as BSGController
-from BattlestarGalactica.Constants import Characters, Skills, Loyalty, Locations
+from BattlestarGalactica.Constants import Characters, Skills, Loyalty, Locations, Space
 from Utils import get_game, save
 from Constants.Config import ADMIN
 
@@ -84,6 +84,48 @@ async def callback_bsg_pick(update: Update, context: CallbackContext):
         except Exception:
             pass
         await bot.send_message(ADMIN[0], f"BSG pick error: {e}")
+
+
+async def callback_bsg_draw(update: Update, context: CallbackContext):
+    """El jugador activo elige el color de la siguiente carta a robar (privado)."""
+    bot = context.bot
+    callback = update.callback_query
+    presser = callback.from_user.id
+    try:
+        regex = re.search(r"(-?[0-9]*)\*bsgDraw\*([A-Za-z]*)\*(-?[0-9]*)", callback.data)
+        cid = int(regex.group(1))
+        color = regex.group(2)
+        target = int(regex.group(3))
+        game = get_game(cid)
+        if not _validar(game):
+            await callback.answer("Partida no encontrada.")
+            return
+        st = game.board.state
+        if not st.skill_draw or st.skill_draw["uid"] != presser or presser != target:
+            await callback.answer("No es tu robo de cartas.")
+            return
+        if color not in st.skill_draw["pool"]:
+            await callback.answer("Color no disponible.")
+            return
+        await callback.answer(f"Robaste {color}.")
+        try:
+            await bot.edit_message_reply_markup(presser, callback.message.message_id, reply_markup=None)
+        except Exception:
+            pass
+        await BSGController.elegir_color_skill(bot, game, presser, color)
+    except Exception as e:
+        logger.error(f"callback_bsg_draw error: {e}")
+        try:
+            await callback.answer("Error.")
+        except Exception:
+            pass
+        await bot.send_message(ADMIN[0], f"BSG draw error: {e}")
+
+
+def _esperando_robo(st, uid):
+    """True si el jugador activo aún debe elegir sus cartas de Recibir Habilidades."""
+    return bool(st.skill_draw and st.active_player and st.active_player.uid == uid
+                and st.skill_draw["uid"] == uid)
 
 
 async def command_lealtad(update: Update, context: CallbackContext):
@@ -167,6 +209,9 @@ async def command_accion(update: Update, context: CallbackContext):
     if st.fase_actual != "En Juego" or not st.active_player or st.active_player.uid != uid:
         await bot.send_message(cid, "No es tu turno de acción.")
         return
+    if _esperando_robo(st, uid):
+        await bot.send_message(cid, "Primero elige tus cartas de habilidad (revisa tu privado).")
+        return
 
     player = game.playerlist[uid]
     # En el calabozo solo se permite el intento de fuga (chequeo del Calabozo).
@@ -221,6 +266,27 @@ async def callback_bsg_accion(update: Update, context: CallbackContext):
             await callback.answer("No es tu acción.")
             return
 
+        # Acciones que requieren elegir un ÁREA del espacio → mostrar botonera de áreas
+        if accion in BSGController.ACCIONES_CON_AREA:
+            await callback.answer()
+            tipo = BSGController.ACCIONES_CON_AREA[accion]
+            btns = []
+            for i, a in enumerate(st.areas):
+                cant = a["raiders"] if tipo == "raiders" else len(a["basestars"])
+                if cant > 0:
+                    btns.append([InlineKeyboardButton(
+                        f"{Space.nombre(i)} ({cant})",
+                        callback_data=f"{cid}*bsgArea*{accion}_{i}*{presser}")])
+            if not btns:
+                await bot.send_message(cid, "No hay objetivos en ningún área.")
+                return
+            try:
+                await bot.edit_message_text("Elige el área a atacar:", cid, callback.message.message_id,
+                                            reply_markup=InlineKeyboardMarkup(btns))
+            except Exception:
+                await bot.send_message(cid, "Elige el área a atacar:", reply_markup=InlineKeyboardMarkup(btns))
+            return
+
         # Acciones que requieren elegir un personaje objetivo → mostrar botonera
         if accion in BSGController.ACCIONES_CON_OBJETIVO:
             await callback.answer()
@@ -258,6 +324,42 @@ async def callback_bsg_accion(update: Update, context: CallbackContext):
         except Exception:
             pass
         await bot.send_message(ADMIN[0], f"BSG accion error: {e}")
+
+
+async def callback_bsg_area(update: Update, context: CallbackContext):
+    """Selección de área del espacio para una acción de Control de Armas."""
+    bot = context.bot
+    callback = update.callback_query
+    presser = callback.from_user.id
+    try:
+        regex = re.search(r"(-?[0-9]*)\*bsgArea\*([a-z_]+)_([0-9]+)\*(-?[0-9]*)", callback.data)
+        cid = int(regex.group(1))
+        accion = regex.group(2)
+        area_idx = int(regex.group(3))
+        target = int(regex.group(4))
+        game = get_game(cid)
+        if not _validar(game):
+            await callback.answer("Partida no encontrada.")
+            return
+        st = game.board.state
+        if not st.active_player or st.active_player.uid != presser or presser != target:
+            await callback.answer("No es tu acción.")
+            return
+        await callback.answer("Disparo realizado.")
+        try:
+            await bot.edit_message_text(f"Atacas {Space.nombre(area_idx)}.", cid, callback.message.message_id)
+        except Exception:
+            pass
+        await BSGController.ejecutar_accion_ubicacion(bot, game, presser, accion, objetivo=area_idx)
+        if not st.ganador and not st.skill_check:
+            await bot.send_message(cid, "Ahora se revela la *Crisis*. Usa `/crisis`.", parse_mode=ParseMode.MARKDOWN)
+    except Exception as e:
+        logger.error(f"callback_bsg_area error: {e}")
+        try:
+            await callback.answer("Error.")
+        except Exception:
+            pass
+        await bot.send_message(ADMIN[0], f"BSG area error: {e}")
 
 
 async def callback_bsg_target(update: Update, context: CallbackContext):
@@ -308,6 +410,9 @@ async def command_mover(update: Update, context: CallbackContext):
     st = game.board.state
     if st.fase_actual != "En Juego" or not st.active_player or st.active_player.uid != uid:
         await bot.send_message(cid, "No es tu turno.")
+        return
+    if _esperando_robo(st, uid):
+        await bot.send_message(cid, "Primero elige tus cartas de habilidad (revisa tu privado).")
         return
     player = game.playerlist[uid]
     es_cylon_revelado = player.revealed
@@ -378,6 +483,9 @@ async def command_crisis(update: Update, context: CallbackContext):
         return
     if st.active_player and st.active_player.uid != uid and uid not in ADMIN:
         await bot.send_message(cid, "Solo el jugador activo (o un admin) revela la crisis.")
+        return
+    if st.active_player and _esperando_robo(st, st.active_player.uid):
+        await bot.send_message(cid, "Primero elige tus cartas de habilidad (revisa tu privado).")
         return
     # Los jugadores Cylon revelados no roban crisis: con esto terminan su turno.
     if st.active_player and st.active_player.revealed:
