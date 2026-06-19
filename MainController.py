@@ -828,6 +828,7 @@ def main(stop_event):
 	app.add_handler(CommandHandler("mover", BSGCommands.command_mover))
 	app.add_handler(CommandHandler("crisis", BSGCommands.command_crisis))
 	app.add_handler(CommandHandler("aportar", BSGCommands.command_aportar))
+	app.add_handler(CommandHandler("jugar", BSGCommands.command_jugar))
 	app.add_handler(CommandHandler("resolver", BSGCommands.command_resolver))
 	app.add_handler(CommandHandler("revelar", BSGCommands.command_revelar))
 	app.add_handler(CommandHandler("habilidad", BSGCommands.command_habilidad))
@@ -848,6 +849,7 @@ def main(stop_event):
 	app.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)\*bsgCrisisVoto\*([0-9]*)\*(-?[0-9]*)", callback=BSGCommands.callback_bsg_crisis_voto))
 	app.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)\*bsgTarget\*([a-z0-9_]*)\*(-?[0-9]*)", callback=BSGCommands.callback_bsg_target))
 	app.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)\*bsgArea\*([a-z_]+)_([0-9]+)\*(-?[0-9]*)", callback=BSGCommands.callback_bsg_area))
+	app.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)\*bsgJugar\*([A-Za-z]+_[0-9A-Za-z]+)\*(-?[0-9]*)", callback=BSGCommands.callback_bsg_jugar))
 	app.add_handler(CallbackQueryHandler(pattern=r"(-[0-9]*)\*chooseendBSG\*(.*)\*([0-9]*)", callback=BSGController.callback_finish_game_buttons_bsg))
 
 	app.add_handler(CommandHandler("status", command_status))

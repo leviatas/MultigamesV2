@@ -13,9 +13,13 @@ Implementado en esta capa:
 - Combate espacial posicional: Vipers tripulados, Heavy Raiders, abordaje.
 - Daño a Galactica por ubicaciones e iconos de activación Cylon por crisis.
 
+- Cartas de habilidad de acción jugables (Consolidate Power, Repair, Maximum
+  Firepower, Launch Scout) y habilidades 1/juego de cada personaje.
+
 Pendiente para capas siguientes (claramente acotado):
 - Acciones de ubicación completas, Quórum, súper crisis.
-- Habilidades específicas de cada personaje y cartas de habilidad con efecto.
+- Cartas de habilidad reactivas (Strategic Planning, Evasive Maneuvers,
+  Executive Order) y resto de habilidades pasivas de personaje.
 - Roster completo de cartas de crisis con sus efectos de éxito/fracaso.
 """
 
@@ -238,10 +242,18 @@ def _robar_skills(st, player, cantidad=3):
 LIMITE_MANO = 10
 
 
+def _limite_mano(player):
+    """Límite de mano de cartas de habilidad (Tyrol 'Imprudente' tiene 8)."""
+    if getattr(player, "personaje", None) == "tyrol":
+        return 8
+    return LIMITE_MANO
+
+
 async def _descartar_hasta_limite(bot, game, player):
     """Al final del turno, descarta hasta el límite de 10 cartas de habilidad.
     El motor descarta automáticamente las de menor fuerza (las menos útiles)."""
-    sobran = len(player.skill_hand) - LIMITE_MANO
+    limite = _limite_mano(player)
+    sobran = len(player.skill_hand) - limite
     if sobran <= 0:
         return
     st = game.board.state
@@ -252,7 +264,7 @@ async def _descartar_hasta_limite(bot, game, player):
         st.skill_discards.setdefault(c["color"], []).append(c)
     await bot.send_message(
         player.uid,
-        f"🗑️ Tenías más de {LIMITE_MANO} cartas; se descartaron {sobran} "
+        f"🗑️ Tenías más de {limite} cartas; se descartaron {sobran} "
         f"(las de menor fuerza).",
     )
     await _dm_mano(bot, player)
@@ -1788,6 +1800,101 @@ async def abrir_chequeo(bot, game, crisis):
     await save(bot, game.cid)
 
 
+# ===================== CARTAS DE HABILIDAD (ACCIÓN) =====================
+# Cartas que se pueden JUGAR como acción por su efecto (las demás se aportan a
+# chequeos por su valor o se juegan en momentos concretos —próxima capa—).
+CARTAS_ACCION = {"Consolidate Power", "Repair", "Maximum Firepower", "Launch Scout"}
+
+# Cuándo se usan las cartas que no son acción autónoma (mensaje informativo).
+CUANDO_SE_JUEGAN = {
+    "Declare Emergency": "se aporta a un chequeo (reduce su dificultad en 2).",
+    "Scientific Research": "se aporta a un chequeo (Ingeniería cuenta en positivo).",
+    "Strategic Planning": "se juega antes de una tirada de dado (próxima capa).",
+    "Evasive Maneuvers": "se juega al ser atacado un Viper (próxima capa).",
+    "Executive Order": "concede una acción a otro jugador (próxima capa).",
+}
+
+
+async def carta_repair(bot, game, player):
+    """Reparación: en Hangar/pilotando arregla hasta 2 Vipers; si no, repara una
+    ubicación averiada de Galactica. Devuelve True si tuvo efecto."""
+    st = game.board.state
+    if player.ubicacion == "hangar" or getattr(player, "viper_area", None) is not None:
+        rep = min(2, st.vipers_danados)
+        if rep:
+            st.vipers_danados -= rep
+            st.vipers_reserva += rep
+            await bot.send_message(game.cid, f"🔧 {player.name} usa *Reparación*: arregla {rep} Viper(s) dañado(s).", parse_mode=ParseMode.MARKDOWN)
+            return True
+    loc = player.ubicacion
+    if loc in st.galactica_damage:
+        await _reparar_galactica(bot, game, player, loc)
+        return True
+    if st.galactica_damage:
+        await _reparar_galactica(bot, game, player)
+        return True
+    await bot.send_message(player.uid, "🔧 No hay nada que reparar (ni Vipers dañados ni sistemas averiados).")
+    return False
+
+
+async def carta_max_firepower(bot, game, player):
+    """Potencia de Fuego Máxima: pilotando, ataca hasta 4 veces en tu área."""
+    st = game.board.state
+    if getattr(player, "viper_area", None) is None:
+        await bot.send_message(player.uid, "Debes estar pilotando un Viper para usar Potencia de Fuego Máxima.")
+        return False
+    await bot.send_message(game.cid, f"🔫 {player.name} desata *Potencia de Fuego Máxima* (hasta 4 ataques).", parse_mode=ParseMode.MARKDOWN)
+    for _ in range(4):
+        i = player.viper_area
+        a = st.areas[i]
+        if a["raiders"] <= 0 and a.get("heavy_raiders", 0) <= 0 and not a["basestars"]:
+            break
+        await _pilot_atacar(bot, game, player)
+        if st.ganador:
+            break
+    return True
+
+
+async def carta_consolidate_color(bot, game, uid, color):
+    """Consolidación de Poder: roba 1 carta del color elegido (de 2 en total)."""
+    st = game.board.state
+    pp = st.play_pending
+    if not pp or pp.get("tipo") != "consolidate" or pp.get("uid") != uid:
+        return
+    player = game.playerlist[uid]
+    carta = _robar_carta_color(st, color)
+    if carta:
+        player.skill_hand.append(carta)
+        await bot.send_message(
+            uid,
+            f"➕ *Consolidación de Poder*: robaste {Skills.EMOJI_COLOR[carta['color']]} {color} {carta['valor']}.",
+            parse_mode=ParseMode.MARKDOWN,
+        )
+    else:
+        await bot.send_message(uid, f"(No quedan cartas de {color}.)")
+    pp["restantes"] -= 1
+    if pp["restantes"] <= 0:
+        st.play_pending = None
+        await _dm_mano(bot, player)
+    await save(bot, game.cid)
+
+
+async def carta_scout_resolve(bot, game, uid, mantener):
+    """Explorar: mantiene la próxima Crisis arriba o la manda al fondo del mazo."""
+    st = game.board.state
+    pp = st.play_pending
+    if not pp or pp.get("tipo") != "scout" or pp.get("uid") != uid:
+        return
+    st.play_pending = None
+    if st.crisis_deck and not mantener:
+        c = st.crisis_deck.pop()         # cima
+        st.crisis_deck.insert(0, c)      # al fondo
+        await bot.send_message(game.cid, "🔭 *Lanzar Sonda*: la próxima Crisis se envía al fondo del mazo.", parse_mode=ParseMode.MARKDOWN)
+    else:
+        await bot.send_message(game.cid, "🔭 *Lanzar Sonda*: la próxima Crisis se mantiene arriba.", parse_mode=ParseMode.MARKDOWN)
+    await save(bot, game.cid)
+
+
 async def aportar_carta(bot, game, uid, indice):
     st = game.board.state
     if not st.skill_check:
@@ -1828,6 +1935,9 @@ async def resolver_chequeo(bot, game):
     nombres = [c.get("nombre") for c in todas]
     scientific = "Scientific Research" in nombres   # Ingeniería cuenta en positivo
     declare_emergency = nombres.count("Declare Emergency")
+    # Adama 'Líder Inspirador': las cartas de fuerza 1 cuentan en positivo.
+    adama_activo = any(getattr(p, "personaje", None) == "adama" and not p.revealed
+                       for p in game.playerlist.values())
     # 2 cartas de destino
     destino = _robar_destino(st, 2)
     for c in destino:
@@ -1836,6 +1946,8 @@ async def resolver_chequeo(bot, game):
     random.shuffle(todas)  # ocultar quién aportó qué
     for c in todas:
         if scientific and c["color"] == Skills.INGENIERIA:
+            signo = 1
+        elif adama_activo and c["valor"] == 1:
             signo = 1
         else:
             signo = Skills.signo_para_check(c["color"], colores)
@@ -1857,6 +1969,8 @@ async def resolver_chequeo(bot, game):
         notas.append("Declare Emergency −2 dif.")
     if scientific:
         notas.append("Scientific Research: Ingeniería positiva")
+    if adama_activo:
+        notas.append("Adama: fuerza 1 positiva")
 
     exito = total >= dificultad
     extra = (" (" + "; ".join(notas) + ")") if notas else ""

@@ -51,6 +51,9 @@ class State(BaseState):
         # --- Paso "Recibir Habilidades" en curso (elección de color) ---
         self.skill_draw = None            # dict: {uid, restantes, pool:[colores]}
 
+        # --- Carta de habilidad de acción en curso (multi-paso) ---
+        self.play_pending = None          # dict: {tipo, uid, ...} para Consolidate/Scout
+
         # --- Naves: modelo posicional por áreas del espacio ---
         self.areas = [Space.nueva_area() for _ in range(Space.N_AREAS)]
         self.vipers_reserva = 8
