@@ -123,6 +123,11 @@ UBICACIONES = {
 
 AREAS_ESPACIO = ["espacio_1", "espacio_2", "espacio_3", "espacio_4", "espacio_5", "espacio_6"]
 
+# Ubicaciones de Galactica que pueden recibir un token de avería. Al dañarse,
+# su acción queda deshabilitada hasta repararla; con las 6 averiadas, Galactica
+# es destruida.
+GALACTICA_DAMAGEABLE = ["command", "weapons", "ftl", "hangar", "armory", "admiral_quarters"]
+
 
 def ubicaciones_humanas():
     return {k: v for k, v in UBICACIONES.items() if not v.get("es_cylon")}

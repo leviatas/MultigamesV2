@@ -504,12 +504,38 @@ async def _danar_basestar(bot, game, area_idx, cantidad=1):
 
 
 async def _danar_galactica(bot, game, fuente="ataque"):
-    """Galactica recibe 1 token de daño; con 6 es destruida (derrota humana)."""
+    """Galactica recibe un token de avería en una ubicación al azar (deshabilita
+    su acción). Con las 6 ubicaciones averiadas, Galactica es destruida."""
     st = game.board.state
-    st.galactica_danos += 1
+    disponibles = [k for k in Locations.GALACTICA_DAMAGEABLE if k not in st.galactica_damage]
+    if not disponibles:
+        await bot.send_message(game.cid, f"🛡️💥 Galactica recibe daño ({fuente}): ya no quedan sistemas operativos.")
+        return
+    loc = random.choice(disponibles)
+    st.galactica_damage.append(loc)
+    nombre = Locations.UBICACIONES[loc]["nombre"].split(" (")[0]
     await bot.send_message(
         game.cid,
-        f"🛡️💥 *Galactica recibe daño* ({fuente}): {st.galactica_danos}/{st.galactica_danos_max}.",
+        f"🛡️💥 *Galactica recibe daño* ({fuente}): se avería *{nombre}* "
+        f"({st.total_danos_galactica()}/{st.galactica_danos_max}).",
+        parse_mode=ParseMode.MARKDOWN,
+    )
+
+
+async def _reparar_galactica(bot, game, player, loc=None):
+    """Repara una ubicación averiada de Galactica (equipo de control de daños)."""
+    st = game.board.state
+    if not st.galactica_damage:
+        await bot.send_message(game.cid, "🔧 No hay sistemas averiados que reparar.")
+        return
+    if loc is None or loc not in st.galactica_damage:
+        loc = st.galactica_damage[0]
+    st.galactica_damage.remove(loc)
+    nombre = Locations.UBICACIONES[loc]["nombre"].split(" (")[0]
+    await bot.send_message(
+        game.cid,
+        f"🔧 {player.name} repara *{nombre}* "
+        f"({st.total_danos_galactica()}/{st.galactica_danos_max} averiadas).",
         parse_mode=ParseMode.MARKDOWN,
     )
 
@@ -521,7 +547,7 @@ ACCIONES_UBICACION = {
     "command": ["activate_vipers"],
     "communications": ["peek_civiles"],
     "admiral_quarters": ["brig_check"],
-    "research": ["draw_eng", "draw_tac"],
+    "research": ["draw_eng", "draw_tac", "repair"],
     "hangar": ["launch"],
     "armory": ["armory_attack"],
     "sickbay": [],
@@ -546,6 +572,7 @@ ETIQUETA_ACCION = {
     "brig_check": "🚔 Enviar a alguien al Calabozo (chequeo)",
     "draw_eng": "🟡 Robar 1 carta de Ingeniería",
     "draw_tac": "🔴 Robar 1 carta de Táctica",
+    "repair": "🔧 Reparar un sistema de Galactica",
     "launch": "✈️ Lanzarte en un Viper",
     "armory_attack": "🪖 Atacar a un centurión",
     "draw_politics": "🟢 Robar 2 cartas de Política",
@@ -558,6 +585,13 @@ async def ejecutar_accion_ubicacion(bot, game, uid, accion, objetivo=None):
     """Resuelve la acción de ubicación elegida por el jugador activo."""
     st = game.board.state
     player = game.playerlist[uid]
+
+    # Una ubicación averiada no permite usar su acción hasta repararla.
+    if st.ubicacion_averiada(player.ubicacion):
+        nombre = Locations.UBICACIONES[player.ubicacion]["nombre"].split(" (")[0]
+        await bot.send_message(game.cid, f"🛠️ *{nombre}* está averiada: hay que repararla antes de usar su acción.",
+                               parse_mode=ParseMode.MARKDOWN)
+        return
 
     if accion == "jump":
         # FTL Control: saltar si el track no está en zona roja (proxy: prep >= 2)
@@ -584,6 +618,8 @@ async def ejecutar_accion_ubicacion(bot, game, uid, accion, objetivo=None):
         await _robar_color(bot, game, player, Skills.INGENIERIA)
     elif accion == "draw_tac":
         await _robar_color(bot, game, player, Skills.TACTICA)
+    elif accion == "repair":
+        await _reparar_galactica(bot, game, player)
     elif accion == "launch":
         await _lanzar_viper(bot, game)
         await bot.send_message(game.cid, f"✈️ {player.name} se lanza en un Viper.")
@@ -1933,9 +1969,9 @@ async def _chequear_fin(bot, game):
     if any(p >= st.boarding_breach for p in st.boarding_party):
         await terminar(bot, game, "Cylons", "Los centuriones llegaron al puente: Galactica fue abordada.")
         return True
-    # Derrota: Galactica destruida (6 tokens de daño)
-    if st.galactica_danos >= st.galactica_danos_max:
-        await terminar(bot, game, "Cylons", "Galactica fue destruida.")
+    # Derrota: Galactica destruida (6 ubicaciones averiadas)
+    if st.total_danos_galactica() >= st.galactica_danos_max:
+        await terminar(bot, game, "Cylons", "Todos los sistemas de Galactica fueron destruidos.")
         return True
     # Victoria humana
     if st.distancia >= st.objetivo_distancia:

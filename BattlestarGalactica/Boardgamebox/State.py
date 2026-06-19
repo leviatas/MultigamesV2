@@ -60,8 +60,11 @@ class State(BaseState):
         # --- Naves civiles aún no desplegadas (con carga oculta) ---
         self.civiles_pile = []
 
-        # --- Daño a Galactica (6 tokens = destruida → derrota humana) ---
-        self.galactica_danos = 0
+        # --- Daño a Galactica por ubicaciones (tokens de avería) ---
+        # Cada token avería una ubicación de Galactica (deshabilita su acción
+        # hasta repararla). Cuando las 6 ubicaciones quedan averiadas, Galactica
+        # es destruida (derrota humana).
+        self.galactica_damage = []        # claves de ubicaciones averiadas
         self.galactica_danos_max = 6
 
         # --- Partida de Abordaje (centuriones dentro de Galactica) ---
@@ -97,3 +100,9 @@ class State(BaseState):
 
     def total_centuriones(self):
         return len(self.boarding_party)
+
+    def total_danos_galactica(self):
+        return len(self.galactica_damage)
+
+    def ubicacion_averiada(self, key):
+        return key in self.galactica_damage

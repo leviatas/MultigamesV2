@@ -235,6 +235,12 @@ async def command_accion(update: Update, context: CallbackContext):
                                reply_markup=InlineKeyboardMarkup(btns), parse_mode=ParseMode.MARKDOWN)
         return
 
+    if st.ubicacion_averiada(player.ubicacion):
+        await bot.send_message(cid, f"🛠️ *{ubic}* está averiada: su acción no está disponible hasta repararla "
+                                    f"(usa el Laboratorio de Investigación). Puedes `/mover` o `/crisis`.",
+                               parse_mode=ParseMode.MARKDOWN)
+        return
+
     acciones = BSGController.ACCIONES_UBICACION.get(player.ubicacion, [])
     if not acciones:
         await bot.send_message(cid, f"📍 {ubic}: no hay acción disponible aquí. Usa `/crisis`.",

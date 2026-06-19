@@ -36,6 +36,14 @@ def naves_de_area(area):
     return piezas
 
 
+def sistemas_averiados(st):
+    """Sufijo con los sistemas de Galactica averiados (para el resumen)."""
+    if not st.galactica_damage:
+        return ""
+    nombres = [Locations.UBICACIONES[k]["nombre"].split(" (")[0] for k in st.galactica_damage]
+    return "  ⚠️ avería: " + ", ".join(nombres)
+
+
 def track_abordaje(st):
     """Representa el track de la Partida de Abordaje: una barra de casillas con
     los centuriones que avanzan hacia el puente (casilla final = abordaje)."""
@@ -70,7 +78,7 @@ class Board(BaseBoard):
         board += (f"👾 Raiders: {st.total_raiders()}   🚁 Heavy Raiders: {st.total_heavy_raiders()}   "
                   f"🛸 Basestars: {st.total_basestars()}\n")
         board += f"🛰️ Naves civiles: {st.total_civiles()}\n"
-        board += f"🛡️ Daño Galactica: {st.galactica_danos}/{st.galactica_danos_max}\n"
+        board += f"🛡️ Daño Galactica: {st.total_danos_galactica()}/{st.galactica_danos_max}{sistemas_averiados(st)}\n"
         board += f"🔺 Abordaje: {track_abordaje(st)}\n\n"
 
         pres = game.playerlist.get(st.presidente_uid)
@@ -111,8 +119,9 @@ class Board(BaseBoard):
                     continue
                 nombre = info["nombre"].split(" (")[0]
                 icono = ICONO_UBICACION.get(key, "•")
+                averia = " 💥" if key in st.galactica_damage else ""
                 quienes = ", ".join(ocupantes.get(key, [])) or "—"
-                lineas.append(f"  {icono} {nombre}: {quienes}")
+                lineas.append(f"  {icono} {nombre}{averia}: {quienes}")
             return "\n".join(lineas)
 
         cuerpo = "═════════════ ESPACIO ═════════════\n"
@@ -123,7 +132,7 @@ class Board(BaseBoard):
             cuerpo += f"  {meta['emoji']} {meta['nombre']}{tubo}: {'  '.join(piezas) if piezas else '—'}\n"
         cuerpo += (f"  🅿️ Reserva vipers: {st.vipers_reserva}   "
                    f"🛠️ dañados: {st.vipers_danados}\n")
-        cuerpo += f"  🛡️ Daño Galactica: {st.galactica_danos}/{st.galactica_danos_max}\n"
+        cuerpo += f"  🛡️ Daño Galactica: {st.total_danos_galactica()}/{st.galactica_danos_max}\n"
         cuerpo += f"  🔺 Abordaje: {track_abordaje(st)}\n\n"
         cuerpo += "──────────── GALÁCTICA ────────────\n" + _bloque(_GALACTICA) + "\n\n"
         cuerpo += "─────────── COLONIAL ONE ──────────\n" + _bloque(_COLONIAL) + "\n\n"
