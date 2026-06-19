@@ -37,8 +37,15 @@ Implementado en esta capa:
   desde Caprica (resuelve sus efectos) o la intercambia en la Nave de
   Resurrección. Mazo y descarte propios.
 
+- Efectos de crisis ampliados: además de recursos/naves, aplicar_efectos modela
+  enviar a la Enfermería/Calabozo (a un rol o a todos los de una ubicación),
+  descartes forzados (al azar o las de menor fuerza), colocar naves civiles tras
+  Galactica, dañar Galactica y transferir títulos (Presidente/Almirante).
+
 Pendiente para capas siguientes (claramente acotado):
-- Roster completo de cartas de crisis con sus efectos de éxito/fracaso.
+- Efectos de crisis que exigen que un jugador ELIJA un objetivo (p. ej. "el
+  Jugador Actual elige un personaje y lo envía al Calabozo"): hoy se describen
+  por texto; falta su selección interactiva.
 """
 
 import logging as log
@@ -2471,6 +2478,108 @@ async def _boomer_reconocimiento(bot, game):
 
 # ===================== EFECTOS / RECURSOS =====================
 
+def _objetivos_efecto(game, quien):
+    """Resuelve el/los jugador(es) objetivo de un efecto de crisis.
+    quien: 'activo' | 'presidente' | 'almirante' | 'todos' | 'ubicacion:<loc>'.
+    Excluye siempre a los Cylons revelados."""
+    st = game.board.state
+    if quien == "activo":
+        return [st.active_player] if st.active_player and not st.active_player.revealed else []
+    if quien == "presidente":
+        p = game.playerlist.get(st.presidente_uid)
+        return [p] if p and not p.revealed else []
+    if quien == "almirante":
+        p = game.playerlist.get(st.almirante_uid)
+        return [p] if p and not p.revealed else []
+    if quien == "todos":
+        return [p for p in game.playerlist.values() if not p.revealed]
+    if isinstance(quien, str) and quien.startswith("ubicacion:"):
+        loc = quien.split(":", 1)[1]
+        return [p for p in game.playerlist.values()
+                if p.ubicacion == loc and not p.revealed]
+    return []
+
+
+async def _enviar_sickbay(bot, game, player):
+    """Envía a un jugador a la Enfermería (abandona su Viper si pilotaba)."""
+    if player.revealed:
+        return
+    if getattr(player, "viper_area", None) is not None:
+        player.viper_area = None
+        game.board.state.vipers_reserva += 1
+    player.en_calabozo = False
+    player.ubicacion = "sickbay"
+    await bot.send_message(game.cid, f"🏥 *{player.name}* es enviado a la Enfermería.", parse_mode=ParseMode.MARKDOWN)
+
+
+async def _enviar_brig_efecto(bot, game, player):
+    """Envía a un jugador al Calabozo (abandona su Viper si pilotaba)."""
+    if player.revealed:
+        return
+    if getattr(player, "viper_area", None) is not None:
+        player.viper_area = None
+        game.board.state.vipers_reserva += 1
+    player.en_calabozo = True
+    player.ubicacion = "brig"
+    await bot.send_message(game.cid, f"🔒 *{player.name}* es enviado al Calabozo.", parse_mode=ParseMode.MARKDOWN)
+
+
+async def _descartar_skills(bot, game, player, cantidad, modo="azar"):
+    """Descarte forzado de cartas de habilidad de la mano del jugador.
+    modo: 'azar' (al azar) | 'menores' (las de menor fuerza). Apollo 'Cabezadura'
+    descarta siempre al azar."""
+    st = game.board.state
+    if player.revealed or not player.skill_hand:
+        return
+    n = min(cantidad, len(player.skill_hand))
+    if modo == "menores" and getattr(player, "personaje", None) != "apollo":
+        player.skill_hand.sort(key=lambda c: c.get("valor", 0))
+    else:
+        random.shuffle(player.skill_hand)
+    for _ in range(n):
+        c = player.skill_hand.pop(0)
+        st.skill_discards.setdefault(c["color"], []).append(c)
+    await bot.send_message(game.cid, f"🗑️ *{player.name}* descarta {n} carta(s) de habilidad.", parse_mode=ParseMode.MARKDOWN)
+    await bot.send_message(player.uid, f"🗑️ Descartaste {n} carta(s) de habilidad (te quedan {len(player.skill_hand)}).")
+
+
+def _colocar_civiles(st, cantidad):
+    """Coloca naves civiles tras Galactica (Popa), tomándolas de la pila de reserva.
+    Devuelve cuántas se colocaron realmente."""
+    colocadas = 0
+    for _ in range(cantidad):
+        if not st.civiles_pile:
+            break
+        st.areas[Space.AREA_POPA]["civiles"].append(st.civiles_pile.pop())
+        colocadas += 1
+    return colocadas
+
+
+async def _transferir_titulo(bot, game, titulo, a):
+    """Transfiere un título (Presidente/Almirante) al rol destino."""
+    st = game.board.state
+    destinatarios = _objetivos_efecto(game, a)
+    if not destinatarios:
+        return
+    nuevo = destinatarios[0]
+    if titulo == "Presidente":
+        anterior = game.playerlist.get(st.presidente_uid)
+        if anterior and anterior.uid != nuevo.uid:
+            anterior.titulos = [t for t in anterior.titulos if t != "Presidente"]
+        st.presidente_uid = nuevo.uid
+        if "Presidente" not in nuevo.titulos:
+            nuevo.titulos.append("Presidente")
+        await bot.send_message(game.cid, f"🏛️ *{nuevo.name}* recibe el título de Presidente.", parse_mode=ParseMode.MARKDOWN)
+    elif titulo == "Almirante":
+        anterior = game.playerlist.get(st.almirante_uid)
+        if anterior and anterior.uid != nuevo.uid:
+            anterior.titulos = [t for t in anterior.titulos if t != "Almirante"]
+        st.almirante_uid = nuevo.uid
+        if "Almirante" not in nuevo.titulos:
+            nuevo.titulos.append("Almirante")
+        await bot.send_message(game.cid, f"🎖️ *{nuevo.name}* recibe el título de Almirante.", parse_mode=ParseMode.MARKDOWN)
+
+
 async def aplicar_efectos(bot, game, efectos):
     st = game.board.state
     for ef in efectos or []:
@@ -2524,6 +2633,24 @@ async def aplicar_efectos(bot, game, efectos):
             await activar_naves_cylon(bot, game, ef.get("iconos", []))
         elif tipo == "destruir_civil":
             await _destruir_civil(bot, game)
+        elif tipo == "sickbay":
+            for p in _objetivos_efecto(game, ef.get("quien", "activo")):
+                await _enviar_sickbay(bot, game, p)
+        elif tipo == "brig":
+            for p in _objetivos_efecto(game, ef.get("quien", "activo")):
+                await _enviar_brig_efecto(bot, game, p)
+        elif tipo == "descartar":
+            for p in _objetivos_efecto(game, ef.get("quien", "activo")):
+                await _descartar_skills(bot, game, p, ef.get("cantidad", 1), ef.get("modo", "azar"))
+        elif tipo == "civiles":
+            n = _colocar_civiles(st, ef.get("cantidad", 1))
+            await bot.send_message(game.cid, f"🛰️ Aparece(n) {n} nave(s) civil(es) tras Galactica (total: {st.total_civiles()}).")
+        elif tipo == "danar_galactica":
+            await _danar_galactica(bot, game, fuente="crisis")
+        elif tipo == "titulo":
+            await _transferir_titulo(bot, game, ef.get("titulo", "Presidente"), ef.get("a", "almirante"))
+        elif tipo == "loyalty_peek":
+            await bot.send_message(game.cid, ef.get("texto", "🔍 Se inspecciona una carta de lealtad (según la carta)."))
         elif tipo == "roll":
             r = _d8()
             lo, hi = ef.get("rango", [6, 8])
