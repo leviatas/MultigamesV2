@@ -30,8 +30,11 @@ Implementado en esta capa:
   Especialista de Misión (elige destino en el próximo salto), Árbitro (±3 en el
   Camarote del Almirante) y Vicepresidente (único candidato a la Presidencia).
 
+- Súper crisis: al revelarse, el Cylon roba una Súper Crisis a su mano; la juega
+  desde Caprica (resuelve sus efectos) o la intercambia en la Nave de
+  Resurrección. Mazo y descarte propios.
+
 Pendiente para capas siguientes (claramente acotado):
-- Súper crisis (mazo y resolución).
 - Roster completo de cartas de crisis con sus efectos de éxito/fracaso.
 """
 
@@ -1477,8 +1480,8 @@ async def _destruir_civil(bot, game, area_idx=None):
 # Acciones disponibles para un Cylon revelado, según su ubicación Cylon.
 ACCIONES_CYLON = {
     "cylon_fleet": ["launch_raiders", "launch_heavy", "launch_basestar"],
-    "caprica": ["sabotage", "board"],
-    "resurrection_ship": ["launch_raiders", "sabotage"],
+    "caprica": ["play_super_crisis", "sabotage", "board"],
+    "resurrection_ship": ["swap_super_crisis", "launch_raiders", "sabotage"],
     "human_fleet": ["sabotage", "board"],
 }
 
@@ -1488,6 +1491,8 @@ ETIQUETA_ACCION_CYLON = {
     "launch_basestar": "🛸 Traer una Basestar",
     "sabotage": "🔧💥 Sabotear un recurso (-1)",
     "board": "🔺 Desembarcar un centurión",
+    "play_super_crisis": "☠️ Jugar tu Súper Crisis",
+    "swap_super_crisis": "♻️ Descartar y robar otra Súper Crisis",
 }
 
 
@@ -1527,15 +1532,19 @@ async def revelar_cylon(bot, game, uid):
         parse_mode=ParseMode.MARKDOWN,
     )
 
-    # Desata una súper crisis
+    # Roba una Súper Crisis a su mano (la jugará desde Caprica)
     if st.super_crisis_deck:
-        sc = st.super_crisis_deck.pop()
+        player.super_crisis = st.super_crisis_deck.pop()
+        await bot.send_message(game.cid, "☠️ El Cylon roba una *Súper Crisis*…", parse_mode=ParseMode.MARKDOWN)
         await bot.send_message(
-            game.cid,
-            f"☠️ *SÚPER CRISIS: {sc['titulo']}*\n_{sc['texto']}_",
+            uid,
+            f"☠️ *SÚPER CRISIS robada: {player.super_crisis['titulo']}*\n_{player.super_crisis['texto']}_\n\n"
+            f"Muévete a *Caprica* y usa `/accion` para *jugarla*. En la *Nave de Resurrección* "
+            f"puedes descartarla y robar otra.",
             parse_mode=ParseMode.MARKDOWN,
         )
-        await aplicar_efectos(bot, game, sc.get("efectos", []))
+    else:
+        await bot.send_message(game.cid, "☠️ No quedan Súper Crisis en el mazo.")
 
     await save(bot, game.cid)
     if await _chequear_fin(bot, game):
@@ -1545,6 +1554,41 @@ async def revelar_cylon(bot, game, uid):
 async def ejecutar_accion_cylon(bot, game, uid, accion):
     """Acción de un Cylon revelado en su turno."""
     st = game.board.state
+    player = game.playerlist.get(uid)
+    if accion == "play_super_crisis":
+        # Caprica: resolver la Súper Crisis que el Cylon tiene en mano.
+        if not player or not player.super_crisis:
+            await bot.send_message(uid, "No tienes ninguna Súper Crisis en mano.")
+            return
+        sc = player.super_crisis
+        player.super_crisis = None
+        st.super_crisis_discard.append(sc)
+        await bot.send_message(
+            game.cid,
+            f"☠️ *SÚPER CRISIS: {sc['titulo']}*\n_{sc['texto']}_",
+            parse_mode=ParseMode.MARKDOWN,
+        )
+        await aplicar_efectos(bot, game, sc.get("efectos", []))
+        await save(bot, game.cid)
+        await _chequear_fin(bot, game)
+        return
+    if accion == "swap_super_crisis":
+        # Nave de Resurrección: descartar la Súper Crisis actual y robar otra.
+        if player and player.super_crisis:
+            st.super_crisis_discard.append(player.super_crisis)
+            player.super_crisis = None
+        if st.super_crisis_deck:
+            player.super_crisis = st.super_crisis_deck.pop()
+            await bot.send_message(game.cid, "♻️ El Cylon descarta su Súper Crisis y roba otra.")
+            await bot.send_message(
+                uid,
+                f"☠️ *Nueva Súper Crisis: {player.super_crisis['titulo']}*\n_{player.super_crisis['texto']}_",
+                parse_mode=ParseMode.MARKDOWN,
+            )
+        else:
+            await bot.send_message(game.cid, "♻️ El Cylon descarta su Súper Crisis, pero el mazo está vacío.")
+        await save(bot, game.cid)
+        return
     if accion == "launch_raiders":
         objetivos = _areas_con(st, "basestars")
         area_idx = objetivos[0] if objetivos else Space.AREA_PROA

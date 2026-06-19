@@ -46,6 +46,7 @@ class State(BaseState):
         self.crisis_discard = []
         self.crisis_actual = None         # dict de la crisis en curso
         self.super_crisis_deck = []       # mazo de súper crisis (Cylons revelados)
+        self.super_crisis_discard = []    # súper crisis ya jugadas o descartadas
         self.quorum_deck = []             # mazo de Quórum (Presidente)
         self.quorum_discard = []
         self.quorum_pendiente = None      # carta de Quórum esperando elección de objetivo

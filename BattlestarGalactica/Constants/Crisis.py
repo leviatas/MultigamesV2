@@ -720,8 +720,13 @@ CRISIS_DECK = [
 ]
 
 
-# Mazo de SÚPER CRISIS: efectos potentes que dispara un Cylon al revelarse.
-# (Set inicial; el juego base tiene varias más.)  # VERIFICAR / COMPLETAR
+# Mazo de SÚPER CRISIS (hoja "Super Crisis Cards", Module=B).
+# Cuando un jugador Cylon se revela, roba 1 carta de Súper Crisis a su mano y la
+# juega más tarde desde la ubicación Caprica (o la intercambia en la Nave de
+# Resurrección). Cada carta lista efectos inmediatos resueltos por
+# Controller.aplicar_efectos (raiders/recurso/centuriones/heavy_raiders/basestar/
+# activar/mensaje). Los textos reflejan el espíritu de las cartas oficiales,
+# adaptados al motor posicional de naves de este módulo.
 SUPER_CRISIS_DECK = [
     {
         "id": "asalto_masivo",
@@ -760,5 +765,32 @@ SUPER_CRISIS_DECK = [
         "texto": "Una Basestar llega con refuerzos.",
         "efectos": [{"tipo": "basestar", "cantidad": 1},
                     {"tipo": "raiders", "cantidad": 2}],
+    },
+    {
+        "id": "ofensiva_total",
+        "titulo": "Ofensiva Total",
+        "texto": "Las Basestars activan a sus Raiders y lanzan una nueva oleada.",
+        "efectos": [{"tipo": "activar", "iconos": ["raiders", "launch_raiders"]},
+                    {"tipo": "mensaje", "texto": "¡La flota Cylon arrecia el ataque!"}],
+    },
+    {
+        "id": "asalto_nuclear",
+        "titulo": "Asalto Nuclear",
+        "texto": "Una ojiva Cylon alcanza la flota: caos y bajas civiles.",
+        "efectos": [{"tipo": "recurso", "recurso": "poblacion", "delta": -1},
+                    {"tipo": "destruir_civil"}],
+    },
+    {
+        "id": "hambruna_inducida",
+        "titulo": "Hambruna Inducida",
+        "texto": "El sabotaje a los suministros agota las reservas.",
+        "efectos": [{"tipo": "recurso", "recurso": "comida", "delta": -2}],
+    },
+    {
+        "id": "enjambre_raiders",
+        "titulo": "Enjambre de Raiders",
+        "texto": "Raiders y Heavy Raiders saturan el espacio alrededor de Galactica.",
+        "efectos": [{"tipo": "raiders", "cantidad": 2},
+                    {"tipo": "heavy_raiders", "cantidad": 1}],
     },
 ]
