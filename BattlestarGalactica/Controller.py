@@ -10,12 +10,13 @@ Implementado en esta capa:
 - Chequeos de habilidad con mazo de Destino.
 - Fase del Agente Durmiente (distancia 4).
 - Salto FTL, condiciones de victoria/derrota.
+- Combate espacial posicional: Vipers tripulados, Heavy Raiders, abordaje.
+- Daño a Galactica por ubicaciones e iconos de activación Cylon por crisis.
 
 Pendiente para capas siguientes (claramente acotado):
-- Vipers tripulados con fichas de piloto; daño a Galactica por ubicaciones.
 - Acciones de ubicación completas, Quórum, súper crisis.
 - Habilidades específicas de cada personaje y cartas de habilidad con efecto.
-- Roster completo de cartas de crisis.
+- Roster completo de cartas de crisis con sus efectos de éxito/fracaso.
 """
 
 import logging as log
@@ -563,6 +564,12 @@ ACCIONES_CON_OBJETIVO = {"brig_check": "brig", "president_check": "president"}
 # Acciones que requieren elegir un ÁREA del espacio (Control de Armas) → tipo de nave
 ACCIONES_CON_AREA = {"shoot_raider": "raiders", "shoot_basestar": "basestars"}
 
+# Acciones disponibles mientras se pilota un Viper tripulado.
+ACCIONES_PILOTO = ["pilot_attack", "pilot_move", "pilot_land"]
+
+# Acción de piloto que requiere elegir un área adyacente.
+ACCIONES_PILOTO_AREA = {"pilot_move"}
+
 ETIQUETA_ACCION = {
     "jump": "🌌 Saltar la flota (FTL)",
     "shoot_raider": "🔫 Disparar a un Raider",
@@ -578,6 +585,9 @@ ETIQUETA_ACCION = {
     "draw_politics": "🟢 Robar 2 cartas de Política",
     "draw_quorum": "🏛️ Robar una carta de Quórum",
     "president_check": "🏛️ Dar la Presidencia (chequeo)",
+    "pilot_attack": "🔫 Atacar Cylon en tu área",
+    "pilot_move": "✈️ Volar a un área adyacente",
+    "pilot_land": "🛬 Aterrizar en Galactica",
 }
 
 
@@ -621,8 +631,13 @@ async def ejecutar_accion_ubicacion(bot, game, uid, accion, objetivo=None):
     elif accion == "repair":
         await _reparar_galactica(bot, game, player)
     elif accion == "launch":
-        await _lanzar_viper(bot, game)
-        await bot.send_message(game.cid, f"✈️ {player.name} se lanza en un Viper.")
+        await _lanzar_piloto(bot, game, player)
+    elif accion == "pilot_attack":
+        await _pilot_atacar(bot, game, player)
+    elif accion == "pilot_move":
+        await _pilot_mover(bot, game, player, objetivo)
+    elif accion == "pilot_land":
+        await _pilot_aterrizar(bot, game, player)
     elif accion == "armory_attack":
         if not st.boarding_party:
             await bot.send_message(game.cid, "No hay centuriones a bordo de Galactica.")
@@ -785,6 +800,82 @@ async def _lanzar_viper(bot, game, area_idx=None):
     st.areas[area_idx]["vipers"] += 1
     await bot.send_message(game.cid, f"✈️ Viper lanzado en {Space.nombre(area_idx)} (en vuelo: {st.total_vipers_espacio()}).")
     return True
+
+
+# ---- Vipers tripulados (fichas de piloto) ----
+
+def _pilotos_en_area(game, i):
+    """Jugadores que pilotan un Viper en el área i."""
+    return [p for p in game.playerlist.values() if getattr(p, "viper_area", None) == i]
+
+
+def total_vipers_tripulados(game):
+    return sum(1 for p in game.playerlist.values() if getattr(p, "viper_area", None) is not None)
+
+
+async def _lanzar_piloto(bot, game, player):
+    """El jugador despega en un Viper tripulado desde un tubo de lanzamiento."""
+    st = game.board.state
+    if getattr(player, "viper_area", None) is not None:
+        await bot.send_message(game.cid, "Ya estás pilotando un Viper.")
+        return False
+    if st.vipers_reserva <= 0:
+        await bot.send_message(game.cid, "No quedan Vipers en la reserva.")
+        return False
+    # Despega por el tubo con menos presencia Cylon.
+    area = min(Space.LAUNCH_AREAS,
+               key=lambda k: st.areas[k]["raiders"] + st.areas[k].get("heavy_raiders", 0) + len(st.areas[k]["basestars"]))
+    st.vipers_reserva -= 1
+    player.viper_area = area
+    player.ubicacion = None
+    await bot.send_message(game.cid, f"✈️ {player.name} despega en un Viper desde {Space.nombre(area)}.")
+    return True
+
+
+async def _pilot_atacar(bot, game, player):
+    """El Viper tripulado ataca una nave Cylon de su área (Raider 3+, Heavy 4+, Basestar 6+)."""
+    st = game.board.state
+    i = player.viper_area
+    area = st.areas[i]
+    r = _d8()
+    if area["raiders"] > 0:
+        if r >= 3:
+            area["raiders"] -= 1
+            await bot.send_message(game.cid, f"✈️🔫 Tirada {r}: {player.name} derriba un Raider en {Space.nombre(i)} (quedan {area['raiders']}).")
+        else:
+            await bot.send_message(game.cid, f"✈️ Tirada {r}: {player.name} falla contra el Raider.")
+    elif area.get("heavy_raiders", 0) > 0:
+        if r >= 4:
+            area["heavy_raiders"] -= 1
+            await bot.send_message(game.cid, f"✈️🔫 Tirada {r}: {player.name} derriba un Heavy Raider en {Space.nombre(i)}.")
+        else:
+            await bot.send_message(game.cid, f"✈️ Tirada {r}: {player.name} falla contra el Heavy Raider.")
+    elif area["basestars"]:
+        if r >= 6:
+            await _danar_basestar(bot, game, i)
+        else:
+            await bot.send_message(game.cid, f"✈️ Tirada {r}: {player.name} no logra dañar la Basestar.")
+    else:
+        await bot.send_message(game.cid, "No hay naves Cylon en tu área para atacar.")
+
+
+async def _pilot_mover(bot, game, player, destino):
+    """El Viper tripulado vuela a un área adyacente del anillo."""
+    i = player.viper_area
+    if destino is None or destino not in Space.vecinos(i):
+        await bot.send_message(game.cid, "Solo puedes volar a un área adyacente.")
+        return
+    player.viper_area = destino
+    await bot.send_message(game.cid, f"✈️ {player.name} vuela de {Space.nombre(i)} a {Space.nombre(destino)}.")
+
+
+async def _pilot_aterrizar(bot, game, player):
+    """El Viper tripulado aterriza: vuelve a la reserva y el piloto al Hangar."""
+    st = game.board.state
+    st.vipers_reserva += 1
+    player.viper_area = None
+    player.ubicacion = "hangar"
+    await bot.send_message(game.cid, f"🛬 {player.name} aterriza en la Cubierta de Hangar.")
 
 
 async def _activar_vipers_comando(bot, game):
@@ -1034,7 +1125,25 @@ async def _activar_un_raider(bot, game, i):
     area = st.areas[i]
     if area["raiders"] <= 0:
         return
-    # 1. Atacar un Viper en el área (5-7 dañado, 8 destruido)
+    # 1. Atacar un Viper tripulado del área (objetivo prioritario: 8 destruido
+    #    → piloto a Enfermería; 5-7 dañado → piloto al Hangar).
+    pilotos = _pilotos_en_area(game, i)
+    if pilotos:
+        piloto = random.choice(pilotos)
+        r = _d8()
+        if r == 8:
+            piloto.viper_area = None
+            piloto.ubicacion = "sickbay"
+            await bot.send_message(game.cid, f"👾 Tirada {r}: ¡el Viper de {piloto.name} es destruido en {Space.nombre(i)}! Va a Enfermería.")
+        elif r >= 5:
+            piloto.viper_area = None
+            piloto.ubicacion = "hangar"
+            st.vipers_danados += 1
+            await bot.send_message(game.cid, f"👾 Tirada {r}: el Viper de {piloto.name} queda dañado; aterriza en el Hangar.")
+        else:
+            await bot.send_message(game.cid, f"👾 Tirada {r}: el Raider falla contra el Viper de {piloto.name} en {Space.nombre(i)}.")
+        return
+    # 2. Atacar un Viper sin tripular en el área (5-7 dañado, 8 destruido)
     if area["vipers"] > 0:
         r = _d8()
         if r == 8:
@@ -1047,11 +1156,11 @@ async def _activar_un_raider(bot, game, i):
         else:
             await bot.send_message(game.cid, f"👾 Tirada {r}: el Raider falla contra el Viper en {Space.nombre(i)}.")
         return
-    # 2. Destruir una nave civil en el área (sin tirada)
+    # 3. Destruir una nave civil en el área (sin tirada)
     if area["civiles"]:
         await _destruir_civil(bot, game, i)
         return
-    # 3. Moverse hacia la nave civil más cercana (desempate horario)
+    # 4. Moverse hacia la nave civil más cercana (desempate horario)
     objetivos = _areas_con(st, "civiles")
     if objetivos:
         destino = _paso_hacia(i, objetivos)
@@ -1060,7 +1169,7 @@ async def _activar_un_raider(bot, game, i):
             st.areas[destino]["raiders"] += 1   # no se reactiva este turno
             await bot.send_message(game.cid, f"👾 Un Raider avanza de {Space.nombre(i)} a {Space.nombre(destino)}.")
             return
-    # 4. Sin naves civiles: atacar Galactica (daña con 8)
+    # 5. Sin naves civiles: atacar Galactica (daña con 8)
     r = _d8()
     if r == 8:
         await _danar_galactica(bot, game, "Raider")
@@ -1225,6 +1334,10 @@ async def revelar_cylon(bot, game, uid):
     if uid == st.almirante_uid:
         st.almirante_uid = None
         player.titulos = [t for t in player.titulos if t != "Almirante"]
+    # Si estaba pilotando, abandona el Viper (vuelve a la reserva).
+    if getattr(player, "viper_area", None) is not None:
+        player.viper_area = None
+        st.vipers_reserva += 1
     # Se traslada al lado Cylon
     player.ubicacion = "cylon_fleet"
     player.skill_hand = []
@@ -1917,6 +2030,12 @@ async def ejecutar_salto(bot, game, auto=False):
         a["basestars"] = []
     st.vipers_reserva += st.vipers_danados
     st.vipers_danados = 0
+    # Los Vipers tripulados regresan al Hangar con la flota.
+    for p in game.playerlist.values():
+        if getattr(p, "viper_area", None) is not None:
+            p.viper_area = None
+            p.ubicacion = "hangar"
+            st.vipers_reserva += 1
 
     etiqueta = "AUTOMÁTICO" if auto else "FTL"
     await bot.send_message(

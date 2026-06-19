@@ -219,6 +219,15 @@ async def command_accion(update: Update, context: CallbackContext):
         await bot.send_message(cid, "Estás en el calabozo y no puedes realizar acciones.")
         return
 
+    # Pilotando un Viper tripulado: acciones de piloto en lugar de las de ubicación.
+    if getattr(player, "viper_area", None) is not None:
+        btns = [[InlineKeyboardButton(BSGController.ETIQUETA_ACCION[a],
+                                      callback_data=f"{cid}*bsgAccion*{a}*{uid}")]
+                for a in BSGController.ACCIONES_PILOTO]
+        await bot.send_message(cid, f"✈️ Pilotas un Viper en *{Space.nombre(player.viper_area)}* — elige tu acción:",
+                               reply_markup=InlineKeyboardMarkup(btns), parse_mode=ParseMode.MARKDOWN)
+        return
+
     ubic = Locations.UBICACIONES.get(player.ubicacion, {}).get("nombre", "—")
 
     # Cylon revelado: acciones de sabotaje según su ubicación Cylon
@@ -270,6 +279,23 @@ async def callback_bsg_accion(update: Update, context: CallbackContext):
         st = game.board.state
         if not st.active_player or st.active_player.uid != presser or presser != target:
             await callback.answer("No es tu acción.")
+            return
+
+        # Acción de piloto que requiere elegir un área adyacente → vecinos
+        if accion in BSGController.ACCIONES_PILOTO_AREA:
+            await callback.answer()
+            i = getattr(game.playerlist[presser], "viper_area", None)
+            if i is None:
+                await bot.send_message(cid, "No estás pilotando un Viper.")
+                return
+            btns = [[InlineKeyboardButton(Space.nombre(n),
+                                          callback_data=f"{cid}*bsgArea*{accion}_{n}*{presser}")]
+                    for n in Space.vecinos(i)]
+            try:
+                await bot.edit_message_text("¿A qué área adyacente vuelas?", cid, callback.message.message_id,
+                                            reply_markup=InlineKeyboardMarkup(btns))
+            except Exception:
+                await bot.send_message(cid, "¿A qué área adyacente vuelas?", reply_markup=InlineKeyboardMarkup(btns))
             return
 
         # Acciones que requieren elegir un ÁREA del espacio → mostrar botonera de áreas
@@ -351,9 +377,9 @@ async def callback_bsg_area(update: Update, context: CallbackContext):
         if not st.active_player or st.active_player.uid != presser or presser != target:
             await callback.answer("No es tu acción.")
             return
-        await callback.answer("Disparo realizado.")
+        await callback.answer("Área seleccionada.")
         try:
-            await bot.edit_message_text(f"Atacas {Space.nombre(area_idx)}.", cid, callback.message.message_id)
+            await bot.edit_message_text(f"{Space.nombre(area_idx)} seleccionada.", cid, callback.message.message_id)
         except Exception:
             pass
         await BSGController.ejecutar_accion_ubicacion(bot, game, presser, accion, objetivo=area_idx)
@@ -421,6 +447,10 @@ async def command_mover(update: Update, context: CallbackContext):
         await bot.send_message(cid, "Primero elige tus cartas de habilidad (revisa tu privado).")
         return
     player = game.playerlist[uid]
+    if getattr(player, "viper_area", None) is not None:
+        await bot.send_message(cid, "✈️ Estás pilotando un Viper: usa `/accion` para volar a otra área o aterrizar.",
+                               parse_mode=ParseMode.MARKDOWN)
+        return
     es_cylon_revelado = player.revealed
     btns = []
     for key, info in Locations.UBICACIONES.items():

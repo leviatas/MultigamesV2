@@ -73,8 +73,9 @@ class Board(BaseBoard):
         board += f"🧭 Distancia: {st.distancia}/{st.objetivo_distancia}   "
         board += f"⏫ Prep. salto: {st.jump_prep}/{st.jump_prep_max}\n\n"
         board += "*Naves:*\n"
-        board += (f"✈️ Vipers (espacio/reserva/dañados): "
-                  f"{st.total_vipers_espacio()}/{st.vipers_reserva}/{st.vipers_danados}\n")
+        tripulados = sum(1 for p in game.playerlist.values() if getattr(p, "viper_area", None) is not None)
+        board += (f"✈️ Vipers (espacio/tripulados/reserva/dañados): "
+                  f"{st.total_vipers_espacio()}/{tripulados}/{st.vipers_reserva}/{st.vipers_danados}\n")
         board += (f"👾 Raiders: {st.total_raiders()}   🚁 Heavy Raiders: {st.total_heavy_raiders()}   "
                   f"🛸 Basestars: {st.total_basestars()}\n")
         board += f"🛰️ Naves civiles: {st.total_civiles()}\n"
@@ -124,10 +125,19 @@ class Board(BaseBoard):
                 lineas.append(f"  {icono} {nombre}{averia}: {quienes}")
             return "\n".join(lineas)
 
+        # Vipers tripulados por área (ficha de piloto = nombre del jugador).
+        pilotos_area = {}
+        for p in game.playerlist.values():
+            ar = getattr(p, "viper_area", None)
+            if ar is not None:
+                pilotos_area.setdefault(ar, []).append(p.name)
+
         cuerpo = "═════════════ ESPACIO ═════════════\n"
         for meta in Space.AREAS:
             area = st.areas[meta["id"]]
             piezas = naves_de_area(area)
+            for nombre_p in pilotos_area.get(meta["id"], []):
+                piezas.append(f"🧑‍🚀{nombre_p}")
             tubo = " (tubo)" if meta["launch"] else ""
             cuerpo += f"  {meta['emoji']} {meta['nombre']}{tubo}: {'  '.join(piezas) if piezas else '—'}\n"
         cuerpo += (f"  🅿️ Reserva vipers: {st.vipers_reserva}   "
