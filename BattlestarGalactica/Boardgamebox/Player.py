@@ -12,6 +12,7 @@ class Player(BasePlayer):
         self.is_cylon = False          # revelado o no, refleja si tiene carta cylon
         self.revealed = False          # si ya se reveló como Cylon
         self.skill_hand = []           # lista de cartas {color, valor}
+        self.skill_choices_pendientes = []  # slots de elección del reparto inicial por decidir
         self.quorum_hand = []          # cartas de Quórum (Presidente)
         self.super_crisis = None       # Súper Crisis en mano (Cylon revelado): se juega en Caprica
         self.en_calabozo = False

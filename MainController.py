@@ -837,6 +837,7 @@ def main(stop_event):
 	app.add_handler(CommandHandler("liberar", BSGCommands.command_liberar))
 	app.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)\*bsgPick\*([a-z_]*)\*(-?[0-9]*)", callback=BSGCommands.callback_bsg_pick))
 	app.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)\*bsgDraw\*([A-Za-z]*)\*(-?[0-9]*)", callback=BSGCommands.callback_bsg_draw))
+	app.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)\*bsgSetup\*([A-Za-z]*)\*(-?[0-9]*)", callback=BSGCommands.callback_bsg_setup))
 	app.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)\*bsgAccion\*([a-z0-9_]*)\*(-?[0-9]*)", callback=BSGCommands.callback_bsg_accion))
 	app.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)\*bsgMover\*([a-z_]*)\*(-?[0-9]*)", callback=BSGCommands.callback_bsg_mover))
 	app.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)\*bsgCylon\*([a-z0-9_]*)\*(-?[0-9]*)", callback=BSGCommands.callback_bsg_cylon))

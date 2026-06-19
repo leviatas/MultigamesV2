@@ -195,15 +195,18 @@ async def finalizar_setup(bot, game):
 
     # --- Mano inicial de habilidades (regla del juego base) ---
     # Todos los jugadores EXCEPTO el primero roban su set completo de habilidades
-    # al empezar (los slots de elección se resuelven al azar en este reparto de
-    # setup). El primer jugador robará su mano en su primer turno (su ventaja es
-    # jugar primero).
+    # al empezar. Los slots fijos se reparten solos; los de elección (p. ej. Apolo,
+    # Liderazgo/Política) los decide el propio jugador por privado. El primer
+    # jugador robará su mano en su primer turno (su ventaja es jugar primero).
     primer_jugador = game.player_sequence[0]
     for player in game.player_sequence:
         if player.uid == primer_jugador.uid:
             continue
-        _robar_skills(st, player)
-        await _dm_mano(bot, player)
+        player.skill_choices_pendientes = _repartir_set_fijo(st, player)
+        if player.skill_choices_pendientes:
+            await _prompt_setup_choice(bot, game, player)
+        else:
+            await _dm_mano(bot, player)
 
     st.fase_actual = "En Juego"
     st.player_counter = 0
@@ -252,19 +255,19 @@ def _slots_personaje(skill_set):
     return [list(s) if isinstance(s, (list, tuple)) else [s] for s in skill_set]
 
 
-def _robar_skills(st, player, cantidad=None):
-    """Reparte la mano de habilidades del set del personaje (un slot = una carta).
-    Los slots fijos dan su color; los de elección se resuelven al azar (reparto
-    automático de setup). Si se pasa 'cantidad', limita el número de cartas."""
+def _repartir_set_fijo(st, player):
+    """Reparte a la mano los slots FIJOS del set del personaje y devuelve la lista
+    de slots de ELECCIÓN pendientes (para que el jugador los decida por privado)."""
     pj = Characters.PERSONAJES[player.personaje]
-    slots = _slots_personaje(pj["skill_set"])
-    if cantidad is not None:
-        slots = slots[:cantidad]
-    for opciones in slots:
-        color = random.choice(opciones)
-        carta = _robar_carta_color(st, color)
-        if carta:
-            player.skill_hand.append(carta)
+    pendientes = []
+    for opciones in _slots_personaje(pj["skill_set"]):
+        if len(opciones) == 1:
+            carta = _robar_carta_color(st, opciones[0])
+            if carta:
+                player.skill_hand.append(carta)
+        else:
+            pendientes.append(list(opciones))
+    return pendientes
 
 
 LIMITE_MANO = 10
@@ -419,6 +422,43 @@ async def _entregar_carta_skill(bot, game, player, color):
         )
     else:
         await bot.send_message(player.uid, f"(No quedan cartas de {color}.)")
+
+
+async def _prompt_setup_choice(bot, game, player):
+    """Pide por privado al jugador el color del siguiente slot de elección de su
+    mano inicial (reparto de setup)."""
+    if not player.skill_choices_pendientes:
+        await _dm_mano(bot, player)
+        return
+    opciones = player.skill_choices_pendientes[0]
+    btns = [[InlineKeyboardButton(
+                f"{Skills.EMOJI_COLOR[c]} {c}",
+                callback_data=f"{game.cid}*bsgSetup*{c}*{player.uid}")]
+            for c in opciones]
+    await bot.send_message(
+        player.uid,
+        f"🃏 *Mano inicial* — te quedan *{len(player.skill_choices_pendientes)}* carta(s) a elegir.\n"
+        f"Elige el tipo de esta carta ({' / '.join(opciones)}):",
+        reply_markup=InlineKeyboardMarkup(btns),
+        parse_mode=ParseMode.MARKDOWN,
+    )
+
+
+async def resolver_setup_choice(bot, game, uid, color):
+    """Resuelve un slot de elección del reparto inicial con el color elegido."""
+    player = game.playerlist.get(uid)
+    if not player or not player.skill_choices_pendientes:
+        return
+    if color not in player.skill_choices_pendientes[0]:
+        return
+    player.skill_choices_pendientes.pop(0)
+    await _entregar_carta_skill(bot, game, player, color)
+    if player.skill_choices_pendientes:
+        await save(bot, game.cid)
+        await _prompt_setup_choice(bot, game, player)
+    else:
+        await _dm_mano(bot, player)
+        await save(bot, game.cid)
 
 
 async def _prompt_color_skill(bot, game):

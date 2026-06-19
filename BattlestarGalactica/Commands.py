@@ -132,6 +132,43 @@ async def callback_bsg_draw(update: Update, context: CallbackContext):
         await bot.send_message(ADMIN[0], f"BSG draw error: {e}")
 
 
+async def callback_bsg_setup(update: Update, context: CallbackContext):
+    """Elección del color de un slot de la mano inicial (reparto de setup)."""
+    bot = context.bot
+    callback = update.callback_query
+    presser = callback.from_user.id
+    try:
+        regex = re.search(r"(-?[0-9]*)\*bsgSetup\*([A-Za-z]*)\*(-?[0-9]*)", callback.data)
+        cid = int(regex.group(1))
+        color = regex.group(2)
+        target = int(regex.group(3))
+        game = get_game(cid)
+        if not _validar(game):
+            await callback.answer("Partida no encontrada.")
+            return
+        if presser != target:
+            await callback.answer("No es tu mano.")
+            return
+        player = game.playerlist.get(presser)
+        if not player or not player.skill_choices_pendientes \
+                or color not in player.skill_choices_pendientes[0]:
+            await callback.answer("Color no disponible.")
+            return
+        await callback.answer(f"Robaste {color}.")
+        try:
+            await bot.edit_message_reply_markup(presser, callback.message.message_id, reply_markup=None)
+        except Exception:
+            pass
+        await BSGController.resolver_setup_choice(bot, game, presser, color)
+    except Exception as e:
+        logger.error(f"callback_bsg_setup error: {e}")
+        try:
+            await callback.answer("Error.")
+        except Exception:
+            pass
+        await bot.send_message(ADMIN[0], f"BSG setup error: {e}")
+
+
 def _esperando_robo(st, uid):
     """True si el jugador activo aún debe elegir sus cartas de Recibir Habilidades."""
     return bool(st.skill_draw and st.active_player and st.active_player.uid == uid
