@@ -834,22 +834,135 @@ async def mover_jugador(bot, game, uid, destino):
     await save(bot, game.cid)
 
 
-async def activar_naves_cylon(bot, game):
-    """Activación de naves Cylon de una crisis: se activan los Raiders y los Heavy
-    Raiders (programas posicionales), avanzan los centuriones del abordaje y, por
-    último, las Basestars atacan a Galactica."""
+# Iconos de activación Cylon que puede llevar una carta de crisis.
+ICONOS_CYLON = {
+    "raiders": "Activar Raiders",
+    "heavy_raiders": "Activar Heavy Raiders",
+    "centuriones": "Activar Centuriones",
+    "basestars": "Activar Basestars",
+    "launch_raiders": "Lanzar Raiders",
+    "launch_heavy": "Lanzar Heavy Raiders",
+}
+
+
+def _iconos_desde_texto(texto):
+    """Deriva los iconos de activación Cylon a partir del texto de la crisis
+    (las cartas del set indican qué naves se activan/lanzan al pie de la carta)."""
+    t = (texto or "").lower()
+    iconos = []
+    if ("activate heavy raider" in t) or ("activar heavy raider" in t):
+        iconos.append("heavy_raiders")
+    if ("activate raiders" in t) or ("activar raiders" in t) or ("activa raiders" in t):
+        iconos.append("raiders")
+    if ("activate basestars" in t) or ("activar basestars" in t):
+        iconos.append("basestars")
+    if ("activate centurion" in t) or ("activar centurion" in t):
+        iconos.append("centuriones")
+    if ("launch raiders" in t) or ("lanzar raiders" in t):
+        iconos.append("launch_raiders")
+    if ("launch" in t and "heavy raider" in t):
+        iconos.append("launch_heavy")
+    # Quitar duplicados conservando el orden de aparición.
+    vistos, salida = set(), []
+    for i in iconos:
+        if i not in vistos:
+            vistos.add(i)
+            salida.append(i)
+    return salida
+
+
+# Distribución de iconos de activación que aproxima la del juego base (la mayoría
+# de las cartas activan Raiders; algunas Basestars o lanzan refuerzos; pocas
+# activan Heavy Raiders o Centuriones). Las cartas físicas llevan estos iconos al
+# pie; como no están en los datos, se asignan de forma estable por carta.
+_PERFIL_ICONOS = [
+    ["raiders"], ["raiders"], ["raiders"], ["raiders"],
+    ["basestars"], ["basestars"],
+    ["launch_raiders"], ["launch_raiders"],
+    ["raiders", "basestars"],
+    ["heavy_raiders"],
+    ["launch_heavy"],
+    ["centuriones"],
+]
+
+
+def _hash_estable(s):
+    """Hash determinista (estable entre ejecuciones, a diferencia de hash())."""
+    h = 0
+    for ch in s or "":
+        h = (h * 31 + ord(ch)) & 0xFFFFFFFF
+    return h
+
+
+def _activaciones_para_crisis(crisis):
+    """Iconos de activación Cylon de una crisis: si el texto los nombra de forma
+    explícita se usan esos; si no, se asigna un perfil estable según la carta."""
+    ic = _iconos_desde_texto(crisis.get("texto", ""))
+    if ic:
+        return ic
+    clave = crisis.get("id") or crisis.get("titulo") or crisis.get("texto") or ""
+    return list(_PERFIL_ICONOS[_hash_estable(clave) % len(_PERFIL_ICONOS)])
+
+
+async def _lanzar_raiders_por_basestar(bot, game):
+    """Lanzar Raiders: cada Basestar suelta 2 Raiders en su propia área."""
     st = game.board.state
-    await bot.send_message(game.cid, "🤖 *Se activan las naves Cylon…*", parse_mode=ParseMode.MARKDOWN)
-    await _activar_raiders(bot, game)
-    if st.ganador or await _chequear_fin(bot, game):
+    total = 0
+    for a in st.areas:
+        for _ in a["basestars"]:
+            a["raiders"] += 2
+            total += 2
+    if total:
+        await bot.send_message(game.cid, f"🛸 Las Basestars lanzan {total} Raiders (total: {st.total_raiders()}).")
+    else:
+        await bot.send_message(game.cid, "🛸 No hay Basestars para lanzar Raiders.")
+
+
+async def _lanzar_heavy_por_basestar(bot, game):
+    """Lanzar Heavy Raiders: cada Basestar suelta 1 Heavy Raider en su área."""
+    st = game.board.state
+    total = 0
+    for i, a in enumerate(st.areas):
+        for _ in a["basestars"]:
+            a["heavy_raiders"] = a.get("heavy_raiders", 0) + 1
+            total += 1
+    if total:
+        await bot.send_message(game.cid, f"🚁 Las Basestars lanzan {total} Heavy Raider(s) (total: {st.total_heavy_raiders()}).")
+    else:
+        await bot.send_message(game.cid, "🚁 No hay Basestars para lanzar Heavy Raiders.")
+
+
+async def activar_naves_cylon(bot, game, iconos):
+    """Resuelve la activación Cylon de una crisis según sus iconos. Primero se
+    activan las naves existentes (Raiders → Heavy Raiders → Centuriones →
+    Basestars) y al final se lanzan refuerzos (Raiders / Heavy Raiders), para que
+    las naves recién traídas no actúen en la misma activación."""
+    st = game.board.state
+    if not iconos:
         return
-    await _activar_heavy_raiders(bot, game)
-    if st.ganador or await _chequear_fin(bot, game):
-        return
-    await _activar_centuriones(bot, game)
-    if st.ganador or await _chequear_fin(bot, game):
-        return
-    await _activar_basestars(bot, game)
+    desc = ", ".join(ICONOS_CYLON.get(i, i) for i in iconos)
+    await bot.send_message(game.cid, f"🤖 *Activación Cylon:* {desc}.", parse_mode=ParseMode.MARKDOWN)
+
+    if "raiders" in iconos:
+        await _activar_raiders(bot, game)
+        if st.ganador or await _chequear_fin(bot, game):
+            return
+    if "heavy_raiders" in iconos:
+        await _activar_heavy_raiders(bot, game)
+        if st.ganador or await _chequear_fin(bot, game):
+            return
+    if "centuriones" in iconos:
+        await _activar_centuriones(bot, game)
+        if st.ganador or await _chequear_fin(bot, game):
+            return
+    if "basestars" in iconos:
+        await _activar_basestars(bot, game)
+        if st.ganador or await _chequear_fin(bot, game):
+            return
+    if "launch_raiders" in iconos:
+        await _lanzar_raiders_por_basestar(bot, game)
+    if "launch_heavy" in iconos:
+        await _lanzar_heavy_por_basestar(bot, game)
     await _chequear_fin(bot, game)
 
 
@@ -1639,9 +1752,14 @@ async def cerrar_crisis(bot, game, crisis):
     st.crisis_discard.append(crisis)
     st.crisis_actual = None
 
-    # Activación de naves Cylon si la crisis lo indica
-    if crisis.get("activar_cylons"):
-        await activar_naves_cylon(bot, game)
+    # Activación de naves Cylon según los iconos de la crisis. Las cartas nuevas
+    # pueden traer la lista explícita en "activaciones"; las heredadas marcan
+    # "activar_cylons" y derivamos los iconos del texto de la carta.
+    iconos = crisis.get("activaciones")
+    if iconos is None and crisis.get("activar_cylons"):
+        iconos = _activaciones_para_crisis(crisis)
+    if iconos:
+        await activar_naves_cylon(bot, game, iconos)
         if await _chequear_fin(bot, game):
             return
 
@@ -1717,6 +1835,8 @@ async def aplicar_efectos(bot, game, efectos):
         elif tipo == "jump_prep":
             st.jump_prep = max(0, min(st.jump_prep_max, st.jump_prep + ef["delta"]))
             await bot.send_message(game.cid, f"⏫ Preparación de salto: {st.jump_prep}/{st.jump_prep_max}")
+        elif tipo == "activar":
+            await activar_naves_cylon(bot, game, ef.get("iconos", []))
         elif tipo == "destruir_civil":
             await _destruir_civil(bot, game)
         elif tipo == "roll":
