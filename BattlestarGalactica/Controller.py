@@ -7,6 +7,9 @@ Implementado en esta capa:
 - Setup completo: selección de personajes, reparto de lealtad, títulos
   (Presidente/Almirante), recursos y pistas iniciales, manos de habilidad.
 - Bucle de turno: Recibir Habilidades → (Acción simplificada) → Crisis.
+- Recibir Habilidades fiel al set del personaje: se roba el set completo cada
+  turno; los slots fijos se reparten solos y los de elección (p. ej. Apolo,
+  Liderazgo/Política) los decide el jugador.
 - Chequeos de habilidad con mazo de Destino.
 - Fase del Agente Durmiente (distancia 4).
 - Salto FTL, condiciones de victoria/derrota.
@@ -191,14 +194,15 @@ async def finalizar_setup(bot, game):
     _colocar_flota_inicial(st)
 
     # --- Mano inicial de habilidades (regla del juego base) ---
-    # Todos los jugadores EXCEPTO el primero roban 3 cartas de habilidad al
-    # empezar. El primer jugador robará su mano normal en su primer turno (su
-    # ventaja es jugar primero).
+    # Todos los jugadores EXCEPTO el primero roban su set completo de habilidades
+    # al empezar (los slots de elección se resuelven al azar en este reparto de
+    # setup). El primer jugador robará su mano en su primer turno (su ventaja es
+    # jugar primero).
     primer_jugador = game.player_sequence[0]
     for player in game.player_sequence:
         if player.uid == primer_jugador.uid:
             continue
-        _robar_skills(st, player, 3)
+        _robar_skills(st, player)
         await _dm_mano(bot, player)
 
     st.fase_actual = "En Juego"
@@ -242,13 +246,22 @@ def _asignar_titulos(game):
     game.playerlist[alm].titulos.append("Almirante")
 
 
-def _robar_skills(st, player, cantidad=3):
-    """Roba 'cantidad' cartas de habilidad de los colores del set del personaje.
-    En el juego base se roban 3 por turno, repartidas entre los colores permitidos."""
+def _slots_personaje(skill_set):
+    """Normaliza un skill_set a una lista de slots; cada slot es la lista de
+    colores admitidos (1 color = slot fijo; varios = slot de elección)."""
+    return [list(s) if isinstance(s, (list, tuple)) else [s] for s in skill_set]
+
+
+def _robar_skills(st, player, cantidad=None):
+    """Reparte la mano de habilidades del set del personaje (un slot = una carta).
+    Los slots fijos dan su color; los de elección se resuelven al azar (reparto
+    automático de setup). Si se pasa 'cantidad', limita el número de cartas."""
     pj = Characters.PERSONAJES[player.personaje]
-    pool = pj["skill_set"]
-    for _ in range(cantidad):
-        color = random.choice(pool)
+    slots = _slots_personaje(pj["skill_set"])
+    if cantidad is not None:
+        slots = slots[:cantidad]
+    for opciones in slots:
+        color = random.choice(opciones)
         carta = _robar_carta_color(st, color)
         if carta:
             player.skill_hand.append(carta)
@@ -347,35 +360,30 @@ async def iniciar_turno(bot, game):
                 parse_mode=ParseMode.MARKDOWN,
             )
 
-    # Paso "Recibir Habilidades": el jugador elige el color de cada carta.
+    # Paso "Recibir Habilidades": se roba el set completo del personaje. Los slots
+    # fijos se reparten solos; los de elección los decide el jugador.
     if player.revealed:
-        pool = list(Skills.COLORES)          # Cylon revelado: cualquier tipo
-        cantidad = 2
+        slots = [list(Skills.COLORES), list(Skills.COLORES)]  # Cylon: 2 cartas a elección
         encabezado = f"🤖 *Turno del Cylon {player.name}*"
     else:
         pj = Characters.PERSONAJES[player.personaje]
-        pool = _colores_distintos(pj["skill_set"])
-        cantidad = 3
+        slots = _slots_personaje(pj["skill_set"])
         encabezado = f"🎬 *Turno de {player.name}*"
 
-    st.skill_draw = {"uid": player.uid, "restantes": cantidad, "pool": pool}
+    st.skill_draw = {"uid": player.uid, "slots": slots}
     await bot.send_message(
         game.cid,
         f"{encabezado} — *Recibir Habilidades*.\n"
-        f"{player.name} está eligiendo el tipo de sus cartas (en privado)…",
+        f"{player.name} recibe su set de habilidades (las de elección, en privado)…",
         parse_mode=ParseMode.MARKDOWN,
     )
     await save(bot, game.cid)
-    await _prompt_color_skill(bot, game)
+    await _procesar_slots_skill(bot, game)
 
 
-def _colores_distintos(skill_set):
-    """Colores distintos del set del personaje, en el orden estándar."""
-    return [c for c in Skills.COLORES if c in skill_set]
-
-
-async def _prompt_color_skill(bot, game):
-    """Pide por privado al jugador activo el color de la siguiente carta a robar."""
+async def _procesar_slots_skill(bot, game):
+    """Reparte automáticamente los slots fijos; al llegar a un slot de elección,
+    pide el color al jugador. Termina el paso cuando no quedan slots."""
     st = game.board.state
     sd = st.skill_draw
     if not sd:
@@ -383,39 +391,11 @@ async def _prompt_color_skill(bot, game):
     player = game.playerlist.get(sd["uid"])
     if not player:
         return
-    btns = [[InlineKeyboardButton(
-                f"{Skills.EMOJI_COLOR[c]} {c}",
-                callback_data=f"{game.cid}*bsgDraw*{c}*{player.uid}")]
-            for c in sd["pool"]]
-    await bot.send_message(
-        player.uid,
-        f"🃏 *Recibir Habilidades* — te quedan *{sd['restantes']}* carta(s) por robar.\n"
-        f"Elige el tipo de la siguiente carta:",
-        reply_markup=InlineKeyboardMarkup(btns),
-        parse_mode=ParseMode.MARKDOWN,
-    )
-
-
-async def elegir_color_skill(bot, game, uid, color):
-    """Roba 1 carta del color elegido; al terminar, anuncia el resto del turno."""
-    st = game.board.state
-    sd = st.skill_draw
-    if not sd or sd["uid"] != uid or color not in sd["pool"]:
-        return
-    player = game.playerlist[uid]
-    carta = _robar_carta_color(st, color)
-    if carta:
-        player.skill_hand.append(carta)
-        await bot.send_message(
-            uid,
-            f"➕ Robaste {Skills.EMOJI_COLOR[carta['color']]} {carta['color']} {carta['valor']} "
-            f"— _{carta.get('nombre','')}_",
-            parse_mode=ParseMode.MARKDOWN,
-        )
-    else:
-        await bot.send_message(uid, f"(No quedan cartas de {color}.)")
-    sd["restantes"] -= 1
-    if sd["restantes"] > 0:
+    # Slots fijos consecutivos → se reparten solos.
+    while sd["slots"] and len(sd["slots"][0]) == 1:
+        color = sd["slots"].pop(0)[0]
+        await _entregar_carta_skill(bot, game, player, color)
+    if sd["slots"]:
         await save(bot, game.cid)
         await _prompt_color_skill(bot, game)
         return
@@ -423,6 +403,57 @@ async def elegir_color_skill(bot, game, uid, color):
     await _dm_mano(bot, player)
     await save(bot, game.cid)
     await _anunciar_turno(bot, game)
+
+
+async def _entregar_carta_skill(bot, game, player, color):
+    """Roba 1 carta del color dado a la mano del jugador y lo notifica por privado."""
+    st = game.board.state
+    carta = _robar_carta_color(st, color)
+    if carta:
+        player.skill_hand.append(carta)
+        await bot.send_message(
+            player.uid,
+            f"➕ Robaste {Skills.EMOJI_COLOR[carta['color']]} {carta['color']} {carta['valor']} "
+            f"— _{carta.get('nombre','')}_",
+            parse_mode=ParseMode.MARKDOWN,
+        )
+    else:
+        await bot.send_message(player.uid, f"(No quedan cartas de {color}.)")
+
+
+async def _prompt_color_skill(bot, game):
+    """Pide por privado al jugador activo el color del siguiente slot de elección."""
+    st = game.board.state
+    sd = st.skill_draw
+    if not sd or not sd["slots"]:
+        return
+    player = game.playerlist.get(sd["uid"])
+    if not player:
+        return
+    opciones = sd["slots"][0]
+    btns = [[InlineKeyboardButton(
+                f"{Skills.EMOJI_COLOR[c]} {c}",
+                callback_data=f"{game.cid}*bsgDraw*{c}*{player.uid}")]
+            for c in opciones]
+    await bot.send_message(
+        player.uid,
+        f"🃏 *Recibir Habilidades* — te quedan *{len(sd['slots'])}* carta(s).\n"
+        f"Elige el tipo de esta carta ({' / '.join(opciones)}):",
+        reply_markup=InlineKeyboardMarkup(btns),
+        parse_mode=ParseMode.MARKDOWN,
+    )
+
+
+async def elegir_color_skill(bot, game, uid, color):
+    """Resuelve un slot de elección con el color elegido y continúa el reparto."""
+    st = game.board.state
+    sd = st.skill_draw
+    if not sd or sd["uid"] != uid or not sd["slots"] or color not in sd["slots"][0]:
+        return
+    player = game.playerlist[uid]
+    sd["slots"].pop(0)
+    await _entregar_carta_skill(bot, game, player, color)
+    await _procesar_slots_skill(bot, game)
 
 
 async def _anunciar_turno(bot, game):
