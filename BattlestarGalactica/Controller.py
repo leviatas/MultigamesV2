@@ -12,7 +12,7 @@ Implementado en esta capa:
 - Salto FTL, condiciones de victoria/derrota.
 
 Pendiente para capas siguientes (claramente acotado):
-- Combate espacial detallado (vipers/raiders/basestars), abordaje.
+- Vipers tripulados con fichas de piloto; daño a Galactica por ubicaciones.
 - Acciones de ubicación completas, Quórum, súper crisis.
 - Habilidades específicas de cada personaje y cartas de habilidad con efecto.
 - Roster completo de cartas de crisis.
@@ -471,10 +471,13 @@ def _d8():
 
 def _areas_con(st, tipo):
     """Índices de áreas que contienen al menos una nave del tipo dado
-    ('raiders', 'basestars', 'vipers', 'civiles')."""
+    ('raiders', 'heavy_raiders', 'basestars', 'vipers', 'civiles')."""
     res = []
     for i, a in enumerate(st.areas):
-        cant = a[tipo] if tipo in ("raiders", "vipers") else len(a[tipo])
+        if tipo in ("raiders", "vipers", "heavy_raiders"):
+            cant = a.get(tipo, 0)
+        else:
+            cant = len(a.get(tipo, []))
         if cant > 0:
             res.append(i)
     return res
@@ -585,15 +588,15 @@ async def ejecutar_accion_ubicacion(bot, game, uid, accion, objetivo=None):
         await _lanzar_viper(bot, game)
         await bot.send_message(game.cid, f"✈️ {player.name} se lanza en un Viper.")
     elif accion == "armory_attack":
-        if st.centuriones <= 0:
-            await bot.send_message(game.cid, "No hay centuriones en el track de abordaje.")
+        if not st.boarding_party:
+            await bot.send_message(game.cid, "No hay centuriones a bordo de Galactica.")
         else:
             r = _d8()
             if r >= 7:
-                st.centuriones -= 1
-                await bot.send_message(game.cid, f"🪖 Tirada {r}: ¡centurión destruido! ({st.centuriones}/{st.centuriones_max})")
+                _destruir_centurion_avanzado(st)
+                await bot.send_message(game.cid, f"🪖 Tirada {r}: ¡centurión destruido! (a bordo: {st.total_centuriones()})")
             else:
-                await bot.send_message(game.cid, f"🪖 Tirada {r}: el centurión resiste.")
+                await bot.send_message(game.cid, f"🪖 Tirada {r}: el centurión resiste el fuego.")
     elif accion == "draw_politics":
         await _robar_color(bot, game, player, Skills.POLITICA)
         await _robar_color(bot, game, player, Skills.POLITICA)
@@ -832,11 +835,18 @@ async def mover_jugador(bot, game, uid, destino):
 
 
 async def activar_naves_cylon(bot, game):
-    """Activación de naves Cylon de una crisis: se activan los Raiders (programa
-    posicional) y luego las Basestars atacan a Galactica."""
+    """Activación de naves Cylon de una crisis: se activan los Raiders y los Heavy
+    Raiders (programas posicionales), avanzan los centuriones del abordaje y, por
+    último, las Basestars atacan a Galactica."""
     st = game.board.state
     await bot.send_message(game.cid, "🤖 *Se activan las naves Cylon…*", parse_mode=ParseMode.MARKDOWN)
     await _activar_raiders(bot, game)
+    if st.ganador or await _chequear_fin(bot, game):
+        return
+    await _activar_heavy_raiders(bot, game)
+    if st.ganador or await _chequear_fin(bot, game):
+        return
+    await _activar_centuriones(bot, game)
     if st.ganador or await _chequear_fin(bot, game):
         return
     await _activar_basestars(bot, game)
@@ -925,6 +935,87 @@ async def _activar_basestars(bot, game):
                 await bot.send_message(game.cid, f"🛸 Tirada {r}: la Basestar falla contra Galactica.")
 
 
+# ---- Heavy Raiders y Partida de Abordaje (centuriones) ----
+
+def _colocar_centurion(st, cantidad=1):
+    """Coloca 'cantidad' centuriones en la primera casilla del track de abordaje."""
+    for _ in range(cantidad):
+        st.boarding_party.append(1)
+
+
+async def _lanzar_heavy_raider(bot, game, cantidad=1, area_idx=None):
+    """Hace aparecer Heavy Raiders en un área (por defecto, la Proa)."""
+    st = game.board.state
+    if area_idx is None:
+        area_idx = Space.AREA_PROA
+    st.areas[area_idx]["heavy_raiders"] = st.areas[area_idx].get("heavy_raiders", 0) + cantidad
+    await bot.send_message(
+        game.cid,
+        f"🚁 Aparece(n) {cantidad} Heavy Raider(s) en {Space.nombre(area_idx)} "
+        f"(total: {st.total_heavy_raiders()}).",
+    )
+
+
+async def _activar_heavy_raiders(bot, game):
+    """Programa de los Heavy Raiders: el que está en un área con tubo de
+    lanzamiento accede al hangar, aterriza y desembarca un centurión en el track
+    de abordaje (y se retira); el resto avanza un área hacia el tubo más cercano."""
+    st = game.board.state
+    if st.total_heavy_raiders() == 0:
+        return
+    # 1. Aterrizajes desde las áreas con acceso al hangar (tubos de lanzamiento)
+    for i in Space.LAUNCH_AREAS:
+        while st.areas[i].get("heavy_raiders", 0) > 0:
+            st.areas[i]["heavy_raiders"] -= 1
+            _colocar_centurion(st, 1)
+            await bot.send_message(
+                game.cid,
+                f"🚁 Un Heavy Raider aterriza desde {Space.nombre(i)}: desembarca un "
+                f"centurión en Galactica (a bordo: {st.total_centuriones()}).",
+            )
+            if await _chequear_fin(bot, game):
+                return
+    # 2. El resto avanza un área hacia el tubo de lanzamiento más cercano
+    for i in range(Space.N_AREAS):
+        if i in Space.LAUNCH_AREAS:
+            continue
+        cant = st.areas[i].get("heavy_raiders", 0)
+        if cant <= 0:
+            continue
+        destino = _paso_hacia(i, Space.LAUNCH_AREAS)
+        if destino is not None and destino != i:
+            st.areas[i]["heavy_raiders"] = 0
+            st.areas[destino]["heavy_raiders"] = st.areas[destino].get("heavy_raiders", 0) + cant
+            await bot.send_message(
+                game.cid,
+                f"🚁 {cant} Heavy Raider(s) avanzan de {Space.nombre(i)} a {Space.nombre(destino)}.",
+            )
+
+
+async def _activar_centuriones(bot, game):
+    """Programa de la Partida de Abordaje: cada centurión avanza una casilla hacia
+    el puente. Al alcanzar la casilla final, los Cylons toman Galactica."""
+    st = game.board.state
+    if not st.boarding_party:
+        return
+    st.boarding_party = sorted((p + 1 for p in st.boarding_party), reverse=True)
+    cercano = min(st.boarding_party[0], st.boarding_breach)
+    await bot.send_message(
+        game.cid,
+        f"🔺 Los centuriones avanzan por los pasillos de Galactica: {st.total_centuriones()} "
+        f"a bordo (el más cercano al puente en la casilla {cercano}/{st.boarding_breach}).",
+    )
+
+
+def _destruir_centurion_avanzado(st):
+    """Elimina el centurión más cercano al puente (el de mayor posición). True si lo hizo."""
+    if not st.boarding_party:
+        return False
+    k = max(range(len(st.boarding_party)), key=lambda j: st.boarding_party[j])
+    st.boarding_party.pop(k)
+    return True
+
+
 async def _destruir_civil(bot, game, area_idx=None):
     """Destruye una nave civil (de un área concreta o, si no, de un área al azar)."""
     st = game.board.state
@@ -948,7 +1039,7 @@ async def _destruir_civil(bot, game, area_idx=None):
 
 # Acciones disponibles para un Cylon revelado, según su ubicación Cylon.
 ACCIONES_CYLON = {
-    "cylon_fleet": ["launch_raiders", "launch_basestar"],
+    "cylon_fleet": ["launch_raiders", "launch_heavy", "launch_basestar"],
     "caprica": ["sabotage", "board"],
     "resurrection_ship": ["launch_raiders", "sabotage"],
     "human_fleet": ["sabotage", "board"],
@@ -956,9 +1047,10 @@ ACCIONES_CYLON = {
 
 ETIQUETA_ACCION_CYLON = {
     "launch_raiders": "👾 Lanzar 2 Raiders",
+    "launch_heavy": "🚁 Lanzar un Heavy Raider",
     "launch_basestar": "🛸 Traer una Basestar",
     "sabotage": "🔧💥 Sabotear un recurso (-1)",
-    "board": "🔺 Avanzar abordaje (+1)",
+    "board": "🔺 Desembarcar un centurión",
 }
 
 
@@ -1017,6 +1109,8 @@ async def ejecutar_accion_cylon(bot, game, uid, accion):
         area_idx = objetivos[0] if objetivos else Space.AREA_PROA
         st.areas[area_idx]["raiders"] += 2
         await bot.send_message(game.cid, f"👾 El Cylon lanza 2 Raiders en {Space.nombre(area_idx)} (total: {st.total_raiders()}).")
+    elif accion == "launch_heavy":
+        await _lanzar_heavy_raider(bot, game, 1)
     elif accion == "launch_basestar":
         st.areas[Space.AREA_PROA]["basestars"].append(0)
         await bot.send_message(game.cid, f"🛸 El Cylon trae una Basestar a {Space.nombre(Space.AREA_PROA)} (total: {st.total_basestars()}).")
@@ -1028,8 +1122,8 @@ async def ejecutar_accion_cylon(bot, game, uid, accion):
         objetivo = min(candidatos, key=candidatos.get) if candidatos else "moral"
         await modificar_recurso(bot, game, objetivo, -1)
     elif accion == "board":
-        st.centuriones = min(st.centuriones_max, st.centuriones + 1)
-        await bot.send_message(game.cid, f"🔺 Abordaje Cylon: {st.centuriones}/{st.centuriones_max}")
+        _colocar_centurion(st, 1)
+        await bot.send_message(game.cid, f"🔺 El Cylon introduce un centurión en Galactica (a bordo: {st.total_centuriones()}).")
     else:
         await bot.send_message(game.cid, "Acción Cylon no disponible.")
     await save(bot, game.cid)
@@ -1600,8 +1694,26 @@ async def aplicar_efectos(bot, game, efectos):
                 st.areas[Space.AREA_PROA]["basestars"].append(0)
             await bot.send_message(game.cid, f"🛸 Aparece(n) {ef['cantidad']} Basestar(s) en {Space.nombre(Space.AREA_PROA)} (total: {st.total_basestars()}).")
         elif tipo == "centuriones":
-            st.centuriones = max(0, st.centuriones + ef["delta"])
-            await bot.send_message(game.cid, f"🔺 Centuriones: {st.centuriones}/{st.centuriones_max}")
+            delta = ef["delta"]
+            if delta >= 0:
+                _colocar_centurion(st, delta)
+                await bot.send_message(game.cid, f"🔺 Se colocan {delta} centurión/es en el track de abordaje (a bordo: {st.total_centuriones()}).")
+            else:
+                for _ in range(-delta):
+                    if not _destruir_centurion_avanzado(st):
+                        break
+                await bot.send_message(game.cid, f"🔺 Se eliminan centuriones (a bordo: {st.total_centuriones()}).")
+        elif tipo == "heavy_raiders":
+            cant = ef["cantidad"]
+            if cant >= 0:
+                await _lanzar_heavy_raider(bot, game, cant)
+            else:
+                restantes = -cant
+                for a in st.areas:
+                    while restantes > 0 and a.get("heavy_raiders", 0) > 0:
+                        a["heavy_raiders"] -= 1
+                        restantes -= 1
+                await bot.send_message(game.cid, f"🚁 Se destruyen Heavy Raiders (total: {st.total_heavy_raiders()}).")
         elif tipo == "jump_prep":
             st.jump_prep = max(0, min(st.jump_prep_max, st.jump_prep + ef["delta"]))
             await bot.send_message(game.cid, f"⏫ Preparación de salto: {st.jump_prep}/{st.jump_prep_max}")
@@ -1645,6 +1757,7 @@ async def ejecutar_salto(bot, game, auto=False):
         st.vipers_reserva += a["vipers"]
         a["vipers"] = 0
         a["raiders"] = 0
+        a["heavy_raiders"] = 0
         a["basestars"] = []
     st.vipers_reserva += st.vipers_danados
     st.vipers_danados = 0
@@ -1696,9 +1809,9 @@ async def _chequear_fin(bot, game):
         if getattr(st, recurso) <= 0:
             await terminar(bot, game, "Cylons", f"El recurso *{nombre}* llegó a 0.")
             return True
-    # Derrota: Galactica tomada por los centuriones
-    if st.centuriones >= st.centuriones_max:
-        await terminar(bot, game, "Cylons", "Los centuriones tomaron Galactica.")
+    # Derrota: los centuriones llegan al puente (casilla final del track)
+    if any(p >= st.boarding_breach for p in st.boarding_party):
+        await terminar(bot, game, "Cylons", "Los centuriones llegaron al puente: Galactica fue abordada.")
         return True
     # Derrota: Galactica destruida (6 tokens de daño)
     if st.galactica_danos >= st.galactica_danos_max:

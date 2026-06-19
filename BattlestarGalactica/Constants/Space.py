@@ -10,6 +10,7 @@ Cada área es un dict:
     {
       "vipers":   int,            # Vipers (sin tripular) en el área
       "raiders":  int,            # Raiders Cylon
+      "heavy_raiders": int,       # Heavy Raiders (transportan centuriones al hangar)
       "basestars": [int, ...],    # una entrada por Basestar = tokens de daño
       "civiles":  [carga, ...],   # naves civiles (carga oculta) en el área
     }
@@ -32,7 +33,7 @@ AREA_POPA = 3           # naves civiles iniciales
 
 
 def nueva_area():
-    return {"vipers": 0, "raiders": 0, "basestars": [], "civiles": []}
+    return {"vipers": 0, "raiders": 0, "heavy_raiders": 0, "basestars": [], "civiles": []}
 
 
 def distancia(i, j):

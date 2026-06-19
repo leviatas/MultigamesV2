@@ -27,11 +27,25 @@ def naves_de_area(area):
         piezas.append(f"🛸{extra}")
     if area["raiders"]:
         piezas.append(f"👾×{area['raiders']}")
+    if area.get("heavy_raiders"):
+        piezas.append(f"🚁×{area['heavy_raiders']}")
     if area["vipers"]:
         piezas.append(f"✈️×{area['vipers']}")
     if area["civiles"]:
         piezas.append(f"🛰️×{len(area['civiles'])}")
     return piezas
+
+
+def track_abordaje(st):
+    """Representa el track de la Partida de Abordaje: una barra de casillas con
+    los centuriones que avanzan hacia el puente (casilla final = abordaje)."""
+    n = st.boarding_breach
+    casillas = ["▫️"] * n
+    for pos in st.boarding_party:
+        idx = max(0, min(pos, n) - 1)
+        casillas[idx] = "🔺"
+    barra = "".join(casillas)
+    return f"{barra} ({st.total_centuriones()} a bordo)"
 
 
 class Board(BaseBoard):
@@ -53,10 +67,11 @@ class Board(BaseBoard):
         board += "*Naves:*\n"
         board += (f"✈️ Vipers (espacio/reserva/dañados): "
                   f"{st.total_vipers_espacio()}/{st.vipers_reserva}/{st.vipers_danados}\n")
-        board += f"👾 Raiders: {st.total_raiders()}   🛸 Basestars: {st.total_basestars()}\n"
+        board += (f"👾 Raiders: {st.total_raiders()}   🚁 Heavy Raiders: {st.total_heavy_raiders()}   "
+                  f"🛸 Basestars: {st.total_basestars()}\n")
         board += f"🛰️ Naves civiles: {st.total_civiles()}\n"
-        board += (f"🛡️ Daño Galactica: {st.galactica_danos}/{st.galactica_danos_max}   "
-                  f"🔺 Centuriones: {st.centuriones}/{st.centuriones_max}\n\n")
+        board += f"🛡️ Daño Galactica: {st.galactica_danos}/{st.galactica_danos_max}\n"
+        board += f"🔺 Abordaje: {track_abordaje(st)}\n\n"
 
         pres = game.playerlist.get(st.presidente_uid)
         alm = game.playerlist.get(st.almirante_uid)
@@ -108,8 +123,8 @@ class Board(BaseBoard):
             cuerpo += f"  {meta['emoji']} {meta['nombre']}{tubo}: {'  '.join(piezas) if piezas else '—'}\n"
         cuerpo += (f"  🅿️ Reserva vipers: {st.vipers_reserva}   "
                    f"🛠️ dañados: {st.vipers_danados}\n")
-        cuerpo += (f"  🛡️ Daño Galactica: {st.galactica_danos}/{st.galactica_danos_max}   "
-                   f"🔺 Abordaje: {st.centuriones}/{st.centuriones_max}\n\n")
+        cuerpo += f"  🛡️ Daño Galactica: {st.galactica_danos}/{st.galactica_danos_max}\n"
+        cuerpo += f"  🔺 Abordaje: {track_abordaje(st)}\n\n"
         cuerpo += "──────────── GALÁCTICA ────────────\n" + _bloque(_GALACTICA) + "\n\n"
         cuerpo += "─────────── COLONIAL ONE ──────────\n" + _bloque(_COLONIAL) + "\n\n"
         cuerpo += "──────── LOCALIZACIONES CYLON ──────\n" + _bloque(_CYLON)

@@ -64,9 +64,13 @@ class State(BaseState):
         self.galactica_danos = 0
         self.galactica_danos_max = 6
 
-        # --- Abordaje / centuriones en Galactica ---
-        self.centuriones = 0              # avance del abordaje
-        self.centuriones_max = 4          # al llegar, Galactica es tomada (Cylons ganan)
+        # --- Partida de Abordaje (centuriones dentro de Galactica) ---
+        # Cada centurión es una posición entera 1..boarding_breach en el track;
+        # al alcanzar la casilla final (boarding_breach) toman Galactica (derrota
+        # humana). Los Heavy Raiders aterrizan y desembarcan centuriones en la
+        # primera casilla; el Almirante puede atacarlos desde la Armería.
+        self.boarding_party = []          # posiciones de los centuriones a bordo
+        self.boarding_breach = 4          # casilla final = Galactica abordada
 
         # --- Cylons revelados ---
         self.cylons_revelados = []        # uids
@@ -85,5 +89,11 @@ class State(BaseState):
     def total_vipers_espacio(self):
         return sum(a["vipers"] for a in self.areas)
 
+    def total_heavy_raiders(self):
+        return sum(a.get("heavy_raiders", 0) for a in self.areas)
+
     def total_civiles(self):
         return sum(len(a["civiles"]) for a in self.areas)
+
+    def total_centuriones(self):
+        return len(self.boarding_party)
