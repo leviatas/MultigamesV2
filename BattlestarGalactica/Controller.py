@@ -38,9 +38,11 @@ Implementado en esta capa:
   Resurrección. Mazo y descarte propios.
 
 - Efectos de crisis ampliados: además de recursos/naves, aplicar_efectos modela
-  enviar a la Enfermería/Calabozo (a un rol o a todos los de una ubicación),
-  descartes forzados (al azar o las de menor fuerza), colocar naves civiles tras
-  Galactica, dañar Galactica y transferir títulos (Presidente/Almirante).
+  enviar a la Enfermería/Calabozo (a un rol, a todos los de una ubicación o a
+  todos los de una nave), descartes forzados (al azar o las de menor fuerza),
+  colocar naves civiles tras Galactica, dañar Galactica, transferir títulos
+  (Presidente/Almirante), devolver todos los Vipers sin daños a la reserva
+  (vipers_recall) y robar/resolver otra Crisis tras la activación (recrisis).
 
 - Selección interactiva de objetivo (efecto "elegir_objetivo"): los efectos que
   exigen que un jugador ELIJA un personaje (enviarlo al Calabozo/Enfermería o
@@ -2450,6 +2452,14 @@ async def cerrar_crisis(bot, game, crisis):
     if await _chequear_fin(bot, game):
         return
 
+    # Efecto "recrisis" (p. ej. Fulfiller of Prophecy): tras el paso de
+    # activación Cylon se roba y resuelve una nueva Crisis sin avanzar el turno.
+    if getattr(st, "recrisis_pendiente", False):
+        st.recrisis_pendiente = False
+        await bot.send_message(game.cid, "🔁 Se roba y resuelve una *nueva Crisis*.", parse_mode=ParseMode.MARKDOWN)
+        await robar_crisis(bot, game)
+        return
+
     # Boomer 'Reconocimiento': al final de su turno mira la próxima Crisis.
     await _boomer_reconocimiento(bot, game)
 
@@ -2498,6 +2508,11 @@ def _objetivos_efecto(game, quien):
         loc = quien.split(":", 1)[1]
         return [p for p in game.playerlist.values()
                 if p.ubicacion == loc and not p.revealed]
+    if isinstance(quien, str) and quien.startswith("nave:"):
+        nave = quien.split(":", 1)[1]
+        return [p for p in game.playerlist.values()
+                if not p.revealed
+                and Locations.UBICACIONES.get(p.ubicacion or "", {}).get("nave") == nave]
     return []
 
 
@@ -2542,6 +2557,25 @@ async def _descartar_skills(bot, game, player, cantidad, modo="azar"):
         st.skill_discards.setdefault(c["color"], []).append(c)
     await bot.send_message(game.cid, f"🗑️ *{player.name}* descarta {n} carta(s) de habilidad.", parse_mode=ParseMode.MARKDOWN)
     await bot.send_message(player.uid, f"🗑️ Descartaste {n} carta(s) de habilidad (te quedan {len(player.skill_hand)}).")
+
+
+async def _recall_vipers(bot, game):
+    """Devuelve a la reserva todos los Vipers SIN daños del tablero: los de las
+    áreas del espacio y los que estén tripulados (vuelven al Hangar). Los Vipers
+    dañados permanecen donde estén."""
+    st = game.board.state
+    total = 0
+    for a in st.areas:
+        total += a["vipers"]
+        st.vipers_reserva += a["vipers"]
+        a["vipers"] = 0
+    for p in game.playerlist.values():
+        if getattr(p, "viper_area", None) is not None:
+            p.viper_area = None
+            p.ubicacion = "hangar"
+            st.vipers_reserva += 1
+            total += 1
+    await bot.send_message(game.cid, f"✈️ Regresan {total} Viper(s) sin daños a la reserva (reserva: {st.vipers_reserva}).")
 
 
 def _colocar_civiles(st, cantidad):
@@ -2763,6 +2797,11 @@ async def aplicar_efectos(bot, game, efectos):
         elif tipo == "civiles":
             n = _colocar_civiles(st, ef.get("cantidad", 1))
             await bot.send_message(game.cid, f"🛰️ Aparece(n) {n} nave(s) civil(es) tras Galactica (total: {st.total_civiles()}).")
+        elif tipo == "vipers_recall":
+            await _recall_vipers(bot, game)
+        elif tipo == "recrisis":
+            st.recrisis_pendiente = True
+            await bot.send_message(game.cid, "🔁 Tras el paso de activación Cylon se robará y resolverá una *nueva Crisis*.", parse_mode=ParseMode.MARKDOWN)
         elif tipo == "danar_galactica":
             await _danar_galactica(bot, game, fuente="crisis")
         elif tipo == "titulo":

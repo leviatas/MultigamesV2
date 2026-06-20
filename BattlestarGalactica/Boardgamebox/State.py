@@ -55,6 +55,7 @@ class State(BaseState):
         self.skill_check = None           # dict: {crisis, colores, dificultad, aportes:{uid:[cartas]}, ...}
         self.crisis_vote = None           # dict: {opciones, votos:{uid:idx}} para crisis de voto
         self.target_select = None         # dict: {chooser, accion, candidatos:[uid], restantes:[efectos], opcional}
+        self.recrisis_pendiente = False   # tras cerrar la crisis, robar y resolver otra (sin avanzar turno)
 
         # --- Paso "Recibir Habilidades" en curso (elección de color) ---
         self.skill_draw = None            # dict: {uid, restantes, pool:[colores]}
