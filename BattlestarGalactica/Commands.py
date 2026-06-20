@@ -451,7 +451,22 @@ async def command_mapa(update: Update, context: CallbackContext):
     await bot.send_message(cid, game.board.print_map(game), parse_mode=ParseMode.MARKDOWN)
 
 
-async def command_accion(update: Update, context: CallbackContext):
+async def command_mapa_img(update: Update, context: CallbackContext):
+    """Envía una imagen del tablero (ubicaciones, personajes y espacio con Vipers)."""
+    bot = context.bot
+    cid = update.message.chat_id
+    game = get_game(cid)
+    if not _validar(game):
+        await bot.send_message(cid, "No hay partida de Battlestar Galactica activa aquí.")
+        return
+    try:
+        from BattlestarGalactica.render import render_board_image
+        buf = render_board_image(game)
+        await bot.send_photo(cid, photo=buf, caption="🗺️ Tablero de la flota")
+    except Exception as e:
+        log.error(f"command_mapa_img error: {e}")
+        await bot.send_message(cid, "No pude generar la imagen del tablero; aquí va el mapa de texto:")
+        await bot.send_message(cid, game.board.print_map(game), parse_mode=ParseMode.MARKDOWN)
     """Acción del jugador activo (menú simplificado en esta capa)."""
     bot = context.bot
     cid = update.message.chat_id
