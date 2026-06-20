@@ -4,7 +4,9 @@ Mazo de Crisis del JUEGO BASE (61 cartas oficiales, hoja 'crisis' game=B).
 Cada carta: colores/dificultad del chequeo, icono de salto (jump), activación
 de naves Cylon, decisor (activo/presidente/almirante) y el texto oficial.
 - tipo 'chequeo': Pass/Fail; si tiene 'alternativa', el decisor elige entre
-  intentar el chequeo o tomar la alternativa garantizada (opción 'OR').
+  intentar el chequeo o tomar la alternativa garantizada (opción 'OR'). Las
+  cartas con escalón intermedio ("Pass / N+ / Fail") llevan 'intermedio':
+  {"umbral": N, "efectos": [...]} — se aplica si total>=N pero <dificultad.
 - tipo 'eleccion': el decisor elige entre dos opciones directas.
 - tipo 'evento': efecto inmediato.
 
@@ -15,12 +17,14 @@ ubicación, p. ej. {"tipo":"sickbay","quien":"ubicacion:command"}), descartar
 (descarte forzado: quien/cantidad/modo), civiles (colocar naves civiles tras
 Galactica), danar_galactica, titulo (transferir Presidente/Almirante),
 vipers_recall (devolver todos los Vipers sin daños a la reserva), recrisis
-(robar y resolver otra Crisis tras la activación Cylon) y nuke_token (el
-Almirante descarta/recibe Ojivas Nucleares: delta).
+(robar y resolver otra Crisis tras la activación Cylon), nuke_token (el
+Almirante descarta/recibe Ojivas Nucleares: delta) y danar_vipers
+(cantidad/donde: 'reserva' o 'espacio').
 El objetivo de sickbay/brig admite además 'nave:<Nave>' (todos los de esa nave).
 Los efectos que requieren que un jugador ELIJA un objetivo usan elegir_objetivo
-(quien=decisor, accion=brig/sickbay/loyalty_peek, candidatos=todos/otros o lista
-de roles, opcional=True si "puede" elegir): pausan la crisis y abren una botonera.
+(quien=decisor, accion=brig/sickbay/loyalty_peek/presidencia, candidatos=
+todos/otros o lista de roles, opcional=True si "puede" elegir): pausan la
+crisis y abren una botonera.
 """
 
 CRISIS_DECK = [
@@ -201,7 +205,8 @@ CRISIS_DECK = [
         "colores": ["Politica", "Liderazgo"],
         "dificultad": 8,
         "exito": [{"tipo": "mensaje", "texto": "Sin efecto."}],
-        "fracaso": [{"tipo": "recurso", "recurso": "moral", "delta": -1}],
+        "intermedio": {"umbral": 5, "efectos": [{"tipo": "recurso", "recurso": "moral", "delta": -1}]},
+        "fracaso": [{"tipo": "recurso", "recurso": "moral", "delta": -1}, {"tipo": "descartar", "quien": "presidente", "cantidad": 4}],
         "jump": 1,
         "activar_cylons": True,
     },
@@ -260,7 +265,8 @@ CRISIS_DECK = [
         "colores": ["Tactica", "Pilotaje", "Ingenieria"],
         "dificultad": 10,
         "exito": [{"tipo": "mensaje", "texto": "Sin efecto."}],
-        "fracaso": [{"tipo": "recurso", "recurso": "poblacion", "delta": -1}],
+        "intermedio": {"umbral": 7, "efectos": [{"tipo": "recurso", "recurso": "poblacion", "delta": -1}]},
+        "fracaso": [{"tipo": "recurso", "recurso": "poblacion", "delta": -1}, {"tipo": "danar_vipers", "cantidad": 2, "donde": "reserva"}],
         "jump": 1,
         "activar_cylons": True,
     },
@@ -322,6 +328,7 @@ CRISIS_DECK = [
         "colores": ["Politica", "Liderazgo"],
         "dificultad": 9,
         "exito": [{"tipo": "mensaje", "texto": "Sin efecto."}],
+        "intermedio": {"umbral": 7, "efectos": [{"tipo": "descartar", "quien": "activo", "cantidad": 2}]},
         "fracaso": [{"tipo": "recurso", "recurso": "moral", "delta": -1}, {"tipo": "descartar", "quien": "activo", "cantidad": 2}],
         "jump": 1,
         "activar_cylons": True,
@@ -346,6 +353,7 @@ CRISIS_DECK = [
         "colores": ["Politica", "Liderazgo"],
         "dificultad": 13,
         "exito": [{"tipo": "elegir_objetivo", "quien": "presidente", "accion": "loyalty_peek", "candidatos": ["activo"]}],
+        "intermedio": {"umbral": 9, "efectos": [{"tipo": "mensaje", "texto": "Sin efecto."}]},
         "fracaso": [{"tipo": "recurso", "recurso": "moral", "delta": -1}],
         "jump": 1,
         "activar_cylons": True,
@@ -395,7 +403,8 @@ CRISIS_DECK = [
         "colores": ["Politica", "Liderazgo", "Tactica"],
         "dificultad": 11,
         "exito": [{"tipo": "mensaje", "texto": "Sin efecto."}],
-        "fracaso": [{"tipo": "recurso", "recurso": "poblacion", "delta": -1}],
+        "intermedio": {"umbral": 6, "efectos": [{"tipo": "recurso", "recurso": "poblacion", "delta": -1}]},
+        "fracaso": [{"tipo": "recurso", "recurso": "poblacion", "delta": -1}, {"tipo": "elegir_objetivo", "quien": "presidente", "accion": "presidencia", "candidatos": "otros"}],
         "jump": 1,
         "activar_cylons": True,
     },
@@ -452,6 +461,7 @@ CRISIS_DECK = [
         "colores": ["Politica", "Liderazgo", "Tactica"],
         "dificultad": 12,
         "exito": [{"tipo": "mensaje", "texto": "Sin efecto."}],
+        "intermedio": {"umbral": 9, "efectos": [{"tipo": "recurso", "recurso": "comida", "delta": -1}]},
         "fracaso": [{"tipo": "recurso", "recurso": "comida", "delta": -1}, {"tipo": "recurso", "recurso": "combustible", "delta": -1}],
         "jump": 1,
         "activar_cylons": True,
@@ -554,6 +564,7 @@ CRISIS_DECK = [
         "colores": ["Politica", "Liderazgo"],
         "dificultad": 12,
         "exito": [{"tipo": "elegir_objetivo", "quien": "activo", "accion": "loyalty_peek", "candidatos": "otros"}],
+        "intermedio": {"umbral": 6, "efectos": [{"tipo": "mensaje", "texto": "Sin efecto."}]},
         "fracaso": [{"tipo": "recurso", "recurso": "moral", "delta": -1}],
         "jump": 1,
         "activar_cylons": True,
@@ -566,6 +577,7 @@ CRISIS_DECK = [
         "colores": ["Politica", "Liderazgo", "Pilotaje"],
         "dificultad": 11,
         "exito": [{"tipo": "mensaje", "texto": "Sin efecto."}],
+        "intermedio": {"umbral": 8, "efectos": [{"tipo": "recurso", "recurso": "poblacion", "delta": -1}]},
         "fracaso": [{"tipo": "recurso", "recurso": "moral", "delta": -1}, {"tipo": "recurso", "recurso": "poblacion", "delta": -1}],
         "jump": 1,
         "activar_cylons": True,
@@ -642,7 +654,7 @@ CRISIS_DECK = [
         "colores": ["Tactica", "Pilotaje", "Ingenieria"],
         "dificultad": 11,
         "exito": [{"tipo": "mensaje", "texto": "Sin efecto."}],
-        "fracaso": [{"tipo": "sickbay", "quien": "ubicacion:weapons"}],
+        "fracaso": [{"tipo": "danar_vipers", "cantidad": 2, "donde": "espacio"}, {"tipo": "sickbay", "quien": "ubicacion:weapons"}],
         "jump": 0,
         "activar_cylons": True,
     },
@@ -654,6 +666,7 @@ CRISIS_DECK = [
         "colores": ["Politica", "Liderazgo"],
         "dificultad": 10,
         "exito": [{"tipo": "mensaje", "texto": "Sin efecto."}],
+        "intermedio": {"umbral": 6, "efectos": [{"tipo": "recurso", "recurso": "moral", "delta": -1}]},
         "fracaso": [{"tipo": "recurso", "recurso": "moral", "delta": -1}, {"tipo": "elegir_objetivo", "quien": "activo", "accion": "sickbay"}],
         "jump": 1,
         "activar_cylons": True,
@@ -678,6 +691,7 @@ CRISIS_DECK = [
         "colores": ["Liderazgo", "Tactica"],
         "dificultad": 18,
         "exito": [{"tipo": "mensaje", "texto": "Sin efecto."}],
+        "intermedio": {"umbral": 14, "efectos": [{"tipo": "centuriones", "delta": 1}]},
         "fracaso": [{"tipo": "danar_galactica"}, {"tipo": "centuriones", "delta": 2}],
         "jump": 0,
         "activar_cylons": False,
