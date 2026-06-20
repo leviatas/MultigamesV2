@@ -305,9 +305,6 @@ async def process_hint_duo(bot, game, uid, word: str, number: int):
     if not dador or dador.uid != uid:
         await bot.send_message(uid, "No eres quien debe dar la pista ahora.")
         return
-    if " " in word:
-        await bot.send_message(uid, "La pista debe ser una sola palabra sin espacios.")
-        return
     if len(word) > 30:
         await bot.send_message(uid, "Ni los alemanes se animan a escribir una palabra tan larga, intenta de nuevo por favor... (Max 30 caracteres)")
         return
@@ -460,9 +457,6 @@ async def process_hint(bot, game, spymaster_uid, word: str, number: int):
         return
     if not spymaster or spymaster.uid != spymaster_uid:
         await bot.send_message(spymaster_uid, "No eres el espía activo.")
-        return
-    if " " in word:
-        await bot.send_message(spymaster_uid, "La pista debe ser una sola palabra sin espacios.")
         return
     if len(word) > 30:
         await bot.send_message(spymaster_uid, f"La pista es demasiado larga ({len(word)} caracteres). Máximo 30.")
