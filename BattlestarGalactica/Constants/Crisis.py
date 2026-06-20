@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
 """
-Mazo de Crisis del JUEGO BASE (61 cartas oficiales, hoja 'crisis' game=B).
+Mazo de Crisis del JUEGO BASE (59 cartas, hoja 'crisis' game=B).
+Nota: la hoja de origen incluía 2 filas espurias ("Admirals Quarters" y
+"Brig") que en realidad son acciones de ubicación de Galactica —ya
+modeladas en Locations.UBICACIONES—, no cartas de Crisis; se excluyen.
 Cada carta: colores/dificultad del chequeo, icono de salto (jump), activación
 de naves Cylon, decisor (activo/presidente/almirante) y el texto oficial.
 - tipo 'chequeo': Pass/Fail; si tiene 'alternativa', el decisor elige entre
@@ -718,30 +721,6 @@ CRISIS_DECK = [
         "dificultad": 15,
         "exito": [{"tipo": "mensaje", "texto": "Sin efecto."}],
         "fracaso": [{"tipo": "recurso", "recurso": "combustible", "delta": -1}, {"tipo": "recurso", "recurso": "comida", "delta": -1}, {"tipo": "recurso", "recurso": "poblacion", "delta": -1}],
-        "jump": 0,
-        "activar_cylons": False,
-    },
-    {
-        "titulo": "Admirals Quarters",
-        "texto": "Action: Choose a character, then pass this skill check to send him to the \"Brig\"",
-        "tipo": "chequeo",
-        "decisor": "activo",
-        "colores": ["Liderazgo", "Tactica"],
-        "dificultad": 7,
-        "exito": [{"tipo": "mensaje", "texto": "Sin efecto."}],
-        "fracaso": [{"tipo": "mensaje", "texto": "Sin efecto adicional."}],
-        "jump": 0,
-        "activar_cylons": False,
-    },
-    {
-        "titulo": "Brig",
-        "texto": "Action: Pass this skill check to move to any location",
-        "tipo": "chequeo",
-        "decisor": "activo",
-        "colores": ["Politica", "Tactica"],
-        "dificultad": 7,
-        "exito": [{"tipo": "mensaje", "texto": "Sin efecto."}],
-        "fracaso": [{"tipo": "mensaje", "texto": "Sin efecto adicional."}],
         "jump": 0,
         "activar_cylons": False,
     },
