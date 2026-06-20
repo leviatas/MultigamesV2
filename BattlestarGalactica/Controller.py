@@ -1233,6 +1233,11 @@ async def mover_jugador(bot, game, uid, destino):
     if destino not in Locations.UBICACIONES:
         await bot.send_message(game.cid, "Ubicación inválida.")
         return
+    if destino in getattr(st, "ubicaciones_bloqueadas", []):
+        nombre = Locations.UBICACIONES[destino]["nombre"].split(" (")[0]
+        await bot.send_message(game.cid, f"🚫 *{nombre}* está bloqueada el resto de la partida: no puedes entrar.",
+                               parse_mode=ParseMode.MARKDOWN)
+        return
     player.ubicacion = destino
     await bot.send_message(
         game.cid,
@@ -2620,6 +2625,25 @@ async def _danar_vipers(bot, game, cantidad, donde="reserva"):
     await bot.send_message(game.cid, f"✈️💥 Se dañan {danados} Viper(s) en {lugar} (dañados: {st.vipers_danados}).")
 
 
+async def _bloquear_ubicaciones(bot, game, nave=None, ubicacion=None):
+    """Bloquea ubicaciones el resto de la partida (nadie podrá moverse a ellas).
+    Se puede bloquear una nave entera (todas sus ubicaciones) o una sola."""
+    st = game.board.state
+    if not hasattr(st, "ubicaciones_bloqueadas") or st.ubicaciones_bloqueadas is None:
+        st.ubicaciones_bloqueadas = []
+    if nave:
+        keys = [k for k, v in Locations.UBICACIONES.items() if v.get("nave") == nave]
+    elif ubicacion:
+        keys = [ubicacion]
+    else:
+        keys = []
+    nuevas = [k for k in keys if k in Locations.UBICACIONES and k not in st.ubicaciones_bloqueadas]
+    st.ubicaciones_bloqueadas.extend(nuevas)
+    if nuevas:
+        nombres = ", ".join(Locations.UBICACIONES[k]["nombre"].split(" (")[0] for k in nuevas)
+        await bot.send_message(game.cid, f"🚫 Bloqueado el resto de la partida (no se puede entrar): {nombres}.")
+
+
 async def _recall_vipers(bot, game):
     """Devuelve a la reserva todos los Vipers SIN daños del tablero: los de las
     áreas del espacio y los que estén tripulados (vuelven al Hangar). Los Vipers
@@ -2880,6 +2904,8 @@ async def aplicar_efectos(bot, game, efectos):
             await _recall_vipers(bot, game)
         elif tipo == "danar_vipers":
             await _danar_vipers(bot, game, ef.get("cantidad", 1), ef.get("donde", "reserva"))
+        elif tipo == "bloquear":
+            await _bloquear_ubicaciones(bot, game, ef.get("nave"), ef.get("ubicacion"))
         elif tipo == "recrisis":
             st.recrisis_pendiente = True
             await bot.send_message(game.cid, "🔁 Tras el paso de activación Cylon se robará y resolverá una *nueva Crisis*.", parse_mode=ParseMode.MARKDOWN)

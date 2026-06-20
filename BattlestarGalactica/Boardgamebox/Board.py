@@ -85,7 +85,13 @@ class Board(BaseBoard):
         pres = game.playerlist.get(st.presidente_uid)
         alm = game.playerlist.get(st.almirante_uid)
         board += f"🏛️ Presidente: {pres.name if pres else '—'}\n"
-        board += f"🎖️ Almirante: {alm.name if alm else '—'}   ☢️ Ojivas: {st.nukes}\n\n"
+        board += f"🎖️ Almirante: {alm.name if alm else '—'}   ☢️ Ojivas: {st.nukes}\n"
+        bloqueadas = getattr(st, "ubicaciones_bloqueadas", None)
+        if bloqueadas:
+            nombres = ", ".join(Locations.UBICACIONES[k]["nombre"].split(" (")[0]
+                                for k in bloqueadas if k in Locations.UBICACIONES)
+            board += f"🚫 Bloqueadas: {nombres}\n"
+        board += "\n"
 
         board += "*Jugadores:*\n"
         for player in game.player_sequence:

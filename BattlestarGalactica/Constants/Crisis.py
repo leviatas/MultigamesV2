@@ -18,8 +18,9 @@ ubicación, p. ej. {"tipo":"sickbay","quien":"ubicacion:command"}), descartar
 Galactica), danar_galactica, titulo (transferir Presidente/Almirante),
 vipers_recall (devolver todos los Vipers sin daños a la reserva), recrisis
 (robar y resolver otra Crisis tras la activación Cylon), nuke_token (el
-Almirante descarta/recibe Ojivas Nucleares: delta) y danar_vipers
-(cantidad/donde: 'reserva' o 'espacio').
+Almirante descarta/recibe Ojivas Nucleares: delta), danar_vipers
+(cantidad/donde: 'reserva' o 'espacio') y bloquear (nave o ubicacion:
+nadie puede moverse allí el resto de la partida).
 El objetivo de sickbay/brig admite además 'nave:<Nave>' (todos los de esa nave).
 Los efectos que requieren que un jugador ELIJA un objetivo usan elegir_objetivo
 (quien=decisor, accion=brig/sickbay/loyalty_peek/presidencia, candidatos=
@@ -679,7 +680,7 @@ CRISIS_DECK = [
         "colores": ["Tactica", "Pilotaje", "Ingenieria"],
         "dificultad": 15,
         "exito": [{"tipo": "mensaje", "texto": "Sin efecto."}],
-        "fracaso": [{"tipo": "recurso", "recurso": "moral", "delta": -2}, {"tipo": "sickbay", "quien": "nave:Colonial One"}, {"tipo": "mensaje", "texto": "🚫 Nadie puede moverse a Colonial One el resto de la partida (control manual)."}],
+        "fracaso": [{"tipo": "recurso", "recurso": "moral", "delta": -2}, {"tipo": "sickbay", "quien": "nave:Colonial One"}, {"tipo": "bloquear", "nave": "Colonial One"}],
         "jump": 0,
         "activar_cylons": False,
     },

@@ -81,6 +81,10 @@ class State(BaseState):
         # --- Naves civiles aún no desplegadas (con carga oculta) ---
         self.civiles_pile = []
 
+        # --- Ubicaciones bloqueadas el resto de la partida (claves de ubicación) ---
+        # p. ej. Colonial One tras "Bomb on Colonial One": nadie puede moverse allí.
+        self.ubicaciones_bloqueadas = []
+
         # --- Daño a Galactica por ubicaciones (tokens de avería) ---
         # Cada token avería una ubicación de Galactica (deshabilita su acción
         # hasta repararla). Cuando las 6 ubicaciones quedan averiadas, Galactica
