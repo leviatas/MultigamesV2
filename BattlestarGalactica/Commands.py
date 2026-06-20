@@ -726,6 +726,8 @@ async def command_mover(update: Update, context: CallbackContext):
             continue
         if key == player.ubicacion:
             continue
+        if key in getattr(st, "ubicaciones_bloqueadas", []):
+            continue
         btns.append([InlineKeyboardButton(info["nombre"], callback_data=f"{cid}*bsgMover*{key}*{uid}")])
     await bot.send_message(cid, "📍 ¿A dónde quieres moverte?",
                            reply_markup=InlineKeyboardMarkup(btns))
