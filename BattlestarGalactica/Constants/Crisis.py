@@ -14,8 +14,9 @@ mensaje, prophecy y, además: sickbay/brig (enviar a un rol o a todos los de una
 ubicación, p. ej. {"tipo":"sickbay","quien":"ubicacion:command"}), descartar
 (descarte forzado: quien/cantidad/modo), civiles (colocar naves civiles tras
 Galactica), danar_galactica, titulo (transferir Presidente/Almirante),
-vipers_recall (devolver todos los Vipers sin daños a la reserva) y recrisis
-(robar y resolver otra Crisis tras la activación Cylon).
+vipers_recall (devolver todos los Vipers sin daños a la reserva), recrisis
+(robar y resolver otra Crisis tras la activación Cylon) y nuke_token (el
+Almirante descarta/recibe Ojivas Nucleares: delta).
 El objetivo de sickbay/brig admite además 'nave:<Nave>' (todos los de esa nave).
 Los efectos que requieren que un jugador ELIJA un objetivo usan elegir_objetivo
 (quien=decisor, accion=brig/sickbay/loyalty_peek, candidatos=todos/otros o lista
@@ -80,7 +81,7 @@ CRISIS_DECK = [
         "texto": "Admiral Chooses: Discard 1 Nuke Token. If you do not have any Nuke tokens, you may not choose this option. OR -1 Morale, and the Admiral discards 2 Skill Cards.",
         "tipo": "eleccion",
         "decisor": "almirante",
-        "opciones": [{"label": "A) Discard 1 Nuke Token. If you do not have any Nuke to…", "efectos": [{"tipo": "mensaje", "texto": "El Almirante descarta 1 token de Ojiva Nuclear (mecánica pendiente; control manual)."}]}, {"label": "B) -1 Morale, and the Admiral discards 2 Skill Cards", "efectos": [{"tipo": "recurso", "recurso": "moral", "delta": -1}, {"tipo": "descartar", "quien": "almirante", "cantidad": 2}]}],
+        "opciones": [{"label": "A) Descartar 1 Ojiva Nuclear (si tienes)", "efectos": [{"tipo": "nuke_token", "delta": -1}]}, {"label": "B) -1 Morale, and the Admiral discards 2 Skill Cards", "efectos": [{"tipo": "recurso", "recurso": "moral", "delta": -1}, {"tipo": "descartar", "quien": "almirante", "cantidad": 2}]}],
         "jump": 0,
         "activar_cylons": True,
     },

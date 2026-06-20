@@ -29,7 +29,7 @@ UBICACIONES = {
     "weapons": {
         "nombre": "Control de Armas (Galactica)",
         "nave": GALACTICA,
-        "accion": "Atacar 1 nave Cylon con Galactica.",
+        "accion": "Atacar 1 nave Cylon con Galactica. El Almirante puede lanzar una Ojiva Nuclear (limpia un área).",
     },
     "command": {
         "nombre": "Comando (Galactica)",

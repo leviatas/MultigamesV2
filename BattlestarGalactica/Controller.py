@@ -15,6 +15,8 @@ Implementado en esta capa:
 - Salto FTL, condiciones de victoria/derrota.
 - Combate espacial posicional: Vipers tripulados, Heavy Raiders, abordaje.
 - Daño a Galactica por ubicaciones e iconos de activación Cylon por crisis.
+- Ojivas Nucleares: el Almirante tiene 2 al inicio; desde Control de Armas
+  lanza una sobre un área y destruye TODAS sus naves Cylon (consume 1 Ojiva).
 
 - Cartas de habilidad jugables con /jugar: de acción (Consolidate Power,
   Repair, Maximum Firepower, Launch Scout, Executive Order) y reactivas que se
@@ -686,7 +688,7 @@ async def _reparar_galactica(bot, game, player, loc=None):
 # Acciones disponibles por ubicación (clave -> lista de acciones), según el set oficial.
 ACCIONES_UBICACION = {
     "ftl": ["jump"],
-    "weapons": ["shoot_raider", "shoot_basestar"],
+    "weapons": ["shoot_raider", "shoot_basestar", "launch_nuke"],
     "command": ["activate_vipers"],
     "communications": ["peek_civiles"],
     "admiral_quarters": ["brig_check"],
@@ -704,7 +706,9 @@ ACCIONES_UBICACION = {
 ACCIONES_CON_OBJETIVO = {"brig_check": "brig", "president_check": "president"}
 
 # Acciones que requieren elegir un ÁREA del espacio (Control de Armas) → tipo de nave
-ACCIONES_CON_AREA = {"shoot_raider": "raiders", "shoot_basestar": "basestars"}
+# ("cualquiera" = áreas con cualquier nave Cylon, p. ej. la Ojiva Nuclear).
+ACCIONES_CON_AREA = {"shoot_raider": "raiders", "shoot_basestar": "basestars",
+                     "launch_nuke": "cualquiera"}
 
 # Acciones disponibles mientras se pilota un Viper tripulado.
 ACCIONES_PILOTO = ["pilot_attack", "pilot_move", "pilot_land"]
@@ -716,6 +720,7 @@ ETIQUETA_ACCION = {
     "jump": "🌌 Saltar la flota (FTL)",
     "shoot_raider": "🔫 Disparar a un Raider",
     "shoot_basestar": "💥 Disparar a una Basestar",
+    "launch_nuke": "☢️ Lanzar Ojiva Nuclear (Almirante)",
     "activate_vipers": "✈️ Activar Vipers (atacan Raiders)",
     "peek_civiles": "🔭 Inspeccionar naves civiles",
     "brig_check": "🚔 Enviar a alguien al Calabozo (chequeo)",
@@ -755,6 +760,11 @@ async def ejecutar_accion_ubicacion(bot, game, uid, accion, objetivo=None):
         await _disparar(bot, game, "raider", objetivo)
     elif accion == "shoot_basestar":
         await _disparar(bot, game, "basestar", objetivo)
+    elif accion == "launch_nuke":
+        if uid != st.almirante_uid and uid not in ADMIN:
+            await bot.send_message(game.cid, "☢️ Solo el Almirante puede lanzar Ojivas Nucleares.")
+            return
+        await _nuke(bot, game, objetivo)
     elif accion == "activate_vipers":
         # Comando: hasta 2 activaciones de Vipers sin tripular (atacar o mover).
         await _activar_vipers_comando(bot, game)
@@ -1172,34 +1182,48 @@ async def _activar_un_viper(bot, game):
             return
 
 
+def _areas_con_cylons(st):
+    """Áreas del espacio que contienen alguna nave Cylon (Raiders, Heavy Raiders
+    o Basestars)."""
+    return [i for i, a in enumerate(st.areas)
+            if a["raiders"] > 0 or a.get("heavy_raiders", 0) > 0 or a["basestars"]]
+
+
 async def _nuke(bot, game, area_idx=None):
-    """Ataque nuclear del Almirante (1 por juego) sobre una Basestar."""
+    """Lanza una Ojiva Nuclear del Almirante sobre un área del espacio: destruye
+    TODAS las naves Cylon de esa área (Raiders, Heavy Raiders y Basestars).
+    Consume 1 Ojiva (hay 2 al inicio de la partida)."""
     st = game.board.state
-    if st.nuke_usado:
-        await bot.send_message(game.cid, "El ataque nuclear ya fue utilizado.")
+    if st.nukes <= 0:
+        await bot.send_message(game.cid, "☢️ No quedan Ojivas Nucleares.")
         return
-    objetivos = _areas_con(st, "basestars")
+    objetivos = _areas_con_cylons(st)
     if not objetivos:
-        await bot.send_message(game.cid, "No hay Basestars para atacar.")
+        await bot.send_message(game.cid, "No hay naves Cylon en el espacio a las que disparar.")
         return
     if area_idx is None or area_idx not in objetivos:
         area_idx = objetivos[0]
-    st.nuke_usado = True
+    st.nukes -= 1
     area = st.areas[area_idx]
-    r = _tirar_ataque(st)
-    await bot.send_message(game.cid, f"☢️ *¡ATAQUE NUCLEAR!* Tirada {r} sobre {Space.nombre(area_idx)}.", parse_mode=ParseMode.MARKDOWN)
-    if r <= 2:
-        await _danar_basestar(bot, game, area_idx, cantidad=2)
-    else:
-        if area["basestars"]:
-            k = max(range(len(area["basestars"])), key=lambda j: area["basestars"][j])
-            area["basestars"].pop(k)
-            await bot.send_message(game.cid, "🛸💀 ¡Basestar destruida por el ataque nuclear!")
-        if r >= 7:
-            destr = min(3, area["raiders"])
-            area["raiders"] -= destr
-            if destr:
-                await bot.send_message(game.cid, f"💥 La explosión destruye {destr} Raider(s) en {Space.nombre(area_idx)}.")
+    nb, nr, nh = len(area["basestars"]), area["raiders"], area.get("heavy_raiders", 0)
+    area["basestars"] = []
+    area["raiders"] = 0
+    area["heavy_raiders"] = 0
+    partes = []
+    if nb:
+        partes.append(f"{nb} Basestar(s)")
+    if nr:
+        partes.append(f"{nr} Raider(s)")
+    if nh:
+        partes.append(f"{nh} Heavy Raider(s)")
+    destruidas = ", ".join(partes) if partes else "el área (sin naves)"
+    await bot.send_message(
+        game.cid,
+        f"☢️ *¡OJIVA NUCLEAR sobre {Space.nombre(area_idx)}!* Se destruye(n) {destruidas}. "
+        f"Ojivas restantes: {st.nukes}.",
+        parse_mode=ParseMode.MARKDOWN,
+    )
+    await _chequear_fin(bot, game)
 
 
 async def mover_jugador(bot, game, uid, destino):
@@ -2797,6 +2821,14 @@ async def aplicar_efectos(bot, game, efectos):
         elif tipo == "civiles":
             n = _colocar_civiles(st, ef.get("cantidad", 1))
             await bot.send_message(game.cid, f"🛰️ Aparece(n) {n} nave(s) civil(es) tras Galactica (total: {st.total_civiles()}).")
+        elif tipo == "nuke_token":
+            delta = ef.get("delta", -1)
+            if delta < 0 and st.nukes <= 0:
+                await bot.send_message(game.cid, "☢️ El Almirante no tiene Ojivas Nucleares que descartar.")
+            else:
+                st.nukes = max(0, st.nukes + delta)
+                verbo = "descarta" if delta < 0 else "recibe"
+                await bot.send_message(game.cid, f"☢️ El Almirante {verbo} {abs(delta)} Ojiva(s) Nuclear(es) (quedan {st.nukes}).")
         elif tipo == "vipers_recall":
             await _recall_vipers(bot, game)
         elif tipo == "recrisis":
