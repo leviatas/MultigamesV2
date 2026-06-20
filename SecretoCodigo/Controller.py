@@ -30,6 +30,11 @@ def _hist(st):
     return st.historial
 
 
+def format_numero_pista(numero: int) -> str:
+    """Muestra el número de pista original (-1 o 0) junto con el símbolo de infinito."""
+    return f"{numero} (∞)" if numero in (0, -1) else str(numero)
+
+
 async def init_game(bot, game):
     try:
         log.info('SecretoCodigo init_game called')
@@ -325,7 +330,7 @@ async def process_hint_duo(bot, game, uid, word: str, number: int):
         game.cid,
         photo=game.board.render_duo_board_image(game),
         caption=(
-            f"💬 Pista de *{dador.name}*: *{word.upper()}* — {'∞' if infinito else number}\n"
+            f"💬 Pista de *{dador.name}*: *{word.upper()}* — {format_numero_pista(number)}\n"
             f"{player_call(receptor)}, usa `/pick NUMERO` o `/pickb` (botonera) para adivinar (en el grupo). "
             f"Hasta *{intentos_str}* intentos o `/endturn` para pasar."
         ),
@@ -483,7 +488,7 @@ async def process_hint(bot, game, spymaster_uid, word: str, number: int):
         if not game.is_spymaster(p.uid)
     )
     caption_pista = (
-        f"💬 Pista del espía *{team}*: *{word.upper()}* — {'∞' if infinito else number}\n"
+        f"💬 Pista del espía *{team}*: *{word.upper()}* — {format_numero_pista(number)}\n"
         f"{field_mentions} usen `/pick NUMERO` o `/pickb` (botonera) para elegir una carta.\n"
         f"Hasta *{intentos_str}* intentos o `/endturn` para pasar."
     )
@@ -680,7 +685,7 @@ async def myturn_message(game, uid) -> str:
         if "Pista" in fase and dador and dador.uid == uid:
             return f"Partida {group}: es tu turno de dar pista. Usa `/hint PALABRA NUMERO`"
         if "Adivinar" in fase and receptor and receptor.uid == uid:
-            return f"Partida {group}: debes adivinar. Pista: *{st.pista_actual}* — {st.numero_pista}. Usa `/pick NUMERO`"
+            return f"Partida {group}: debes adivinar. Pista: *{st.pista_actual}* — {format_numero_pista(st.numero_pista)}. Usa `/pick NUMERO`"
         return None
 
     sm_r = game.board.state.spymaster_rojo
@@ -695,5 +700,5 @@ async def myturn_message(game, uid) -> str:
         if game.is_field_operative(uid, team):
             pista = game.board.state.pista_actual
             numero = game.board.state.numero_pista
-            return f"Partida {group}: equipo {team} debe adivinar. Pista: *{pista}* — {numero}. Usa `/pick NUMERO`"
+            return f"Partida {group}: equipo {team} debe adivinar. Pista: *{pista}* — {format_numero_pista(numero)}. Usa `/pick NUMERO`"
     return None

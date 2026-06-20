@@ -4,6 +4,7 @@ import urllib.parse
 
 import psycopg
 import SecretoCodigo.Controller as SecretoCodigoController
+from SecretoCodigo.Controller import format_numero_pista
 from Utils import get_game, save, player_call, simple_choose_buttons
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
@@ -423,7 +424,7 @@ async def command_history(update: Update, context: CallbackContext):
         dador = entrada["dador"]
         pista = entrada["pista"]
         numero = entrada["numero"]
-        numero_str = "∞" if numero in (0, -1) else str(numero)
+        numero_str = format_numero_pista(numero)
 
         if game.modo == "Cooperativo":
             lines.append(f"👤 *{dador}* (Jugador {turno}) — *{pista}* ({numero_str})")
@@ -477,7 +478,7 @@ async def command_call(bot, game):
             )
         elif "Adivinar" in fase:
             intentos_display = "∞" if st.intentos_restantes >= 999 else st.intentos_restantes
-            numero_display = "∞" if st.numero_pista in (0, -1) else st.numero_pista
+            numero_display = format_numero_pista(st.numero_pista)
             await bot.send_photo(
                 game.cid,
                 photo=game.board.render_duo_board_image(game),
@@ -520,7 +521,7 @@ async def command_call(bot, game):
         numero = game.board.state.numero_pista
         intentos = game.board.state.intentos_restantes
         intentos_display = "∞" if intentos >= 999 else intentos
-        numero_display = "∞" if numero in (0, -1) else numero
+        numero_display = format_numero_pista(numero)
         await bot.send_photo(
             game.cid,
             photo=game.board.render_board_image(game),
