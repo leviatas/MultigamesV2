@@ -47,14 +47,14 @@ async def command_hint(update: Update, context: CallbackContext):
         await bot.send_message(uid, "Uso: /hint PALABRA NUMERO  (ej: /hint ANIMAL 3)")
         return
 
-    word = args[0]
+    word = " ".join(args[:-1])
     if word.lstrip('-').isdigit():
         await bot.send_message(uid, "La pista debe ser una palabra, no un número. Uso: `/hint PALABRA NUMERO`", parse_mode=ParseMode.MARKDOWN)
         return
     try:
-        number = int(args[1])
+        number = int(args[-1])
     except ValueError:
-        await bot.send_message(uid, "El segundo argumento debe ser un número entero.")
+        await bot.send_message(uid, "El último argumento debe ser un número entero.")
         return
 
     if not (-1 <= number <= 9):
