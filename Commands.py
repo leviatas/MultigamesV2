@@ -53,7 +53,7 @@ from Constants.Cards import modos_juego
 
 from Constants.Config import JUEGOS_DISPONIBLES
 from Constants.Config import MODULOS_DISPONIBES
-from Constants.Config import HOJAS_AYUDA
+from Constants.Config import HOJAS_AYUDA, COMANDOS_JUEGO
 
 from Constants.Cards import comandos
 import random
@@ -238,7 +238,11 @@ async def command_help(update: Update, context: CallbackContext):
 	"Eventos Azules son opcionales\n"
 	'''
 	help_text = "\nLos siguientes comandos estan disponibles:\n"
-	help_text += commands	
+	help_text += commands
+	# Si hay una partida activa con comandos propios, los agregamos.
+	game = get_game(cid)
+	if game and getattr(game, "tipo", None) in COMANDOS_JUEGO:
+		help_text += "\n\n" + COMANDOS_JUEGO[game.tipo]
 	await bot.send_message(cid, help_text)
 		
 async def command_symbols(update: Update, context: CallbackContext):

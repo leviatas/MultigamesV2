@@ -120,6 +120,30 @@ HOJAS_AYUDA = {
 		"`/mirol`: ver tu rol en privado."
 }
 
+# Comandos específicos de cada juego, para que /help los muestre cuando hay una
+# partida de ese tipo activa en el chat (además de los comandos generales).
+COMANDOS_JUEGO = {
+        "BattlestarGalactica":
+		"🚀 Comandos de Battlestar Galactica:\n"
+		"/estado - Resumen del estado de la partida\n"
+		"/mapa - Mapa de texto de la flota (ubicaciones y espacio)\n"
+		"/mapaimg - Imagen del tablero\n"
+		"/info - Tu personaje y tus datos (en privado)\n"
+		"/lealtad - Ver tu carta de lealtad (en privado)\n"
+		"/mano - Ver tu mano de cartas de habilidad (en privado)\n"
+		"/mover - Moverte a otra ubicación\n"
+		"/accion - Usar la acción de tu ubicación\n"
+		"/crisis - Revelar y resolver la Crisis\n"
+		"/aportar N - Aportar la carta N de tu mano a un chequeo (en privado)\n"
+		"/resolver - Resolver el chequeo de habilidad\n"
+		"/jugar - Jugar una carta de habilidad de acción\n"
+		"/quorum - (Presidente) Jugar una carta de Quórum\n"
+		"/habilidad - Usar tu habilidad de una vez por juego\n"
+		"/revelar - (Cylon) Revelarte\n"
+		"/encarcelar - Enviar a un jugador al Calabozo\n"
+		"/liberar - Liberar a un jugador del Calabozo"
+}
+
 MODULOS_DISPONIBES = {
         "LostExpedition" : {
                 "Solitario" : {
