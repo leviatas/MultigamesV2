@@ -76,7 +76,7 @@ class State(BaseState):
         self.areas = [Space.nueva_area() for _ in range(Space.N_AREAS)]
         self.vipers_reserva = 8
         self.vipers_danados = 0           # Vipers dañados (fuera de combate hasta reparar)
-        self.nuke_usado = False           # ataque nuclear del Almirante (1 por juego)
+        self.nukes = 2                    # Ojivas Nucleares del Almirante (2 al inicio)
 
         # --- Naves civiles aún no desplegadas (con carga oculta) ---
         self.civiles_pile = []

@@ -85,7 +85,7 @@ class Board(BaseBoard):
         pres = game.playerlist.get(st.presidente_uid)
         alm = game.playerlist.get(st.almirante_uid)
         board += f"🏛️ Presidente: {pres.name if pres else '—'}\n"
-        board += f"🎖️ Almirante: {alm.name if alm else '—'}\n\n"
+        board += f"🎖️ Almirante: {alm.name if alm else '—'}   ☢️ Ojivas: {st.nukes}\n\n"
 
         board += "*Jugadores:*\n"
         for player in game.player_sequence:

@@ -505,7 +505,10 @@ async def command_accion(update: Update, context: CallbackContext):
                                parse_mode=ParseMode.MARKDOWN)
         return
 
-    acciones = BSGController.ACCIONES_UBICACION.get(player.ubicacion, [])
+    acciones = list(BSGController.ACCIONES_UBICACION.get(player.ubicacion, []))
+    # La Ojiva Nuclear solo se ofrece al Almirante y si quedan Ojivas.
+    if "launch_nuke" in acciones and (uid != st.almirante_uid or st.nukes <= 0):
+        acciones.remove("launch_nuke")
     if not acciones:
         await bot.send_message(cid, f"📍 {ubic}: no hay acción disponible aquí. Usa `/crisis`.",
                                parse_mode=ParseMode.MARKDOWN)
@@ -559,7 +562,12 @@ async def callback_bsg_accion(update: Update, context: CallbackContext):
             tipo = BSGController.ACCIONES_CON_AREA[accion]
             btns = []
             for i, a in enumerate(st.areas):
-                cant = a["raiders"] if tipo == "raiders" else len(a["basestars"])
+                if tipo == "raiders":
+                    cant = a["raiders"]
+                elif tipo == "basestars":
+                    cant = len(a["basestars"])
+                else:  # "cualquiera": cualquier nave Cylon (Ojiva Nuclear)
+                    cant = a["raiders"] + a.get("heavy_raiders", 0) + len(a["basestars"])
                 if cant > 0:
                     btns.append([InlineKeyboardButton(
                         f"{Space.nombre(i)} ({cant})",
