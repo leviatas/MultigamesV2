@@ -10,7 +10,8 @@ Implementado en esta capa:
 - Recibir Habilidades fiel al set del personaje: se roba el set completo cada
   turno; los slots fijos se reparten solos y los de elección (p. ej. Apolo,
   Liderazgo/Política) los decide el jugador.
-- Chequeos de habilidad con mazo de Destino.
+- Chequeos de habilidad con mazo de Destino, con escalón intermedio opcional
+  ("Pass / N+ / Fail") cuando la carta define 'intermedio'.
 - Fase del Agente Durmiente (distancia 4).
 - Salto FTL, condiciones de victoria/derrota.
 - Combate espacial posicional: Vipers tripulados, Heavy Raiders, abordaje.
@@ -2406,11 +2407,21 @@ async def resolver_chequeo(bot, game):
         notas.append("Adama: fuerza 1 positiva")
 
     exito = total >= dificultad
+    # Escalón intermedio (cartas "Pass / N+ / Fail"): por encima del umbral
+    # parcial pero sin alcanzar la dificultad (Pass) se aplica un efecto medio.
+    crisis = st.crisis_actual
+    intermedio = crisis.get("intermedio") if crisis else None
+    if exito:
+        resultado_txt = "✅ ÉXITO"
+    elif intermedio and total >= intermedio["umbral"]:
+        resultado_txt = f"🟨 PARCIAL ({intermedio['umbral']}+)"
+    else:
+        resultado_txt = "❌ FRACASO"
     extra = (" (" + "; ".join(notas) + ")") if notas else ""
     await bot.send_message(
         game.cid,
         f"🎲 Resultado del chequeo: *{total}* vs dificultad *{dificultad}*{extra} → "
-        f"{'✅ ÉXITO' if exito else '❌ FRACASO'}\n"
+        f"{resultado_txt}\n"
         f"Cartas: {' '.join(detalle) if detalle else '(ninguna)'}",
         parse_mode=ParseMode.MARKDOWN,
     )
@@ -2420,9 +2431,13 @@ async def resolver_chequeo(bot, game):
         await _resolver_chequeo_ubicacion(bot, game, sc, total, exito)
         return
 
-    crisis = st.crisis_actual
     st.skill_check = None
-    efectos = crisis["exito"] if exito else crisis["fracaso"]
+    if exito:
+        efectos = crisis["exito"]
+    elif intermedio and total >= intermedio["umbral"]:
+        efectos = intermedio["efectos"]
+    else:
+        efectos = crisis["fracaso"]
     if await aplicar_efectos(bot, game, efectos):
         await cerrar_crisis(bot, game, crisis)
 
@@ -2583,6 +2598,28 @@ async def _descartar_skills(bot, game, player, cantidad, modo="azar"):
     await bot.send_message(player.uid, f"🗑️ Descartaste {n} carta(s) de habilidad (te quedan {len(player.skill_hand)}).")
 
 
+async def _danar_vipers(bot, game, cantidad, donde="reserva"):
+    """Daña Vipers (pasan a 'dañados', fuera de combate hasta repararlos).
+    donde: 'reserva' (de la reserva) | 'espacio' (desplegados en las áreas)."""
+    st = game.board.state
+    danados = 0
+    if donde == "reserva":
+        n = min(cantidad, st.vipers_reserva)
+        st.vipers_reserva -= n
+        st.vipers_danados += n
+        danados = n
+    else:  # 'espacio'
+        restantes = cantidad
+        for a in st.areas:
+            while restantes > 0 and a["vipers"] > 0:
+                a["vipers"] -= 1
+                st.vipers_danados += 1
+                restantes -= 1
+                danados += 1
+    lugar = "la reserva" if donde == "reserva" else "el espacio"
+    await bot.send_message(game.cid, f"✈️💥 Se dañan {danados} Viper(s) en {lugar} (dañados: {st.vipers_danados}).")
+
+
 async def _recall_vipers(bot, game):
     """Devuelve a la reserva todos los Vipers SIN daños del tablero: los de las
     áreas del espacio y los que estén tripulados (vuelven al Hangar). Los Vipers
@@ -2645,6 +2682,7 @@ _ETIQUETA_ACCION_OBJETIVO = {
     "brig": ("enviar al Calabozo", "🔒"),
     "sickbay": ("enviar a la Enfermería", "🏥"),
     "loyalty_peek": ("inspeccionar una carta de lealtad", "🔍"),
+    "presidencia": ("ceder la Presidencia", "🏛️"),
 }
 
 
@@ -2725,6 +2763,15 @@ async def _aplicar_accion_objetivo(bot, game, chooser, target, accion):
         await _enviar_sickbay(bot, game, target)
     elif accion == "loyalty_peek":
         await _inspeccionar_lealtad(bot, game, chooser, target)
+    elif accion == "presidencia":
+        st = game.board.state
+        anterior = game.playerlist.get(st.presidente_uid)
+        if anterior and anterior.uid != target.uid:
+            anterior.titulos = [t for t in anterior.titulos if t != "Presidente"]
+        st.presidente_uid = target.uid
+        if "Presidente" not in target.titulos:
+            target.titulos.append("Presidente")
+        await bot.send_message(game.cid, f"🏛️ *{target.name}* recibe el título de Presidente.", parse_mode=ParseMode.MARKDOWN)
 
 
 async def resolver_eleccion_objetivo(bot, game, target_token):
@@ -2831,6 +2878,8 @@ async def aplicar_efectos(bot, game, efectos):
                 await bot.send_message(game.cid, f"☢️ El Almirante {verbo} {abs(delta)} Ojiva(s) Nuclear(es) (quedan {st.nukes}).")
         elif tipo == "vipers_recall":
             await _recall_vipers(bot, game)
+        elif tipo == "danar_vipers":
+            await _danar_vipers(bot, game, ef.get("cantidad", 1), ef.get("donde", "reserva"))
         elif tipo == "recrisis":
             st.recrisis_pendiente = True
             await bot.send_message(game.cid, "🔁 Tras el paso de activación Cylon se robará y resolverá una *nueva Crisis*.", parse_mode=ParseMode.MARKDOWN)
