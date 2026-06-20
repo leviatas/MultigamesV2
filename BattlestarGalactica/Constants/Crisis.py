@@ -14,7 +14,9 @@ mensaje, prophecy y, además: sickbay/brig (enviar a un rol o a todos los de una
 ubicación, p. ej. {"tipo":"sickbay","quien":"ubicacion:command"}), descartar
 (descarte forzado: quien/cantidad/modo), civiles (colocar naves civiles tras
 Galactica), danar_galactica y titulo (transferir Presidente/Almirante).
-Los efectos que requieren que un jugador ELIJA un objetivo se muestran por texto.
+Los efectos que requieren que un jugador ELIJA un objetivo usan elegir_objetivo
+(quien=decisor, accion=brig/sickbay/loyalty_peek, candidatos=todos/otros o lista
+de roles, opcional=True si "puede" elegir): pausan la crisis y abren una botonera.
 """
 
 CRISIS_DECK = [
@@ -26,7 +28,7 @@ CRISIS_DECK = [
         "colores": ["Politica", "Liderazgo"],
         "dificultad": 8,
         "exito": [{"tipo": "mensaje", "texto": "Sin efecto."}],
-        "fracaso": [{"tipo": "mensaje", "texto": "Sin efecto adicional."}],
+        "fracaso": [{"tipo": "elegir_objetivo", "quien": "activo", "accion": "brig"}],
         "alternativa": {"label": "🛡️ The Current Player discards 5 Skill Cards", "efectos": [{"tipo": "descartar", "quien": "activo", "cantidad": 5}]},
         "jump": 1,
         "activar_cylons": True,
@@ -137,7 +139,7 @@ CRISIS_DECK = [
         "colores": ["Politica", "Liderazgo"],
         "dificultad": 9,
         "exito": [{"tipo": "mensaje", "texto": "Sin efecto."}],
-        "fracaso": [{"tipo": "recurso", "recurso": "moral", "delta": -1}],
+        "fracaso": [{"tipo": "recurso", "recurso": "moral", "delta": -1}, {"tipo": "elegir_objetivo", "quien": "activo", "accion": "loyalty_peek", "candidatos": ["presidente", "almirante"]}],
         "alternativa": {"label": "🛡️ Each player discards 2 Skill Cards", "efectos": [{"tipo": "descartar", "quien": "todos", "cantidad": 2}]},
         "jump": 0,
         "activar_cylons": True,
@@ -241,7 +243,7 @@ CRISIS_DECK = [
         "decisor": "activo",
         "colores": ["Liderazgo", "Tactica"],
         "dificultad": 9,
-        "exito": [{"tipo": "mensaje", "texto": "Sin efecto."}],
+        "exito": [{"tipo": "elegir_objetivo", "quien": "activo", "accion": "brig", "opcional": True}],
         "fracaso": [{"tipo": "recurso", "recurso": "moral", "delta": -1}],
         "jump": 1,
         "activar_cylons": True,
@@ -265,7 +267,7 @@ CRISIS_DECK = [
         "decisor": "activo",
         "colores": ["Politica", "Liderazgo"],
         "dificultad": 7,
-        "exito": [{"tipo": "mensaje", "texto": "Sin efecto."}],
+        "exito": [{"tipo": "elegir_objetivo", "quien": "activo", "accion": "loyalty_peek", "candidatos": "otros"}],
         "fracaso": [{"tipo": "recurso", "recurso": "moral", "delta": -2}],
         "alternativa": {"label": "🛡️ Roll a die. On a 4 or lower, -1 Morale and -1 Popula…", "efectos": [{"tipo": "recurso", "recurso": "moral", "delta": -1}, {"tipo": "recurso", "recurso": "poblacion", "delta": -1}]},
         "jump": 1,
@@ -339,7 +341,7 @@ CRISIS_DECK = [
         "decisor": "activo",
         "colores": ["Politica", "Liderazgo"],
         "dificultad": 13,
-        "exito": [{"tipo": "mensaje", "texto": "Sin efecto."}],
+        "exito": [{"tipo": "elegir_objetivo", "quien": "presidente", "accion": "loyalty_peek", "candidatos": ["activo"]}],
         "fracaso": [{"tipo": "recurso", "recurso": "moral", "delta": -1}],
         "jump": 1,
         "activar_cylons": True,
@@ -547,7 +549,7 @@ CRISIS_DECK = [
         "decisor": "activo",
         "colores": ["Politica", "Liderazgo"],
         "dificultad": 12,
-        "exito": [{"tipo": "mensaje", "texto": "Sin efecto."}],
+        "exito": [{"tipo": "elegir_objetivo", "quien": "activo", "accion": "loyalty_peek", "candidatos": "otros"}],
         "fracaso": [{"tipo": "recurso", "recurso": "moral", "delta": -1}],
         "jump": 1,
         "activar_cylons": True,
@@ -648,7 +650,7 @@ CRISIS_DECK = [
         "colores": ["Politica", "Liderazgo"],
         "dificultad": 10,
         "exito": [{"tipo": "mensaje", "texto": "Sin efecto."}],
-        "fracaso": [{"tipo": "recurso", "recurso": "moral", "delta": -1}],
+        "fracaso": [{"tipo": "recurso", "recurso": "moral", "delta": -1}, {"tipo": "elegir_objetivo", "quien": "activo", "accion": "sickbay"}],
         "jump": 1,
         "activar_cylons": True,
     },

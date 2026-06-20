@@ -42,10 +42,11 @@ Implementado en esta capa:
   descartes forzados (al azar o las de menor fuerza), colocar naves civiles tras
   Galactica, dañar Galactica y transferir títulos (Presidente/Almirante).
 
-Pendiente para capas siguientes (claramente acotado):
-- Efectos de crisis que exigen que un jugador ELIJA un objetivo (p. ej. "el
-  Jugador Actual elige un personaje y lo envía al Calabozo"): hoy se describen
-  por texto; falta su selección interactiva.
+- Selección interactiva de objetivo (efecto "elegir_objetivo"): los efectos que
+  exigen que un jugador ELIJA un personaje (enviarlo al Calabozo/Enfermería o
+  inspeccionar una de sus cartas de lealtad) pausan la resolución de la crisis,
+  muestran una botonera al decisor y la reanudan al confirmar la elección.
+  aplicar_efectos devuelve False mientras la elección está pendiente.
 """
 
 import logging as log
@@ -1999,8 +2000,8 @@ async def _presentar_crisis(bot, game, crisis):
     elif crisis["tipo"] == "voto":
         await abrir_voto(bot, game, crisis)
     else:
-        await aplicar_efectos(bot, game, crisis.get("efectos", []))
-        await cerrar_crisis(bot, game, crisis)
+        if await aplicar_efectos(bot, game, crisis.get("efectos", [])):
+            await cerrar_crisis(bot, game, crisis)
 
 
 def _decisor_uid(game, decisor):
@@ -2045,8 +2046,8 @@ async def resolver_decision_crisis(bot, game, opcion):
     else:
         alt = crisis.get("alternativa", {})
         await bot.send_message(game.cid, f"🛡️ Se toma la alternativa: *{alt.get('label','')}*", parse_mode=ParseMode.MARKDOWN)
-        await aplicar_efectos(bot, game, alt.get("efectos", []))
-        await cerrar_crisis(bot, game, crisis)
+        if await aplicar_efectos(bot, game, alt.get("efectos", [])):
+            await cerrar_crisis(bot, game, crisis)
 
 
 # ---- Crisis de decisión ----
@@ -2074,8 +2075,8 @@ async def resolver_eleccion(bot, game, indice):
         return
     opcion = crisis["opciones"][indice]
     await bot.send_message(game.cid, f"➡️ Se elige: *{opcion['label']}*", parse_mode=ParseMode.MARKDOWN)
-    await aplicar_efectos(bot, game, opcion.get("efectos", []))
-    await cerrar_crisis(bot, game, crisis)
+    if await aplicar_efectos(bot, game, opcion.get("efectos", [])):
+        await cerrar_crisis(bot, game, crisis)
 
 
 # ---- Crisis de voto ----
@@ -2137,8 +2138,8 @@ async def resolver_voto_crisis(bot, game):
                 ganadora = pres_voto
     opcion = crisis["opciones"][ganadora]
     await bot.send_message(game.cid, f"🗳️ Gana la opción: *{opcion['label']}*", parse_mode=ParseMode.MARKDOWN)
-    await aplicar_efectos(bot, game, opcion.get("efectos", []))
-    await cerrar_crisis(bot, game, crisis)
+    if await aplicar_efectos(bot, game, opcion.get("efectos", [])):
+        await cerrar_crisis(bot, game, crisis)
 
 
 async def abrir_chequeo(bot, game, crisis):
@@ -2396,8 +2397,8 @@ async def resolver_chequeo(bot, game):
     crisis = st.crisis_actual
     st.skill_check = None
     efectos = crisis["exito"] if exito else crisis["fracaso"]
-    await aplicar_efectos(bot, game, efectos)
-    await cerrar_crisis(bot, game, crisis)
+    if await aplicar_efectos(bot, game, efectos):
+        await cerrar_crisis(bot, game, crisis)
 
 
 def _robar_destino(st, n):
@@ -2580,9 +2581,126 @@ async def _transferir_titulo(bot, game, titulo, a):
         await bot.send_message(game.cid, f"🎖️ *{nuevo.name}* recibe el título de Almirante.", parse_mode=ParseMode.MARKDOWN)
 
 
-async def aplicar_efectos(bot, game, efectos):
+# ---- Selección interactiva de objetivo (efecto "elegir_objetivo") ----
+
+_ETIQUETA_ACCION_OBJETIVO = {
+    "brig": ("enviar al Calabozo", "🔒"),
+    "sickbay": ("enviar a la Enfermería", "🏥"),
+    "loyalty_peek": ("inspeccionar una carta de lealtad", "🔍"),
+}
+
+
+def _candidatos_objetivo(game, chooser, spec):
+    """Lista de jugadores elegibles como objetivo (siempre excluye Cylons revelados).
+    spec: 'todos' | 'otros' | lista de roles ('activo'/'presidente'/'almirante')."""
     st = game.board.state
-    for ef in efectos or []:
+    vivos = [p for p in game.playerlist.values() if not p.revealed]
+    if isinstance(spec, (list, tuple)):
+        ids, res = set(), []
+        for rol in spec:
+            for p in _objetivos_efecto(game, rol):
+                if p.uid not in ids:
+                    ids.add(p.uid)
+                    res.append(p)
+        return res
+    if spec == "otros":
+        return [p for p in vivos if not chooser or p.uid != chooser.uid]
+    return vivos
+
+
+async def _inspeccionar_lealtad(bot, game, chooser, target):
+    """El 'chooser' mira 1 carta de lealtad al azar de 'target' (en privado)."""
+    if not chooser or not target or not target.loyalty_cards:
+        await bot.send_message(game.cid, f"🔍 {target.name if target else 'El objetivo'} no tiene cartas de lealtad para inspeccionar.")
+        return
+    carta = random.choice(target.loyalty_cards)
+    if carta == Loyalty.CYLON:
+        desc = "🤖 *ERES UN CYLON*"
+    elif carta == Loyalty.SIMPATIZANTE:
+        desc = "🕵️ *Simpatizante*"
+    else:
+        desc = "🧑 *No eres un Cylon*"
+    await bot.send_message(chooser.uid, f"🔍 Carta de lealtad de *{target.name}*: {desc}", parse_mode=ParseMode.MARKDOWN)
+    await bot.send_message(game.cid, f"🔍 *{chooser.name}* inspecciona en privado una carta de lealtad de *{target.name}*.", parse_mode=ParseMode.MARKDOWN)
+
+
+async def _abrir_eleccion_objetivo(bot, game, ef, restantes):
+    """Pide al decisor que elija un personaje objetivo. Devuelve True si quedó
+    a la espera de la selección; False si no había a quién elegir (se omite)."""
+    st = game.board.state
+    chooser_uid = _decisor_uid(game, ef.get("quien", "activo"))
+    chooser = game.playerlist.get(chooser_uid)
+    accion = ef.get("accion", "brig")
+    candidatos = _candidatos_objetivo(game, chooser, ef.get("candidatos", "todos"))
+    etiqueta, emoji = _ETIQUETA_ACCION_OBJETIVO.get(accion, (accion, "🎯"))
+    if not chooser or not candidatos:
+        return False
+    # Si es obligatorio y solo hay un objetivo posible, se resuelve solo.
+    if len(candidatos) == 1 and not ef.get("opcional"):
+        await _aplicar_accion_objetivo(bot, game, chooser, candidatos[0], accion)
+        return False
+    st.target_select = {
+        "chooser": chooser_uid,
+        "accion": accion,
+        "candidatos": [p.uid for p in candidatos],
+        "restantes": list(restantes),
+        "opcional": bool(ef.get("opcional")),
+    }
+    btns = [[InlineKeyboardButton(p.name, callback_data=f"{game.cid}*bsgCrisisTgt*{p.uid}*{chooser_uid}")]
+            for p in candidatos]
+    if ef.get("opcional"):
+        btns.append([InlineKeyboardButton("✋ No elegir a nadie", callback_data=f"{game.cid}*bsgCrisisTgt*none*{chooser_uid}")])
+    await bot.send_message(
+        game.cid,
+        f"{emoji} {player_call(chooser)} elige un personaje para *{etiqueta}*:",
+        reply_markup=InlineKeyboardMarkup(btns),
+        parse_mode=ParseMode.MARKDOWN,
+    )
+    await save(bot, game.cid)
+    return True
+
+
+async def _aplicar_accion_objetivo(bot, game, chooser, target, accion):
+    if accion == "brig":
+        await _enviar_brig_efecto(bot, game, target)
+    elif accion == "sickbay":
+        await _enviar_sickbay(bot, game, target)
+    elif accion == "loyalty_peek":
+        await _inspeccionar_lealtad(bot, game, chooser, target)
+
+
+async def resolver_eleccion_objetivo(bot, game, target_token):
+    """Reanuda la crisis tras elegir el objetivo (callback bsgTarget)."""
+    st = game.board.state
+    ts = st.target_select
+    if not ts:
+        return
+    st.target_select = None
+    chooser = game.playerlist.get(ts.get("chooser"))
+    if target_token == "none":
+        await bot.send_message(game.cid, "✋ No se eligió a ningún personaje.")
+    else:
+        try:
+            tuid = int(target_token)
+        except (TypeError, ValueError):
+            tuid = None
+        target = game.playerlist.get(tuid)
+        if target and tuid in ts.get("candidatos", []):
+            await _aplicar_accion_objetivo(bot, game, chooser, target, ts.get("accion"))
+    # Continuar con los efectos que quedaron pendientes y cerrar la crisis.
+    completado = await aplicar_efectos(bot, game, ts.get("restantes", []))
+    crisis = st.crisis_actual
+    if completado and crisis:
+        await cerrar_crisis(bot, game, crisis)
+
+
+async def aplicar_efectos(bot, game, efectos):
+    """Aplica una lista de efectos de crisis. Devuelve True si se completaron
+    todos; False si la resolución quedó EN PAUSA esperando una selección
+    interactiva de objetivo (el flujo se reanuda desde el callback)."""
+    st = game.board.state
+    efectos = list(efectos or [])
+    for i, ef in enumerate(efectos):
         tipo = ef.get("tipo")
         if tipo == "recurso":
             await modificar_recurso(bot, game, ef["recurso"], ef["delta"])
@@ -2651,12 +2769,25 @@ async def aplicar_efectos(bot, game, efectos):
             await _transferir_titulo(bot, game, ef.get("titulo", "Presidente"), ef.get("a", "almirante"))
         elif tipo == "loyalty_peek":
             await bot.send_message(game.cid, ef.get("texto", "🔍 Se inspecciona una carta de lealtad (según la carta)."))
+        elif tipo == "elegir_objetivo":
+            # El decisor elige un personaje y se le aplica una acción (Calabozo /
+            # Enfermería / inspección de lealtad). Pausa la resolución: los
+            # efectos restantes se aplican al confirmar la elección.
+            if await _abrir_eleccion_objetivo(bot, game, ef, efectos[i + 1:]):
+                return False
+            # Sin candidatos válidos: se omite y se sigue con el resto.
+            continue
         elif tipo == "roll":
             r = _d8()
             lo, hi = ef.get("rango", [6, 8])
             ok = lo <= r <= hi
             await bot.send_message(game.cid, f"🎲 Tirada: *{r}* ({'éxito' if ok else 'fallo'} en {lo}-{hi})", parse_mode=ParseMode.MARKDOWN)
-            await aplicar_efectos(bot, game, ef["exito"] if ok else ef.get("fracaso", []))
+            if not await aplicar_efectos(bot, game, ef["exito"] if ok else ef.get("fracaso", [])):
+                # La tirada disparó una selección interactiva: encolar el resto
+                # de NUESTROS efectos tras los que ya quedaron pendientes.
+                if st.target_select is not None:
+                    st.target_select["restantes"] = list(st.target_select.get("restantes", [])) + efectos[i + 1:]
+                return False
         elif tipo == "mensaje":
             await bot.send_message(game.cid, ef["texto"])
         elif tipo == "prophecy":
@@ -2667,6 +2798,7 @@ async def aplicar_efectos(bot, game, efectos):
                 "Presidente tendrá +2 de dificultad.",
                 parse_mode=ParseMode.MARKDOWN,
             )
+    return True
 
 
 async def modificar_recurso(bot, game, recurso, delta):
