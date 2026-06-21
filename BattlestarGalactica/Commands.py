@@ -21,7 +21,10 @@ logger = log.getLogger(__name__)
 
 
 def _validar(game):
-    return game and game.tipo == "BattlestarGalactica" and game.board
+    if game and game.tipo == "BattlestarGalactica" and game.board:
+        BSGController.asegurar_estado(game)  # backfill de campos nuevos en juegos viejos
+        return True
+    return False
 
 
 def _turno_de(st, uid):
