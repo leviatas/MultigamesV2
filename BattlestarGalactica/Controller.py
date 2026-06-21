@@ -55,6 +55,7 @@ Implementado en esta capa:
 """
 
 import logging as log
+import copy
 import random
 import re
 
@@ -71,6 +72,33 @@ import GamesController
 
 log.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=log.INFO)
 logger = log.getLogger(__name__)
+
+
+def asegurar_estado(game):
+    """Rellena los atributos que falten en partidas guardadas antes de que esos
+    campos existieran. jsonpickle restaura el __dict__ sin ejecutar __init__, así
+    que un juego viejo puede no tener campos nuevos del State/Player y romper al
+    accederlos (p. ej. st.nukes en print_board). Backfill desde instancias
+    frescas: no pisa valores existentes, solo agrega los ausentes."""
+    try:
+        if game is None or getattr(game, "board", None) is None:
+            return
+        st = getattr(game.board, "state", None)
+        if st is not None:
+            ref = type(st)()
+            for k, v in ref.__dict__.items():
+                if not hasattr(st, k):
+                    setattr(st, k, copy.deepcopy(v))
+        for p in list(getattr(game, "playerlist", {}).values()):
+            try:
+                refp = type(p)(p.name, p.uid)
+            except Exception:
+                continue
+            for k, v in refp.__dict__.items():
+                if not hasattr(p, k):
+                    setattr(p, k, copy.deepcopy(v))
+    except Exception as e:
+        logger.error(f"asegurar_estado error: {e}")
 
 
 # ===================== SETUP =====================
