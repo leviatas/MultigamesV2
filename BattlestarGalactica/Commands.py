@@ -467,6 +467,9 @@ async def command_mapa_img(update: Update, context: CallbackContext):
         log.error(f"command_mapa_img error: {e}")
         await bot.send_message(cid, "No pude generar la imagen del tablero; aquí va el mapa de texto:")
         await bot.send_message(cid, game.board.print_map(game), parse_mode=ParseMode.MARKDOWN)
+
+
+async def command_accion(update: Update, context: CallbackContext):
     """Acción del jugador activo (menú simplificado en esta capa)."""
     bot = context.bot
     cid = update.message.chat_id
