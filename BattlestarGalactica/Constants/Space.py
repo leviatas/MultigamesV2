@@ -20,14 +20,14 @@ N_AREAS = 6
 
 AREAS = [
     {"id": 0, "nombre": "Proa",          "emoji": "🔴", "launch": False},
-    {"id": 1, "nombre": "Estribor-proa", "emoji": "🚀", "launch": True},
+    {"id": 1, "nombre": "Estribor-proa", "emoji": "▫️", "launch": False},
     {"id": 2, "nombre": "Estribor-popa", "emoji": "▫️", "launch": False},
     {"id": 3, "nombre": "Popa",          "emoji": "🛰️", "launch": False},
-    {"id": 4, "nombre": "Babor-popa",    "emoji": "▫️", "launch": False},
+    {"id": 4, "nombre": "Babor-popa",    "emoji": "🚀", "launch": True},
     {"id": 5, "nombre": "Babor-proa",    "emoji": "🚀", "launch": True},
 ]
 
-LAUNCH_AREAS = [1, 5]   # áreas con tubo de lanzamiento de Vipers
+LAUNCH_AREAS = [5, 4]   # tubos de lanzamiento de Vipers: Babor-proa y Babor-popa
 AREA_PROA = 0           # amenaza Cylon inicial
 AREA_POPA = 3           # naves civiles iniciales
 

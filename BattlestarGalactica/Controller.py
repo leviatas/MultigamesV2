@@ -820,7 +820,7 @@ async def ejecutar_accion_ubicacion(bot, game, uid, accion, objetivo=None):
     elif accion == "repair":
         await _reparar_galactica(bot, game, player)
     elif accion == "launch":
-        await _lanzar_piloto(bot, game, player)
+        await _lanzar_piloto(bot, game, player, area_idx=objetivo)
     elif accion == "pilot_attack":
         await _pilot_atacar(bot, game, player)
     elif accion == "pilot_move":
@@ -1108,8 +1108,13 @@ def total_vipers_tripulados(game):
     return sum(1 for p in game.playerlist.values() if getattr(p, "viper_area", None) is not None)
 
 
-async def _lanzar_piloto(bot, game, player):
-    """El jugador despega en un Viper tripulado desde un tubo de lanzamiento."""
+async def _lanzar_piloto(bot, game, player, area_idx=None):
+    """El jugador despega en un Viper tripulado desde un tubo de lanzamiento.
+
+    Los Vipers solo pueden salir por los tubos de lanzamiento (Babor-proa y
+    Babor-popa); ``area_idx`` indica el lado elegido por el jugador. Si no se
+    especifica, despega por el tubo con menos presencia Cylon.
+    """
     st = game.board.state
     if getattr(player, "viper_area", None) is not None:
         await bot.send_message(game.cid, "Ya estás pilotando un Viper.")
@@ -1117,9 +1122,12 @@ async def _lanzar_piloto(bot, game, player):
     if st.vipers_reserva <= 0:
         await bot.send_message(game.cid, "No quedan Vipers en la reserva.")
         return False
-    # Despega por el tubo con menos presencia Cylon.
-    area = min(Space.LAUNCH_AREAS,
-               key=lambda k: st.areas[k]["raiders"] + st.areas[k].get("heavy_raiders", 0) + len(st.areas[k]["basestars"]))
+    if area_idx in Space.LAUNCH_AREAS:
+        area = area_idx
+    else:
+        # Despega por el tubo con menos presencia Cylon.
+        area = min(Space.LAUNCH_AREAS,
+                   key=lambda k: st.areas[k]["raiders"] + st.areas[k].get("heavy_raiders", 0) + len(st.areas[k]["basestars"]))
     st.vipers_reserva -= 1
     player.viper_area = area
     player.ubicacion = None

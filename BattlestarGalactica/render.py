@@ -34,15 +34,17 @@ _GAL_2 = ["admiral_quarters", "research", "communications", "sickbay", "brig"]
 _COLONIAL = ["press_room", "president_office", "administration"]
 _CYLON = ["caprica", "cylon_fleet", "human_fleet", "resurrection_ship"]
 
-# Posición en la rejilla 3x4 de cada área del espacio (fila, columna), 1-based.
-# El anillo rodea a Galactica, que ocupa el centro (filas 2-3, columna 2).
+# Vista de COSTADO de la nave: la proa apunta a la IZQUIERDA y la popa a la
+# derecha. Galactica ocupa la franja central (fila 2, columnas 2-3) y las 6 áreas
+# del espacio la rodean. Estribor arriba, Babor (con los tubos) abajo.
+# Posición en la rejilla 3x4 de cada área (fila, columna), 1-based.
 _AREA_GRID = {
-    0: (1, 2),  # Proa
-    1: (2, 3),  # Estribor-proa
-    2: (3, 3),  # Estribor-popa
-    3: (4, 2),  # Popa
-    4: (3, 1),  # Babor-popa
-    5: (2, 1),  # Babor-proa
+    0: (2, 1),  # Proa          (izquierda, frente a la nave)
+    1: (1, 2),  # Estribor-proa (arriba-izquierda)
+    2: (1, 3),  # Estribor-popa (arriba-derecha)
+    3: (2, 4),  # Popa          (derecha, detrás de la nave)
+    4: (3, 3),  # Babor-popa    (abajo-derecha, tubo de lanzamiento)
+    5: (3, 2),  # Babor-proa    (abajo-izquierda, tubo de lanzamiento)
 }
 
 
@@ -130,8 +132,8 @@ def render_board_html(game):
         )
 
     centro = (
-        "<div class='galactica' style='grid-row:2 / span 2;grid-column:2;'>"
-        "<div class='gtitle'>GALÁCTICA</div>"
+        "<div class='galactica' style='grid-row:2;grid-column:2 / span 2;'>"
+        "<div class='gtitle'>◄ GALÁCTICA</div>"
         f"<div class='gsub'>Daño {st.total_danos_galactica()}/{st.galactica_danos_max}</div>"
         f"<div class='gsub'>Abordaje {st.total_centuriones()} · "
         f"Reserva V {st.vipers_reserva} · Dañados {st.vipers_danados}</div>"
@@ -186,9 +188,9 @@ def render_board_html(game):
         + _res("OJIVAS", st.nukes)
     )
 
-    # Altura del lienzo: cabecera + anillo + paneles (5 filas máx.) + márgenes.
+    # Altura del lienzo: cabecera + anillo (3 filas) + paneles (5 filas máx.) + márgenes.
     canvas_w = 1180
-    canvas_h = 150 + 560 + 40 + 5 * 78 + 70
+    canvas_h = 150 + 470 + 40 + 5 * 78 + 70
 
     html = f"""<!DOCTYPE html><html><head><meta charset="utf-8"><style>
 * {{ box-sizing: border-box; margin: 0; padding: 0; }}
@@ -201,8 +203,8 @@ body {{ width: {canvas_w}px; background: #0b1020; color: #e7ecf5;
         flex-direction: column; align-items: center; line-height: 1.1; }}
 .res i {{ font-style: normal; font-size: 10px; font-weight: 700; color: #7f93c4;
           letter-spacing: .5px; }}
-.ring {{ display: grid; grid-template-columns: repeat(3, 1fr);
-         grid-template-rows: 130px 130px 130px 130px; gap: 10px; margin-bottom: 16px; }}
+.ring {{ display: grid; grid-template-columns: repeat(4, 1fr);
+         grid-template-rows: 150px 150px 150px; gap: 10px; margin-bottom: 16px; }}
 .area {{ background: #111a30; border: 1px solid #29365c; border-radius: 12px;
          padding: 8px; display: flex; flex-direction: column; }}
 .area-h {{ font-size: 14px; font-weight: 700; color: #9fb6e8; margin-bottom: 6px;
@@ -210,10 +212,10 @@ body {{ width: {canvas_w}px; background: #0b1020; color: #e7ecf5;
 .area-b {{ display: flex; flex-wrap: wrap; gap: 4px; align-content: flex-start; }}
 .tube {{ font-size: 11px; background: #1d4ed8; color: #fff; border-radius: 6px;
          padding: 1px 5px; font-weight: 700; }}
-.galactica {{ background: radial-gradient(circle at 50% 40%, #34507f, #16213d);
-              border: 2px solid #5b7cc0; border-radius: 16px; display: flex;
-              flex-direction: column; align-items: center; justify-content: center;
-              text-align: center; padding: 10px; }}
+.galactica {{ background: linear-gradient(90deg, #1a2b4d 0%, #3a5a92 55%, #22335a 100%);
+              clip-path: polygon(0 50%, 13% 0, 100% 0, 100% 100%, 13% 100%);
+              display: flex; flex-direction: column; align-items: center;
+              justify-content: center; text-align: center; padding: 10px 10px 10px 60px; }}
 .gtitle {{ font-size: 30px; font-weight: 900; color: #dfe9ff; letter-spacing: 2px; }}
 .gsub {{ font-size: 14px; color: #b9c8ec; margin-top: 4px; }}
 .ship {{ font-size: 13px; font-weight: 800; color: #fff; border-radius: 6px;
