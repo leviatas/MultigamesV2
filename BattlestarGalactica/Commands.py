@@ -577,6 +577,25 @@ async def callback_bsg_accion(update: Update, context: CallbackContext):
                 await bot.send_message(cid, "¿A qué área adyacente vuelas?", reply_markup=InlineKeyboardMarkup(btns))
             return
 
+        # Lanzarte en un Viper: solo se puede salir por los tubos de lanzamiento
+        # (Babor-proa y Babor-popa). Preguntamos por cuál de los dos lados.
+        if accion == "launch":
+            await callback.answer()
+            btns = []
+            for i in Space.LAUNCH_AREAS:
+                a = st.areas[i]
+                cylons = a["raiders"] + a.get("heavy_raiders", 0) + len(a["basestars"])
+                amenaza = f" ⚠️{cylons}" if cylons else ""
+                btns.append([InlineKeyboardButton(
+                    f"🚀 {Space.nombre(i)}{amenaza}",
+                    callback_data=f"{cid}*bsgArea*launch_{i}*{presser}")])
+            try:
+                await bot.edit_message_text("¿Por qué tubo de lanzamiento despegas?", cid, callback.message.message_id,
+                                            reply_markup=InlineKeyboardMarkup(btns))
+            except Exception:
+                await bot.send_message(cid, "¿Por qué tubo de lanzamiento despegas?", reply_markup=InlineKeyboardMarkup(btns))
+            return
+
         # Acciones que requieren elegir un ÁREA del espacio → mostrar botonera de áreas
         if accion in BSGController.ACCIONES_CON_AREA:
             await callback.answer()
