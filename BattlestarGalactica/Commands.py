@@ -153,8 +153,12 @@ async def callback_bsg_setup(update: Update, context: CallbackContext):
             await callback.answer("No es tu mano.")
             return
         player = game.playerlist.get(presser)
-        if not player or not player.skill_choices_pendientes \
-                or color not in player.skill_choices_pendientes[0]:
+        disponibles = []
+        for slot in (getattr(player, "setup_slots", None) or []):
+            for c in slot:
+                if c not in disponibles:
+                    disponibles.append(c)
+        if not player or getattr(player, "setup_restantes", 0) <= 0 or color not in disponibles:
             await callback.answer("Color no disponible.")
             return
         await callback.answer(f"Robaste {color}.")
