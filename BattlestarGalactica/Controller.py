@@ -58,6 +58,7 @@ import logging as log
 import copy
 import random
 import re
+from collections import Counter
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.constants import ParseMode
@@ -303,6 +304,7 @@ def _iniciar_mano_inicial(player):
     pj = Characters.PERSONAJES[player.personaje]
     player.setup_slots = _slots_personaje(pj["skill_set"])
     player.setup_restantes = min(MANO_INICIAL, len(player.setup_slots))
+    player.setup_robadas = []
 
 
 def _colores_disponibles(slots):
@@ -418,7 +420,7 @@ async def iniciar_turno(bot, game):
         slots = _slots_personaje(pj["skill_set"])
         encabezado = f"🎬 *Turno de {player.name}*"
 
-    st.skill_draw = {"uid": player.uid, "slots": slots}
+    st.skill_draw = {"uid": player.uid, "slots": slots, "robadas": []}
     await bot.send_message(
         game.cid,
         f"{encabezado} — *Recibir Habilidades*.\n"
@@ -447,26 +449,45 @@ async def _procesar_slots_skill(bot, game):
         await save(bot, game.cid)
         await _prompt_color_skill(bot, game)
         return
+    robadas = sd.get("robadas", [])
     st.skill_draw = None
+    await _anunciar_robo_grupo(bot, game, player, robadas)
     await _dm_mano(bot, player)
     await save(bot, game.cid)
     await _anunciar_turno(bot, game)
 
 
+async def _anunciar_robo_grupo(bot, game, player, colores):
+    """Anuncia en el grupo de qué mazo(s) robó el jugador (sin revelar el valor)."""
+    if not colores:
+        return
+    partes = [f"{Skills.EMOJI_COLOR.get(c, '')} {c}×{n}" for c, n in Counter(colores).items()]
+    await bot.send_message(
+        game.cid,
+        f"🃏 *{player.name}* roba {len(colores)} carta(s) de habilidad: " + ", ".join(partes),
+        parse_mode=ParseMode.MARKDOWN,
+    )
+
+
 async def _entregar_carta_skill(bot, game, player, color):
-    """Roba 1 carta del color dado a la mano del jugador y lo notifica por privado."""
+    """Roba 1 carta del color dado a la mano del jugador y lo notifica por privado.
+    Devuelve el color robado (o None si el mazo estaba vacío)."""
     st = game.board.state
     carta = _robar_carta_color(st, color)
     if carta:
         player.skill_hand.append(carta)
+        # Registrar el mazo robado para el anuncio público del paso de robo del turno.
+        if st.skill_draw and st.skill_draw.get("uid") == player.uid:
+            st.skill_draw.setdefault("robadas", []).append(carta["color"])
         await bot.send_message(
             player.uid,
             f"➕ Robaste {Skills.EMOJI_COLOR[carta['color']]} {carta['color']} {carta['valor']} "
             f"— _{carta.get('nombre','')}_",
             parse_mode=ParseMode.MARKDOWN,
         )
-    else:
-        await bot.send_message(player.uid, f"(No quedan cartas de {color}.)")
+        return carta["color"]
+    await bot.send_message(player.uid, f"(No quedan cartas de {color}.)")
+    return None
 
 
 async def _prompt_mano_inicial(bot, game, player):
@@ -507,13 +528,18 @@ async def resolver_setup_choice(bot, game, uid, color):
         return  # color no permitido por el skill set restante
     slots.pop(idx)
     player.setup_restantes -= 1
-    await _entregar_carta_skill(bot, game, player, color)
+    robado = await _entregar_carta_skill(bot, game, player, color)
+    if robado:
+        player.setup_robadas.append(robado)
     if player.setup_restantes > 0 and slots:
         await save(bot, game.cid)
         await _prompt_mano_inicial(bot, game, player)
     else:
+        robadas = list(getattr(player, "setup_robadas", []) or [])
         player.setup_slots = []
         player.setup_restantes = 0
+        player.setup_robadas = []
+        await _anunciar_robo_grupo(bot, game, player, robadas)
         await _dm_mano(bot, player)
         await save(bot, game.cid)
 
