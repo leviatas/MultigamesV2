@@ -92,6 +92,11 @@ JUEGOS_DISPONIBLES = {
                     "BattlestarGalactica" : "Battlestar Galactica"
                 },
         },
+	"PuertoBanana" : {
+                "comandos" : {
+                    "PuertoBanana" : "Puerto Banana"
+                },
+        },
 }
 
 
@@ -306,6 +311,15 @@ MODULOS_DISPONIBES = {
                         },
                         "min_jugadores" : 3,
                         "max_jugadores" : 6
+                }
+        },
+	"PuertoBanana" : {
+                "Clasico" : {
+                        "comandos" : {
+                            "Clasico" : "Clásico"
+                        },
+                        "min_jugadores" : 3,
+                        "max_jugadores" : 10
                 }
         },
 }

@@ -35,6 +35,7 @@ import SecretoCodigo.Controller as SecretoCodigoController
 import SpyFall.Controller as SpyFallController
 import Insider.Controller as InsiderController
 import BattlestarGalactica.Controller as BSGController
+import PuertoBanana.Controller as PuertoBananaController
 
 # Importo los comandos de los juegos que vaya agregando
 import JustOne.Commands as JustoneCommands
@@ -50,6 +51,7 @@ import SecretoCodigo.Commands as SecretoCodigoCommands
 import SpyFall.Commands as SpyFallCommands
 import Insider.Commands as InsiderCommands
 import BattlestarGalactica.Commands as BSGCommands
+import PuertoBanana.Commands as PuertoBananaCommands
 
 from Constants.Cards import playerSets, actions
 from Constants.Config import TOKEN, STATS, ADMIN
@@ -142,6 +144,9 @@ async def init_game(bot, game):
 	elif game.tipo == "BattlestarGalactica":
 		game.create_board()
 		await BSGController.init_game(bot, game)
+	elif game.tipo == "PuertoBanana":
+		game.create_board()
+		await PuertoBananaController.init_game(bot, game)
 
 
 async def init_lost_expedition(bot, game, player_number):
@@ -858,6 +863,11 @@ def main(stop_event):
 	app.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)\*bsgCrisisSel\*([01])\*(-?[0-9]*)", callback=BSGCommands.callback_bsg_crisis_sel))
 	app.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)\*bsgMod\*(-?[0-9]+)\*(-?[0-9]*)", callback=BSGCommands.callback_bsg_mod))
 	app.add_handler(CallbackQueryHandler(pattern=r"(-[0-9]*)\*chooseendBSG\*(.*)\*([0-9]*)", callback=BSGController.callback_finish_game_buttons_bsg))
+
+	# Handlers de Puerto Banana
+	app.add_handler(CommandHandler("puja", PuertoBananaCommands.command_puja))
+	app.add_handler(CallbackQueryHandler(pattern=r"(-[0-9]*)\*choosegamepujaPB\*(-?[0-9]*)\*([0-9]*)", callback=PuertoBananaCommands.callback_choose_game_puja))
+	app.add_handler(CallbackQueryHandler(pattern=r"(-[0-9]*)\*chooseendPB\*(.*)\*([0-9]*)", callback=PuertoBananaController.callback_finish_game_buttons_pb))
 
 	app.add_handler(CommandHandler("status", command_status))
 
