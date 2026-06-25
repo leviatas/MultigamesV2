@@ -602,14 +602,14 @@ async def end_game(bot, game, winner: str, reason: str):
     await save(bot, game.cid)
 
     emoji = "🔴" if winner == "Rojo" else "🔵"
-    motivo = "tocó al *ASESINO* 💀" if reason == "asesino" else "reveló todas sus palabras"
     perdedor = "Azul" if winner == "Rojo" else "Rojo"
 
-    await bot.send_message(
-        game.cid,
-        f"{emoji} ¡El equipo *{winner}* ha GANADO porque el equipo *{perdedor}* {motivo}!",
-        parse_mode=ParseMode.MARKDOWN,
-    )
+    if reason == "asesino":
+        mensaje = f"{emoji} ¡El equipo *{winner}* ha GANADO porque el equipo *{perdedor}* tocó al *ASESINO* 💀!"
+    else:
+        mensaje = f"{emoji} ¡El equipo *{winner}* ha GANADO porque reveló todas sus palabras!"
+
+    await bot.send_message(game.cid, mensaje, parse_mode=ParseMode.MARKDOWN)
     await bot.send_message(game.cid, _reveal_full_board(game), parse_mode=ParseMode.MARKDOWN)
     await continue_playing(bot, game)
 
