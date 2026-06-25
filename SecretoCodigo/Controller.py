@@ -35,6 +35,16 @@ def format_numero_pista(numero: int) -> str:
     return f"{numero} (∞)" if numero in (0, -1) else str(numero)
 
 
+async def send_remaining_message(bot, game):
+    st = game.board.state
+    await bot.send_message(
+        game.cid,
+        f"🔴 Espías rojos por descubrir: *{st.palabras_rojo_restantes}*  |  "
+        f"🔵 Espías azules por descubrir: *{st.palabras_azul_restantes}*",
+        parse_mode=ParseMode.MARKDOWN,
+    )
+
+
 async def init_game(bot, game):
     try:
         log.info('SecretoCodigo init_game called')
@@ -167,6 +177,7 @@ async def start_turn(bot, game, team: str):
         caption=caption_turno,
         parse_mode=ParseMode.MARKDOWN,
     )
+    await send_remaining_message(bot, game)
     await bot.send_message(
         spymaster.uid,
         f"Es tu turno de espía ({team}). Usa `/hint PALABRA NUMERO` en este chat.\n"
@@ -492,6 +503,7 @@ async def process_hint(bot, game, spymaster_uid, word: str, number: int):
         caption=caption_pista,
         parse_mode=ParseMode.MARKDOWN,
     )
+    await send_remaining_message(bot, game)
     await save(bot, game.cid)
 
 
@@ -554,6 +566,7 @@ async def process_pick(bot, game, uid, numero: int):
                 caption=f"✅ *¡Correcto!* Intentos restantes: {'∞' if game.board.state.intentos_restantes >= 999 else game.board.state.intentos_restantes}",
                 parse_mode=ParseMode.MARKDOWN,
             )
+            await send_remaining_message(bot, game)
             await save(bot, game.cid)
     else:
         await bot.send_message(
