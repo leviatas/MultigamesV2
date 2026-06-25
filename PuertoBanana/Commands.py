@@ -47,13 +47,15 @@ async def _aplicar_puja(bot, game, uid, monto):
     if st.fase_actual != "Pujando":
         await bot.send_message(uid, "No es momento de pujar.")
         return
-    if uid in st.last_votes:
-        await bot.send_message(uid, "Ya hiciste tu puja esta ronda.")
-        return
 
+    ya_habia_pujado = uid in st.last_votes
     st.last_votes[uid] = monto
-    await bot.send_message(uid, f"Tu puja de *{monto}* bananas fue registrada.", parse_mode=ParseMode.MARKDOWN)
-    await bot.send_message(game.cid, f"El jugador *{game.playerlist[uid].name}* ya pujó.", parse_mode=ParseMode.MARKDOWN)
+
+    if ya_habia_pujado:
+        await bot.send_message(uid, f"Tu puja fue actualizada a *{monto}* bananas.", parse_mode=ParseMode.MARKDOWN)
+    else:
+        await bot.send_message(uid, f"Tu puja de *{monto}* bananas fue registrada.", parse_mode=ParseMode.MARKDOWN)
+        await bot.send_message(game.cid, f"El jugador *{game.playerlist[uid].name}* ya pujó.", parse_mode=ParseMode.MARKDOWN)
     await save(bot, game.cid)
 
     if len(st.last_votes) >= len(game.player_sequence):
@@ -88,7 +90,7 @@ async def command_puja(update: Update, context: CallbackContext):
     candidatas = {
         cid: game for cid, game in juegos.items()
         if _validar_partida(game) and uid in game.playerlist
-        and game.board.state.fase_actual == "Pujando" and uid not in game.board.state.last_votes
+        and game.board.state.fase_actual == "Pujando"
     }
 
     if not candidatas:
