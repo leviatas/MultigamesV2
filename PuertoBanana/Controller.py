@@ -51,6 +51,7 @@ async def start_round(bot, game):
         "Cada jugador debe pujar en privado con `/puja CANTIDAD`.",
         parse_mode=ParseMode.MARKDOWN
     )
+    await bot.send_message(game.cid, game.board.print_board(game), parse_mode=ParseMode.MARKDOWN)
     for player in game.player_sequence:
         await bot.send_message(
             player.uid,
