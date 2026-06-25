@@ -92,7 +92,12 @@ async def finish_config(bot, game):
     opcion = game.configs.get('diccionario', 'original')
     url_palabras = os.path.join(_TXT_DIR, f'spanish-{opcion}.txt')
     with open(url_palabras, 'r') as f:
-        palabras_posibles = [w.strip() for w in f.readlines() if w.strip()]
+        vistas = set()
+        palabras_posibles = []
+        for w in (line.strip() for line in f.readlines()):
+            if w and w.lower() not in vistas:
+                vistas.add(w.lower())
+                palabras_posibles.append(w)
 
     palabras = random.sample(palabras_posibles, 25)
     game.board.state.tablero = [
