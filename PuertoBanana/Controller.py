@@ -76,43 +76,54 @@ async def resolve_round(bot, game):
         parse_mode=ParseMode.MARKDOWN
     )
 
-    mayor_puja = max(pujas.values())
-    candidatos_ganador = [uid for uid, monto in pujas.items() if monto == mayor_puja]
-    ganador_uid = random.choice(candidatos_ganador)
-
-    restantes = {uid: monto for uid, monto in pujas.items() if uid != ganador_uid}
-    segunda_puja = max(restantes.values()) if restantes else mayor_puja
-    candidatos_segundo = [uid for uid, monto in restantes.items() if monto == segunda_puja] if restantes else []
-    segundo_uid = random.choice(candidatos_segundo) if candidatos_segundo else None
-
-    diferencia = mayor_puja - segunda_puja
-    ganador = game.playerlist[ganador_uid]
     pozo = st.pozo_actual
+    restantes = dict(pujas)
+    detalle_lineas = [f"🍌 *Resultado de la ronda {st.ronda}:*"]
 
-    detalle = (
-        f"🍌 *Resultado de la ronda {st.ronda}:*\n"
-        f"{player_call(ganador)} pujó más alto y se lleva el pozo de *{pozo}* bananas, "
-        f"debiendo pagar la diferencia de *{diferencia}* bananas al segundo mejor postor.\n"
-    )
+    while True:
+        mayor_puja = max(restantes.values())
+        candidatos_ganador = [uid for uid, monto in restantes.items() if monto == mayor_puja]
+        ganador_uid = random.choice(candidatos_ganador)
+        ganador = game.playerlist[ganador_uid]
 
-    if ganador.bananas + pozo >= diferencia:
-        ganador.bananas = ganador.bananas + pozo - diferencia
-        ganador.eliminado_ronda = False
-        if segundo_uid is not None:
-            segundo = game.playerlist[segundo_uid]
+        candidatos_resto = {uid: monto for uid, monto in restantes.items() if uid != ganador_uid}
+
+        if not candidatos_resto:
+            ganador.bananas += pozo
+            ganador.eliminado_ronda = False
+            detalle_lineas.append(
+                f"{player_call(ganador)} es el único que queda en pie y se lleva el pozo de "
+                f"*{pozo}* bananas sin pagar diferencia."
+            )
+            break
+
+        segunda_puja = max(candidatos_resto.values())
+        candidatos_segundo = [uid for uid, monto in candidatos_resto.items() if monto == segunda_puja]
+        segundo_uid = random.choice(candidatos_segundo)
+        segundo = game.playerlist[segundo_uid]
+        diferencia = mayor_puja - segunda_puja
+
+        if ganador.bananas + pozo >= diferencia:
+            ganador.bananas = ganador.bananas + pozo - diferencia
+            ganador.eliminado_ronda = False
             segundo.bananas += diferencia
             segundo.eliminado_ronda = False
-            detalle += f"{player_call(segundo)} recibe esa diferencia."
+            detalle_lineas.append(
+                f"{player_call(ganador)} pujó más alto y se lleva el pozo de *{pozo}* bananas, "
+                f"debiendo pagar la diferencia de *{diferencia}* bananas a {player_call(segundo)}."
+            )
+            break
         else:
-            detalle += "Nadie más pujó, así que no paga diferencia."
-    else:
-        ganador.bananas = 0
-        ganador.eliminado_ronda = True
-        detalle += (
-            f"¡Pero {player_call(ganador)} no puede pagar esa diferencia! Queda "
-            "*eliminado de la ronda* y pierde todas sus bananas."
-        )
+            ganador.bananas = 0
+            ganador.eliminado_ronda = True
+            detalle_lineas.append(
+                f"{player_call(ganador)} pujó *{mayor_puja}* pero no puede pagar la diferencia "
+                f"de *{diferencia}* bananas. Queda *eliminado de la ronda* y pierde todas sus "
+                "bananas."
+            )
+            del restantes[ganador_uid]
 
+    detalle = "\n".join(detalle_lineas)
     await bot.send_message(game.cid, detalle, parse_mode=ParseMode.MARKDOWN)
     await save(bot, game.cid)
 
