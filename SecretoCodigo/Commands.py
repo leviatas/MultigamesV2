@@ -4,7 +4,7 @@ import urllib.parse
 
 import psycopg
 import SecretoCodigo.Controller as SecretoCodigoController
-from SecretoCodigo.Controller import format_numero_pista
+from SecretoCodigo.Controller import format_numero_pista, send_remaining_message
 from Utils import get_game, save, player_call, simple_choose_buttons
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
@@ -536,6 +536,7 @@ async def command_call(bot, game):
             ),
             parse_mode=ParseMode.MARKDOWN,
         )
+        await send_remaining_message(bot, game)
         for jugador in guessers:
             await bot.send_message(
                 jugador.uid,
