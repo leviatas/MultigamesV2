@@ -18,7 +18,8 @@ class Board(BaseBoard):
         board += f"Ronda: {st.ronda}\n"
         board += f"Pozo actual: *{st.pozo_actual}* bananas\n\n"
         board += "--- *Jugadores* ---\n"
-        for player in game.player_sequence:
+        jugadores_ordenados = sorted(game.player_sequence, key=lambda p: p.bananas, reverse=True)
+        for player in jugadores_ordenados:
             puja = " (ya pujó)" if player.uid in st.last_votes else ""
             marca = " ✗" if player.eliminado_ronda else ""
             board += f"• {player.name}: *{player.bananas}* bananas{puja}{marca}\n"
