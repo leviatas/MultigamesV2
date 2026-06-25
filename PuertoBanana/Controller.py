@@ -43,8 +43,6 @@ async def start_round(bot, game):
     st = game.board.state
     st.fase_actual = "Pujando"
     st.last_votes = {}
-    for player in game.player_sequence:
-        player.eliminado_ronda = False
     st.pozo_actual = max(player.bananas for player in game.player_sequence)
 
     await bot.send_message(
@@ -68,6 +66,16 @@ async def resolve_round(bot, game):
     st = game.board.state
     pujas = st.last_votes
 
+    pujas_ordenadas = sorted(pujas.items(), key=lambda item: item[1], reverse=True)
+    reveal = "\n".join(
+        f"• {game.playerlist[uid].name}: *{monto}* bananas" for uid, monto in pujas_ordenadas
+    )
+    await bot.send_message(
+        game.cid,
+        f"🍌 *Todos pujaron.* Así quedaron las pujas:\n{reveal}",
+        parse_mode=ParseMode.MARKDOWN
+    )
+
     mayor_puja = max(pujas.values())
     candidatos_ganador = [uid for uid, monto in pujas.items() if monto == mayor_puja]
     ganador_uid = random.choice(candidatos_ganador)
@@ -89,9 +97,11 @@ async def resolve_round(bot, game):
 
     if ganador.bananas + pozo >= diferencia:
         ganador.bananas = ganador.bananas + pozo - diferencia
+        ganador.eliminado_ronda = False
         if segundo_uid is not None:
             segundo = game.playerlist[segundo_uid]
             segundo.bananas += diferencia
+            segundo.eliminado_ronda = False
             detalle += f"{player_call(segundo)} recibe esa diferencia."
         else:
             detalle += "Nadie más pujó, así que no paga diferencia."
