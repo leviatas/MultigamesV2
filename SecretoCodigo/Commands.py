@@ -522,22 +522,24 @@ async def command_call(bot, game):
         intentos = game.board.state.intentos_restantes
         intentos_display = "∞" if intentos >= 999 else intentos
         numero_display = format_numero_pista(numero)
+        sm = game.get_spymaster(team)
+        equipo = game.board.state.equipo_rojo if team == "Rojo" else game.board.state.equipo_azul
+        guessers = [jugador for jugador in equipo if jugador.uid != sm.uid]
+        menciones = ", ".join(player_call(jugador) for jugador in guessers)
         await bot.send_photo(
             game.cid,
             photo=game.board.render_board_image(game),
             caption=(
                 f"Equipo *{team}*: pista *{pista}* — {numero_display}. "
-                f"Intentos restantes: {intentos_display}.\nUsa `/pick NUMERO` o `/endturn`."
+                f"Intentos restantes: {intentos_display}.\nUsa `/pick NUMERO` o `/endturn`.\n"
+                f"Toca adivinar a: {menciones}"
             ),
             parse_mode=ParseMode.MARKDOWN,
         )
-        sm = game.get_spymaster(team)
-        equipo = game.board.state.equipo_rojo if team == "Rojo" else game.board.state.equipo_azul
-        for jugador in equipo:
-            if jugador.uid != sm.uid:
-                await bot.send_message(
-                    jugador.uid,
-                    f"[{game.groupName}] 🔍 Toca adivinar, equipo *{team}*. Pista: *{pista}* — {numero_display}. "
-                    f"Intentos restantes: {intentos_display}.\nUsa `/pick NUMERO` o `/endturn`.",
-                    parse_mode=ParseMode.MARKDOWN,
-                )
+        for jugador in guessers:
+            await bot.send_message(
+                jugador.uid,
+                f"[{game.groupName}] 🔍 Toca adivinar, equipo *{team}*. Pista: *{pista}* — {numero_display}. "
+                f"Intentos restantes: {intentos_display}.\nUsa `/pick NUMERO` o `/endturn`.",
+                parse_mode=ParseMode.MARKDOWN,
+            )

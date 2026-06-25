@@ -20,5 +20,6 @@ class Board(BaseBoard):
         board += "--- *Jugadores* ---\n"
         for player in game.player_sequence:
             puja = " (ya pujó)" if player.uid in st.last_votes else ""
-            board += f"• {player.name}{puja}\n"
+            marca = " ✗" if player.eliminado_ronda else ""
+            board += f"• {player.name}{puja}{marca}\n"
         return board
