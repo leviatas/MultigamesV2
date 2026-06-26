@@ -118,11 +118,32 @@ async def init_game(bot, game):
 
         # Mazo de Destino: 2 cartas de cada color, barajadas
         st.destiny_deck = []
+        lineas_destino = []
         for color in Skills.COLORES:
+            cartas_color = []
             for _ in range(2):
-                if st.skill_decks[color]:
-                    st.destiny_deck.append(st.skill_decks[color].pop())
+                if not st.skill_decks.get(color) and st.skill_discards.get(color):
+                    await bot.send_message(
+                        game.cid,
+                        f"🔄 El mazo {Skills.EMOJI_COLOR[color]} *{color}* se quedó sin cartas; "
+                        "se rebaraja con sus descartes.",
+                        parse_mode=ParseMode.MARKDOWN,
+                    )
+                carta = _robar_carta_color(st, color)
+                if carta:
+                    cartas_color.append(carta)
+                    st.destiny_deck.append(carta)
+            nombres = ", ".join(
+                f"{c['valor']} ({c.get('nombre', '')})" for c in cartas_color
+            )
+            lineas_destino.append(f"{Skills.EMOJI_COLOR[color]} *{color}*: {nombres}")
         random.shuffle(st.destiny_deck)
+
+        await bot.send_message(
+            game.cid,
+            "🎴 *Creando el Mazo de Destino* (2 cartas de cada tipo):\n" + "\n".join(lineas_destino),
+            parse_mode=ParseMode.MARKDOWN,
+        )
 
         # Mazo de crisis
         st.crisis_deck = [dict(c) for c in Crisis.CRISIS_DECK]
