@@ -4,6 +4,7 @@ import logging as log
 import os
 import random
 import re
+import unicodedata
 
 _TXT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'txt')
 
@@ -33,6 +34,27 @@ def _hist(st):
 def format_numero_pista(numero: int) -> str:
     """Muestra el número de pista original (-1 o 0) junto con el símbolo de infinito."""
     return f"{numero} (∞)" if numero in (0, -1) else str(numero)
+
+
+def _normalizar(texto: str) -> str:
+    texto = unicodedata.normalize('NFKD', texto.strip().lower())
+    return ''.join(c for c in texto if not unicodedata.combining(c))
+
+
+def _palabra_prohibida(pista: str, tablero):
+    """Devuelve la palabra del tablero (sin revelar) que choca con la pista
+    (parcial o totalmente, en cualquier dirección), o None si no hay choque."""
+    tokens = [_normalizar(t) for t in pista.split() if t]
+    for carta in tablero:
+        if carta.get("revealed"):
+            continue
+        palabra = _normalizar(carta["word"])
+        if not palabra:
+            continue
+        for token in tokens:
+            if token and (token in palabra or palabra in token):
+                return carta["word"]
+    return None
 
 
 async def send_remaining_message(bot, game):
@@ -328,6 +350,15 @@ async def process_hint_duo(bot, game, uid, word: str, number: int):
         await bot.send_message(uid, "El número debe ser entre -1 y 9. Usa -1 para pista infinita.")
         return
 
+    chocada = _palabra_prohibida(word, st.tablero)
+    if chocada:
+        await bot.send_message(
+            uid,
+            f"❌ La pista no puede contener (ni estar contenida en) la palabra *{chocada.upper()}* del tablero. Elige otra.",
+            parse_mode=ParseMode.MARKDOWN,
+        )
+        return
+
     infinito = number in (0, -1)
     st.pista_actual = word.upper()
     st.numero_pista = number
@@ -479,6 +510,15 @@ async def process_hint(bot, game, spymaster_uid, word: str, number: int):
         return
     if not (-1 <= number <= 9):
         await bot.send_message(spymaster_uid, "El número debe ser entre -1 y 9. Usa -1 para pista infinita.")
+        return
+
+    chocada = _palabra_prohibida(word, game.board.state.tablero)
+    if chocada:
+        await bot.send_message(
+            spymaster_uid,
+            f"❌ La pista no puede contener (ni estar contenida en) la palabra *{chocada.upper()}* del tablero. Elige otra.",
+            parse_mode=ParseMode.MARKDOWN,
+        )
         return
 
     infinito = number in (0, -1)
