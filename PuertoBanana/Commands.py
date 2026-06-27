@@ -5,7 +5,7 @@ import logging as log
 import re
 
 import PuertoBanana.Controller as PuertoBananaController
-from Utils import get_game, save
+from Utils import get_game, save, player_call
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.constants import ParseMode
@@ -31,7 +31,7 @@ async def command_call(bot, game):
     faltantes = [p for p in game.player_sequence if p.uid not in st.last_votes]
     if not faltantes:
         return
-    nombres = ", ".join(p.name for p in faltantes)
+    nombres = ", ".join(player_call(p) for p in faltantes)
     await bot.send_message(
         game.cid,
         f"🍌 Todavía faltan pujar (en privado, con `/puja CANTIDAD`): {nombres}",
