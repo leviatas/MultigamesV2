@@ -53,13 +53,22 @@ async def start_round(bot, game):
     )
     await bot.send_message(game.cid, game.board.print_board(game), parse_mode=ParseMode.MARKDOWN)
     for player in game.player_sequence:
-        await bot.send_message(
-            player.uid,
-            f"🍌 Partida *{game.groupName}* — Ronda {st.ronda}.\n"
-            f"El pozo es de *{st.pozo_actual}* bananas.\n"
-            "Hacé tu puja secreta con `/puja CANTIDAD` (no estás limitado por lo que tenés).",
-            parse_mode=ParseMode.MARKDOWN
-        )
+        try:
+            await bot.send_message(
+                player.uid,
+                f"🍌 Partida *{game.groupName}* — Ronda {st.ronda}.\n"
+                f"El pozo es de *{st.pozo_actual}* bananas.\n"
+                "Hacé tu puja secreta con `/puja CANTIDAD` (no estás limitado por lo que tenés).",
+                parse_mode=ParseMode.MARKDOWN
+            )
+        except Exception as e:
+            logger.error(f"PuertoBanana start_round no pudo avisar a {player.name} ({player.uid}): {e}")
+            await bot.send_message(
+                game.cid,
+                f"⚠️ No pude avisarle por privado a *{player.name}*. "
+                "Debe iniciar una conversación privada con el bot (`/start`) para poder pujar.",
+                parse_mode=ParseMode.MARKDOWN
+            )
     await save(bot, game.cid)
 
 
