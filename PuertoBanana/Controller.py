@@ -93,7 +93,24 @@ async def resolve_round(bot, game):
     while True:
         mayor_puja = max(restantes.values())
         candidatos_ganador = [uid for uid, monto in restantes.items() if monto == mayor_puja]
-        ganador_uid = random.choice(candidatos_ganador)
+
+        if len(candidatos_ganador) > 1:
+            empatados = [game.playerlist[uid] for uid in candidatos_ganador]
+            reparto = pozo // len(empatados)
+            resto = pozo % len(empatados)
+            for jugador in empatados:
+                jugador.bananas += reparto
+                jugador.eliminado_ronda = False
+            if resto:
+                random.choice(empatados).bananas += resto
+            nombres_empatados = ", ".join(player_call(j) for j in empatados)
+            detalle_lineas.append(
+                f"{nombres_empatados} empataron en la puja más alta (*{mayor_puja}*) y se "
+                f"reparten el pozo de *{pozo}* bananas entre ellos, sin pagarle nada a nadie más."
+            )
+            break
+
+        ganador_uid = candidatos_ganador[0]
         ganador = game.playerlist[ganador_uid]
 
         candidatos_resto = {uid: monto for uid, monto in restantes.items() if uid != ganador_uid}
