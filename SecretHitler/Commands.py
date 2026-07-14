@@ -49,7 +49,8 @@ commands = [  # command description used in the "help" command
     '/board - Imprime el tablero actual con la pista liberal y la pista fascista, orden presidencial y contador de elección',
     '/history - Imprime el historial del juego actual',
     '/votes - Imprime quien ha votado',
-    '/calltovote - Avisa a los jugadores que se tiene que votar'    
+    '/calltovote - Avisa a los jugadores que se tiene que votar',
+    '/retirar - Retira tu voto de Ja o Nein para poder votar de nuevo'
 ]
 
 symbols = [
@@ -482,7 +483,46 @@ def command_calltovote(update: Update, context: CallbackContext):
 			bot.send_message(cid, "No hay juego en este chat. Crea un nuevo juego con /newgame")
 	except Exception as e:
 		bot.send_message(cid, str(e))
-        
+
+def command_retract_vote(update: Update, context: CallbackContext):
+	bot = context.bot
+	try:
+		#Retira el voto de Ja o Nein del jugador que ejecuta el comando
+		cid = update.message.chat_id
+		uid = update.message.from_user.id
+		#Check if there is a current game
+		game = get_game(cid)
+		if game:
+			if not game.dateinitvote:
+				# If date of init vote is null, then the voting didnt start
+				bot.send_message(cid, "La votación no ha comenzado todavia!")
+			elif uid not in game.playerlist:
+				bot.send_message(cid, "No estás en este juego!")
+			elif uid not in game.board.state.last_votes:
+				bot.send_message(cid, "No has votado todavia, no hay voto que retirar!")
+			else:
+				del game.board.state.last_votes[uid]
+				save_game(game.cid, "retract vote Round %d" % (game.board.state.currentround), game)
+				nombre = game.playerlist[uid].name
+				bot.send_message(cid, "%s ha retirado su voto." % nombre)
+				# Send the player a fresh vote button so he can vote again
+				strcid = str(game.cid)
+				btns = [[InlineKeyboardButton("Ja", callback_data=strcid + "_Ja"),
+				InlineKeyboardButton("Nein", callback_data=strcid + "_Nein")]]
+				voteMarkup = InlineKeyboardMarkup(btns)
+				groupName = ""
+				if hasattr(game, 'groupName'):
+					groupName += "*En el grupo {}*\n".format(game.groupName)
+				msg = "{}Has retirado tu voto. Puedes volver a votar aquí.\nQuieres elegir al Presidente *{}* y al canciller *{}*?".format(groupName, game.board.state.nominated_president.name, game.board.state.nominated_chancellor.name)
+				try:
+					bot.send_message(uid, msg, reply_markup=voteMarkup, parse_mode=ParseMode.MARKDOWN)
+				except Exception as e:
+					log.error(str(e))
+		else:
+			bot.send_message(cid, "No hay juego en este chat. Crea un nuevo juego con /newgame")
+	except Exception as e:
+		bot.send_message(cid, str(e))
+
 def command_showhistory(update: Update, context: CallbackContext):
 	bot = context.bot
 	#game.pedrote = 3
