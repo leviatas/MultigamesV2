@@ -9,7 +9,7 @@ import re
 from random import randrange
 from time import sleep
 
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ParseMode, Update
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ParseMode, Update, BotCommand
 from telegram.ext import (Updater, CommandHandler, CallbackQueryHandler, MessageHandler, Filters, CallbackContext)
 
 
@@ -1234,6 +1234,7 @@ def main():
 	dp.add_handler(CommandHandler("votes", Commands.command_votes))
 	dp.add_handler(CommandHandler("calltovote", Commands.command_calltovote))
 	dp.add_handler(CommandHandler("retirar", Commands.command_retract_vote))
+	dp.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)\*chooseGameRetract\*(.*)\*(-?[0-9]*)", callback=Commands.callback_retract))
 	dp.add_handler(CommandHandler("claim", Commands.command_claim))
 	dp.add_handler(CommandHandler("reload", Commands.command_reloadgame))
 	dp.add_handler(CommandHandler("debug", Commands.command_toggle_debugging))
@@ -1283,7 +1284,31 @@ def main():
 
 	# log all errors
 	dp.add_error_handler(error_callback)
-	
+
+	# Registrar el menú de comandos que Telegram muestra al escribir "/"
+	try:
+		updater.bot.set_my_commands([
+			BotCommand("help", "Informacion de los comandos disponibles"),
+			BotCommand("start", "Da un poco de informacion sobre Secret Hitler"),
+			BotCommand("rules", "Link al sitio oficial con las reglas"),
+			BotCommand("symbols", "Muestra los simbolos posibles en el tablero"),
+			BotCommand("newgame", "Crea un nuevo juego o carga uno previo"),
+			BotCommand("join", "Te une a un juego existente"),
+			BotCommand("startgame", "Comienza un juego cuando todos se unieron"),
+			BotCommand("cancelgame", "Cancela un juego existente"),
+			BotCommand("board", "Imprime el tablero actual"),
+			BotCommand("history", "Imprime el historial del juego actual"),
+			BotCommand("votes", "Imprime quien ha votado"),
+			BotCommand("calltovote", "Avisa a los jugadores que hay que votar"),
+			BotCommand("retirar", "Retira tu voto de Ja o Nein para volver a votar"),
+			BotCommand("info", "Muestra tu informacion privada del juego"),
+			BotCommand("jugadores", "Muestra los jugadores del juego"),
+			BotCommand("leave", "Te saca de un juego existente"),
+			BotCommand("stats", "Muestra las estadisticas"),
+		])
+	except Exception as e:
+		log.error(str(e))
+
 	updater.bot.send_message(ADMIN, "Nueva version en linea")
 
 	# Comentar linea de abajo si se quiere usar web deploy

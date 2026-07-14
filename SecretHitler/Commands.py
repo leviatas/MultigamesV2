@@ -484,44 +484,74 @@ def command_calltovote(update: Update, context: CallbackContext):
 	except Exception as e:
 		bot.send_message(cid, str(e))
 
+def retract_player_vote(bot, game, uid):
+	# Realiza el retiro del voto del jugador y avisa en qué grupo se retiró
+	del game.board.state.last_votes[uid]
+	save_game(game.cid, "retract vote Round %d" % (game.board.state.currentround), game)
+	nombre = game.playerlist[uid].name
+	grupo = game.groupName if (hasattr(game, 'groupName') and game.groupName) else str(game.cid)
+	# Aviso en el grupo para que el resto de jugadores lo vea
+	bot.send_message(game.cid, "%s ha retirado su voto." % nombre)
+	# Le mando al jugador la confirmación (indicando el grupo) y botones para volver a votar
+	strcid = str(game.cid)
+	btns = [[InlineKeyboardButton("Ja", callback_data=strcid + "_Ja"),
+	InlineKeyboardButton("Nein", callback_data=strcid + "_Nein")]]
+	voteMarkup = InlineKeyboardMarkup(btns)
+	msg = "Has retirado tu voto en el grupo *{}*. Puedes volver a votar aquí.\nQuieres elegir al Presidente *{}* y al canciller *{}*?".format(grupo, game.board.state.nominated_president.name, game.board.state.nominated_chancellor.name)
+	try:
+		bot.send_message(uid, msg, reply_markup=voteMarkup, parse_mode=ParseMode.MARKDOWN)
+	except Exception as e:
+		log.error(str(e))
+
 def command_retract_vote(update: Update, context: CallbackContext):
 	bot = context.bot
 	try:
 		#Retira el voto de Ja o Nein del jugador que ejecuta el comando
-		cid = update.message.chat_id
-		uid = update.message.from_user.id
-		#Check if there is a current game
-		game = get_game(cid)
-		if game:
-			if not game.dateinitvote:
-				# If date of init vote is null, then the voting didnt start
-				bot.send_message(cid, "La votación no ha comenzado todavia!")
-			elif uid not in game.playerlist:
-				bot.send_message(cid, "No estás en este juego!")
-			elif uid not in game.board.state.last_votes:
-				bot.send_message(cid, "No has votado todavia, no hay voto que retirar!")
+		cid, uid, groupType = update.message.chat_id, update.message.from_user.id, update.message.chat.type
+		if groupType not in ['group', 'supergroup']:
+			# En privado con el bot: busco los juegos donde el jugador tiene un voto activo para retirar
+			all_games_unfiltered = MainController.getGamesByTipo("Todos") or {}
+			retractable = {key: "{}: {}".format(g.groupName, g.tipo) for key, g in all_games_unfiltered.items()
+				if uid in g.playerlist and g.board is not None and g.dateinitvote and uid in g.board.state.last_votes}
+			if not retractable:
+				bot.send_message(uid, "No tienes ningún voto activo que retirar.")
+			elif len(retractable) == 1:
+				game = get_game(int(list(retractable.keys())[0]))
+				retract_player_vote(bot, game, uid)
 			else:
-				del game.board.state.last_votes[uid]
-				save_game(game.cid, "retract vote Round %d" % (game.board.state.currentround), game)
-				nombre = game.playerlist[uid].name
-				bot.send_message(cid, "%s ha retirado su voto." % nombre)
-				# Send the player a fresh vote button so he can vote again
-				strcid = str(game.cid)
-				btns = [[InlineKeyboardButton("Ja", callback_data=strcid + "_Ja"),
-				InlineKeyboardButton("Nein", callback_data=strcid + "_Nein")]]
-				voteMarkup = InlineKeyboardMarkup(btns)
-				groupName = ""
-				if hasattr(game, 'groupName'):
-					groupName += "*En el grupo {}*\n".format(game.groupName)
-				msg = "{}Has retirado tu voto. Puedes volver a votar aquí.\nQuieres elegir al Presidente *{}* y al canciller *{}*?".format(groupName, game.board.state.nominated_president.name, game.board.state.nominated_chancellor.name)
-				try:
-					bot.send_message(uid, msg, reply_markup=voteMarkup, parse_mode=ParseMode.MARKDOWN)
-				except Exception as e:
-					log.error(str(e))
+				msg = "Elija el grupo del cual quiere retirar su voto"
+				simple_choose_buttons(bot, cid, uid, uid, "chooseGameRetract", msg, retractable)
 		else:
-			bot.send_message(cid, "No hay juego en este chat. Crea un nuevo juego con /newgame")
+			#Check if there is a current game
+			game = get_game(cid)
+			if game:
+				if not game.dateinitvote:
+					# If date of init vote is null, then the voting didnt start
+					bot.send_message(cid, "La votación no ha comenzado todavia!")
+				elif uid not in game.playerlist:
+					bot.send_message(cid, "No estás en este juego!")
+				elif uid not in game.board.state.last_votes:
+					bot.send_message(cid, "No has votado todavia, no hay voto que retirar!")
+				else:
+					retract_player_vote(bot, game, uid)
+			else:
+				bot.send_message(cid, "No hay juego en este chat. Crea un nuevo juego con /newgame")
 	except Exception as e:
-		bot.send_message(cid, str(e))
+		bot.send_message(update.message.chat_id, str(e))
+
+def callback_retract(update: Update, context: CallbackContext):
+	bot = context.bot
+	log.info('callback_retract called')
+	callback = update.callback_query
+	regex = re.search(r"(-?[0-9]*)\*chooseGameRetract\*(.*)\*(-?[0-9]*)", callback.data)
+	opcion, uid = regex.group(2), int(regex.group(3))
+	game = get_game(int(opcion))
+	if not game or not game.dateinitvote:
+		bot.send_message(uid, "La votación ya no está activa, no hay voto que retirar.")
+	elif uid not in game.board.state.last_votes:
+		bot.send_message(uid, "No tienes un voto activo que retirar en ese grupo.")
+	else:
+		retract_player_vote(bot, game, uid)
 
 def command_showhistory(update: Update, context: CallbackContext):
 	bot = context.bot
