@@ -1234,6 +1234,7 @@ def main():
 	dp.add_handler(CommandHandler("votes", Commands.command_votes))
 	dp.add_handler(CommandHandler("calltovote", Commands.command_calltovote))
 	dp.add_handler(CommandHandler("retirar", Commands.command_retract_vote))
+	dp.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)\*chooseGameRetract\*(.*)\*(-?[0-9]*)", callback=Commands.callback_retract))
 	dp.add_handler(CommandHandler("claim", Commands.command_claim))
 	dp.add_handler(CommandHandler("reload", Commands.command_reloadgame))
 	dp.add_handler(CommandHandler("debug", Commands.command_toggle_debugging))
