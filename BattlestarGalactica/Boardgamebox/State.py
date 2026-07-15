@@ -63,6 +63,13 @@ class State(BaseState):
         # --- Carta de habilidad de acción en curso (multi-paso) ---
         self.play_pending = None          # dict: {tipo, uid, ...} para Consolidate/Scout
 
+        # --- Economía de acciones del turno ---
+        self.acciones_restantes = 1       # acciones del jugador activo este turno
+        self.movimientos_restantes = 1    # movimientos del jugador activo este turno
+        self.bonus_moves = 0              # movimientos del objetivo de la Orden Ejecutiva
+        self.bonus_actions = 0            # acciones del objetivo de la Orden Ejecutiva
+        self.tyrol_extra_usada = False    # pasiva de Tyrol: acción extra tras Repair (1/turno)
+
         # --- Efectos reactivos de cartas de habilidad (se arman y se consumen) ---
         self.bonus_actor = None           # uid con acción extra este turno (Executive Order)
         self.dado_bonus = 0               # +N a la próxima tirada de ataque (Strategic Planning)
@@ -71,6 +78,11 @@ class State(BaseState):
         # --- Pasivas de personaje con estado propio ---
         self.roslin_choice = None         # [crisis_a, crisis_b] pendiente de elección (Roslin)
         self.reroll_armed = False         # repetición de tirada de ataque armada (Helo, 1/turno)
+
+        # --- Habilidades 1/juego con estado propio ---
+        self.habilidad_pendiente = None   # dict {tipo, uid, ...} esperando una botonera
+        self.adama_recoge_uid = None      # Autoridad de Mando: las cartas del chequeo van a su mano
+        self.devocion_color = None        # Devoción Ciega (Tyrol): ese color cuenta fuerza 0
 
         # --- Naves: modelo posicional por áreas del espacio ---
         self.areas = [Space.nueva_area() for _ in range(Space.N_AREAS)]

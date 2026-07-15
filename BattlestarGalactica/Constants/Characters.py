@@ -81,7 +81,7 @@ PERSONAJES = {
         "abilities": (
             "Líder Inspirador: al robar una carta de Crisis, todas las cartas de habilidad de fuerza 1 "
             "cuentan en positivo en el chequeo.\n"
-            "Autoridad de Mando (Acción, 1/juego): tras resolver un chequeo, en vez de descartar las cartas "
+            "Autoridad de Mando (1/juego): tras resolver un chequeo, en vez de descartar las cartas "
             "usadas, róbalas a tu mano.\n"
             "Apego Emocional: no puedes activar la ubicación 'Camarote del Almirante'."
         ),
@@ -103,12 +103,12 @@ PERSONAJES = {
     "helo": {
         "nombre": "Karl \"Helo\" Agathon",
         "tipo": "Militar",
-        "ubicacion": "command",  # map: Varado en Caprica (entra en su 2º turno)
+        "ubicacion": "hangar",  # Varado: no empieza en el tablero; entra al Hangar en su 2º turno
         "titulo": None,
         "skill_set": [LIDERAZGO, LIDERAZGO, TACTICA, TACTICA, PILOTAJE],
         "abilities": (
             "Oficial ECO: en tu turno puedes repetir una tirada de dado recién hecha (1/turno); usas el nuevo resultado.\n"
-            "Brújula Moral (Acción, 1/juego): tras una elección de una carta de Crisis, puedes cambiarla.\n"
+            "Brújula Moral (1/juego): tras una elección de una carta de Crisis, puedes cambiarla.\n"
             "Varado: no empiezas en el tablero; al inicio de tu 2º turno te colocas en la Cubierta de Hangar."
         ),
         "desventaja": "Varado: entra al tablero recién en su 2º turno.",
@@ -138,7 +138,7 @@ PERSONAJES = {
         "skill_set": [PILOTAJE, PILOTAJE, TACTICA, TACTICA, LIDERAZGO, INGENIERIA],
         "abilities": (
             "Piloto Experta: si empiezas tu turno pilotando un Viper, tomas 2 acciones en tu paso de Acción.\n"
-            "Destino Secreto (Acción, 1/juego): justo tras revelar una carta de Crisis, descártala y roba otra.\n"
+            "Destino Secreto (1/juego): justo tras revelar una carta de Crisis, descártala y roba otra.\n"
             "Insubordinada: cuando te eligen con el 'Camarote del Almirante', reduce la dificultad en 3."
         ),
         "desventaja": "Insubordinada: -3 dificultad al chequeo del Camarote del Almirante sobre ella.",
@@ -151,7 +151,7 @@ PERSONAJES = {
         "skill_set": [PILOTAJE, PILOTAJE, TACTICA, TACTICA, INGENIERIA],
         "abilities": (
             "Reconocimiento: al final de tu turno, mira la carta superior del mazo de Crisis y déjala arriba o abajo.\n"
-            "Intuición Misteriosa (Acción, 1/juego): antes de resolver un chequeo de una Crisis, elige el resultado "
+            "Intuición Misteriosa (1/juego): antes de resolver un chequeo de una Crisis, elige el resultado "
             "(Éxito o Fracaso) en vez de resolverlo normalmente.\n"
             "Agente Durmiente: en la Fase del Agente Durmiente recibes 2 cartas de lealtad (en vez de 1) y "
             "te trasladan al Calabozo."
@@ -171,7 +171,7 @@ PERSONAJES = {
         "abilities": (
             "Ingeniero de Mantenimiento: en tu turno, tras usar una carta de habilidad 'Reparación', "
             "puedes tomar otra acción (1/turno).\n"
-            "Devoción Ciega (Acción, 1/juego): tras añadir las cartas a un chequeo (antes de revelarlas), "
+            "Devoción Ciega (1/juego): tras añadir las cartas a un chequeo (antes de revelarlas), "
             "elige un tipo de habilidad; todas las cartas de ese tipo cuentan fuerza 0.\n"
             "Imprudente: tu límite de mano es 8 (en vez de 10)."
         ),

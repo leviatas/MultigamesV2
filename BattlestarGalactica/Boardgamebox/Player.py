@@ -44,6 +44,8 @@ class Player(BasePlayer):
         self.en_calabozo = False
         self.habilidad_usada = False   # habilidad de "una vez por juego"
         self.viper_area = None         # índice de área si pilota un Viper (None = en una ubicación)
+        self.varado = False            # Helo: empieza fuera del tablero (Varado en Caprica)
+        self.varado_turnos = 0         # turnos propios transcurridos mientras está varado
 
     def get_private_info(self, game):
         """Información privada del jugador: su personaje y datos iniciales,
