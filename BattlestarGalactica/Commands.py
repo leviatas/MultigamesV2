@@ -297,9 +297,15 @@ async def callback_bsg_jugar(update: Update, context: CallbackContext):
             if nombre not in BSGController.CARTAS_JUGABLES:
                 await callback.answer("Esa carta no se juega así.")
                 return
+            # Las cartas de ACCIÓN se juegan como la acción del turno.
+            if (nombre in BSGController.CARTAS_ACCION
+                    and not BSGController._puede_accionar(st, presser)):
+                await callback.answer("Ya usaste tu acción este turno.")
+                return
             await callback.answer("Carta jugada.")
             if nombre == "Consolidate Power":
                 player.skill_hand.pop(idx - 1)
+                BSGController._consumir_accion(st, presser)
                 st.play_pending = {"tipo": "draw", "uid": presser, "restantes": 2,
                                    "label": "Consolidación de Poder"}
                 await BSGController.save(bot, cid)
@@ -330,6 +336,7 @@ async def callback_bsg_jugar(update: Update, context: CallbackContext):
                 await BSGController.save(bot, cid)
             elif nombre == "Launch Scout":
                 player.skill_hand.pop(idx - 1)
+                BSGController._consumir_accion(st, presser)
                 st.play_pending = {"tipo": "scout", "uid": presser}
                 await BSGController.save(bot, cid)
                 top = st.crisis_deck[-1] if st.crisis_deck else None
@@ -342,11 +349,22 @@ async def callback_bsg_jugar(update: Update, context: CallbackContext):
                 ok = await BSGController.carta_repair(bot, game, player)
                 if ok:
                     player.skill_hand.pop(idx - 1)
+                    BSGController._consumir_accion(st, presser)
+                    # Pasiva de Tyrol 'Ingeniero de Mantenimiento': tras usar una
+                    # carta Reparación en su turno, toma otra acción (1/turno).
+                    if (getattr(player, "personaje", None) == "tyrol" and not player.revealed
+                            and st.active_player and st.active_player.uid == presser
+                            and not getattr(st, "tyrol_extra_usada", False)):
+                        st.tyrol_extra_usada = True
+                        st.acciones_restantes = getattr(st, "acciones_restantes", 0) + 1
+                        await bot.send_message(cid, "🔧 *Ingeniero de Mantenimiento*: Tyrol gana otra acción este turno.",
+                                               parse_mode=ParseMode.MARKDOWN)
                 await BSGController.save(bot, cid)
             elif nombre == "Maximum Firepower":
                 ok = await BSGController.carta_max_firepower(bot, game, player)
                 if ok:
                     player.skill_hand.pop(idx - 1)
+                    BSGController._consumir_accion(st, presser)
                 await BSGController.save(bot, cid)
         elif token.startswith("cp_"):
             await callback.answer()
@@ -361,16 +379,28 @@ async def callback_bsg_jugar(update: Update, context: CallbackContext):
         elif token.startswith("eo_"):
             await callback.answer()
             objetivo_uid = int(token[3:])
+            if not BSGController._puede_accionar(st, presser):
+                await bot.send_message(presser, "Ya usaste tu acción este turno.")
+                return
             ok = await BSGController.carta_executive_order(bot, game, presser, objetivo_uid)
             if ok:
                 for j, c in enumerate(player.skill_hand):
                     if c.get("nombre") == "Executive Order":
                         player.skill_hand.pop(j)
                         break
+                BSGController._consumir_accion(st, presser)
                 await BSGController.save(bot, cid)
         elif token in ("ls_keep", "ls_bottom"):
             await callback.answer()
             await BSGController.carta_scout_resolve(bot, game, presser, token == "ls_keep")
+        elif token.startswith(("hb_", "hq_", "hr_", "hc_", "ho_")):
+            # Botoneras de habilidades de personaje (1/juego).
+            await callback.answer()
+            try:
+                await bot.edit_message_reply_markup(presser, callback.message.message_id, reply_markup=None)
+            except Exception:
+                pass
+            await BSGController.resolver_habilidad_pendiente(bot, game, presser, token)
     except Exception as e:
         logger.error(f"callback_bsg_jugar error: {e}")
         try:
@@ -497,6 +527,14 @@ async def command_accion(update: Update, context: CallbackContext):
     # En el calabozo solo se permite el intento de fuga (chequeo del Calabozo).
     if player.en_calabozo and player.ubicacion != "brig":
         await bot.send_message(cid, "Estás en el calabozo y no puedes realizar acciones.")
+        return
+    if getattr(player, "varado", False):
+        await bot.send_message(cid, "🏝️ Estás Varado en Caprica: este turno no puedes accionar. Usa `/crisis`.",
+                               parse_mode=ParseMode.MARKDOWN)
+        return
+    if not BSGController._puede_accionar(st, uid):
+        await bot.send_message(cid, "Ya usaste tu acción este turno. Usa `/crisis` para continuar.",
+                               parse_mode=ParseMode.MARKDOWN)
         return
 
     # Pilotando un Viper tripulado: acciones de piloto en lugar de las de ubicación.
@@ -656,6 +694,7 @@ async def callback_bsg_accion(update: Update, context: CallbackContext):
         if accion != "pass":
             await BSGController.ejecutar_accion_ubicacion(bot, game, presser, accion)
         else:
+            BSGController._consumir_accion(st, presser)
             await bot.send_message(cid, f"{game.playerlist[presser].name} pasa su acción.")
         if not st.ganador and not st.skill_check:
             await bot.send_message(cid, "Ahora se revela la *Crisis*. Usa `/crisis`.", parse_mode=ParseMode.MARKDOWN)
@@ -757,6 +796,17 @@ async def command_mover(update: Update, context: CallbackContext):
         await bot.send_message(cid, "Primero elige tus cartas de habilidad (revisa tu privado).")
         return
     player = game.playerlist[uid]
+    if player.en_calabozo:
+        await bot.send_message(cid, "🔒 Estás en el Calabozo: no puedes moverte. "
+                                    "Intenta la fuga con `/accion` o espera un indulto.",
+                               parse_mode=ParseMode.MARKDOWN)
+        return
+    if getattr(player, "varado", False):
+        await bot.send_message(cid, "🏝️ Estás Varado en Caprica: todavía no puedes moverte.")
+        return
+    if not BSGController._puede_mover(st, uid):
+        await bot.send_message(cid, "Ya usaste tu movimiento este turno.")
+        return
     if getattr(player, "viper_area", None) is not None:
         await bot.send_message(cid, "✈️ Estás pilotando un Viper: usa `/accion` para volar a otra área o aterrizar.",
                                parse_mode=ParseMode.MARKDOWN)
@@ -1009,11 +1059,14 @@ async def command_aportar(update: Update, context: CallbackContext):
     if not game or not game.board:
         await bot.send_message(uid, "No estás en una partida activa de BSG.")
         return
-    if not game.board.state.skill_check:
+    sc = game.board.state.skill_check
+    if not sc:
         await bot.send_message(uid, "No hay ningún chequeo de habilidad abierto.")
         return
-    if game.playerlist[uid].en_calabozo:
-        await bot.send_message(uid, "Estás en el calabozo y no puedes aportar cartas.")
+    # En el calabozo se puede aportar como máximo 1 carta por chequeo.
+    if (game.playerlist[uid].en_calabozo
+            and len(sc.get("aportes", {}).get(uid, [])) >= 1):
+        await bot.send_message(uid, "En el calabozo solo puedes aportar 1 carta por chequeo.")
         return
     if not args or not args[0].isdigit():
         await bot.send_message(uid, "Uso: `/aportar N` (N = número de carta de tu mano).", parse_mode=ParseMode.MARKDOWN)
