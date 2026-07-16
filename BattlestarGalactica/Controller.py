@@ -399,15 +399,17 @@ async def _dm_lealtad(bot, player):
     cartas = player.loyalty_cards
     es_cylon = Loyalty.CYLON in cartas
     es_simp = Loyalty.SIMPATIZANTE in cartas
+    detalle = "\n".join(f"• {Loyalty.NOMBRE_CARTA.get(c, c)}" for c in cartas)
+    txt = f"🃏 *Tus cartas de lealtad ({len(cartas)}):*\n{detalle}\n\n"
     if es_cylon:
-        txt = ("🤖 *ERES UN CYLON.*\nSabotea a la flota sin que te descubran. "
-               "Podrás revelarte más adelante para causar más daño.")
+        txt += ("🤖 *ERES UN CYLON.*\nSabotea a la flota sin que te descubran. "
+                "Podrás revelarte más adelante para causar más daño.")
     elif es_simp:
-        txt = ("🕵️ Tienes la carta de *Simpatizante*: se revela de inmediato. "
-               "Si algún recurso está en zona roja te unes a los Cylons; "
-               "si no, vas al Calabozo (sigues siendo humano).")
+        txt += ("🕵️ Tienes la carta de *Simpatizante*: se revela de inmediato. "
+                "Si algún recurso está en zona roja te unes a los Cylons; "
+                "si no, vas al Calabozo (sigues siendo humano).")
     else:
-        txt = "🧑 *No eres un Cylon* (por ahora). Ayuda a la flota a sobrevivir."
+        txt += "🧑 *No eres un Cylon* (por ahora). Ayuda a la flota a sobrevivir."
     await bot.send_message(player.uid, txt, parse_mode=ParseMode.MARKDOWN)
 
 
@@ -2281,7 +2283,8 @@ async def resolver_habilidad_pendiente(bot, game, uid, token):
             return
         st.habilidad_pendiente = None
         player.habilidad_usada = True
-        cartas = ", ".join(target.loyalty_cards) if target.loyalty_cards else "ninguna"
+        cartas = (", ".join(Loyalty.NOMBRE_CARTA.get(c, c) for c in target.loyalty_cards)
+                  if target.loyalty_cards else "ninguna")
         await bot.send_message(uid, f"🔎 Cartas de lealtad de *{target.name}*: {cartas}", parse_mode=ParseMode.MARKDOWN)
         await bot.send_message(game.cid, f"🔎 *{player.name}* (Detector de Cylons) analiza en privado TODA la lealtad de *{target.name}*.",
                                parse_mode=ParseMode.MARKDOWN)
@@ -2442,7 +2445,8 @@ async def resolver_quorum_objetivo(bot, game, objetivo_uid):
                 objetivo.titulos.append("Almirante")
             await bot.send_message(game.cid, f"🎲 Tirada {r}: *{objetivo.name}* se vuelve Almirante.", parse_mode=ParseMode.MARKDOWN)
     elif ef == "mugshots":
-        cartas = ", ".join(objetivo.loyalty_cards) if objetivo.loyalty_cards else "ninguna"
+        cartas = (", ".join(Loyalty.NOMBRE_CARTA.get(c, c) for c in objetivo.loyalty_cards)
+                  if objetivo.loyalty_cards else "ninguna")
         await bot.send_message(st.presidente_uid or ADMIN[0],
                                f"🔎 Lealtad de {objetivo.name}: {cartas}")
         await bot.send_message(game.cid, f"🔎 El Presidente revisa la ficha de *{objetivo.name}*.", parse_mode=ParseMode.MARKDOWN)
@@ -3283,12 +3287,7 @@ async def _inspeccionar_lealtad(bot, game, chooser, target):
         await bot.send_message(game.cid, f"🔍 {target.name if target else 'El objetivo'} no tiene cartas de lealtad para inspeccionar.")
         return
     carta = random.choice(target.loyalty_cards)
-    if carta == Loyalty.CYLON:
-        desc = "🤖 *ERES UN CYLON*"
-    elif carta == Loyalty.SIMPATIZANTE:
-        desc = "🕵️ *Simpatizante*"
-    else:
-        desc = "🧑 *No eres un Cylon*"
+    desc = f"*{Loyalty.NOMBRE_CARTA.get(carta, carta)}*"
     await bot.send_message(chooser.uid, f"🔍 Carta de lealtad de *{target.name}*: {desc}", parse_mode=ParseMode.MARKDOWN)
     await bot.send_message(game.cid, f"🔍 *{chooser.name}* inspecciona en privado una carta de lealtad de *{target.name}*.", parse_mode=ParseMode.MARKDOWN)
 

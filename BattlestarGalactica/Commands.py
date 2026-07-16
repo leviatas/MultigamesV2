@@ -199,10 +199,11 @@ async def command_lealtad(update: Update, context: CallbackContext):
     es_cylon = Loyalty.CYLON in player.loyalty_cards
     rol = "🤖 *ERES UN CYLON*" if es_cylon else "🧑 No eres un Cylon (por ahora)"
     nombre_pj = pj["nombre"] if pj else "sin asignar"
+    detalle = "\n".join(f"• {Loyalty.NOMBRE_CARTA.get(c, c)}" for c in player.loyalty_cards)
     await bot.send_message(
         uid,
         f"{rol}\n\nPersonaje: *{nombre_pj}*\n"
-        f"Cartas de lealtad: {len(player.loyalty_cards)}",
+        f"Cartas de lealtad ({len(player.loyalty_cards)}):\n{detalle}",
         parse_mode=ParseMode.MARKDOWN,
     )
 
