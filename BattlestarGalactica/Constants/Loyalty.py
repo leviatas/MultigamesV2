@@ -24,6 +24,13 @@ CYLON = "cylon"
 HUMANO = "humano"
 SIMPATIZANTE = "simpatizante"
 
+# Nombre visible de cada carta de lealtad.
+NOMBRE_CARTA = {
+    CYLON: "🤖 Eres un Cylon",
+    HUMANO: "🧑 No eres un Cylon",
+    SIMPATIZANTE: "🕵️ Eres un Simpatizante",
+}
+
 # Número de cartas "Eres un Cylon" en el mazo, por cantidad de jugadores
 # (valores oficiales del reglamento del juego base).
 CYLON_CARDS_POR_JUGADORES = {
