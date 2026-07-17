@@ -370,16 +370,40 @@ async def command_cancelgame(update: Update, context: CallbackContext):
 	log.info('command_cancelgame called {}'.format(args))
 	cid = update.message.chat_id
 	uid = update.effective_user.id
-	#Always try to delete in DB	
+	target_cid = cid
 	if len(args) > 0 and uid == ADMIN[0]:
-		cid = int(args[0])	
+		target_cid = int(args[0])
+	btns = [[
+		InlineKeyboardButton("✅ Sí, eliminar", callback_data="{}*cancelgameConfirm*si*{}".format(target_cid, uid)),
+		InlineKeyboardButton("❌ No, conservar", callback_data="{}*cancelgameConfirm*no*{}".format(target_cid, uid))
+	]]
+	mensaje = "⚠️ ¿Estás seguro de que querés eliminar la partida?"
+	if target_cid != cid:
+		mensaje = "⚠️ ¿Estás seguro de que querés eliminar la partida del chat `{}`?".format(target_cid)
+	await bot.send_message(cid, mensaje, reply_markup=InlineKeyboardMarkup(btns), parse_mode=ParseMode.MARKDOWN)
+
+async def callback_cancelgame_confirm(update: Update, context: CallbackContext):
+	bot = context.bot
+	callback = update.callback_query
+	log.info('callback_cancelgame_confirm called: %s' % callback.data)
+	regex = re.search(r"(-?[0-9]*)\*cancelgameConfirm\*(.*)\*(-?[0-9]*)", callback.data)
+	target_cid, opcion, uid = int(regex.group(1)), regex.group(2), int(regex.group(3))
+	presser = callback.from_user.id
+	if presser != uid and presser != ADMIN[0]:
+		await callback.answer("Solo quien ejecutó el comando puede confirmar.", show_alert=True)
+		return
+	await callback.answer()
+	if opcion == "no":
+		await bot.edit_message_text("Operación cancelada. La partida sigue en pie.", callback.message.chat_id, callback.message.message_id)
+		return
+	#Always try to delete in DB
 	try:
-		delete_game(cid)
-		if cid in GamesController.games.keys():
-			del GamesController.games[cid]
-		await bot.send_message(cid, "Borrado exitoso.")
+		delete_game(target_cid)
+		if target_cid in GamesController.games.keys():
+			del GamesController.games[target_cid]
+		await bot.edit_message_text("Borrado exitoso.", callback.message.chat_id, callback.message.message_id)
 	except Exception as e:
-		await bot.send_message(cid, "El borrado ha fallado debido a: "+str(e))	
+		await bot.edit_message_text("El borrado ha fallado debido a: "+str(e), callback.message.chat_id, callback.message.message_id)
 
 async def command_votes(update: Update, context: CallbackContext):
 	bot = context.bot
