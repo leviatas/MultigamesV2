@@ -396,20 +396,45 @@ def command_startgame(update: Update, context: CallbackContext):
 def command_cancelgame(update: Update, context: CallbackContext):
 	bot = context.bot
 	log.info('command_cancelgame called')
-	cid = update.message.chat_id	
+	cid = update.message.chat_id
+	uid = update.message.from_user.id
 	#Always try to delete in DB
-	
+
 	game = get_game(cid)
-	
+
 	#delete_game(cid)
-	if game:		
-		status = bot.getChatMember(cid, update.message.from_user.id).status
-		if update.message.from_user.id == game.initiator or status in ("administrator", "creator"):
-			MainController.end_game(bot, game, 99)
+	if game:
+		status = bot.getChatMember(cid, uid).status
+		if uid == game.initiator or status in ("administrator", "creator"):
+			btns = [[InlineKeyboardButton("Sí, cancelar el juego", callback_data="{}*confirmCancel*si*{}".format(cid, uid)),
+					InlineKeyboardButton("No", callback_data="{}*confirmCancel*no*{}".format(cid, uid))]]
+			bot.send_message(cid, "¿Estás seguro de que quieres cancelar el juego? Todos los datos del juego serán borrados.", reply_markup=InlineKeyboardMarkup(btns))
 		else:
 			bot.send_message(cid, "Solo el creador del juego o el administrador del grupo pueden cancelar el juego con /cancelgame")
 	else:
 		bot.send_message(cid, "No hay juego en este chat. Crea un nuevo juego con /newgame")
+
+def callback_cancelgame_confirm(update: Update, context: CallbackContext):
+	bot = context.bot
+	log.info('callback_cancelgame_confirm called')
+	callback = update.callback_query
+
+	regex = re.search(r"(-?[0-9]*)\*confirmCancel\*(si|no)\*(-?[0-9]*)", callback.data)
+	cid, opcion, uid = int(regex.group(1)), regex.group(2), int(regex.group(3))
+
+	if callback.from_user.id != uid:
+		callback.answer("Solo quien ejecutó /cancelgame puede confirmar.")
+		return
+
+	if opcion == "si":
+		game = get_game(cid)
+		if game:
+			bot.edit_message_text("Juego cancelado.", cid, callback.message.message_id)
+			MainController.end_game(bot, game, 99)
+		else:
+			bot.edit_message_text("No hay juego en este chat. Crea un nuevo juego con /newgame", cid, callback.message.message_id)
+	else:
+		bot.edit_message_text("Cancelación abortada, el juego continúa.", cid, callback.message.message_id)
 
 def command_votes(update: Update, context: CallbackContext):
 	bot = context.bot
