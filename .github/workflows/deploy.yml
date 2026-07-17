@@ -1,0 +1,26 @@
+name: Deploy
+
+on:
+  push:
+    branches: [develop]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-main
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+    timeout-minutes: 40 # los builds en ARM son lentos
+    steps:
+      - name: Deploy con prod.sh
+        run: |
+          DEPLOY_DIR="${{ vars.DEPLOY_DIR }}"
+          DEPLOY_DIR="${DEPLOY_DIR:-$HOME/proyectos/MisProyectos/MultigamesV2}"
+          if [ ! -d "$DEPLOY_DIR/.git" ]; then
+            echo "::error::No existe un repo git en $DEPLOY_DIR. Configurá la variable DEPLOY_DIR en GitHub (Settings → Secrets and variables → Actions → Variables)."
+            exit 1
+          fi
+          cd "$DEPLOY_DIR"
+          ./prod.sh
