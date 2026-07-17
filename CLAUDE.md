@@ -72,7 +72,7 @@ Telegram update → MainController (dispatcher) → Commands.py handler
 
 **`GamesController`** is a module-level singleton with a `games` dict keyed by `cid` (Telegram chat ID). `GamesController.init()` must be called at startup to initialize the dict.
 
-**Game state** is persisted as `jsonpickle`-encoded objects. After decoding, player IDs in `playerlist` and vote dicts must be cast back to `int` (jsonpickle converts dict keys to strings — see `Utils.load_game()`).
+**Game state** is persisted as `jsonpickle`-encoded objects. After decoding, player IDs in `playerlist`, `board.state.last_votes`, and `board.state.enesperadeaccion` must be cast back to `int` (jsonpickle converts dict keys to strings — see `Utils.load_game()`). Any new dict keyed by `uid` added to persisted state needs the same treatment.
 
 ### Root Boardgamebox Classes
 
@@ -80,6 +80,7 @@ Telegram update → MainController (dispatcher) → Commands.py handler
 - **`Board`** (`Boardgamebox/Board.py`): Holds `state`, card deck (`cartas`), `discards`, `previous`.
 - **`State`** (`Boardgamebox/State.py`): All mutable game state — `fase_actual`, `active_player`, `reviewer_player`, `player_counter`, `last_votes`, action indices for card execution sequences.
 - **`Player`** (`Boardgamebox/Player.py`): `name` and `uid`.
+- **`Team`** (`Boardgamebox/Team.py`): Named group of players (e.g. liberal/fascist); used by team-based games to check membership and broadcast messages to teammates only.
 
 Each game typically subclasses `Game` (in its own `Boardgamebox/Game.py`) to add game-specific fields.
 
@@ -90,6 +91,8 @@ Inline keyboard buttons encode data as a `*`-delimited string:
 "{cid}*{comando_callback}*{key}*{uid}"
 ```
 Handlers split on `*` to extract these four fields. This is the universal pattern across all games.
+
+Destructive actions (e.g. `/delete`, `/cancelgame`) don't act immediately — they send a Sí/No inline keyboard (`confirmDelete`/`confirmCancel` in the callback data) and require the confirming callback's `from_user.id` to match the `uid` embedded in the data before proceeding. Follow this two-step pattern for any new command that deletes or ends a game.
 
 ### Utility Functions (`Utils/__init__.py`)
 
@@ -104,7 +107,7 @@ Key helpers used everywhere:
 
 ### SecretHitler Sub-Ecosystem
 
-`SecretHitler/` is a **self-contained** bot with its own `MainController`, `Commands`, `GamesController`, `Boardgamebox/`, `Constants/`, and DB connection. It shares only `Utils.command_status` from the root. It has its own `DBCreate.sql`, `requirements.txt`, and formerly its own Heroku/Jenkins deployment (`Procfile`, `Jenkinsfile`, `app.json`).
+`SecretHitler/` is a **self-contained** bot with its own `MainController`, `Commands`, `GamesController`, `Boardgamebox/`, `Constants/`, and DB connection. It shares only `Utils.command_status` from the root. It has its own `DBCreate.sql`, `requirements.txt`, and formerly its own Heroku/Jenkins deployment (`Procfile`, `Jenkinsfile`, `app.json`). It also has its own player stats layer: `PlayerStats.py` (per-user, per-game-type stats/achievements dict, persisted separately from game state) and `EstadisticsCalculator.py` (hypergeometric-distribution helpers for role-probability stats). At startup `main()` registers the bot's `/`-menu via `set_my_commands` — keep that list in sync when adding/removing commands.
 
 ### Config (`Constants/Config.py`)
 
