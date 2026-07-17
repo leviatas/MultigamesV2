@@ -598,6 +598,7 @@ def main(stop_event):
 	app.add_handler(CommandHandler("newgame", Commands.command_newgame))
 	app.add_handler(CommandHandler("startgame", Commands.command_startgame))
 	app.add_handler(CommandHandler("delete", Commands.command_cancelgame))
+	app.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)\*cancelgameConfirm\*(.*)\*(-?[0-9]*)", callback=Commands.callback_cancelgame_confirm))
 	app.add_handler(CommandHandler("join", Commands.command_join))
 	app.add_handler(CommandHandler("leave", Commands.command_leave))
 	app.add_handler(CommandHandler("history", Commands.command_showhistory))
