@@ -1295,7 +1295,6 @@ def main():
 			BotCommand("newgame", "Crea un nuevo juego o carga uno previo"),
 			BotCommand("join", "Te une a un juego existente"),
 			BotCommand("startgame", "Comienza un juego cuando todos se unieron"),
-			BotCommand("cancelgame", "Cancela un juego existente"),
 			BotCommand("board", "Imprime el tablero actual"),
 			BotCommand("history", "Imprime el historial del juego actual"),
 			BotCommand("votes", "Imprime quien ha votado"),
