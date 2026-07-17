@@ -1229,6 +1229,7 @@ def main():
 	dp.add_handler(CommandHandler("newgame", Commands.command_newgame))
 	dp.add_handler(CommandHandler("startgame", Commands.command_startgame))
 	dp.add_handler(CommandHandler("cancelgame", Commands.command_cancelgame))
+	dp.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)\*confirmCancel\*(si|no)\*(-?[0-9]*)", callback=Commands.callback_cancelgame_confirm))
 	dp.add_handler(CommandHandler("join", Commands.command_join))
 	dp.add_handler(CommandHandler("history", Commands.command_showhistory))
 	dp.add_handler(CommandHandler("votes", Commands.command_votes))

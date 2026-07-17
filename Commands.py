@@ -350,16 +350,36 @@ def command_cancelgame(update: Update, context: CallbackContext):
 	log.info('command_cancelgame called {}'.format(args))
 	cid = update.message.chat_id
 	uid = update.effective_user.id
-	#Always try to delete in DB	
+	#Always try to delete in DB
 	if len(args) > 0 and uid == ADMIN[0]:
-		cid = int(args[0])	
-	try:
-		delete_game(cid)
-		if cid in GamesController.games.keys():
-			del GamesController.games[cid]
-		bot.send_message(cid, "Borrado exitoso.")
-	except Exception as e:
-		bot.send_message(cid, "El borrado ha fallado debido a: "+str(e))	
+		cid = int(args[0])
+	btns = [[InlineKeyboardButton("Sí, eliminar", callback_data="{}*confirmDelete*si*{}".format(cid, uid)),
+			InlineKeyboardButton("No, cancelar", callback_data="{}*confirmDelete*no*{}".format(cid, uid))]]
+	bot.send_message(update.message.chat_id, "¿Estás seguro de que quieres eliminar el partido? Todos los datos del juego se perderán.", reply_markup=InlineKeyboardMarkup(btns))
+
+def callback_cancelgame_confirm(update: Update, context: CallbackContext):
+	bot = context.bot
+	log.info('callback_cancelgame_confirm called')
+	callback = update.callback_query
+
+	regex = re.search(r"(-?[0-9]*)\*confirmDelete\*(si|no)\*(-?[0-9]*)", callback.data)
+	cid, opcion, uid = int(regex.group(1)), regex.group(2), int(regex.group(3))
+
+	if callback.from_user.id != uid:
+		callback.answer("Solo quien ejecutó el comando puede confirmar.")
+		return
+
+	chat_id = callback.message.chat_id
+	if opcion == "si":
+		try:
+			delete_game(cid)
+			if cid in GamesController.games.keys():
+				del GamesController.games[cid]
+			bot.edit_message_text("Borrado exitoso.", chat_id, callback.message.message_id)
+		except Exception as e:
+			bot.edit_message_text("El borrado ha fallado debido a: "+str(e), chat_id, callback.message.message_id)
+	else:
+		bot.edit_message_text("Eliminación cancelada, el partido sigue en pie.", chat_id, callback.message.message_id)
 
 def command_votes(update: Update, context: CallbackContext):
 	bot = context.bot
