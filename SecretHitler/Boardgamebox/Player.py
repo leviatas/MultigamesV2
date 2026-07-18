@@ -15,6 +15,7 @@ class Player(object):
     def get_private_info(self, game):
         board = "--- *Info del Jugador {}* ---\n".format(self.name)
         board += "Eres *{}* y tu afiliacion es *{}*\n".format(self.role, self.party)
+        board += "Voto automático Ja (/startautoja): *{}*\n".format("Activado" if getattr(self, 'auto_ja', False) else "Desactivado")
         player_number = len(game.playerlist)
         if self.role == "Fascista":
             fascists = game.get_fascists()
