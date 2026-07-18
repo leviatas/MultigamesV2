@@ -149,16 +149,22 @@ def nominate_chosen_chancellor(update: Update, context: CallbackContext):
 		bot.send_message(game.cid,
 					"El presidente %s nominó a %s como canciller. Por favor, vota ahora!" % (
 					game.board.state.nominated_president.name, game.board.state.nominated_chancellor.name))
-		vote(bot, game)
-		# Save after voting buttons send and set phase voting
+		# Se setea la fase y se guarda antes de votar, porque vote() puede
+		# terminar la votación en el momento si todos los votos ya estan
+		# registrados por /startautoja, y eso avanza la ronda a otra fase.
 		game.board.state.fase = "vote"
 		Commands.save_game(game.cid, "vote Round %d" % (game.board.state.currentround), game)
+		vote(bot, game)
 	except AttributeError as e:
 		log.error("nominate_chosen_chancellor: Game or board should not be None! Eror: " + str(e))
 	except Exception as e:
 		log.error("Unknown error: " + repr(e))
 		log.exception(e)
 		
+def is_zona_hitler(game):
+	# Zona Hitler: ya se promulgaron 3 politicas fascistas
+	return game.board.state.fascist_track >= 3
+
 def vote(bot, game):
 	log.info('vote called')
 	#When voting starts we start the counter to see later with the vote command if we can see you voted.
@@ -168,17 +174,23 @@ def vote(bot, game):
 	btns = [[InlineKeyboardButton("Ja", callback_data=strcid + "_Ja"),
 	InlineKeyboardButton("Nein", callback_data=strcid + "_Nein")]]
 	voteMarkup = InlineKeyboardMarkup(btns)
+	zona_hitler = is_zona_hitler(game)
 	for uid in game.playerlist:
 		if not game.playerlist[uid].is_dead and not game.is_debugging:
 			if game.playerlist[uid] is not game.board.state.nominated_president:
 				# the nominated president already got the board before nominating a chancellor
 				Commands.print_board(bot, game, uid)
-			groupName = ""		
+			groupName = ""
 			if hasattr(game, 'groupName'):
 				groupName += "*En el grupo {}*\n".format(game.groupName)
 			msg = "{}Quieres elegir al Presidente *{}* y al canciller *{}*?".format(groupName, game.board.state.nominated_president.name, game.board.state.nominated_chancellor.name)
+			if getattr(game.playerlist[uid], 'auto_ja', False) and not zona_hitler:
+				game.board.state.last_votes[uid] = "Ja"
+				msg += "\n\nTienes */startautoja* activado: tu voto *Ja* ya fue registrado automáticamente. Usa /retirar si querés votar distinto."
 			bot.send_message(uid, msg,	reply_markup=voteMarkup, parse_mode=ParseMode.MARKDOWN)
 
+	if len(game.board.state.last_votes) == len(game.player_sequence):
+		count_votes(bot, game)
 
 def handle_voting(update: Update, context: CallbackContext):
 	bot = context.bot
@@ -1236,6 +1248,10 @@ def main():
 	dp.add_handler(CommandHandler("calltovote", Commands.command_calltovote))
 	dp.add_handler(CommandHandler("retirar", Commands.command_retract_vote))
 	dp.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)\*chooseGameRetract\*(.*)\*(-?[0-9]*)", callback=Commands.callback_retract))
+	dp.add_handler(CommandHandler("startautoja", Commands.command_startautoja))
+	dp.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)\*chooseGameStartAutoJa\*(.*)\*(-?[0-9]*)", callback=Commands.callback_startautoja))
+	dp.add_handler(CommandHandler("stopautoja", Commands.command_stopautoja))
+	dp.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)\*chooseGameStopAutoJa\*(.*)\*(-?[0-9]*)", callback=Commands.callback_stopautoja))
 	dp.add_handler(CommandHandler("claim", Commands.command_claim))
 	dp.add_handler(CommandHandler("reload", Commands.command_reloadgame))
 	dp.add_handler(CommandHandler("debug", Commands.command_toggle_debugging))
@@ -1301,6 +1317,8 @@ def main():
 			BotCommand("votes", "Imprime quien ha votado"),
 			BotCommand("calltovote", "Avisa a los jugadores que hay que votar"),
 			BotCommand("retirar", "Retira tu voto de Ja o Nein para volver a votar"),
+			BotCommand("startautoja", "Activa tu voto automático Ja fuera de Zona Hitler"),
+			BotCommand("stopautoja", "Desactiva tu voto automático Ja"),
 			BotCommand("info", "Muestra tu informacion privada del juego"),
 			BotCommand("jugadores", "Muestra los jugadores del juego"),
 			BotCommand("leave", "Te saca de un juego existente"),

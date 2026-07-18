@@ -50,7 +50,9 @@ commands = [  # command description used in the "help" command
     '/history - Imprime el historial del juego actual',
     '/votes - Imprime quien ha votado',
     '/calltovote - Avisa a los jugadores que se tiene que votar',
-    '/retirar - Retira tu voto de Ja o Nein para poder votar de nuevo'
+    '/retirar - Retira tu voto de Ja o Nein para poder votar de nuevo',
+    '/startautoja - Activa tu voto automático Ja apenas se proponga una fórmula (fuera de Zona Hitler)',
+    '/stopautoja - Desactiva tu voto automático Ja'
 ]
 
 symbols = [
@@ -578,6 +580,82 @@ def callback_retract(update: Update, context: CallbackContext):
 	else:
 		retract_player_vote(bot, game, uid)
 
+def set_auto_ja(bot, game, uid, enabled):
+	# Activa o desactiva el voto Ja automático del jugador para este juego
+	game.playerlist[uid].auto_ja = enabled
+	save_game(game.cid, "auto_ja %s Round %d" % ("on" if enabled else "off", game.board.state.currentround), game)
+	if enabled:
+		bot.send_message(uid,
+			"Voto automático *Ja* activado en *{}*. Mientras no estemos en Zona Hitler (menos de 3 políticas fascistas promulgadas), tu voto Ja se registrará solo apenas se proponga una fórmula. Usa /stopautoja para desactivarlo.".format(game.groupName),
+			parse_mode=ParseMode.MARKDOWN)
+		# Si hay una votación en curso y el jugador todavia no voto, le registro el Ja ahora mismo
+		if game.dateinitvote and uid not in game.board.state.last_votes and not MainController.is_zona_hitler(game):
+			game.board.state.last_votes[uid] = "Ja"
+			save_game(game.cid, "auto_ja vote Round %d" % (game.board.state.currentround), game)
+			bot.send_message(uid, "Tu voto *Ja* para la votación en curso ya quedó registrado.", parse_mode=ParseMode.MARKDOWN)
+			if len(game.board.state.last_votes) == len(game.player_sequence):
+				MainController.count_votes(bot, game)
+	else:
+		bot.send_message(uid, "Voto automático *Ja* desactivado en *{}*.".format(game.groupName), parse_mode=ParseMode.MARKDOWN)
+
+def _command_toggle_auto_ja(update: Update, context: CallbackContext, enabled, comando_callback):
+	bot = context.bot
+	try:
+		cid, uid, groupType = update.message.chat_id, update.message.from_user.id, update.message.chat.type
+		if groupType not in ['group', 'supergroup']:
+			# En privado con el bot: busco los juegos activos donde esta el jugador
+			all_games_unfiltered = MainController.getGamesByTipo("Todos") or {}
+			candidatas = {key: "{}: {}".format(g.groupName, g.tipo) for key, g in all_games_unfiltered.items()
+				if uid in g.playerlist and g.board is not None}
+			if not candidatas:
+				bot.send_message(uid, "No tienes partidas activas de Secret Hitler.")
+			elif len(candidatas) == 1:
+				game = get_game(int(list(candidatas.keys())[0]))
+				set_auto_ja(bot, game, uid, enabled)
+			else:
+				msg = "Elige el juego donde quieres {} el voto automático Ja".format("activar" if enabled else "desactivar")
+				simple_choose_buttons(bot, cid, uid, uid, comando_callback, msg, candidatas)
+		else:
+			game = get_game(cid)
+			if not game or game.board is None:
+				bot.send_message(cid, "No hay juego en este chat. Crea un nuevo juego con /newgame")
+			elif uid not in game.playerlist:
+				bot.send_message(cid, "No estás en este juego!")
+			else:
+				set_auto_ja(bot, game, uid, enabled)
+	except Exception as e:
+		bot.send_message(update.message.chat_id, str(e))
+
+def command_startautoja(update: Update, context: CallbackContext):
+	_command_toggle_auto_ja(update, context, True, "chooseGameStartAutoJa")
+
+def command_stopautoja(update: Update, context: CallbackContext):
+	_command_toggle_auto_ja(update, context, False, "chooseGameStopAutoJa")
+
+def callback_startautoja(update: Update, context: CallbackContext):
+	bot = context.bot
+	log.info('callback_startautoja called')
+	callback = update.callback_query
+	regex = re.search(r"(-?[0-9]*)\*chooseGameStartAutoJa\*(.*)\*(-?[0-9]*)", callback.data)
+	opcion, uid = regex.group(2), int(regex.group(3))
+	game = get_game(int(opcion))
+	if not game or uid not in game.playerlist:
+		bot.send_message(uid, "No estás en ese juego.")
+	else:
+		set_auto_ja(bot, game, uid, True)
+
+def callback_stopautoja(update: Update, context: CallbackContext):
+	bot = context.bot
+	log.info('callback_stopautoja called')
+	callback = update.callback_query
+	regex = re.search(r"(-?[0-9]*)\*chooseGameStopAutoJa\*(.*)\*(-?[0-9]*)", callback.data)
+	opcion, uid = regex.group(2), int(regex.group(3))
+	game = get_game(int(opcion))
+	if not game or uid not in game.playerlist:
+		bot.send_message(uid, "No estás en ese juego.")
+	else:
+		set_auto_ja(bot, game, uid, False)
+
 def command_showhistory(update: Update, context: CallbackContext):
 	bot = context.bot
 	#game.pedrote = 3
@@ -1007,9 +1085,12 @@ def callback_fix2_chancellor(update: Update, context: CallbackContext):
 	bot.send_message(game.cid,
 		"Se nominó a *{}* como canciller. ¡Por favor, voten ahora!".format(player.name),
 		parse_mode=ParseMode.MARKDOWN)
-	MainController.vote(bot, game)
+	# Se setea la fase y se guarda antes de votar, porque vote() puede
+	# terminar la votación en el momento si todos los votos ya estan
+	# registrados por /startautoja, y eso avanza la ronda a otra fase.
 	game.board.state.fase = "vote"
 	save_game(game.cid, "vote Round %d" % game.board.state.currentround, game)
+	MainController.vote(bot, game)
 
 def command_fix3(update: Update, context: CallbackContext):
 	bot = context.bot
