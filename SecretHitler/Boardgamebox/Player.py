@@ -9,6 +9,8 @@ class Player(object):
         self.was_investigated = False
         #"Liberal","Fascista","Hitler"
         self.preference_rol = ""
+        # Si esta activo, el jugador vota Ja automaticamente apenas se propone una formula (fuera de Zona Hitler)
+        self.auto_ja = False
 
     def get_private_info(self, game):
         board = "--- *Info del Jugador {}* ---\n".format(self.name)
