@@ -1218,6 +1218,62 @@ def _apply_fix4(bot, game, notify_cid):
 	save_game(game.cid, "fix4 Round %d" % game.board.state.currentround, game)
 	bot.send_message(notify_cid, "Mazo reseteado: 4 liberales y 8 fascistas mezclados.\nCartas totales en el mazo: {}".format(len(game.board.policies)))
 
+def command_fix5(update: Update, context: CallbackContext):
+	bot = context.bot
+	uid = update.message.from_user.id
+	cid = update.message.chat_id
+	groupType = update.message.chat.type
+	log.info("Ingreso en FIX5")
+	if uid != ADMIN:
+		return
+
+	if groupType in ['group', 'supergroup']:
+		game = get_game(cid)
+		if game is None or game.board is None:
+			bot.send_message(cid, "No hay una partida activa en este chat.")
+			return
+		_apply_fix5(bot, game, cid)
+	else:
+		all_games_unfiltered = MainController.getGamesByTipo("Todos")
+		all_games = {
+			key: "{}: {}".format(game.groupName, game.tipo)
+			for key, game in all_games_unfiltered.items()
+			if uid in game.playerlist and game.board is not None
+		}
+		if not all_games:
+			bot.send_message(cid, "No tienes partidas activas de Secret Hitler.")
+			return
+		if len(all_games) == 1:
+			game_cid = int(next(iter(all_games)))
+			game = get_game(game_cid)
+			_apply_fix5(bot, game, uid)
+		else:
+			msg = "Elige el juego donde quieres reenviar el menú de investigación"
+			simple_choose_buttons(bot, cid, uid, uid, "chooseGameFix5", msg, all_games)
+
+def callback_fix5_game(update: Update, context: CallbackContext):
+	bot = context.bot
+	log.info('callback_fix5_game called')
+	callback = update.callback_query
+	regex = re.search(r"(-?[0-9]*)\*chooseGameFix5\*(.*)\*(-?[0-9]*)", callback.data)
+	game_cid = int(regex.group(2))
+	uid = int(regex.group(3))
+	game = get_game(game_cid)
+	if game is None or game.board is None:
+		bot.send_message(uid, "No hay una partida activa en ese chat.")
+		return
+	_apply_fix5(bot, game, uid)
+
+def _apply_fix5(bot, game, notify_cid):
+	if game.board.state.president is None:
+		bot.send_message(notify_cid, "No hay un Presidente actual en esta partida.")
+		return
+	# Reafirmo la fase por si quedó desincronizada, y reenvío el menú al Presidente
+	game.board.state.fase = "legislating power inspect"
+	save_game(game.cid, "fix5 Round %d" % game.board.state.currentround, game)
+	MainController.action_inspect(bot, game)
+	bot.send_message(notify_cid, "Se reenvió el menú de investigación al Presidente {}.".format(game.board.state.president.name))
+
 def command_player_counter(update: Update, context: CallbackContext):
 	bot = context.bot
 	args = context.args
