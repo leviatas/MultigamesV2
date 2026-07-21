@@ -1136,17 +1136,19 @@ async def callback_bsg_cylon(update: Update, context: CallbackContext):
 
 
 async def command_revelar(update: Update, context: CallbackContext):
-    """Un Cylon se revela (puede usarse desde el grupo o el privado)."""
+    """Un Cylon se revela como tal. Solo puede hacerse en privado con el bot,
+    y solo si el jugador tiene una carta de lealtad Cylon."""
     bot = context.bot
-    cid = update.message.chat_id
     uid = update.message.from_user.id
-    game = get_game(cid)
-    if not _validar(game):
-        # permitir desde privado: buscar su partida
-        for g in GamesController.games.values():
-            if getattr(g, "tipo", None) == "BattlestarGalactica" and uid in getattr(g, "playerlist", {}):
-                game = g
-                break
+    if update.message.chat.type in ['group', 'supergroup']:
+        await bot.delete_message(update.message.chat_id, update.message.message_id)
+        await bot.send_message(uid, "El comando /revelar solo se puede usar en privado con el bot.")
+        return
+    game = None
+    for g in GamesController.games.values():
+        if getattr(g, "tipo", None) == "BattlestarGalactica" and uid in getattr(g, "playerlist", {}):
+            game = g
+            break
     if not game or not game.board:
         await bot.send_message(uid, "No estás en una partida activa de BSG.")
         return

@@ -144,7 +144,7 @@ COMANDOS_JUEGO = {
 		"/jugar - Jugar una carta de habilidad de acción\n"
 		"/quorum - (Presidente) Jugar una carta de Quórum\n"
 		"/habilidad - Usar tu habilidad de una vez por juego\n"
-		"/revelar - (Cylon) Revelarte\n"
+		"/revelar - (Cylon, en privado) Revelarte\n"
 		"/encarcelar - Enviar a un jugador al Calabozo\n"
 		"/liberar - Liberar a un jugador del Calabozo"
 }
