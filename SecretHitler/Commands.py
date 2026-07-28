@@ -344,6 +344,36 @@ def command_vincularstats(update: Update, context: CallbackContext):
 	except Exception as e:
 		bot.send_message(cid, 'No se ejecuto el comando debido a: ' + str(e))
 
+# vincula varios jugadores a la vez, parseando lineas tipo "User <nombre>'s ID is <id>.", solo ADMIN
+_VINCULARSTATS2_LINE = re.compile(r"User\s+(.+?)'s\s+ID\s+is\s+(\d+)\.?", re.IGNORECASE)
+
+def command_vincularstats2(update: Update, context: CallbackContext):
+	bot = context.bot
+	cid = update.message.chat_id
+	uid = update.message.from_user.id
+
+	if uid != ADMIN:
+		return
+
+	matches = _VINCULARSTATS2_LINE.findall(update.message.text)
+	if not matches:
+		bot.send_message(cid, "Uso: /vincularstats2 seguido de lineas como:\nUser <nombre>'s ID is <id>.")
+		return
+
+	bot.send_message(cid, "Comenzando a vincular {0} jugador(es)...".format(len(matches)))
+
+	resultados = []
+	for name, uid_str in matches:
+		name = name.strip()
+		target_uid = int(uid_str)
+		try:
+			linked = StatsExtended.migrate_legacy_stats(target_uid, name)
+			resultados.append("{0} (ID {1}): {2} partidas vinculadas".format(name, target_uid, linked))
+		except Exception as e:
+			resultados.append("{0} (ID {1}): error - {2}".format(name, target_uid, str(e)))
+
+	bot.send_message(cid, "\n".join(resultados))
+
 # help page
 def command_help(update: Update, context: CallbackContext):
 	bot = context.bot
