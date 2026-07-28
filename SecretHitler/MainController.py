@@ -1220,7 +1220,11 @@ def init_db():
 	log.info('Init DB Secret Hitler')
 	db_init_error = None
 	try:
-		cur.execute(open("DBCreate.sql", "r").read())
+		# Ruta absoluta: "DBCreate.sql" a secas se resuelve contra el cwd del proceso
+		# (Main.py corre con cwd "/"), no contra esta carpeta, y terminaba leyendo
+		# /DBCreate.sql (el del bot principal) en vez de SecretHitler/DBCreate.sql.
+		sql_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "DBCreate.sql")
+		cur.execute(open(sql_path, "r").read())
 		log.info('DB Created/Updated Secret Hitler')
 	except Exception as e:
 		db_init_error = str(e)
