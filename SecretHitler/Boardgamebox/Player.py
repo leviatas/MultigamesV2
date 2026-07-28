@@ -5,6 +5,8 @@ class Player(object):
         self.role = None
         self.party = None
         self.is_dead = False
+        # uid del presidente que lo ejecuto, o None si sigue vivo o murio por otra via
+        self.killed_by_uid = None
         self.inspected_players = {}
         self.was_investigated = False
         #"Liberal","Fascista","Hitler"

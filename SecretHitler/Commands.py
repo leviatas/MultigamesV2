@@ -25,6 +25,7 @@ from SecretHitler.Boardgamebox.Player import Player
 from SecretHitler.Boardgamebox.State import State
 from SecretHitler.PlayerStats import PlayerStats
 from SecretHitler.EstadisticsCalculator import PrintEstadisticas
+import SecretHitler.StatsExtended as StatsExtended
 # Enable logging
 
 log.basicConfig(
@@ -273,7 +274,74 @@ def command_stats(update: Update, context: CallbackContext):
 				"Juegos cancelados: *" + str(stats[5]) + "*\n" + \
 				"Juegos totales: *" + str(stats[1] + stats[2] + stats[3] + stats[4]) + "*\n\n"		
 		bot.send_message(cid, stattext, ParseMode.MARKDOWN)
-		
+
+# estadisticas nuevas, vinculadas al uid de Telegram del que invoca el comando
+def command_stats2(update: Update, context: CallbackContext):
+	bot = context.bot
+	cid = update.message.chat_id
+	uid = update.message.from_user.id
+
+	base = StatsExtended.get_base_stats_by_uid(uid)
+	if base is None:
+		bot.send_message(cid, "No hay estadisticas nuevas todavia para vos. Pedile a un admin que use "
+			"/vincularstats para vincular tus partidas viejas, o segui jugando para generar estadisticas nuevas.")
+		return
+
+	kills = StatsExtended.get_kill_stats(uid)
+	teammates = StatsExtended.get_teammate_stats(uid)
+
+	stattext = "+++ Estadísticas +++\n" + \
+		"Partidas Jugadas: *{0}*\n".format(base["total"]) + \
+		"Partidas como liberal: *{1}/{0}* Ganó: *{2}/{1}*\n".format(base["total"], base["liberal"], base["liberal_won"]) + \
+		"Partidas como Fascista:  *{1}/{0}* Ganó: *{2}/{1}*\n".format(base["total"], base["fascista"], base["fascista_won"]) + \
+		"Partidas como Hitler:  *{1}/{0}* Ganó: *{2}/{1}*\n".format(base["total"], base["hitler"], base["hitler_won"]) + \
+		"Partidas que ganó:  *{1}/{0}* {2:.2f}%\n".format(base["total"], base["gano"], (base["gano"] / base["total"]) * 100) + \
+		"Partidas que murió:  *{1}/{0}*\n".format(base["total"], base["murio"]) + \
+		"\nGente que mató: *{0}*\n".format(kills["kills_count"])
+
+	if kills["most_killed"]:
+		_, victim_name, victim_count = kills["most_killed"]
+		stattext += "A quién más mató: *{0}* ({1} veces)\n".format(victim_name, victim_count)
+	if kills["most_frequent_killer"]:
+		killer_name, killer_count = kills["most_frequent_killer"]
+		stattext += "Quién más lo mató: *{0}* ({1} veces)\n".format(killer_name, killer_count)
+	if teammates["best_teammates"]:
+		names = ", ".join(n for n, c in teammates["best_teammates"])
+		stattext += "Ganó más partidas con: *{0}* ({1} veces)\n".format(names, teammates["best_teammates"][0][1])
+	if teammates["worst_teammates"]:
+		names = ", ".join(n for n, c in teammates["worst_teammates"])
+		stattext += "Perdió más partidas con: *{0}* ({1} veces)\n".format(names, teammates["worst_teammates"][0][1])
+
+	bot.send_message(cid, stattext, ParseMode.MARKDOWN)
+
+# vincula partidas viejas (buscadas por nombre) a un uid de Telegram, solo ADMIN
+def command_vincularstats(update: Update, context: CallbackContext):
+	bot = context.bot
+	cid = update.message.chat_id
+	uid = update.message.from_user.id
+	args = context.args
+
+	if uid != ADMIN:
+		return
+
+	if len(args) < 2:
+		bot.send_message(cid, "Uso: /vincularstats <id_telegram> <nombre>")
+		return
+
+	try:
+		target_uid = int(args[0])
+	except ValueError:
+		bot.send_message(cid, "El primer argumento debe ser un ID de Telegram numérico.")
+		return
+
+	name = ' '.join(args[1:])
+
+	try:
+		linked = StatsExtended.migrate_legacy_stats(target_uid, name)
+		bot.send_message(cid, "Se vincularon {0} partidas viejas de '{1}' al ID {2}.".format(linked, name, target_uid))
+	except Exception as e:
+		bot.send_message(cid, 'No se ejecuto el comando debido a: ' + str(e))
+
 # help page
 def command_help(update: Update, context: CallbackContext):
 	bot = context.bot
