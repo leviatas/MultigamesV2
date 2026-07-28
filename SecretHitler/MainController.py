@@ -1292,6 +1292,7 @@ def main():
 	dp.add_handler(CommandHandler("stats", Commands.command_stats))
 	dp.add_handler(CommandHandler("stats2", Commands.command_stats2))
 	dp.add_handler(CommandHandler("vincularstats", Commands.command_vincularstats))
+	dp.add_handler(CommandHandler("vincularstats2", Commands.command_vincularstats2))
 	dp.add_handler(CommandHandler("newgame", Commands.command_newgame))
 	dp.add_handler(CommandHandler("startgame", Commands.command_startgame))
 	dp.add_handler(CommandHandler("cancelgame", Commands.command_cancelgame))
