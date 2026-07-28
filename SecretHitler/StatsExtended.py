@@ -25,6 +25,7 @@ def save_extended_game_stats(game, game_endcode):
     # No propaga excepciones: un fallo aca nunca debe impedir que end_game() termine su flujo normal.
     if game_endcode == 99:
         return
+    conn = None
     try:
         won_liberal = game_endcode in (1, 2)
         won_fascist = game_endcode in (-1, -2)
@@ -54,20 +55,24 @@ def save_extended_game_stats(game, game_endcode):
             )
 
         conn.commit()
-        conn.close()
     except Exception as e:
         log.error("save_extended_game_stats failed: %s" % str(e))
+    finally:
+        if conn is not None:
+            conn.close()
 
 
 def get_base_stats_by_uid(uid):
     conn = _connect()
-    cur = conn.cursor()
-    cur.execute(
-        "SELECT role, won, died FROM stats_secret_hitler_players WHERE uid = %s;",
-        (uid,)
-    )
-    rows = cur.fetchall()
-    conn.close()
+    try:
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT role, won, died FROM stats_secret_hitler_players WHERE uid = %s;",
+            (uid,)
+        )
+        rows = cur.fetchall()
+    finally:
+        conn.close()
 
     if not rows:
         return None
@@ -90,41 +95,43 @@ def get_base_stats_by_uid(uid):
 
 def get_kill_stats(uid):
     conn = _connect()
-    cur = conn.cursor()
+    try:
+        cur = conn.cursor()
 
-    cur.execute(
-        "SELECT COUNT(*) FROM stats_secret_hitler_players WHERE killed_by_uid = %s;",
-        (uid,)
-    )
-    kills_count = cur.fetchone()[0]
-
-    cur.execute(
-        "SELECT uid, name, COUNT(*) c FROM stats_secret_hitler_players "
-        "WHERE killed_by_uid = %s GROUP BY uid, name ORDER BY c DESC, uid LIMIT 1;",
-        (uid,)
-    )
-    most_killed = cur.fetchone()
-
-    cur.execute(
-        "SELECT killed_by_uid, COUNT(*) c FROM stats_secret_hitler_players "
-        "WHERE uid = %s AND killed_by_uid IS NOT NULL "
-        "GROUP BY killed_by_uid ORDER BY c DESC LIMIT 1;",
-        (uid,)
-    )
-    row = cur.fetchone()
-    most_frequent_killer = None
-    if row is not None:
-        killer_uid, killer_count = row
         cur.execute(
-            "SELECT name FROM stats_secret_hitler_players WHERE uid = %s "
-            "ORDER BY game_id DESC LIMIT 1;",
-            (killer_uid,)
+            "SELECT COUNT(*) FROM stats_secret_hitler_players WHERE killed_by_uid = %s;",
+            (uid,)
         )
-        namerow = cur.fetchone()
-        killer_name = namerow[0] if namerow else str(killer_uid)
-        most_frequent_killer = (killer_name, killer_count)
+        kills_count = cur.fetchone()[0]
 
-    conn.close()
+        cur.execute(
+            "SELECT uid, name, COUNT(*) c FROM stats_secret_hitler_players "
+            "WHERE killed_by_uid = %s GROUP BY uid, name ORDER BY c DESC, uid LIMIT 1;",
+            (uid,)
+        )
+        most_killed = cur.fetchone()
+
+        cur.execute(
+            "SELECT killed_by_uid, COUNT(*) c FROM stats_secret_hitler_players "
+            "WHERE uid = %s AND killed_by_uid IS NOT NULL "
+            "GROUP BY killed_by_uid ORDER BY c DESC LIMIT 1;",
+            (uid,)
+        )
+        row = cur.fetchone()
+        most_frequent_killer = None
+        if row is not None:
+            killer_uid, killer_count = row
+            cur.execute(
+                "SELECT name FROM stats_secret_hitler_players WHERE uid = %s "
+                "ORDER BY game_id DESC LIMIT 1;",
+                (killer_uid,)
+            )
+            namerow = cur.fetchone()
+            killer_name = namerow[0] if namerow else str(killer_uid)
+            most_frequent_killer = (killer_name, killer_count)
+    finally:
+        conn.close()
+
     return {
         "kills_count": kills_count,
         "most_killed": most_killed,
@@ -134,27 +141,30 @@ def get_kill_stats(uid):
 
 def get_teammate_stats(uid):
     conn = _connect()
-    cur = conn.cursor()
+    try:
+        cur = conn.cursor()
 
-    def _top_teammates(won_value):
-        cur.execute(
-            "SELECT b.uid, MAX(b.name), COUNT(*) c "
-            "FROM stats_secret_hitler_players a "
-            "JOIN stats_secret_hitler_players b "
-            "  ON a.game_id = b.game_id AND a.party = b.party AND a.uid != b.uid "
-            "WHERE a.uid = %s AND a.won = %s "
-            "GROUP BY b.uid ORDER BY c DESC;",
-            (uid, won_value)
-        )
-        rows = cur.fetchall()
-        if not rows:
-            return []
-        top_count = rows[0][2]
-        return [(name, c) for (_, name, c) in rows if c == top_count]
+        def _top_teammates(won_value):
+            cur.execute(
+                "SELECT b.uid, MAX(b.name), COUNT(*) c "
+                "FROM stats_secret_hitler_players a "
+                "JOIN stats_secret_hitler_players b "
+                "  ON a.game_id = b.game_id AND a.party = b.party AND a.uid != b.uid "
+                "WHERE a.uid = %s AND a.won = %s "
+                "GROUP BY b.uid ORDER BY c DESC;",
+                (uid, won_value)
+            )
+            rows = cur.fetchall()
+            if not rows:
+                return []
+            top_count = rows[0][2]
+            return [(name, c) for (_, name, c) in rows if c == top_count]
 
-    best_teammates = _top_teammates(True)
-    worst_teammates = _top_teammates(False)
-    conn.close()
+        best_teammates = _top_teammates(True)
+        worst_teammates = _top_teammates(False)
+    finally:
+        conn.close()
+
     return {
         "best_teammates": best_teammates,
         "worst_teammates": worst_teammates,
@@ -195,48 +205,51 @@ def migrate_legacy_stats(uid, name):
     # de nuevo no duplica partidas ni filas de jugador (ON CONFLICT DO NOTHING).
     # killed_by_uid queda en NULL porque el texto legacy no registra quien mato a quien.
     conn = _connect()
-    cur = conn.cursor()
-    cur.execute(
-        "SELECT id, playerlist, game_endcode FROM stats_detail_secret_hitler WHERE playerlist LIKE %s;",
-        ("%{0}%".format(name),)
-    )
-    rows = cur.fetchall()
-
-    linked = 0
-    for legacy_id, playerlist_text, game_endcode in rows:
-        stripped = re.sub(r"\s*\((?:dead|muerto)\)", "", playerlist_text)
-        role = _extract_legacy_role(stripped, name)
-        if role is None:
-            continue
-        died = _legacy_player_died(playerlist_text, name)
-        party = "fascista" if role in ("Fascista", "Hitler") else "liberal"
-        won = (game_endcode in (1, 2)) if party == "liberal" else (game_endcode in (-1, -2))
-
+    try:
+        cur = conn.cursor()
         cur.execute(
-            "SELECT id FROM stats_secret_hitler_games WHERE legacy_detail_id = %s;",
-            (legacy_id,)
+            "SELECT id, playerlist, game_endcode FROM stats_detail_secret_hitler WHERE playerlist LIKE %s;",
+            ("%{0}%".format(name),)
         )
-        existing = cur.fetchone()
-        if existing:
-            game_id = existing[0]
-        else:
+        rows = cur.fetchall()
+
+        linked = 0
+        for legacy_id, playerlist_text, game_endcode in rows:
+            stripped = re.sub(r"\s*\((?:dead|muerto)\)", "", playerlist_text)
+            role = _extract_legacy_role(stripped, name)
+            if role is None:
+                continue
+            died = _legacy_player_died(playerlist_text, name)
+            party = "fascista" if role in ("Fascista", "Hitler") else "liberal"
+            won = (game_endcode in (1, 2)) if party == "liberal" else (game_endcode in (-1, -2))
+
             cur.execute(
-                "INSERT INTO stats_secret_hitler_games(game_endcode, legacy_detail_id) "
-                "VALUES (%s, %s) RETURNING id;",
-                (game_endcode, legacy_id)
+                "SELECT id FROM stats_secret_hitler_games WHERE legacy_detail_id = %s;",
+                (legacy_id,)
             )
-            game_id = cur.fetchone()[0]
+            existing = cur.fetchone()
+            if existing:
+                game_id = existing[0]
+            else:
+                cur.execute(
+                    "INSERT INTO stats_secret_hitler_games(game_endcode, legacy_detail_id) "
+                    "VALUES (%s, %s) RETURNING id;",
+                    (game_endcode, legacy_id)
+                )
+                game_id = cur.fetchone()[0]
 
-        cur.execute(
-            "INSERT INTO stats_secret_hitler_players"
-            "(game_id, uid, name, role, party, won, died, killed_by_uid) "
-            "VALUES (%s, %s, %s, %s, %s, %s, %s, NULL) "
-            "ON CONFLICT (game_id, uid) DO NOTHING RETURNING id;",
-            (game_id, uid, name, role, party, won, died)
-        )
-        if cur.fetchone() is not None:
-            linked += 1
+            cur.execute(
+                "INSERT INTO stats_secret_hitler_players"
+                "(game_id, uid, name, role, party, won, died, killed_by_uid) "
+                "VALUES (%s, %s, %s, %s, %s, %s, %s, NULL) "
+                "ON CONFLICT (game_id, uid) DO NOTHING RETURNING id;",
+                (game_id, uid, name, role, party, won, died)
+            )
+            if cur.fetchone() is not None:
+                linked += 1
 
-    conn.commit()
-    conn.close()
+        conn.commit()
+    finally:
+        conn.close()
+
     return linked

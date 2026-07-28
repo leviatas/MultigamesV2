@@ -281,14 +281,18 @@ def command_stats2(update: Update, context: CallbackContext):
 	cid = update.message.chat_id
 	uid = update.message.from_user.id
 
-	base = StatsExtended.get_base_stats_by_uid(uid)
-	if base is None:
-		bot.send_message(cid, "No hay estadisticas nuevas todavia para vos. Pedile a un admin que use "
-			"/vincularstats para vincular tus partidas viejas, o segui jugando para generar estadisticas nuevas.")
-		return
+	try:
+		base = StatsExtended.get_base_stats_by_uid(uid)
+		if base is None:
+			bot.send_message(cid, "No hay estadisticas nuevas todavia para vos. Pedile a un admin que use "
+				"/vincularstats para vincular tus partidas viejas, o segui jugando para generar estadisticas nuevas.")
+			return
 
-	kills = StatsExtended.get_kill_stats(uid)
-	teammates = StatsExtended.get_teammate_stats(uid)
+		kills = StatsExtended.get_kill_stats(uid)
+		teammates = StatsExtended.get_teammate_stats(uid)
+	except Exception as e:
+		bot.send_message(cid, 'No se ejecuto el comando debido a: ' + str(e))
+		return
 
 	stattext = "+++ Estadísticas +++\n" + \
 		"Partidas Jugadas: *{0}*\n".format(base["total"]) + \
