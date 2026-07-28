@@ -336,6 +336,8 @@ def command_vincularstats(update: Update, context: CallbackContext):
 
 	name = ' '.join(args[1:])
 
+	bot.send_message(cid, "Comenzando a vincular las partidas viejas de '{0}' al ID {1}...".format(name, target_uid))
+
 	try:
 		linked = StatsExtended.migrate_legacy_stats(target_uid, name)
 		bot.send_message(cid, "Se vincularon {0} partidas viejas de '{1}' al ID {2}.".format(linked, name, target_uid))
