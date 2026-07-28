@@ -20,6 +20,7 @@ from SecretHitler.Boardgamebox.Game import Game
 from SecretHitler.Boardgamebox.Player import Player
 from SecretHitler.PlayerStats import PlayerStats
 import SecretHitler.GamesController as GamesController
+import SecretHitler.StatsExtended as StatsExtended
 
 import datetime
 import jsonpickle
@@ -582,6 +583,7 @@ def choose_kill(update: Update, context: CallbackContext):
         game = Commands.get_game(cid)
         chosen = game.playerlist[answer]
         chosen.is_dead = True
+        chosen.killed_by_uid = game.board.state.president.uid
         if game.player_sequence.index(chosen) <= game.board.state.player_counter:
             game.board.state.player_counter -= 1
         game.player_sequence.remove(chosen)
@@ -933,8 +935,9 @@ def end_game(bot, game, game_endcode):
 	# Grabo detalles de la partida
 	if game_endcode != 99:
 		save_game_details(bot, game.print_roles(), game_endcode, game.board.state.liberal_track, game.board.state.fascist_track, game.board.num_players)
-	
-	
+		StatsExtended.save_extended_game_stats(game, game_endcode)
+
+
 	#bot.send_message(cid, "Datos a guardar %s %s %s %s %s" % (game.print_roles(), str(game_endcode), str(game.board.state.liberal_track), str(game.board.state.fascist_track), str(game.board.num_players)))
 		
 	stats = get_stats(bot, cid)	
@@ -1238,6 +1241,8 @@ def main():
 	dp.add_handler(CommandHandler("ping", Commands.command_ping))
 	dp.add_handler(CommandHandler("symbols", Commands.command_symbols))
 	dp.add_handler(CommandHandler("stats", Commands.command_stats))
+	dp.add_handler(CommandHandler("stats2", Commands.command_stats2))
+	dp.add_handler(CommandHandler("vincularstats", Commands.command_vincularstats))
 	dp.add_handler(CommandHandler("newgame", Commands.command_newgame))
 	dp.add_handler(CommandHandler("startgame", Commands.command_startgame))
 	dp.add_handler(CommandHandler("cancelgame", Commands.command_cancelgame))
@@ -1325,6 +1330,7 @@ def main():
 			BotCommand("jugadores", "Muestra los jugadores del juego"),
 			BotCommand("leave", "Te saca de un juego existente"),
 			BotCommand("stats", "Muestra las estadisticas"),
+			BotCommand("stats2", "Muestra tus estadisticas nuevas vinculadas a tu ID"),
 		])
 	except Exception as e:
 		log.error(str(e))
