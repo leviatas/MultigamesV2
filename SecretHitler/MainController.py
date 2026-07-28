@@ -1181,9 +1181,30 @@ def get_TOKEN():
 	token = dbdata[1]
 	conn.close()
 	return token
-	
-def main():
-	GamesController.init() #Call only once
+
+# Tablas que DBCreate.sql deberia mantener creadas. Se usa solo para el aviso de estado al arrancar.
+SECRET_HITLER_TABLES = [
+	"users",
+	"games_secret_hitler",
+	"stats_secret_hitler",
+	"stats_detail_secret_hitler",
+	"config",
+	"user_stats",
+	"achivements_secret_hitler",
+	"stats_secret_hitler_games",
+	"stats_secret_hitler_players",
+]
+
+def _existing_tables(cur, table_names):
+	cur.execute(
+		"SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_name = ANY(%s);",
+		(table_names,)
+	)
+	return {row[0] for row in cur.fetchall()}
+
+def init_db():
+	# Corre DBCreate.sql (crea las tablas que falten) y devuelve un texto con el resultado
+	# para avisarle al admin al arrancar. Nunca deja que un fallo aca tumbe el arranque del bot.
 	conn = psycopg2.connect(
 		database=url.path[1:],
 		user=url.username,
@@ -1191,15 +1212,39 @@ def main():
 		host=url.hostname,
 		port=url.port
 	)
-	#Init DB Create tables if they don't exist   
-	log.info('Init DB Secret Hitler')
 	conn.autocommit = True
 	cur = conn.cursor()
-	cur.execute(open("DBCreate.sql", "r").read())
-	log.info('DB Created/Updated Secret Hitler')
+
+	tables_before = _existing_tables(cur, SECRET_HITLER_TABLES)
+
+	log.info('Init DB Secret Hitler')
+	db_init_error = None
+	try:
+		cur.execute(open("DBCreate.sql", "r").read())
+		log.info('DB Created/Updated Secret Hitler')
+	except Exception as e:
+		db_init_error = str(e)
+		log.error("DBCreate.sql failed: %s" % db_init_error)
+
+	tables_after = _existing_tables(cur, SECRET_HITLER_TABLES)
 	conn.autocommit = False
 	conn.close()
-	
+
+	created_now = sorted((set(SECRET_HITLER_TABLES) - tables_before) & tables_after)
+	still_missing = sorted(set(SECRET_HITLER_TABLES) - tables_after)
+
+	if db_init_error:
+		return "No se pudieron verificar/crear las tablas (error: %s)." % db_init_error
+	if still_missing:
+		return "ATENCION: faltan estas tablas y no se pudieron crear: %s" % ", ".join(still_missing)
+	if created_now:
+		return "Se crearon las tablas faltantes: %s" % ", ".join(created_now)
+	return "Todas las tablas de la base de datos ya existian."
+
+def main():
+	GamesController.init() #Call only once
+	db_status_text = init_db()
+
 	'''
 	log.info('Insertando')
 	query = "INSERT INTO users(facebook_id, name , access_token , created) values ('2','3','4',1) RETURNING id;"
@@ -1335,7 +1380,7 @@ def main():
 	except Exception as e:
 		log.error(str(e))
 
-	updater.bot.send_message(ADMIN, "Nueva version en linea")
+	updater.bot.send_message(ADMIN, "Nueva version en linea\n%s" % db_status_text)
 
 	# Comentar linea de abajo si se quiere usar web deploy
 	updater.start_polling(timeout=30)
