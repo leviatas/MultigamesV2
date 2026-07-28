@@ -62,6 +62,25 @@ def save_extended_game_stats(game, game_endcode):
             conn.close()
 
 
+def get_uids_by_name(name):
+    # Devuelve (uid, nombre_mas_usado, partidas_jugadas) para cada uid distinto
+    # que tenga alguna partida registrada con ese nombre (case-insensitive, exacto).
+    conn = _connect()
+    try:
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT uid, MODE() WITHIN GROUP (ORDER BY name), COUNT(*) "
+            "FROM stats_secret_hitler_players "
+            "WHERE LOWER(name) = LOWER(%s) "
+            "GROUP BY uid ORDER BY COUNT(*) DESC;",
+            (name,)
+        )
+        rows = cur.fetchall()
+    finally:
+        conn.close()
+    return rows
+
+
 def get_base_stats_by_uid(uid):
     conn = _connect()
     try:

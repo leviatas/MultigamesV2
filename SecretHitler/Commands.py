@@ -275,21 +275,49 @@ def command_stats(update: Update, context: CallbackContext):
 				"Juegos totales: *" + str(stats[1] + stats[2] + stats[3] + stats[4]) + "*\n\n"		
 		bot.send_message(cid, stattext, ParseMode.MARKDOWN)
 
-# estadisticas nuevas, vinculadas al uid de Telegram del que invoca el comando
+# estadisticas nuevas, vinculadas al uid de Telegram. Sin argumentos: las del que invoca.
+# Con un nombre: busca ese nombre entre los uids registrados (si hay mas de uno, lista los IDs).
+# Con un ID numerico: las de ese uid puntual.
 def command_stats2(update: Update, context: CallbackContext):
 	bot = context.bot
 	cid = update.message.chat_id
-	uid = update.message.from_user.id
+	caller_uid = update.message.from_user.id
+	args = context.args
 
-	try:
-		base = StatsExtended.get_base_stats_by_uid(uid)
-		if base is None:
-			bot.send_message(cid, "No hay estadisticas nuevas todavia para vos. Pedile a un admin que use "
-				"/vincularstats para vincular tus partidas viejas, o segui jugando para generar estadisticas nuevas.")
+	if len(args) == 0:
+		target_uid = caller_uid
+	elif len(args) == 1 and args[0].isdigit():
+		target_uid = int(args[0])
+	else:
+		name = ' '.join(args)
+		try:
+			matches = StatsExtended.get_uids_by_name(name)
+		except Exception as e:
+			bot.send_message(cid, 'No se ejecuto el comando debido a: ' + str(e))
 			return
 
-		kills = StatsExtended.get_kill_stats(uid)
-		teammates = StatsExtended.get_teammate_stats(uid)
+		if not matches:
+			bot.send_message(cid, "No hay estadisticas nuevas para nadie con el nombre '{0}'.".format(name))
+			return
+		if len(matches) > 1:
+			lines = ["Hay más de un jugador con el nombre '{0}':".format(name)]
+			for m_uid, m_name, total in matches:
+				lines.append("- ID {0} ({1}): {2} partidas".format(m_uid, m_name, total))
+			lines.append("\nUsá /stats2 <ID> para ver las estadísticas de uno en particular.")
+			bot.send_message(cid, "\n".join(lines))
+			return
+		target_uid = matches[0][0]
+
+	try:
+		base = StatsExtended.get_base_stats_by_uid(target_uid)
+		if base is None:
+			quien = "vos" if target_uid == caller_uid else "el ID {0}".format(target_uid)
+			bot.send_message(cid, "No hay estadisticas nuevas todavia para {0}. Pedile a un admin que use "
+				"/vincularstats para vincular las partidas viejas, o que siga jugando para generar estadisticas nuevas.".format(quien))
+			return
+
+		kills = StatsExtended.get_kill_stats(target_uid)
+		teammates = StatsExtended.get_teammate_stats(target_uid)
 	except Exception as e:
 		bot.send_message(cid, 'No se ejecuto el comando debido a: ' + str(e))
 		return
