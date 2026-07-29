@@ -5,6 +5,8 @@ import urllib.parse
 
 import psycopg2
 
+import SecretHitler.Achievements as Achievements
+
 # DB Connection (mismo patron que MainController.py / Commands.py)
 urllib.parse.uses_netloc.append("postgres")
 url = urllib.parse.urlparse(os.environ["DATABASE_URL"])
@@ -21,10 +23,12 @@ def _connect():
 
 
 def save_extended_game_stats(game, game_endcode):
-    # Guarda, ademas de lo que ya se guarda hoy, un registro por jugador vinculado a su uid.
+    # Guarda, ademas de lo que ya se guarda hoy, un registro por jugador vinculado a su uid,
+    # y evalua/otorga logros nuevos con ese mismo registro ya escrito.
     # No propaga excepciones: un fallo aca nunca debe impedir que end_game() termine su flujo normal.
+    # Devuelve {uid: [Logro nuevo, ...]} (vacio si no hubo logros nuevos, error, o game_endcode==99).
     if game_endcode == 99:
-        return
+        return {}
     conn = None
     try:
         won_liberal = game_endcode in (1, 2)
@@ -54,9 +58,13 @@ def save_extended_game_stats(game, game_endcode):
                  player.is_dead, getattr(player, "killed_by_uid", None))
             )
 
+        nuevos_por_uid = Achievements.evaluate_and_store(cur, game, game_endcode, game_id)
+
         conn.commit()
+        return nuevos_por_uid
     except Exception as e:
         log.error("save_extended_game_stats failed: %s" % str(e))
+        return {}
     finally:
         if conn is not None:
             conn.close()

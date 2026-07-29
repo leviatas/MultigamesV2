@@ -42,6 +42,7 @@ CREATE TABLE IF NOT EXISTS user_stats (
     data text NOT NULL
 ); 
 
+-- legacy, no usada: el catalogo de logros vive en Constants/Achievements.py
 CREATE TABLE IF NOT EXISTS achivements_secret_hitler (
     id SERIAL PRIMARY KEY,
     name TEXT NOT NULL,
@@ -69,6 +70,19 @@ CREATE TABLE IF NOT EXISTS stats_secret_hitler_players (
     killed_by_uid BIGINT, -- NULL si no lo mataron o si el dato no se pudo reconstruir al migrar
     UNIQUE (game_id, uid)
 );
+
+-- Logros desbloqueados por jugador. El catalogo (nombre, descripcion, condicion)
+-- vive en SecretHitler/Constants/Achievements.py; aca solo se guarda quien
+-- desbloqueo cual (identificado por achievement_code, el Logro.code estable).
+CREATE TABLE IF NOT EXISTS achievements_secret_hitler_players (
+    id SERIAL PRIMARY KEY,
+    uid BIGINT NOT NULL,
+    achievement_code TEXT NOT NULL,
+    game_id INTEGER REFERENCES stats_secret_hitler_games(id), -- NULL si se otorgo fuera de una partida (ej. backfill)
+    earned_at TIMESTAMP DEFAULT now(),
+    UNIQUE (uid, achievement_code)
+);
+CREATE INDEX IF NOT EXISTS idx_achievements_shp_uid ON achievements_secret_hitler_players(uid);
 
 -- If there are no stats in the stats table I initiate it.
 DO $$

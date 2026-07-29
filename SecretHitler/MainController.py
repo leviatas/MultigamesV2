@@ -21,6 +21,7 @@ from SecretHitler.Boardgamebox.Player import Player
 from SecretHitler.PlayerStats import PlayerStats
 import SecretHitler.GamesController as GamesController
 import SecretHitler.StatsExtended as StatsExtended
+import SecretHitler.Achievements as Achievements
 
 import datetime
 import jsonpickle
@@ -933,9 +934,10 @@ def end_game(bot, game, game_endcode):
 	cid = game.cid
 	
 	# Grabo detalles de la partida
+	nuevos_logros = {}
 	if game_endcode != 99:
 		save_game_details(bot, game.print_roles(), game_endcode, game.board.state.liberal_track, game.board.state.fascist_track, game.board.num_players)
-		StatsExtended.save_extended_game_stats(game, game_endcode)
+		nuevos_logros = StatsExtended.save_extended_game_stats(game, game_endcode)
 
 
 	#bot.send_message(cid, "Datos a guardar %s %s %s %s %s" % (game.print_roles(), str(game_endcode), str(game.board.state.liberal_track), str(game.board.state.fascist_track), str(game.board.num_players)))
@@ -961,6 +963,12 @@ def end_game(bot, game, game_endcode):
 			bot.send_message(game.cid, "Juego finalizado! Los liberales ganaron matando a Hitler!\n\n%s" % game.print_roles())
 			set_stats("liberalwinkillhitler", stats[4] + 1, bot, cid)
 		showHiddenhistory(bot, game)
+		try:
+			anuncio = Achievements.format_unlock_announcement(nuevos_logros, game)
+			if anuncio is not None:
+				bot.send_message(cid, anuncio, ParseMode.MARKDOWN)
+		except Exception as e:
+			log.error("No se pudo anunciar los logros nuevos: %s" % str(e))
 	del GamesController.games[cid]
 	Commands.delete_game(cid)
 	
@@ -1193,6 +1201,7 @@ SECRET_HITLER_TABLES = [
 	"achivements_secret_hitler",
 	"stats_secret_hitler_games",
 	"stats_secret_hitler_players",
+	"achievements_secret_hitler_players",
 ]
 
 def _existing_tables(cur, table_names):
@@ -1291,6 +1300,7 @@ def main():
 	dp.add_handler(CommandHandler("symbols", Commands.command_symbols))
 	dp.add_handler(CommandHandler("stats", Commands.command_stats))
 	dp.add_handler(CommandHandler("stats2", Commands.command_stats2))
+	dp.add_handler(CommandHandler("logros", Commands.command_logros))
 	dp.add_handler(CommandHandler("vincularstats", Commands.command_vincularstats))
 	dp.add_handler(CommandHandler("vincularstats2", Commands.command_vincularstats2))
 	dp.add_handler(CommandHandler("newgame", Commands.command_newgame))
@@ -1381,6 +1391,7 @@ def main():
 			BotCommand("leave", "Te saca de un juego existente"),
 			BotCommand("stats", "Muestra las estadisticas"),
 			BotCommand("stats2", "Muestra tus estadisticas nuevas vinculadas a tu ID"),
+			BotCommand("logros", "Muestra tus logros desbloqueados"),
 		])
 	except Exception as e:
 		log.error(str(e))
