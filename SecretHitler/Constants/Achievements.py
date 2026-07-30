@@ -8,6 +8,8 @@ from collections import namedtuple
 # `check(ctx)` recibe un Achievements.Ctx y devuelve True/False.
 Logro = namedtuple("Logro", "code name description emoji categoria secreto check")
 
+CLAUS_UID = 863684947
+
 CATEGORIAS = ["roles", "muerte", "hitos", "social"]
 CATEGORIA_TITULOS = {
     "roles": "Roles y victorias",
@@ -97,6 +99,10 @@ def _check_me_toco_lo_que_pedi(ctx):
     return ctx["won"] and ctx["preference_rol"] != "" and ctx["preference_rol"] == ctx["role"]
 
 
+def _check_mision_imposible(ctx):
+    return ctx["won"] and CLAUS_UID in ctx["teammate_uids"]
+
+
 LOGROS = [
     # Roles y victorias
     Logro("hitler_ganador", "Canciller Supremo", "Ganaste una partida siendo Hitler.",
@@ -141,6 +147,8 @@ LOGROS = [
           "🤖", "social", False, _check_piloto_automatico),
     Logro("me_toco_lo_que_pedi", "Me tocó lo que pedí", "Te tocó el rol que pediste y ganaste.",
           "🎲", "social", False, _check_me_toco_lo_que_pedi),
+    Logro("mision_imposible", "Mission Imposible", "Ganaste una partida jugando en el mismo equipo que Claus.",
+          "🕶", "social", False, _check_mision_imposible),
 ]
 
 LOGROS_BY_CODE = {logro.code: logro for logro in LOGROS}

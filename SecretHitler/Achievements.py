@@ -72,6 +72,11 @@ def build_context(cur, game, game_endcode, uid, player):
         if getattr(p, "killed_by_uid", None) == uid
     ]
 
+    teammate_uids = {
+        p.uid for p in game.playerlist.values()
+        if p.uid != uid and getattr(p, "party", None) == player.party
+    }
+
     return Ctx(
         cur, uid,
         role=player.role,
@@ -80,6 +85,7 @@ def build_context(cur, game, game_endcode, uid, player):
         died=player.is_dead,
         killed_by_uid=getattr(player, "killed_by_uid", None),
         killed_roles=killed_roles,
+        teammate_uids=teammate_uids,
         game_endcode=game_endcode,
         num_players=game.board.num_players,
         liberal_track=game.board.state.liberal_track,
