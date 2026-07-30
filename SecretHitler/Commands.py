@@ -26,6 +26,7 @@ from SecretHitler.Boardgamebox.State import State
 from SecretHitler.PlayerStats import PlayerStats
 from SecretHitler.EstadisticsCalculator import PrintEstadisticas
 import SecretHitler.StatsExtended as StatsExtended
+import SecretHitler.Achievements as Achievements
 # Enable logging
 
 log.basicConfig(
@@ -53,7 +54,8 @@ commands = [  # command description used in the "help" command
     '/calltovote - Avisa a los jugadores que se tiene que votar',
     '/retirar - Retira tu voto de Ja o Nein para poder votar de nuevo',
     '/startautoja - Activa tu voto automático Ja apenas se proponga una fórmula (fuera de Zona Hitler)',
-    '/stopautoja - Desactiva tu voto automático Ja'
+    '/stopautoja - Desactiva tu voto automático Ja',
+    '/logros - Muestra tus logros desbloqueados'
 ]
 
 symbols = [
@@ -345,6 +347,47 @@ def command_stats2(update: Update, context: CallbackContext):
 		stattext += "Perdió más partidas con: *{0}* ({1} veces)\n".format(names, teammates["worst_teammates"][0][1])
 
 	bot.send_message(cid, stattext, ParseMode.MARKDOWN)
+
+def command_logros(update: Update, context: CallbackContext):
+	bot = context.bot
+	cid = update.message.chat_id
+	caller_uid = update.message.from_user.id
+	caller_name = update.message.from_user.first_name or str(caller_uid)
+	args = context.args
+
+	if len(args) == 0:
+		target_uid = caller_uid
+		target_name = caller_name
+	elif len(args) == 1 and args[0].isdigit():
+		target_uid = int(args[0])
+		target_name = str(target_uid)
+	else:
+		name = ' '.join(args)
+		try:
+			matches = StatsExtended.get_uids_by_name(name)
+		except Exception as e:
+			bot.send_message(cid, 'No se ejecuto el comando debido a: ' + str(e))
+			return
+
+		if not matches:
+			bot.send_message(cid, "No hay estadisticas nuevas para nadie con el nombre '{0}'.".format(name))
+			return
+		if len(matches) > 1:
+			lines = ["Hay más de un jugador con el nombre '{0}':".format(name)]
+			for m_uid, m_name, total in matches:
+				lines.append("- ID {0} ({1}): {2} partidas".format(m_uid, m_name, total))
+			lines.append("\nUsá /logros <ID> para ver los logros de uno en particular.")
+			bot.send_message(cid, "\n".join(lines))
+			return
+		target_uid, target_name, _ = matches[0]
+
+	try:
+		texto = Achievements.format_logros_message(target_uid, target_name)
+	except Exception as e:
+		bot.send_message(cid, 'No se ejecuto el comando debido a: ' + str(e))
+		return
+
+	bot.send_message(cid, texto, ParseMode.MARKDOWN)
 
 # vincula partidas viejas (buscadas por nombre) a un uid de Telegram, solo ADMIN
 def command_vincularstats(update: Update, context: CallbackContext):
