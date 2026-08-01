@@ -626,8 +626,9 @@ async def _anunciar_robo_grupo(bot, game, player, colores):
 
 
 async def _entregar_carta_skill(bot, game, player, color):
-    """Roba 1 carta del color dado a la mano del jugador y lo notifica por privado.
-    Devuelve el color robado (o None si el mazo estaba vacío)."""
+    """Roba 1 carta del color dado a la mano del jugador, sin revelar su
+    contenido todavía (se revela recién cuando terminó de elegir todas sus
+    cartas, vía _dm_mano). Devuelve el color robado (o None si el mazo estaba vacío)."""
     st = game.board.state
     carta = _robar_carta_color(st, color)
     if carta:
@@ -635,12 +636,6 @@ async def _entregar_carta_skill(bot, game, player, color):
         # Registrar el mazo robado para el anuncio público del paso de robo del turno.
         if st.skill_draw and st.skill_draw.get("uid") == player.uid:
             st.skill_draw.setdefault("robadas", []).append(carta["color"])
-        await bot.send_message(
-            player.uid,
-            f"➕ Robaste {Skills.EMOJI_COLOR[carta['color']]} {carta['color']} {carta['valor']} "
-            f"— _{carta.get('nombre','')}_",
-            parse_mode=ParseMode.MARKDOWN,
-        )
         return carta["color"]
     await bot.send_message(player.uid, f"(No quedan cartas de {color}.)")
     return None
