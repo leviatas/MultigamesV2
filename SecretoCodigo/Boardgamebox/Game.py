@@ -57,7 +57,8 @@ class Game(BaseGame):
                     "Comandos: /hint PALABRA NUMERO (quien da la pista, en privado) | /pick NUMERO (quien adivina, en el grupo) | /endturn"]
         return ["Secreto Código: adivinen las palabras de su equipo con las pistas del espía.\n"
                 "Comandos: /hint PALABRA NUMERO (espía, en privado) | /pick NUMERO (agentes, en el grupo) | "
-                "/votar NUMERO o /votarb (votación de equipo: se elige con mitad + 1 de votos) | /endturn"]
+                "/votar NUMERO o /votarb (marquen las cartas que crean correctas, pueden ser varias; "
+                "se elige con mitad + 1 de votos; los votos se borran al terminar el turno) | /endturn"]
 
     async def call(self, context):
         import SecretoCodigo.Commands as SecretoCodigoCommands

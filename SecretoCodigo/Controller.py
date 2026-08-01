@@ -539,7 +539,6 @@ async def process_hint(bot, game, spymaster_uid, word: str, number: int):
     game.board.state.numero_pista = number
     game.board.state.intentos_restantes = 999 if infinito else number + 1
     game.board.state.fase_actual = f"Turno {team} - Adivinar"
-    votos_actuales(game.board.state).clear()
     _hist(game.board.state).append({
         "turno": team, "dador": spymaster.name,
         "pista": word.upper(), "numero": number, "picks": []
@@ -554,7 +553,8 @@ async def process_hint(bot, game, spymaster_uid, word: str, number: int):
     caption_pista = (
         f"💬 Pista del espía *{team}*: *{word.upper()}* — {format_numero_pista(number)}\n"
         f"{field_mentions} usen `/pick NUMERO` o `/pickb` (botonera) para elegir una carta,\n"
-        f"o `/votar NUMERO` / `/votarb` para votar en equipo (se elige con mitad + 1 de votos).\n"
+        f"o `/votar NUMERO` / `/votarb` para marcar las cartas que creen correctas "
+        f"(pueden marcar varias; tocar de nuevo la quita). Se elige con mitad + 1 de votos.\n"
         f"Hasta *{intentos_str}* intentos o `/endturn` para pasar."
     )
     await bot.send_photo(
@@ -568,6 +568,10 @@ async def process_hint(bot, game, spymaster_uid, word: str, number: int):
 
 
 async def process_vote(bot, game, uid, numero: int):
+    """Marca o desmarca el voto de `uid` sobre la carta `numero`. Un jugador
+    puede tener votos activos en varias cartas a la vez (marca todas las que
+    cree correctas); tocar una carta ya votada quita ese voto puntual. Los
+    votos se limpian recién cuando termina el turno del equipo (end_turn)."""
     log.info('SecretoCodigo process_vote called')
     st = game.board.state
     team = st.turno_actual
@@ -576,18 +580,20 @@ async def process_vote(bot, game, uid, numero: int):
     jugador = game.playerlist[uid]
     word = card["word"].upper()
 
-    # Cada jugador solo puede tener un voto activo a la vez; si ya había
-    # votado otra carta, ese voto se traslada a la nueva.
-    for otro_numero, uids in list(votos.items()):
-        if uid in uids:
-            uids.remove(uid)
-            if not uids:
-                del votos[otro_numero]
-
     votos.setdefault(numero, [])
-    if uid not in votos[numero]:
-        votos[numero].append(uid)
+    if uid in votos[numero]:
+        votos[numero].remove(uid)
+        if not votos[numero]:
+            del votos[numero]
+        await bot.send_message(
+            game.cid,
+            f"🗳 *{jugador.name}* quitó su voto de *{word}*.",
+            parse_mode=ParseMode.MARKDOWN,
+        )
+        await save(bot, game.cid)
+        return
 
+    votos[numero].append(uid)
     total_votos = len(votos[numero])
     necesarios = mayoria_necesaria(game, team)
 
@@ -689,6 +695,7 @@ async def check_win(bot, game):
 
 
 async def end_turn(bot, game):
+    votos_actuales(game.board.state).clear()
     next_team = "Azul" if game.board.state.turno_actual == "Rojo" else "Rojo"
     await bot.send_message(
         game.cid,
@@ -699,6 +706,7 @@ async def end_turn(bot, game):
 
 
 async def end_game(bot, game, winner: str, reason: str):
+    votos_actuales(game.board.state).clear()
     game.board.state.fase_actual = "Finalizado"
     await save(bot, game.cid)
 

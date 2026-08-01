@@ -367,7 +367,8 @@ async def command_votarb(update: Update, context: CallbackContext):
     markup = _build_vote_keyboard(game, uid)
     await bot.send_message(
         cid,
-        "🗳 Vota la carta que creés correcta (se elige con mitad + 1 de votos del equipo):",
+        "🗳 Marca las cartas que creés correctas (podés marcar varias; tocar de nuevo la "
+        "destoca). Se elige con mitad + 1 de votos del equipo:",
         reply_markup=markup,
     )
 
