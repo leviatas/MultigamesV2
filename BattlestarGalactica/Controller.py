@@ -172,6 +172,27 @@ async def init_game(bot, game):
         raise
 
 
+ROLES_BASE_INICIALES = ("Militar", "Piloto", "Politico")
+
+
+def _tipos_base_pendientes(st):
+    """Tipos base (Militar/Piloto/Político) que todavía no eligió nadie."""
+    tipos_elegidos = {Characters.PERSONAJES[k]["tipo"] for k in st.personajes_elegidos.values()}
+    return [t for t in ROLES_BASE_INICIALES if t not in tipos_elegidos]
+
+
+def personaje_disponible(st, key):
+    """¿Se puede elegir este personaje ahora? Los primeros 3 personajes de la
+    partida deben cubrir 1 Militar, 1 Piloto y 1 Político; recién ahí se puede
+    repetir rol o elegir un personaje de Apoyo."""
+    if key in st.personajes_elegidos.values():
+        return False
+    pendientes = _tipos_base_pendientes(st)
+    if pendientes:
+        return Characters.PERSONAJES[key]["tipo"] in pendientes
+    return True
+
+
 async def pedir_seleccion_personaje(bot, game):
     st = game.board.state
     if st.indice_seleccion >= len(st.orden_seleccion):
@@ -180,22 +201,30 @@ async def pedir_seleccion_personaje(bot, game):
 
     uid = st.orden_seleccion[st.indice_seleccion]
     player = game.playerlist[uid]
-    elegidos = set(st.personajes_elegidos.values())
+    pendientes = _tipos_base_pendientes(st)
 
     btns = []
     for tipo in Characters.TIPOS:
         emoji = Characters.EMOJI_TIPO[tipo]
         for key, pj in Characters.personajes_por_tipo(tipo).items():
-            if key in elegidos:
+            if not personaje_disponible(st, key):
                 continue
             btns.append([InlineKeyboardButton(
                 f"{emoji} {pj['nombre']} ({tipo})",
                 callback_data=f"{game.cid}*bsgPick*{key}*{uid}"
             )])
 
+    aviso = ""
+    if pendientes:
+        aviso = (
+            "\n\n_Los primeros 3 personajes deben cubrir 1 Militar, 1 Piloto y "
+            "1 Político (falta: " + ", ".join(pendientes) + "). Recién después "
+            "se puede repetir rol o elegir Apoyo._"
+        )
+
     await bot.send_message(
         game.cid,
-        f"🎭 {player_call(player)}, elige tu personaje:",
+        f"🎭 {player_call(player)}, elige tu personaje:{aviso}",
         reply_markup=InlineKeyboardMarkup(btns),
         parse_mode=ParseMode.MARKDOWN,
     )
