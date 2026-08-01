@@ -73,11 +73,14 @@ async def callback_bsg_pick(update: Update, context: CallbackContext):
         if presser != target_uid:
             await callback.answer("No es tu turno de elegir.")
             return
-        if key in st.personajes_elegidos.values():
-            await callback.answer("Ese personaje ya fue elegido.")
-            return
         if target_uid in st.personajes_elegidos:
             await callback.answer("Ya elegiste personaje.")
+            return
+        if not BSGController.personaje_disponible(st, key):
+            await callback.answer(
+                "No disponible: los primeros 3 personajes deben cubrir "
+                "1 Militar, 1 Piloto y 1 Político."
+            )
             return
 
         await callback.answer(f"Elegiste {Characters.PERSONAJES[key]['nombre']}")
