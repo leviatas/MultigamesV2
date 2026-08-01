@@ -31,6 +31,19 @@ def _hist(st):
     return st.historial
 
 
+def votos_actuales(st):
+    """Devuelve st.votos_palabra, inicializándolo si el objeto viene de una versión anterior."""
+    if not hasattr(st, 'votos_palabra'):
+        st.votos_palabra = {}
+    return st.votos_palabra
+
+
+def mayoria_necesaria(game, team):
+    """Mitad + 1 de los agentes de campo (sin contar al espía) del equipo activo."""
+    agentes = [p for p in game.get_team_players(team) if not game.is_spymaster(p.uid)]
+    return len(agentes) // 2 + 1
+
+
 def format_numero_pista(numero: int) -> str:
     """Muestra el número de pista original (-1 o 0) junto con el símbolo de infinito."""
     return f"{numero} (∞)" if numero in (0, -1) else str(numero)
@@ -526,6 +539,7 @@ async def process_hint(bot, game, spymaster_uid, word: str, number: int):
     game.board.state.numero_pista = number
     game.board.state.intentos_restantes = 999 if infinito else number + 1
     game.board.state.fase_actual = f"Turno {team} - Adivinar"
+    votos_actuales(game.board.state).clear()
     _hist(game.board.state).append({
         "turno": team, "dador": spymaster.name,
         "pista": word.upper(), "numero": number, "picks": []
@@ -539,7 +553,8 @@ async def process_hint(bot, game, spymaster_uid, word: str, number: int):
     )
     caption_pista = (
         f"💬 Pista del espía *{team}*: *{word.upper()}* — {format_numero_pista(number)}\n"
-        f"{field_mentions} usen `/pick NUMERO` o `/pickb` (botonera) para elegir una carta.\n"
+        f"{field_mentions} usen `/pick NUMERO` o `/pickb` (botonera) para elegir una carta,\n"
+        f"o `/votar NUMERO` / `/votarb` para votar en equipo (se elige con mitad + 1 de votos).\n"
         f"Hasta *{intentos_str}* intentos o `/endturn` para pasar."
     )
     await bot.send_photo(
@@ -552,10 +567,51 @@ async def process_hint(bot, game, spymaster_uid, word: str, number: int):
     await save(bot, game.cid)
 
 
+async def process_vote(bot, game, uid, numero: int):
+    log.info('SecretoCodigo process_vote called')
+    st = game.board.state
+    team = st.turno_actual
+    votos = votos_actuales(st)
+    card = next((c for c in st.tablero if c["numero"] == numero), None)
+    jugador = game.playerlist[uid]
+    word = card["word"].upper()
+
+    # Cada jugador solo puede tener un voto activo a la vez; si ya había
+    # votado otra carta, ese voto se traslada a la nueva.
+    for otro_numero, uids in list(votos.items()):
+        if uid in uids:
+            uids.remove(uid)
+            if not uids:
+                del votos[otro_numero]
+
+    votos.setdefault(numero, [])
+    if uid not in votos[numero]:
+        votos[numero].append(uid)
+
+    total_votos = len(votos[numero])
+    necesarios = mayoria_necesaria(game, team)
+
+    if total_votos >= necesarios:
+        await bot.send_message(
+            game.cid,
+            f"🗳 *{jugador.name}* votó *{word}* — {total_votos}/{necesarios} votos. ¡Mayoría alcanzada!",
+            parse_mode=ParseMode.MARKDOWN,
+        )
+        await process_pick(bot, game, uid, numero)
+    else:
+        await bot.send_message(
+            game.cid,
+            f"🗳 *{jugador.name}* votó *{word}* — {total_votos}/{necesarios} votos.",
+            parse_mode=ParseMode.MARKDOWN,
+        )
+        await save(bot, game.cid)
+
+
 async def process_pick(bot, game, uid, numero: int):
     log.info('SecretoCodigo process_pick called')
     card = next((c for c in game.board.state.tablero if c["numero"] == numero), None)
     card["revealed"] = True
+    votos_actuales(game.board.state).pop(numero, None)
     tipo = card["tipo"]
     word = card["word"]
     team = game.board.state.turno_actual
