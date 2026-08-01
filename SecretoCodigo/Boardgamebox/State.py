@@ -37,3 +37,7 @@ class State(BaseState):
         #  "picks": [{"word": str, "resultado": str}]}
         self.historial = []
 
+        # Votación de agentes de campo (modo Competitivo): numero -> list[uid]
+        # que votaron esa carta durante la ronda de adivinanza actual.
+        self.votos_palabra = {}
+
