@@ -495,23 +495,45 @@ async def command_watch(update: Update, context: CallbackContext):
     bot = context.bot
     cid = update.message.chat_id
     uid = update.message.from_user.id
-    if uid != ADMIN[0]:
-        await bot.send_message(cid, "No tienes acceso a este comando.")
-        return
+    try:
+        if uid != ADMIN[0]:
+            await bot.send_message(cid, "No tienes acceso a este comando.")
+            return
 
-    game = get_game(cid)
-    if not _validar(game):
-        await bot.send_message(cid, "No hay partida de Battlestar Galactica activa aquí.")
-        return
+        game = get_game(cid)
+        if not _validar(game):
+            await bot.send_message(cid, "No hay partida de Battlestar Galactica activa aquí.")
+            return
 
-    st = game.board.state
-    if uid in st.watchers:
-        st.watchers.remove(uid)
-        await bot.send_message(uid, f"👁 Dejaste de observar la partida en *{game.groupName}*.", parse_mode=ParseMode.MARKDOWN)
-    else:
-        st.watchers.append(uid)
-        await bot.send_message(uid, f"👁 Ahora observas la partida en *{game.groupName}*: cada mensaje que el bot envíe ahí te llegará por acá.", parse_mode=ParseMode.MARKDOWN)
-    await save(bot, cid)
+        st = game.board.state
+        if uid in st.watchers:
+            st.watchers.remove(uid)
+            activado = False
+        else:
+            st.watchers.append(uid)
+            activado = True
+        await save(bot, cid)
+
+        # Confirmación en el grupo (siempre, no depende de poder mandar DM).
+        accion = "empezó" if activado else "dejó"
+        await bot.send_message(cid, f"👁 El admin {accion} a observar esta partida por privado.")
+        # Confirmación por privado (best-effort: si el admin nunca abrió un
+        # chat privado con el bot, esto falla pero no debe tumbar el comando).
+        try:
+            if activado:
+                await bot.send_message(uid, f"👁 Ahora observas la partida en *{game.groupName}*: cada mensaje que el bot envíe ahí te llegará por acá.", parse_mode=ParseMode.MARKDOWN)
+            else:
+                await bot.send_message(uid, f"👁 Dejaste de observar la partida en *{game.groupName}*.", parse_mode=ParseMode.MARKDOWN)
+        except Exception as e:
+            logger.error(f"command_watch: no se pudo enviar DM de confirmación a {uid}: {e}")
+            await bot.send_message(cid, "⚠️ No pude mandarte un privado (abrí un chat conmigo primero con /start) — igual quedaste registrado como espectador.")
+    except Exception as e:
+        logger.error(f"command_watch error: {e}")
+        try:
+            await bot.send_message(cid, "Ocurrió un error con /watch.")
+        except Exception:
+            pass
+        await bot.send_message(ADMIN[0], f"BSG watch error: {e}")
 
 
 async def command_mapa(update: Update, context: CallbackContext):
@@ -1550,8 +1572,13 @@ async def callback_bsg_dar_tipo(update: Update, context: CallbackContext):
             await bot.edit_message_text(f"🎁 {p.name} recibió {desc} extra (`/mover` y/o `/accion`).", cid, callback.message.message_id, parse_mode=ParseMode.MARKDOWN)
         except Exception:
             await bot.send_message(cid, f"🎁 *{p.name}* recibió {desc} extra (`/mover` y/o `/accion`).", parse_mode=ParseMode.MARKDOWN)
-        await bot.send_message(objetivo, f"🎁 Recibiste {desc} extra este turno. Usa `/mover` y/o `/accion`.", parse_mode=ParseMode.MARKDOWN)
         await save(bot, cid)
+        # DM al objetivo (best-effort: si nunca abrió un chat privado con el
+        # bot esto falla, pero no debe ocultar que ya se otorgó y guardó).
+        try:
+            await bot.send_message(objetivo, f"🎁 Recibiste {desc} extra este turno. Usa `/mover` y/o `/accion`.", parse_mode=ParseMode.MARKDOWN)
+        except Exception as e:
+            logger.error(f"callback_bsg_dar_tipo: no se pudo enviar DM a {objetivo}: {e}")
     except Exception as e:
         logger.error(f"callback_bsg_dar_tipo error: {e}")
         try:
