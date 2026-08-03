@@ -497,6 +497,29 @@ def _consumir_movimiento(st, uid):
         st.bonus_moves = max(0, getattr(st, "bonus_moves", 0) - 1)
 
 
+def otorgar_extra(game, objetivo_uid, tipo):
+    """Herramienta de admin: concede a `objetivo_uid` 1 movimiento o 1 acción
+    extra este turno (`tipo` es "mov" o "acc"), fuera de cualquier carta.
+    Si es el jugador activo, se suma a su economía normal de turno; si no,
+    usa el mecanismo de bonus_actor (como la Orden Ejecutiva) — si ya había
+    un bonus pendiente para OTRO jugador, se reemplaza por este."""
+    st = game.board.state
+    if st.active_player and st.active_player.uid == objetivo_uid:
+        if tipo == "mov":
+            st.movimientos_restantes = getattr(st, "movimientos_restantes", 0) + 1
+        else:
+            st.acciones_restantes = getattr(st, "acciones_restantes", 0) + 1
+        return
+    if getattr(st, "bonus_actor", None) != objetivo_uid:
+        st.bonus_actor = objetivo_uid
+        st.bonus_actions = 0
+        st.bonus_moves = 0
+    if tipo == "mov":
+        st.bonus_moves = getattr(st, "bonus_moves", 0) + 1
+    else:
+        st.bonus_actions = getattr(st, "bonus_actions", 0) + 1
+
+
 async def iniciar_turno(bot, game):
     st = game.board.state
     if st.ganador:
