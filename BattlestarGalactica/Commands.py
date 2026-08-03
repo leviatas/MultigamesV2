@@ -394,6 +394,13 @@ async def callback_bsg_jugar(update: Update, context: CallbackContext):
                         break
                 BSGController._consumir_accion(st, presser)
                 await BSGController.save(bot, cid)
+        elif token.startswith("eoc_"):
+            await callback.answer()
+            try:
+                await bot.edit_message_reply_markup(presser, callback.message.message_id, reply_markup=None)
+            except Exception:
+                pass
+            await BSGController.resolver_executive_order(bot, game, presser, token[4:])
         elif token in ("ls_keep", "ls_bottom"):
             await callback.answer()
             await BSGController.carta_scout_resolve(bot, game, presser, token == "ls_keep")
