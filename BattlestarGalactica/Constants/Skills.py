@@ -34,6 +34,11 @@ EMOJI_COLOR = {
     POLITICA: "🟡", LIDERAZGO: "🟢", TACTICA: "🟣", PILOTAJE: "🔴", INGENIERIA: "🔵",
 }
 
+NOMBRE_COLOR = {
+    POLITICA: "Amarilla", LIDERAZGO: "Verde", TACTICA: "Violeta",
+    PILOTAJE: "Roja", INGENIERIA: "Azul",
+}
+
 # Composición oficial por color (valor -> cantidad)
 DISTRIBUCION_VALORES = {1: 8, 2: 6, 3: 4, 4: 2, 5: 1}
 
