@@ -1621,3 +1621,215 @@ async def callback_bsg_free(update: Update, context: CallbackContext):
         except Exception:
             pass
         await bot.send_message(ADMIN[0], f"BSG free error: {e}")
+
+
+# ---- Panel de Admin: correcciones manuales cuando algo salió mal ----
+# (usamos "bsgadmin" y no "admin": ese comando ya existe a nivel global,
+# para listar/eliminar partidas — Commands.command_admin_games)
+
+_DELTAS_RAIDERS = {"m5": -5, "m1": -1, "p1": 1, "p5": 5}
+
+
+def _texto_admin_raiders(st, i):
+    return f"🛸 *{Space.nombre(i)}*: {st.areas[i]['raiders']} Raider(s). Ajustá y confirmá:"
+
+
+def _botones_admin_raiders(cid, i, uid):
+    return [
+        [InlineKeyboardButton("-5", callback_data=f"{cid}*bsgAdminRaiders*{i}_m5*{uid}"),
+         InlineKeyboardButton("-1", callback_data=f"{cid}*bsgAdminRaiders*{i}_m1*{uid}"),
+         InlineKeyboardButton("+1", callback_data=f"{cid}*bsgAdminRaiders*{i}_p1*{uid}"),
+         InlineKeyboardButton("+5", callback_data=f"{cid}*bsgAdminRaiders*{i}_p5*{uid}")],
+        [InlineKeyboardButton("✅ Listo", callback_data=f"{cid}*bsgAdminRaiders*{i}_done*{uid}")],
+    ]
+
+
+async def command_bsgadmin(update: Update, context: CallbackContext):
+    """Solo el admin: panel de correcciones manuales para cuando algo salió
+    mal en la partida (p. ej. la cantidad de Raiders quedó mal contada, o
+    hubo que forzar una activación Cylon que no se disparó sola)."""
+    bot = context.bot
+    cid = update.message.chat_id
+    uid = update.message.from_user.id
+    if uid != ADMIN[0]:
+        await bot.send_message(cid, "No tienes acceso a este comando.")
+        return
+    game = get_game(cid)
+    if not _validar(game):
+        await bot.send_message(cid, "No hay partida de Battlestar Galactica activa aquí.")
+        return
+    btns = [
+        [InlineKeyboardButton("🛸 Corregir Raiders en un área", callback_data=f"{cid}*bsgAdmin*fix_raiders*{uid}")],
+        [InlineKeyboardButton("🤖 Activar naves Cylon", callback_data=f"{cid}*bsgAdmin*activar_cylon*{uid}")],
+    ]
+    await bot.send_message(cid, "🛠️ *Panel de Admin (BSG)* — ¿qué querés corregir?",
+                           reply_markup=InlineKeyboardMarkup(btns), parse_mode=ParseMode.MARKDOWN)
+
+
+async def callback_bsg_admin(update: Update, context: CallbackContext):
+    """Menú principal de /bsgadmin: elegir qué corrección hacer."""
+    bot = context.bot
+    callback = update.callback_query
+    presser = callback.from_user.id
+    try:
+        regex = re.search(r"(-?[0-9]*)\*bsgAdmin\*([a-z_]+)\*(-?[0-9]*)", callback.data)
+        cid = int(regex.group(1))
+        opcion = regex.group(2)
+        ordenante = int(regex.group(3))
+        game = get_game(cid)
+        if not _validar(game):
+            await callback.answer("Partida no encontrada.")
+            return
+        if presser != ordenante or presser != ADMIN[0]:
+            await callback.answer("No puedes usar este panel.")
+            return
+        await callback.answer()
+        st = game.board.state
+
+        if opcion == "fix_raiders":
+            btns = [[InlineKeyboardButton(f"{Space.nombre(i)} ({a['raiders']} 🔴)",
+                                          callback_data=f"{cid}*bsgAdminArea*{i}*{presser}")]
+                    for i, a in enumerate(st.areas)]
+            texto = "🛸 ¿En qué área corregís la cantidad de Raiders?"
+        elif opcion == "activar_cylon":
+            btns = [
+                [InlineKeyboardButton("👾 Activar Raiders", callback_data=f"{cid}*bsgAdminCylon*raiders*{presser}")],
+                [InlineKeyboardButton("🚁 Activar Heavy Raiders/Centuriones", callback_data=f"{cid}*bsgAdminCylon*heavy_raiders*{presser}")],
+                [InlineKeyboardButton("🛸 Lanzar Raiders (Basestars)", callback_data=f"{cid}*bsgAdminCylon*launch_raiders*{presser}")],
+            ]
+            texto = "🤖 ¿Qué activación Cylon querés forzar?"
+        else:
+            return
+
+        try:
+            await bot.edit_message_text(texto, cid, callback.message.message_id,
+                                        reply_markup=InlineKeyboardMarkup(btns), parse_mode=ParseMode.MARKDOWN)
+        except Exception:
+            await bot.send_message(cid, texto, reply_markup=InlineKeyboardMarkup(btns), parse_mode=ParseMode.MARKDOWN)
+    except Exception as e:
+        logger.error(f"callback_bsg_admin error: {e}")
+        try:
+            await callback.answer("Error.")
+        except Exception:
+            pass
+        await bot.send_message(ADMIN[0], f"BSG admin error: {e}")
+
+
+async def callback_bsg_admin_area(update: Update, context: CallbackContext):
+    """Elegida el área a corregir: muestra el stepper de Raiders."""
+    bot = context.bot
+    callback = update.callback_query
+    presser = callback.from_user.id
+    try:
+        regex = re.search(r"(-?[0-9]*)\*bsgAdminArea\*([0-9]+)\*(-?[0-9]*)", callback.data)
+        cid = int(regex.group(1))
+        i = int(regex.group(2))
+        ordenante = int(regex.group(3))
+        game = get_game(cid)
+        if not _validar(game):
+            await callback.answer("Partida no encontrada.")
+            return
+        if presser != ordenante or presser != ADMIN[0]:
+            await callback.answer("No puedes usar este panel.")
+            return
+        await callback.answer()
+        st = game.board.state
+        btns = _botones_admin_raiders(cid, i, presser)
+        try:
+            await bot.edit_message_text(_texto_admin_raiders(st, i), cid, callback.message.message_id,
+                                        reply_markup=InlineKeyboardMarkup(btns), parse_mode=ParseMode.MARKDOWN)
+        except Exception:
+            await bot.send_message(cid, _texto_admin_raiders(st, i), reply_markup=InlineKeyboardMarkup(btns),
+                                   parse_mode=ParseMode.MARKDOWN)
+    except Exception as e:
+        logger.error(f"callback_bsg_admin_area error: {e}")
+        try:
+            await callback.answer("Error.")
+        except Exception:
+            pass
+        await bot.send_message(ADMIN[0], f"BSG admin area error: {e}")
+
+
+async def callback_bsg_admin_raiders(update: Update, context: CallbackContext):
+    """Aplica +/- a los Raiders del área elegida, o cierra el panel con 'Listo'."""
+    bot = context.bot
+    callback = update.callback_query
+    presser = callback.from_user.id
+    try:
+        regex = re.search(r"(-?[0-9]*)\*bsgAdminRaiders\*([0-9]+)_(m5|m1|p1|p5|done)\*(-?[0-9]*)", callback.data)
+        cid = int(regex.group(1))
+        i = int(regex.group(2))
+        op = regex.group(3)
+        ordenante = int(regex.group(4))
+        game = get_game(cid)
+        if not _validar(game):
+            await callback.answer("Partida no encontrada.")
+            return
+        if presser != ordenante or presser != ADMIN[0]:
+            await callback.answer("No puedes usar este panel.")
+            return
+        st = game.board.state
+
+        if op == "done":
+            await callback.answer("Listo.")
+            try:
+                await bot.edit_message_text(f"✅ *{Space.nombre(i)}*: {st.areas[i]['raiders']} Raider(s).", cid,
+                                            callback.message.message_id, parse_mode=ParseMode.MARKDOWN)
+            except Exception:
+                pass
+            return
+
+        st.areas[i]["raiders"] = max(0, st.areas[i]["raiders"] + _DELTAS_RAIDERS[op])
+        await callback.answer(f"{st.areas[i]['raiders']} Raider(s) en {Space.nombre(i)}.")
+        btns = _botones_admin_raiders(cid, i, presser)
+        try:
+            await bot.edit_message_text(_texto_admin_raiders(st, i), cid, callback.message.message_id,
+                                        reply_markup=InlineKeyboardMarkup(btns), parse_mode=ParseMode.MARKDOWN)
+        except Exception:
+            pass
+        await save(bot, cid)
+    except Exception as e:
+        logger.error(f"callback_bsg_admin_raiders error: {e}")
+        try:
+            await callback.answer("Error.")
+        except Exception:
+            pass
+        await bot.send_message(ADMIN[0], f"BSG admin raiders error: {e}")
+
+
+async def callback_bsg_admin_cylon(update: Update, context: CallbackContext):
+    """Fuerza una activación Cylon específica (Raiders / Heavy Raiders y
+    Centuriones / Lanzar Raiders) fuera del ciclo normal de Crisis, para
+    corregir una que no se disparó (o se disparó mal) durante la partida."""
+    bot = context.bot
+    callback = update.callback_query
+    presser = callback.from_user.id
+    try:
+        regex = re.search(r"(-?[0-9]*)\*bsgAdminCylon\*(raiders|heavy_raiders|launch_raiders)\*(-?[0-9]*)", callback.data)
+        cid = int(regex.group(1))
+        tipo = regex.group(2)
+        ordenante = int(regex.group(3))
+        game = get_game(cid)
+        if not _validar(game):
+            await callback.answer("Partida no encontrada.")
+            return
+        if presser != ordenante or presser != ADMIN[0]:
+            await callback.answer("No puedes usar este panel.")
+            return
+        await callback.answer("Activando…")
+        try:
+            await bot.edit_message_text(
+                f"🤖 Forzando activación: {BSGController.ICONOS_CYLON.get(tipo, tipo)}…",
+                cid, callback.message.message_id,
+            )
+        except Exception:
+            pass
+        await BSGController.activar_naves_cylon(bot, game, [tipo])
+        await save(bot, cid)
+    except Exception as e:
+        logger.error(f"callback_bsg_admin_cylon error: {e}")
+        try:
+            await callback.answer("Error.")
+        except Exception:
+            pass
+        await bot.send_message(ADMIN[0], f"BSG admin cylon error: {e}")
