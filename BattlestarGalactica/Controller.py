@@ -2568,6 +2568,111 @@ async def resolver_roslin(bot, game, uid, idx):
     await _presentar_crisis(bot, game, elegida)
 
 
+_EMOJI_RECURSO = {"comida": "🍞", "combustible": "⛽", "moral": "🙂", "poblacion": "👥"}
+
+
+def _resumen_efecto(ef):
+    """Descripción corta en español de un efecto de Crisis (para el aviso previo:
+    qué mueve la carta en el tablero — Raiders, Basestars, salto, etc.)."""
+    tipo = ef.get("tipo")
+    if tipo == "recurso":
+        delta = ef["delta"]
+        emoji = _EMOJI_RECURSO.get(ef["recurso"], "")
+        return f"{emoji}{'+' if delta >= 0 else ''}{delta} {ef['recurso'].capitalize()}"
+    if tipo == "raiders":
+        cant = ef["cantidad"]
+        return f"👾{'+' if cant >= 0 else ''}{cant} Raiders"
+    if tipo == "heavy_raiders":
+        cant = ef["cantidad"]
+        return f"🚁{'+' if cant >= 0 else ''}{cant} Heavy Raiders"
+    if tipo == "basestar":
+        return f"🛸+{ef['cantidad']} Basestar(s)"
+    if tipo == "civiles":
+        return f"🛰️+{ef.get('cantidad', 1)} nave(s) civil(es)"
+    if tipo == "centuriones":
+        delta = ef["delta"]
+        return f"🔺{'+' if delta >= 0 else ''}{delta} centurión/es"
+    if tipo == "vipers":
+        return f"✈️+{ef['cantidad']} Vipers (reserva)"
+    if tipo == "danar_galactica":
+        return "🛡️ Daña un sistema de Galactica"
+    if tipo == "danar_vipers":
+        return f"💥 Daña {ef.get('cantidad', 1)} Viper(s)"
+    if tipo == "descartar":
+        return f"🗑️ Descarta {ef.get('cantidad', 1)} carta(s) ({ef.get('quien', 'activo')})"
+    if tipo == "brig":
+        return "🔒 Va al Calabozo"
+    if tipo == "sickbay":
+        return "🏥 Va a la Enfermería"
+    if tipo == "jump_prep":
+        delta = ef["delta"]
+        return f"⏫{'+' if delta >= 0 else ''}{delta} preparación de salto"
+    if tipo == "activar":
+        return "🛸 Activa naves Cylon"
+    if tipo == "nuke_token":
+        delta = ef.get("delta", -1)
+        return f"☢️{'+' if delta >= 0 else ''}{delta} Ojiva(s) Nuclear(es)"
+    if tipo == "bloquear":
+        return "🚫 Bloquea una ubicación"
+    if tipo == "recrisis":
+        return "🔁 Se roba y resuelve otra Crisis"
+    if tipo == "titulo":
+        return f"🎖️ Transfiere el título de {ef.get('titulo', 'Presidente')}"
+    if tipo == "destruir_civil":
+        return "💥 Destruye 1 nave civil"
+    if tipo == "vipers_recall":
+        return "↩️ Retira Vipers al Hangar"
+    if tipo == "elegir_objetivo":
+        accion = {
+            "brig": "manda al Calabozo",
+            "sickbay": "manda a la Enfermería",
+            "loyalty_peek": "inspecciona su lealtad",
+            "presidencia": "le da la Presidencia",
+        }.get(ef.get("accion"), ef.get("accion", "acción"))
+        return f"🎯 Se elige un objetivo y se {accion}"
+    if tipo == "roll":
+        lo, hi = ef.get("rango", [6, 8])
+        return (f"🎲 Tirada ({lo}-{hi} éxito): "
+                f"éxito → {_resumen_lista(ef.get('exito', []))}; "
+                f"fallo → {_resumen_lista(ef.get('fracaso', []))}")
+    if tipo == "prophecy":
+        return "🔮 +2 dificultad al próximo chequeo de Presidencia"
+    if tipo == "loyalty_peek":
+        return "🔍 Se revisa una carta de lealtad"
+    return None
+
+
+def _resumen_lista(efectos):
+    partes = [p for p in (_resumen_efecto(ef) for ef in (efectos or [])) if p]
+    return ", ".join(partes) if partes else "sin efecto"
+
+
+def _resumen_crisis(crisis):
+    """Resumen de lo que la Crisis mueve en el tablero (Raiders, Basestars,
+    salto, etc.), separado por rama (opción / éxito-fracaso), para acompañar
+    el texto oficial de la carta."""
+    lineas = []
+    if crisis["tipo"] in ("eleccion", "voto"):
+        for op in crisis.get("opciones", []):
+            lineas.append(f"• {op['label']}: {_resumen_lista(op.get('efectos', []))}")
+    elif crisis["tipo"] == "chequeo":
+        if crisis.get("exito"):
+            lineas.append(f"✅ Éxito: {_resumen_lista(crisis['exito'])}")
+        intermedio = crisis.get("intermedio")
+        if intermedio:
+            lineas.append(f"🟨 {intermedio['umbral']}+: {_resumen_lista(intermedio.get('efectos', []))}")
+        if crisis.get("fracaso"):
+            lineas.append(f"❌ Fracaso: {_resumen_lista(crisis['fracaso'])}")
+        alt = crisis.get("alternativa")
+        if alt:
+            lineas.append(f"{alt.get('label', '🛡️ Alternativa')}: {_resumen_lista(alt.get('efectos', []))}")
+    else:
+        lineas.append(_resumen_lista(crisis.get("efectos", [])))
+    salto = crisis.get("jump", 0)
+    lineas.append(f"🌌 Salto: {'sí (+' + str(salto) + ')' if salto else 'no'}")
+    return "\n".join(lineas)
+
+
 async def _presentar_crisis(bot, game, crisis):
     """Anuncia la Crisis elegida, dispara la pasiva de Baltar y la despacha."""
     st = game.board.state
@@ -2575,7 +2680,8 @@ async def _presentar_crisis(bot, game, crisis):
 
     await bot.send_message(
         game.cid,
-        f"⚠️ *CRISIS: {crisis['titulo']}*\n_{crisis['texto']}_",
+        f"⚠️ *CRISIS: {crisis['titulo']}*\n_{crisis['texto']}_\n\n"
+        f"*Efectos en juego:*\n{_resumen_crisis(crisis)}",
         parse_mode=ParseMode.MARKDOWN,
     )
 
