@@ -40,7 +40,7 @@ DISTRIBUCION_VALORES = {1: 8, 2: 6, 3: 4, 4: 2, 5: 1}
 # Texto de cada habilidad nombrada
 TEXTOS = {
     "Consolidate Power": "Acción: roba 2 cartas de habilidad de cualquier tipo (incluso fuera de tu set).",
-    "Executive Order": "Acción: elige a otro jugador; puede moverse y tomar 1 acción, o no moverse y tomar 2.",
+    "Executive Order": "Acción: elige a otro jugador; ese jugador decide si moverse y tomar 1 acción, o no moverse y tomar 2 acciones.",
     "Declare Emergency": "Se juega tras totalizar un chequeo: reduce su dificultad en 2 (máx. 1 por chequeo).",
     "Launch Scout": "Acción: arriesga 1 Raptor y tira un dado para mirar/reordenar el mazo de Crisis o Destino.",
     "Strategic Planning": "Se juega antes de una tirada de dado: súmale 2 (máx. 1 por tirada).",

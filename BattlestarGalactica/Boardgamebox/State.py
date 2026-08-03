@@ -119,6 +119,10 @@ class State(BaseState):
         self.ganador = None               # "Humanos" | "Cylons" | None
         self.razon_fin = None
 
+        # --- Espectadores (/watch): uids que reciben por privado una copia de
+        # cada mensaje enviado al chat de la partida ---
+        self.watchers = []
+
     # --- Totales derivados del modelo posicional de naves ---
     def total_raiders(self):
         return sum(a["raiders"] for a in self.areas)
