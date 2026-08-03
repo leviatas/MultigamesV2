@@ -588,6 +588,9 @@ def main(stop_event):
 	
 	app = Application.builder().token(os.environ.get('TOKEN_MULTIGAMES')).build()
 
+	import BattlestarGalactica.Watch as BSGWatch
+	BSGWatch.activar_relay(app.bot)
+
 	# on different commands - answer in Telegram
 	app.add_handler(CommandHandler("start", Commands.command_start))
 	app.add_handler(CommandHandler("help", Commands.command_help))
@@ -829,6 +832,7 @@ def main(stop_event):
 	app.add_handler(CommandHandler("lealtad", BSGCommands.command_lealtad))
 	app.add_handler(CommandHandler("mano", BSGCommands.command_mano))
 	app.add_handler(CommandHandler("estado", BSGCommands.command_estado))
+	app.add_handler(CommandHandler("watch", BSGCommands.command_watch))
 	app.add_handler(CommandHandler("mapa", BSGCommands.command_mapa))
 	app.add_handler(CommandHandler("mapaimg", BSGCommands.command_mapa_img))
 	app.add_handler(CommandHandler("accion", BSGCommands.command_accion))

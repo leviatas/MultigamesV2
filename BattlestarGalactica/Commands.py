@@ -488,6 +488,32 @@ async def command_estado(update: Update, context: CallbackContext):
     await bot.send_message(cid, game.board.print_board(game), parse_mode=ParseMode.MARKDOWN)
 
 
+async def command_watch(update: Update, context: CallbackContext):
+    """Modo espectador: solo el admin puede activarlo. Alterna (toggle) si
+    recibe por privado una copia de cada mensaje que el bot envía a esta
+    partida."""
+    bot = context.bot
+    cid = update.message.chat_id
+    uid = update.message.from_user.id
+    if uid != ADMIN[0]:
+        await bot.send_message(cid, "No tienes acceso a este comando.")
+        return
+
+    game = get_game(cid)
+    if not _validar(game):
+        await bot.send_message(cid, "No hay partida de Battlestar Galactica activa aquí.")
+        return
+
+    st = game.board.state
+    if uid in st.watchers:
+        st.watchers.remove(uid)
+        await bot.send_message(uid, f"👁 Dejaste de observar la partida en *{game.groupName}*.", parse_mode=ParseMode.MARKDOWN)
+    else:
+        st.watchers.append(uid)
+        await bot.send_message(uid, f"👁 Ahora observas la partida en *{game.groupName}*: cada mensaje que el bot envíe ahí te llegará por acá.", parse_mode=ParseMode.MARKDOWN)
+    await save(bot, cid)
+
+
 async def command_mapa(update: Update, context: CallbackContext):
     """Muestra el mapa textual de la flota (ubicaciones y espacio)."""
     bot = context.bot
