@@ -799,6 +799,11 @@ CIVILES_CARGAS = [
     {"recurso": None, "cantidad": 0},
 ]
 
+# Letra identificadora de cada nave civil (estable durante toda la partida:
+# se asigna una vez al crear la pila y viaja con la nave aunque se mueva o se
+# inspeccione, para poder reconocerla en Comunicaciones de una vez a otra).
+_CIVIL_LETRAS = "ABCDEFGH"
+
 
 def _colocar_flota_inicial(st):
     """Despliega la disposición inicial del juego base sobre las áreas:
@@ -817,7 +822,7 @@ def _colocar_flota_inicial(st):
     st.areas[Space.AREA_PROA]["raiders"] += 3
 
     # Naves civiles: 2 en la Popa, el resto a la pila de reserva
-    pila = [dict(c) for c in CIVILES_CARGAS]
+    pila = [dict(c, id=letra) for letra, c in zip(_CIVIL_LETRAS, CIVILES_CARGAS)]
     random.shuffle(pila)
     for _ in range(min(2, len(pila))):
         st.areas[Space.AREA_POPA]["civiles"].append(pila.pop())
@@ -1054,7 +1059,7 @@ async def ejecutar_accion_ubicacion(bot, game, uid, accion, objetivo=None):
         lineas = []
         for i, a in enumerate(st.areas):
             for c in a["civiles"]:
-                lineas.append(f"{Space.nombre(i)}: {c['recurso'] or 'vacía'}")
+                lineas.append(f"[{c.get('id', '?')}] {Space.nombre(i)}: {c['recurso'] or 'vacía'}")
         info = "\n".join(lineas) or "ninguna"
         await bot.send_message(uid, f"🔭 Cargas de las naves civiles:\n{info}")
         await bot.send_message(game.cid, f"🔭 {player.name} inspecciona las naves civiles.")
@@ -1315,9 +1320,10 @@ async def mover_civil(bot, game, area_idx):
         return
     civil = st.areas[area_idx]["civiles"].pop()
     st.areas[destino]["civiles"].append(civil)
+    letra = civil.get("id", "?")
     await bot.send_message(
         game.cid,
-        f"🚚 Una nave civil se reposiciona de {Space.nombre(area_idx)} a {Space.nombre(destino)}.",
+        f"🚚 La nave civil [{letra}] se reposiciona de {Space.nombre(area_idx)} a {Space.nombre(destino)}.",
     )
     await save(bot, game.cid)
 
@@ -1950,11 +1956,12 @@ async def _destruir_civil(bot, game, area_idx=None):
     if not area["civiles"]:
         return
     carga = area["civiles"].pop(random.randrange(len(area["civiles"])))
+    letra = carga.get("id", "?")
     if carga["recurso"]:
-        await bot.send_message(game.cid, f"🛰️💀 ¡Nave civil destruida en {Space.nombre(area_idx)}! Transportaba {carga['recurso']}.")
+        await bot.send_message(game.cid, f"🛰️💀 ¡Nave civil [{letra}] destruida en {Space.nombre(area_idx)}! Transportaba {carga['recurso']}.")
         await modificar_recurso(bot, game, carga["recurso"], -carga["cantidad"])
     else:
-        await bot.send_message(game.cid, f"🛰️💀 Nave civil destruida en {Space.nombre(area_idx)} (estaba vacía).")
+        await bot.send_message(game.cid, f"🛰️💀 Nave civil [{letra}] destruida en {Space.nombre(area_idx)} (estaba vacía).")
 
 
 # ===================== SABOTAJE CYLON =====================
