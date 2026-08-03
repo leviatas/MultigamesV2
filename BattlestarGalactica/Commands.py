@@ -394,6 +394,13 @@ async def callback_bsg_jugar(update: Update, context: CallbackContext):
                         break
                 BSGController._consumir_accion(st, presser)
                 await BSGController.save(bot, cid)
+        elif token.startswith("eoc_"):
+            await callback.answer()
+            try:
+                await bot.edit_message_reply_markup(presser, callback.message.message_id, reply_markup=None)
+            except Exception:
+                pass
+            await BSGController.resolver_executive_order(bot, game, presser, token[4:])
         elif token in ("ls_keep", "ls_bottom"):
             await callback.answer()
             await BSGController.carta_scout_resolve(bot, game, presser, token == "ls_keep")
@@ -479,6 +486,32 @@ async def command_estado(update: Update, context: CallbackContext):
         await bot.send_message(cid, "No hay partida de Battlestar Galactica activa aquí.")
         return
     await bot.send_message(cid, game.board.print_board(game), parse_mode=ParseMode.MARKDOWN)
+
+
+async def command_watch(update: Update, context: CallbackContext):
+    """Modo espectador: solo el admin puede activarlo. Alterna (toggle) si
+    recibe por privado una copia de cada mensaje que el bot envía a esta
+    partida."""
+    bot = context.bot
+    cid = update.message.chat_id
+    uid = update.message.from_user.id
+    if uid != ADMIN[0]:
+        await bot.send_message(cid, "No tienes acceso a este comando.")
+        return
+
+    game = get_game(cid)
+    if not _validar(game):
+        await bot.send_message(cid, "No hay partida de Battlestar Galactica activa aquí.")
+        return
+
+    st = game.board.state
+    if uid in st.watchers:
+        st.watchers.remove(uid)
+        await bot.send_message(uid, f"👁 Dejaste de observar la partida en *{game.groupName}*.", parse_mode=ParseMode.MARKDOWN)
+    else:
+        st.watchers.append(uid)
+        await bot.send_message(uid, f"👁 Ahora observas la partida en *{game.groupName}*: cada mensaje que el bot envíe ahí te llegará por acá.", parse_mode=ParseMode.MARKDOWN)
+    await save(bot, cid)
 
 
 async def command_mapa(update: Update, context: CallbackContext):
@@ -1428,6 +1461,104 @@ async def callback_bsg_brig(update: Update, context: CallbackContext):
         except Exception:
             pass
         await bot.send_message(ADMIN[0], f"BSG brig error: {e}")
+
+
+async def command_dar(update: Update, context: CallbackContext):
+    """Solo el admin: otorga a un jugador 1 movimiento o 1 acción extra."""
+    bot = context.bot
+    cid = update.message.chat_id
+    uid = update.message.from_user.id
+    if uid != ADMIN[0]:
+        await bot.send_message(cid, "No tienes acceso a este comando.")
+        return
+    game = get_game(cid)
+    if not _validar(game):
+        await bot.send_message(cid, "No hay partida de Battlestar Galactica activa aquí.")
+        return
+    btns = [[InlineKeyboardButton(p.name, callback_data=f"{cid}*bsgDar*{p_uid}*{uid}")]
+            for p_uid, p in game.playerlist.items()]
+    if not btns:
+        await bot.send_message(cid, "No hay jugadores en la partida.")
+        return
+    await bot.send_message(cid, "🎁 ¿A qué jugador le das un extra?", reply_markup=InlineKeyboardMarkup(btns))
+
+
+async def callback_bsg_dar(update: Update, context: CallbackContext):
+    bot = context.bot
+    callback = update.callback_query
+    presser = callback.from_user.id
+    try:
+        regex = re.search(r"(-?[0-9]*)\*bsgDar\*(-?[0-9]*)\*(-?[0-9]*)", callback.data)
+        cid = int(regex.group(1))
+        objetivo = int(regex.group(2))
+        ordenante = int(regex.group(3))
+        game = get_game(cid)
+        if not _validar(game):
+            await callback.answer("Partida no encontrada.")
+            return
+        if presser != ordenante or presser != ADMIN[0]:
+            await callback.answer("No puedes ordenar esto.")
+            return
+        p = game.playerlist.get(objetivo)
+        if not p:
+            await callback.answer("Jugador no encontrado.")
+            return
+        await callback.answer()
+        btns = [
+            [InlineKeyboardButton("🏃 1 movimiento", callback_data=f"{cid}*bsgDarTipo*mov_{objetivo}*{presser}")],
+            [InlineKeyboardButton("⚡ 1 acción", callback_data=f"{cid}*bsgDarTipo*acc_{objetivo}*{presser}")],
+        ]
+        try:
+            await bot.edit_message_text(f"¿Qué le das a {p.name}?", cid, callback.message.message_id,
+                                        reply_markup=InlineKeyboardMarkup(btns))
+        except Exception:
+            await bot.send_message(cid, f"¿Qué le das a {p.name}?", reply_markup=InlineKeyboardMarkup(btns))
+    except Exception as e:
+        logger.error(f"callback_bsg_dar error: {e}")
+        try:
+            await callback.answer("Error.")
+        except Exception:
+            pass
+        await bot.send_message(ADMIN[0], f"BSG dar error: {e}")
+
+
+async def callback_bsg_dar_tipo(update: Update, context: CallbackContext):
+    bot = context.bot
+    callback = update.callback_query
+    presser = callback.from_user.id
+    try:
+        regex = re.search(r"(-?[0-9]*)\*bsgDarTipo\*(mov|acc)_(-?[0-9]*)\*(-?[0-9]*)", callback.data)
+        cid = int(regex.group(1))
+        tipo = regex.group(2)
+        objetivo = int(regex.group(3))
+        ordenante = int(regex.group(4))
+        game = get_game(cid)
+        if not _validar(game):
+            await callback.answer("Partida no encontrada.")
+            return
+        if presser != ordenante or presser != ADMIN[0]:
+            await callback.answer("No puedes ordenar esto.")
+            return
+        p = game.playerlist.get(objetivo)
+        if not p:
+            await callback.answer("Jugador no encontrado.")
+            return
+        BSGController.otorgar_extra(game, objetivo, tipo)
+        desc = "1 movimiento" if tipo == "mov" else "1 acción"
+        await callback.answer(f"Le diste {desc} a {p.name}.")
+        try:
+            await bot.edit_message_text(f"🎁 {p.name} recibió {desc} extra (`/mover` y/o `/accion`).", cid, callback.message.message_id, parse_mode=ParseMode.MARKDOWN)
+        except Exception:
+            await bot.send_message(cid, f"🎁 *{p.name}* recibió {desc} extra (`/mover` y/o `/accion`).", parse_mode=ParseMode.MARKDOWN)
+        await bot.send_message(objetivo, f"🎁 Recibiste {desc} extra este turno. Usa `/mover` y/o `/accion`.", parse_mode=ParseMode.MARKDOWN)
+        await save(bot, cid)
+    except Exception as e:
+        logger.error(f"callback_bsg_dar_tipo error: {e}")
+        try:
+            await callback.answer("Error.")
+        except Exception:
+            pass
+        await bot.send_message(ADMIN[0], f"BSG dar tipo error: {e}")
 
 
 async def command_liberar(update: Update, context: CallbackContext):

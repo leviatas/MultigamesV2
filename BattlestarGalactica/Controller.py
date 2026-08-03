@@ -497,6 +497,29 @@ def _consumir_movimiento(st, uid):
         st.bonus_moves = max(0, getattr(st, "bonus_moves", 0) - 1)
 
 
+def otorgar_extra(game, objetivo_uid, tipo):
+    """Herramienta de admin: concede a `objetivo_uid` 1 movimiento o 1 acción
+    extra este turno (`tipo` es "mov" o "acc"), fuera de cualquier carta.
+    Si es el jugador activo, se suma a su economía normal de turno; si no,
+    usa el mecanismo de bonus_actor (como la Orden Ejecutiva) — si ya había
+    un bonus pendiente para OTRO jugador, se reemplaza por este."""
+    st = game.board.state
+    if st.active_player and st.active_player.uid == objetivo_uid:
+        if tipo == "mov":
+            st.movimientos_restantes = getattr(st, "movimientos_restantes", 0) + 1
+        else:
+            st.acciones_restantes = getattr(st, "acciones_restantes", 0) + 1
+        return
+    if getattr(st, "bonus_actor", None) != objetivo_uid:
+        st.bonus_actor = objetivo_uid
+        st.bonus_actions = 0
+        st.bonus_moves = 0
+    if tipo == "mov":
+        st.bonus_moves = getattr(st, "bonus_moves", 0) + 1
+    else:
+        st.bonus_actions = getattr(st, "bonus_actions", 0) + 1
+
+
 async def iniciar_turno(bot, game):
     st = game.board.state
     if st.ganador:
@@ -2858,7 +2881,9 @@ async def carta_evasive(bot, game, player):
 
 
 async def carta_executive_order(bot, game, uid, objetivo_uid):
-    """Orden Ejecutiva: concede a otro jugador una acción extra durante este turno."""
+    """Orden Ejecutiva: el objetivo elige entre moverse y tomar 1 acción, o no
+    moverse y tomar 2 acciones este turno. La elección queda pendiente hasta
+    que el objetivo responda (ver resolver_executive_order)."""
     st = game.board.state
     objetivo = game.playerlist.get(objetivo_uid)
     if not objetivo or objetivo_uid == uid:
@@ -2868,11 +2893,48 @@ async def carta_executive_order(bot, game, uid, objetivo_uid):
         await bot.send_message(uid, "No puedes dar la orden a un Cylon revelado ni a un preso.")
         return False
     st.bonus_actor = objetivo_uid
-    st.bonus_actions = 1
-    st.bonus_moves = 1
-    await bot.send_message(game.cid, f"📋 {game.playerlist[uid].name} da una *Orden Ejecutiva*: {objetivo.name} recibe 1 movimiento y 1 acción este turno (`/mover` y `/accion`).", parse_mode=ParseMode.MARKDOWN)
-    await bot.send_message(objetivo_uid, "📋 Recibiste una *Orden Ejecutiva*: puedes usar `/mover` y `/accion` una vez durante este turno.", parse_mode=ParseMode.MARKDOWN)
+    st.bonus_actions = 0
+    st.bonus_moves = 0
+    await bot.send_message(
+        game.cid,
+        f"📋 {game.playerlist[uid].name} da una *Orden Ejecutiva* a {objetivo.name}, "
+        "que elige cómo usarla.",
+        parse_mode=ParseMode.MARKDOWN,
+    )
+    btns = [
+        [InlineKeyboardButton("🏃 Moverme y tomar 1 acción", callback_data=f"{game.cid}*bsgJugar*eoc_1y1*{objetivo_uid}")],
+        [InlineKeyboardButton("⚡ Tomar 2 acciones (sin moverme)", callback_data=f"{game.cid}*bsgJugar*eoc_2acc*{objetivo_uid}")],
+    ]
+    await bot.send_message(
+        objetivo_uid,
+        "📋 Recibiste una *Orden Ejecutiva*. Elige cómo usarla este turno:",
+        reply_markup=InlineKeyboardMarkup(btns),
+        parse_mode=ParseMode.MARKDOWN,
+    )
     return True
+
+
+async def resolver_executive_order(bot, game, uid, opcion):
+    """El objetivo de una Orden Ejecutiva elige cómo usar su turno extra."""
+    st = game.board.state
+    if getattr(st, "bonus_actor", None) != uid:
+        await bot.send_message(uid, "No tienes una Orden Ejecutiva pendiente.")
+        return
+    if opcion == "1y1":
+        st.bonus_moves = 1
+        st.bonus_actions = 1
+        desc = "moverse y tomar 1 acción"
+    else:
+        st.bonus_moves = 0
+        st.bonus_actions = 2
+        desc = "tomar 2 acciones (sin moverse)"
+    player = game.playerlist[uid]
+    await bot.send_message(
+        game.cid,
+        f"📋 {player.name} usa su *Orden Ejecutiva* para: {desc} (`/mover` y/o `/accion`).",
+        parse_mode=ParseMode.MARKDOWN,
+    )
+    await save(bot, game.cid)
 
 
 async def carta_scout_resolve(bot, game, uid, mantener):
