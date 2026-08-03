@@ -58,7 +58,6 @@ import logging as log
 import copy
 import random
 import re
-from collections import Counter
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.constants import ParseMode
@@ -127,7 +126,7 @@ async def init_game(bot, game):
                         "se rebaraja con sus descartes.",
                         parse_mode=ParseMode.MARKDOWN,
                     )
-                carta = _robar_carta_color(st, color)
+                carta = await _robar_carta_color(bot, game, None, color, anunciar=False)
                 if carta:
                     st.destiny_deck.append(carta)
         random.shuffle(st.destiny_deck)
@@ -364,7 +363,6 @@ def _iniciar_mano_inicial(player):
     pj = Characters.PERSONAJES[player.personaje]
     player.setup_slots = _slots_personaje(pj["skill_set"])
     player.setup_restantes = min(MANO_INICIAL, len(player.setup_slots))
-    player.setup_robadas = []
 
 
 def _colores_disponibles(slots):
@@ -412,16 +410,24 @@ async def _descartar_hasta_limite(bot, game, player):
     await _dm_mano(bot, player)
 
 
-def _robar_carta_color(st, color):
+async def _robar_carta_color(bot, game, player, color, anunciar=True):
+    st = game.board.state
     if not st.skill_decks.get(color):
         # Rebarajar descartes de ese color
         if st.skill_discards.get(color):
             st.skill_decks[color] = st.skill_discards[color]
             st.skill_discards[color] = []
             random.shuffle(st.skill_decks[color])
+    carta = None
     if st.skill_decks.get(color):
-        return st.skill_decks[color].pop()
-    return None
+        carta = st.skill_decks[color].pop()
+    if carta and anunciar:
+        await bot.send_message(
+            game.cid,
+            f"🃏 *{player.name}* roba {Skills.EMOJI_COLOR[carta['color']]} {carta['color']}×1",
+            parse_mode=ParseMode.MARKDOWN,
+        )
+    return carta
 
 
 async def _dm_lealtad(bot, player):
@@ -599,7 +605,7 @@ async def iniciar_turno(bot, game):
                 parse_mode=ParseMode.MARKDOWN,
             )
 
-    st.skill_draw = {"uid": player.uid, "slots": slots, "robadas": []}
+    st.skill_draw = {"uid": player.uid, "slots": slots}
     await bot.send_message(
         game.cid,
         f"{encabezado} — *Recibir Habilidades*.\n"
@@ -628,37 +634,19 @@ async def _procesar_slots_skill(bot, game):
         await save(bot, game.cid)
         await _prompt_color_skill(bot, game)
         return
-    robadas = sd.get("robadas", [])
     st.skill_draw = None
-    await _anunciar_robo_grupo(bot, game, player, robadas)
     await _dm_mano(bot, player)
     await save(bot, game.cid)
     await _anunciar_turno(bot, game)
 
 
-async def _anunciar_robo_grupo(bot, game, player, colores):
-    """Anuncia en el grupo de qué mazo(s) robó el jugador (sin revelar el valor)."""
-    if not colores:
-        return
-    partes = [f"{Skills.EMOJI_COLOR.get(c, '')} {c}×{n}" for c, n in Counter(colores).items()]
-    await bot.send_message(
-        game.cid,
-        f"🃏 *{player.name}* roba {len(colores)} carta(s) de habilidad: " + ", ".join(partes),
-        parse_mode=ParseMode.MARKDOWN,
-    )
-
-
 async def _entregar_carta_skill(bot, game, player, color):
-    """Roba 1 carta del color dado a la mano del jugador, sin revelar su
-    contenido todavía (se revela recién cuando terminó de elegir todas sus
-    cartas, vía _dm_mano). Devuelve el color robado (o None si el mazo estaba vacío)."""
-    st = game.board.state
-    carta = _robar_carta_color(st, color)
+    """Roba 1 carta del color dado a la mano del jugador (se anuncia en el
+    grupo qué carta salió). Devuelve el color robado (o None si el mazo
+    estaba vacío)."""
+    carta = await _robar_carta_color(bot, game, player, color)
     if carta:
         player.skill_hand.append(carta)
-        # Registrar el mazo robado para el anuncio público del paso de robo del turno.
-        if st.skill_draw and st.skill_draw.get("uid") == player.uid:
-            st.skill_draw.setdefault("robadas", []).append(carta["color"])
         return carta["color"]
     await bot.send_message(player.uid, f"(No quedan cartas de {color}.)")
     return None
@@ -702,18 +690,13 @@ async def resolver_setup_choice(bot, game, uid, color):
         return  # color no permitido por el skill set restante
     slots.pop(idx)
     player.setup_restantes -= 1
-    robado = await _entregar_carta_skill(bot, game, player, color)
-    if robado:
-        player.setup_robadas.append(robado)
+    await _entregar_carta_skill(bot, game, player, color)
     if player.setup_restantes > 0 and slots:
         await save(bot, game.cid)
         await _prompt_mano_inicial(bot, game, player)
     else:
-        robadas = list(getattr(player, "setup_robadas", []) or [])
         player.setup_slots = []
         player.setup_restantes = 0
-        player.setup_robadas = []
-        await _anunciar_robo_grupo(bot, game, player, robadas)
         await _dm_mano(bot, player)
         await save(bot, game.cid)
 
@@ -1145,10 +1128,9 @@ async def ejecutar_accion_ubicacion(bot, game, uid, accion, objetivo=None):
 
 
 async def _robar_color(bot, game, player, color):
-    carta = _robar_carta_color(game.board.state, color)
+    carta = await _robar_carta_color(bot, game, player, color)
     if carta:
         player.skill_hand.append(carta)
-    await bot.send_message(game.cid, f"🃏 {player.name} roba 1 carta ({color}).")
     await _dm_mano(bot, player)
 
 
@@ -2841,12 +2823,14 @@ async def carta_draw_color(bot, game, uid, color):
         return
     player = game.playerlist[uid]
     etiqueta = pp.get("label", "Robo de habilidad")
-    carta = _robar_carta_color(st, color)
+    carta = await _robar_carta_color(bot, game, player, color)
     if carta:
         player.skill_hand.append(carta)
+        color_nombre = Skills.NOMBRE_COLOR.get(carta['color'], carta['color'])
         await bot.send_message(
             uid,
-            f"➕ *{etiqueta}*: robaste {Skills.EMOJI_COLOR[carta['color']]} {color} {carta['valor']}.",
+            f"➕ *{etiqueta}*: robaste {Skills.EMOJI_COLOR[carta['color']]} "
+            f"*{color_nombre}* ({carta['color']}) valor {carta['valor']}.",
             parse_mode=ParseMode.MARKDOWN,
         )
     else:
@@ -2997,7 +2981,7 @@ async def resolver_chequeo(bot, game):
     adama_activo = any(getattr(p, "personaje", None) == "adama" and not p.revealed
                        for p in game.playerlist.values())
     # 2 cartas de destino
-    destino = _robar_destino(st, 2)
+    destino = await _robar_destino(bot, game, 2)
     for c in destino:
         todas.append(c)
 
@@ -3086,14 +3070,15 @@ async def resolver_chequeo(bot, game):
         await cerrar_crisis(bot, game, crisis)
 
 
-def _robar_destino(st, n):
+async def _robar_destino(bot, game, n):
+    st = game.board.state
     cartas = []
     for _ in range(n):
         if not st.destiny_deck:
             # Reconstruir destino con 2 de cada color de los descartes/mazos
             for color in Skills.COLORES:
                 for _ in range(2):
-                    c = _robar_carta_color(st, color)
+                    c = await _robar_carta_color(bot, game, None, color, anunciar=False)
                     if c:
                         st.destiny_deck.append(c)
             random.shuffle(st.destiny_deck)

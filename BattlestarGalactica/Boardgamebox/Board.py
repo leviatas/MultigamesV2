@@ -44,6 +44,21 @@ def sistemas_averiados(st):
     return "  ⚠️ avería: " + ", ".join(nombres)
 
 
+def lugar_jugador(player):
+    """Etiqueta corta del lugar donde está actualmente un jugador (para el board)."""
+    if getattr(player, "varado", False):
+        return "🏝️ Varado en Caprica"
+    if getattr(player, "viper_area", None) is not None:
+        return f"✈️ Pilotando ({Space.nombre(player.viper_area)})"
+    ubicacion = getattr(player, "ubicacion", None)
+    info = Locations.UBICACIONES.get(ubicacion)
+    if info:
+        icono = ICONO_UBICACION.get(ubicacion, "")
+        nombre = info["nombre"].split(" (")[0]
+        return f"{icono} {nombre}".strip()
+    return "—"
+
+
 def track_abordaje(st):
     """Representa el track de la Partida de Abordaje: una barra de casillas con
     los centuriones que avanzan hacia el puente (casilla final = abordaje)."""
@@ -98,7 +113,7 @@ class Board(BaseBoard):
             marca = "➡️ " if st.active_player == player else "• "
             pj = player.personaje or "?"
             revel = " 🤖" if player.revealed else ""
-            board += f"{marca}{player.name} ({pj}){revel}\n"
+            board += f"{marca}{player.name} ({pj}){revel} — {lugar_jugador(player)}\n"
         return board
 
     def print_map(self, game):
