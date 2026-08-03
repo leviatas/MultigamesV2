@@ -43,7 +43,7 @@ CRISIS_DECK = [
         "fracaso": [{"tipo": "elegir_objetivo", "quien": "activo", "accion": "brig"}],
         "alternativa": {"label": "🛡️ The Current Player discards 5 Skill Cards", "efectos": [{"tipo": "descartar", "quien": "activo", "cantidad": 5}]},
         "jump": 1,
-        "activar_cylons": True,
+        "activaciones": ["raiders"],
     },
     {
         "titulo": "Admiral Grilled",
@@ -56,7 +56,7 @@ CRISIS_DECK = [
         "fracaso": [{"tipo": "recurso", "recurso": "moral", "delta": -1}, {"tipo": "descartar", "quien": "almirante", "cantidad": 2}],
         "alternativa": {"label": "🛡️ -1 Morale", "efectos": [{"tipo": "recurso", "recurso": "moral", "delta": -1}]},
         "jump": 1,
-        "activar_cylons": True,
+        "activaciones": ["raiders"],
     },
     {
         "titulo": "Analyze Enemy Fighter",
@@ -69,7 +69,7 @@ CRISIS_DECK = [
         "fracaso": [{"tipo": "recurso", "recurso": "poblacion", "delta": -1}],
         "alternativa": {"label": "🛡️ Roll a die. If 4 or lower, -1 population and the cur…", "efectos": [{"tipo": "recurso", "recurso": "poblacion", "delta": -1}]},
         "jump": 1,
-        "activar_cylons": True,
+        "activaciones": ["raiders"],
     },
     {
         "titulo": "Bomb Threat",
@@ -82,7 +82,7 @@ CRISIS_DECK = [
         "fracaso": [{"tipo": "recurso", "recurso": "moral", "delta": -1}, {"tipo": "destruir_civil"}],
         "alternativa": {"label": "🛡️ Roll a die. If 4 or lower, trigger the \"Fail\" effect…", "efectos": [{"tipo": "roll", "rango": [1, 4], "exito": [{"tipo": "recurso", "recurso": "moral", "delta": -1}, {"tipo": "destruir_civil"}], "fracaso": []}]},
         "jump": 1,
-        "activar_cylons": True,
+        "activaciones": ["raiders"],
     },
     {
         "titulo": "Build Cylon Detector",
@@ -91,7 +91,7 @@ CRISIS_DECK = [
         "decisor": "almirante",
         "opciones": [{"label": "A) Descartar 1 Ojiva Nuclear (si tienes)", "efectos": [{"tipo": "nuke_token", "delta": -1}]}, {"label": "B) -1 Morale, and the Admiral discards 2 Skill Cards", "efectos": [{"tipo": "recurso", "recurso": "moral", "delta": -1}, {"tipo": "descartar", "quien": "almirante", "cantidad": 2}]}],
         "jump": 0,
-        "activar_cylons": True,
+        "activaciones": ["heavy_raiders"],
     },
     {
         "titulo": "Colonial Day",
@@ -104,7 +104,7 @@ CRISIS_DECK = [
         "fracaso": [{"tipo": "recurso", "recurso": "moral", "delta": -2}],
         "alternativa": {"label": "🛡️ -1 Morale", "efectos": [{"tipo": "recurso", "recurso": "moral", "delta": -1}]},
         "jump": 1,
-        "activar_cylons": True,
+        "activaciones": ["centuriones"],
     },
     {
         "titulo": "Crash Landing",
@@ -116,7 +116,7 @@ CRISIS_DECK = [
         "exito": [{"tipo": "mensaje", "texto": "Sin efecto."}],
         "fracaso": [{"tipo": "recurso", "recurso": "combustible", "delta": -1}, {"tipo": "recurso", "recurso": "moral", "delta": -1}],
         "jump": 0,
-        "activar_cylons": True,
+        "activaciones": ["heavy_raiders"],
     },
     {
         "titulo": "Crippled Raider",
@@ -129,7 +129,7 @@ CRISIS_DECK = [
         "fracaso": [{"tipo": "recurso", "recurso": "poblacion", "delta": -1}],
         "alternativa": {"label": "🛡️ Roll a die. If 4 or lower, place 3 Raiders in front …", "efectos": [{"tipo": "raiders", "cantidad": 3}, {"tipo": "civiles", "cantidad": 1}]},
         "jump": 1,
-        "activar_cylons": True,
+        "activaciones": ["raiders"],
     },
     {
         "titulo": "Cylon Accusation",
@@ -141,7 +141,7 @@ CRISIS_DECK = [
         "exito": [{"tipo": "mensaje", "texto": "Sin efecto."}],
         "fracaso": [{"tipo": "brig", "quien": "activo"}],
         "jump": 0,
-        "activar_cylons": True,
+        "activaciones": ["raiders"],
     },
     {
         "titulo": "Cylon Screenings",
@@ -154,7 +154,7 @@ CRISIS_DECK = [
         "fracaso": [{"tipo": "recurso", "recurso": "moral", "delta": -1}, {"tipo": "elegir_objetivo", "quien": "activo", "accion": "loyalty_peek", "candidatos": ["presidente", "almirante"]}],
         "alternativa": {"label": "🛡️ Each player discards 2 Skill Cards", "efectos": [{"tipo": "descartar", "quien": "todos", "cantidad": 2}]},
         "jump": 0,
-        "activar_cylons": True,
+        "activaciones": ["raiders"],
     },
     {
         "titulo": "Cylon Tracking Device",
@@ -166,7 +166,7 @@ CRISIS_DECK = [
         "exito": [{"tipo": "mensaje", "texto": "Sin efecto."}],
         "fracaso": [{"tipo": "basestar", "cantidad": 1}, {"tipo": "civiles", "cantidad": 2}],
         "jump": 0,
-        "activar_cylons": True,
+        "activaciones": ["raiders"],
     },
     {
         "titulo": "Cylon Virus",
@@ -178,7 +178,7 @@ CRISIS_DECK = [
         "exito": [{"tipo": "mensaje", "texto": "Sin efecto."}],
         "fracaso": [{"tipo": "sickbay", "quien": "ubicacion:ftl"}, {"tipo": "centuriones", "delta": 1}],
         "jump": 0,
-        "activar_cylons": True,
+        "activaciones": ["launch_raiders"],
     },
     {
         "titulo": "Declare Martial Law",
@@ -187,7 +187,7 @@ CRISIS_DECK = [
         "decisor": "almirante",
         "opciones": [{"label": "A) -1 Morale and the Admiral receives the President Title", "efectos": [{"tipo": "recurso", "recurso": "moral", "delta": -1}, {"tipo": "titulo", "titulo": "Presidente", "a": "almirante"}]}, {"label": "B) -1 Population and the Admiral discards 2 Skill Cards", "efectos": [{"tipo": "recurso", "recurso": "poblacion", "delta": -1}, {"tipo": "descartar", "quien": "almirante", "cantidad": 2}]}],
         "jump": 0,
-        "activar_cylons": True,
+        "activaciones": ["centuriones"],
     },
     {
         "titulo": "Detector Sabotage",
@@ -199,7 +199,7 @@ CRISIS_DECK = [
         "exito": [{"tipo": "mensaje", "texto": "Sin efecto."}],
         "fracaso": [{"tipo": "sickbay", "quien": "ubicacion:research"}],
         "jump": 1,
-        "activar_cylons": True,
+        "activaciones": ["heavy_raiders"],
     },
     {
         "titulo": "Elections Loom",
@@ -212,7 +212,7 @@ CRISIS_DECK = [
         "intermedio": {"umbral": 5, "efectos": [{"tipo": "recurso", "recurso": "moral", "delta": -1}]},
         "fracaso": [{"tipo": "recurso", "recurso": "moral", "delta": -1}, {"tipo": "descartar", "quien": "presidente", "cantidad": 4}],
         "jump": 1,
-        "activar_cylons": True,
+        "activaciones": ["heavy_raiders"],
     },
     {
         "titulo": "Food Shortage",
@@ -221,7 +221,7 @@ CRISIS_DECK = [
         "decisor": "presidente",
         "opciones": [{"label": "A) -2 Food", "efectos": [{"tipo": "recurso", "recurso": "comida", "delta": -2}]}, {"label": "B) -1 Food. The President discards 2 Skill Cards and th…", "efectos": [{"tipo": "recurso", "recurso": "comida", "delta": -1}]}],
         "jump": 1,
-        "activar_cylons": True,
+        "activaciones": ["raiders"],
     },
     {
         "titulo": "Forced Water Mining",
@@ -234,7 +234,7 @@ CRISIS_DECK = [
         "fracaso": [{"tipo": "recurso", "recurso": "poblacion", "delta": -1}, {"tipo": "recurso", "recurso": "moral", "delta": -1}],
         "alternativa": {"label": "🛡️ +1 Food, -1 Morale, and each player discards 1 rando…", "efectos": [{"tipo": "recurso", "recurso": "comida", "delta": 1}, {"tipo": "recurso", "recurso": "moral", "delta": -1}, {"tipo": "descartar", "quien": "todos", "cantidad": 1, "modo": "azar"}]},
         "jump": 1,
-        "activar_cylons": True,
+        "activaciones": ["raiders"],
     },
     {
         "titulo": "Fulfiller of Prophecy",
@@ -247,7 +247,7 @@ CRISIS_DECK = [
         "fracaso": [{"tipo": "recurso", "recurso": "poblacion", "delta": -1}],
         "alternativa": {"label": "🛡️ Current Player discards 1 Skill Card. After the Acti…", "efectos": [{"tipo": "descartar", "quien": "activo", "cantidad": 1}, {"tipo": "recrisis"}]},
         "jump": 0,
-        "activar_cylons": True,
+        "activaciones": ["centuriones"],
     },
     {
         "titulo": "Guilt by Collusion",
@@ -259,7 +259,7 @@ CRISIS_DECK = [
         "exito": [{"tipo": "elegir_objetivo", "quien": "activo", "accion": "brig", "opcional": True}],
         "fracaso": [{"tipo": "recurso", "recurso": "moral", "delta": -1}],
         "jump": 1,
-        "activar_cylons": True,
+        "activaciones": ["raiders"],
     },
     {
         "titulo": "Hangar Accident",
@@ -272,7 +272,7 @@ CRISIS_DECK = [
         "intermedio": {"umbral": 7, "efectos": [{"tipo": "recurso", "recurso": "poblacion", "delta": -1}]},
         "fracaso": [{"tipo": "recurso", "recurso": "poblacion", "delta": -1}, {"tipo": "danar_vipers", "cantidad": 2, "donde": "reserva"}],
         "jump": 1,
-        "activar_cylons": True,
+        "activaciones": ["heavy_raiders"],
     },
     {
         "titulo": "Informing the Public",
@@ -285,7 +285,7 @@ CRISIS_DECK = [
         "fracaso": [{"tipo": "recurso", "recurso": "moral", "delta": -2}],
         "alternativa": {"label": "🛡️ Roll a die. On a 4 or lower, -1 Morale and -1 Popula…", "efectos": [{"tipo": "recurso", "recurso": "moral", "delta": -1}, {"tipo": "recurso", "recurso": "poblacion", "delta": -1}]},
         "jump": 1,
-        "activar_cylons": True,
+        "activaciones": ["raiders"],
     },
     {
         "titulo": "Jump Computer Failure",
@@ -297,7 +297,7 @@ CRISIS_DECK = [
         "exito": [{"tipo": "mensaje", "texto": "Sin efecto."}],
         "fracaso": [{"tipo": "recurso", "recurso": "poblacion", "delta": -1}],
         "jump": 0,
-        "activar_cylons": True,
+        "activaciones": ["launch_raiders"],
     },
     {
         "titulo": "Keep Tabs on Visitor",
@@ -310,7 +310,7 @@ CRISIS_DECK = [
         "fracaso": [{"tipo": "recurso", "recurso": "poblacion", "delta": -2}],
         "alternativa": {"label": "🛡️ The Current Player discards 4 random Skill Cards", "efectos": [{"tipo": "descartar", "quien": "activo", "cantidad": 4, "modo": "azar"}]},
         "jump": 1,
-        "activar_cylons": True,
+        "activaciones": ["raiders"],
     },
     {
         "titulo": "Legendary Discovery",
@@ -322,7 +322,7 @@ CRISIS_DECK = [
         "exito": [{"tipo": "mensaje", "texto": "Sin efecto."}],
         "fracaso": [{"tipo": "recurso", "recurso": "comida", "delta": -1}],
         "jump": 0,
-        "activar_cylons": True,
+        "activaciones": ["launch_raiders"],
     },
     {
         "titulo": "Loss of a Friend",
@@ -335,7 +335,7 @@ CRISIS_DECK = [
         "intermedio": {"umbral": 7, "efectos": [{"tipo": "descartar", "quien": "activo", "cantidad": 2}]},
         "fracaso": [{"tipo": "recurso", "recurso": "moral", "delta": -1}, {"tipo": "descartar", "quien": "activo", "cantidad": 2}],
         "jump": 1,
-        "activar_cylons": True,
+        "activaciones": ["heavy_raiders"],
     },
     {
         "titulo": "Low Supplies",
@@ -347,7 +347,7 @@ CRISIS_DECK = [
         "exito": [{"tipo": "mensaje", "texto": "Sin efecto."}],
         "fracaso": [{"tipo": "recurso", "recurso": "moral", "delta": -1}],
         "jump": 0,
-        "activar_cylons": True,
+        "activaciones": ["raiders"],
     },
     {
         "titulo": "Mandatory Testing",
@@ -360,7 +360,7 @@ CRISIS_DECK = [
         "intermedio": {"umbral": 9, "efectos": [{"tipo": "mensaje", "texto": "Sin efecto."}]},
         "fracaso": [{"tipo": "recurso", "recurso": "moral", "delta": -1}],
         "jump": 1,
-        "activar_cylons": True,
+        "activaciones": ["heavy_raiders"],
     },
     {
         "titulo": "Missing G4 Explosives",
@@ -372,7 +372,7 @@ CRISIS_DECK = [
         "exito": [{"tipo": "mensaje", "texto": "Sin efecto."}],
         "fracaso": [{"tipo": "recurso", "recurso": "comida", "delta": -1}, {"tipo": "brig", "quien": "ubicacion:armory"}],
         "jump": 0,
-        "activar_cylons": True,
+        "activaciones": ["raiders"],
     },
     {
         "titulo": "Network Computers",
@@ -385,7 +385,7 @@ CRISIS_DECK = [
         "fracaso": [{"tipo": "recurso", "recurso": "poblacion", "delta": -1}],
         "alternativa": {"label": "🛡️ -1 Population and decrease the Jump Prep track by 1", "efectos": [{"tipo": "recurso", "recurso": "poblacion", "delta": -1}, {"tipo": "jump_prep", "delta": -1}]},
         "jump": 1,
-        "activar_cylons": True,
+        "activaciones": ["raiders"],
     },
     {
         "titulo": "Prison Labor",
@@ -397,7 +397,7 @@ CRISIS_DECK = [
         "exito": [{"tipo": "mensaje", "texto": "Sin efecto."}],
         "fracaso": [{"tipo": "recurso", "recurso": "moral", "delta": -1}, {"tipo": "recurso", "recurso": "comida", "delta": -1}],
         "jump": 0,
-        "activar_cylons": True,
+        "activaciones": ["raiders"],
     },
     {
         "titulo": "Prisoner Revolt",
@@ -410,7 +410,7 @@ CRISIS_DECK = [
         "intermedio": {"umbral": 6, "efectos": [{"tipo": "recurso", "recurso": "poblacion", "delta": -1}]},
         "fracaso": [{"tipo": "recurso", "recurso": "poblacion", "delta": -1}, {"tipo": "elegir_objetivo", "quien": "presidente", "accion": "presidencia", "candidatos": "otros"}],
         "jump": 1,
-        "activar_cylons": True,
+        "activaciones": ["heavy_raiders"],
     },
     {
         "titulo": "Requested Resignation",
@@ -419,7 +419,7 @@ CRISIS_DECK = [
         "decisor": "almirante",
         "opciones": [{"label": "A) The President and Admiral both discard 2 Skill Cards", "efectos": [{"tipo": "descartar", "quien": "presidente", "cantidad": 2}, {"tipo": "descartar", "quien": "almirante", "cantidad": 2}]}, {"label": "B) El Presidente cede la Presidencia al Almirante", "efectos": [{"tipo": "titulo", "titulo": "Presidente", "a": "almirante"}]}],
         "jump": 0,
-        "activar_cylons": True,
+        "activaciones": ["centuriones"],
     },
     {
         "titulo": "Rescue Caprica Survivors",
@@ -428,7 +428,7 @@ CRISIS_DECK = [
         "decisor": "presidente",
         "opciones": [{"label": "A) -1 Fuel, -1 Food, +1 Population", "efectos": [{"tipo": "recurso", "recurso": "combustible", "delta": -1}, {"tipo": "recurso", "recurso": "comida", "delta": -1}, {"tipo": "recurso", "recurso": "poblacion", "delta": 1}]}, {"label": "B) -1 Morale", "efectos": [{"tipo": "recurso", "recurso": "moral", "delta": -1}]}],
         "jump": 1,
-        "activar_cylons": True,
+        "activaciones": ["raiders"],
     },
     {
         "titulo": "Rescue Mission (B/*)",
@@ -437,7 +437,7 @@ CRISIS_DECK = [
         "decisor": "almirante",
         "opciones": [{"label": "A) -1 Morale, Current Player is sent to \"Sickbay.\"", "efectos": [{"tipo": "recurso", "recurso": "moral", "delta": -1}]}, {"label": "B) -1 Fuel and destroy 1 Raptor", "efectos": [{"tipo": "recurso", "recurso": "combustible", "delta": -1}]}],
         "jump": 1,
-        "activar_cylons": True,
+        "activaciones": ["centuriones"],
     },
     {
         "titulo": "Rescue Mission (R/*)",
@@ -446,7 +446,7 @@ CRISIS_DECK = [
         "decisor": "almirante",
         "opciones": [{"label": "A) -1 Morale, Current Player is sent to \"Sickbay.\"", "efectos": [{"tipo": "recurso", "recurso": "moral", "delta": -1}]}, {"label": "B) -1 Fuel and destroy 1 Raptor", "efectos": [{"tipo": "recurso", "recurso": "combustible", "delta": -1}]}],
         "jump": 1,
-        "activar_cylons": True,
+        "activaciones": ["raiders"],
     },
     {
         "titulo": "Rescue the Fleet",
@@ -455,7 +455,7 @@ CRISIS_DECK = [
         "decisor": "almirante",
         "opciones": [{"label": "A) -2 Population", "efectos": [{"tipo": "recurso", "recurso": "poblacion", "delta": -2}]}, {"label": "B) -1 Morale, place 1 Basestar and 3 Raiders in front o…", "efectos": [{"tipo": "recurso", "recurso": "moral", "delta": -1}, {"tipo": "basestar", "cantidad": 1}, {"tipo": "raiders", "cantidad": 3}, {"tipo": "civiles", "cantidad": 3}]}],
         "jump": 1,
-        "activar_cylons": True,
+        "activaciones": ["raiders"],
     },
     {
         "titulo": "Resistance",
@@ -468,7 +468,7 @@ CRISIS_DECK = [
         "intermedio": {"umbral": 9, "efectos": [{"tipo": "recurso", "recurso": "comida", "delta": -1}]},
         "fracaso": [{"tipo": "recurso", "recurso": "comida", "delta": -1}, {"tipo": "recurso", "recurso": "combustible", "delta": -1}],
         "jump": 1,
-        "activar_cylons": True,
+        "activaciones": ["heavy_raiders"],
     },
     {
         "titulo": "Riots (B/*)",
@@ -477,7 +477,7 @@ CRISIS_DECK = [
         "decisor": "almirante",
         "opciones": [{"label": "A) -1 Food, -1 Morale", "efectos": [{"tipo": "recurso", "recurso": "comida", "delta": -1}, {"tipo": "recurso", "recurso": "moral", "delta": -1}]}, {"label": "B) -1 Population, -1 Fuel", "efectos": [{"tipo": "recurso", "recurso": "poblacion", "delta": -1}, {"tipo": "recurso", "recurso": "combustible", "delta": -1}]}],
         "jump": 1,
-        "activar_cylons": True,
+        "activaciones": ["centuriones"],
     },
     {
         "titulo": "Riots (L/-)",
@@ -486,7 +486,7 @@ CRISIS_DECK = [
         "decisor": "almirante",
         "opciones": [{"label": "A) -1 Food, -1 Morale", "efectos": [{"tipo": "recurso", "recurso": "comida", "delta": -1}, {"tipo": "recurso", "recurso": "moral", "delta": -1}]}, {"label": "B) -1 Population, -1 Fuel", "efectos": [{"tipo": "recurso", "recurso": "poblacion", "delta": -1}, {"tipo": "recurso", "recurso": "combustible", "delta": -1}]}],
         "jump": 0,
-        "activar_cylons": True,
+        "activaciones": ["launch_raiders"],
     },
     {
         "titulo": "Scouting for Fuel",
@@ -499,7 +499,7 @@ CRISIS_DECK = [
         "fracaso": [{"tipo": "recurso", "recurso": "combustible", "delta": -1}],
         "alternativa": {"label": "🛡️ Roll a die. If 4 or lower, -1 Fuel", "efectos": [{"tipo": "recurso", "recurso": "combustible", "delta": -1}]},
         "jump": 1,
-        "activar_cylons": True,
+        "activaciones": ["raiders"],
     },
     {
         "titulo": "Scouting for Water",
@@ -512,7 +512,7 @@ CRISIS_DECK = [
         "fracaso": [{"tipo": "recurso", "recurso": "combustible", "delta": -1}],
         "alternativa": {"label": "🛡️ -1 Food", "efectos": [{"tipo": "recurso", "recurso": "comida", "delta": -1}]},
         "jump": 1,
-        "activar_cylons": True,
+        "activaciones": ["raiders"],
     },
     {
         "titulo": "Security Breach",
@@ -524,7 +524,7 @@ CRISIS_DECK = [
         "exito": [{"tipo": "mensaje", "texto": "Sin efecto."}],
         "fracaso": [{"tipo": "recurso", "recurso": "moral", "delta": -1}, {"tipo": "sickbay", "quien": "ubicacion:command"}],
         "jump": 0,
-        "activar_cylons": True,
+        "activaciones": ["launch_raiders"],
     },
     {
         "titulo": "Send Survey Team",
@@ -537,7 +537,7 @@ CRISIS_DECK = [
         "fracaso": [{"tipo": "sickbay", "quien": "activo"}],
         "alternativa": {"label": "🛡️ Roll a die. If 5 or less, -1 Fuel", "efectos": [{"tipo": "recurso", "recurso": "combustible", "delta": -1}]},
         "jump": 1,
-        "activar_cylons": True,
+        "activaciones": ["raiders"],
     },
     {
         "titulo": "Sleep Deprivation",
@@ -546,7 +546,7 @@ CRISIS_DECK = [
         "decisor": "almirante",
         "opciones": [{"label": "A) Return all undamaged Vipers on the game board to the…", "efectos": [{"tipo": "vipers_recall"}, {"tipo": "sickbay", "quien": "activo"}]}, {"label": "B) -1 Morale", "efectos": [{"tipo": "recurso", "recurso": "moral", "delta": -1}]}],
         "jump": 1,
-        "activar_cylons": True,
+        "activaciones": ["centuriones"],
     },
     {
         "titulo": "Terrorist Bomber",
@@ -558,7 +558,7 @@ CRISIS_DECK = [
         "exito": [{"tipo": "mensaje", "texto": "Sin efecto."}],
         "fracaso": [{"tipo": "recurso", "recurso": "moral", "delta": -1}, {"tipo": "sickbay", "quien": "activo"}],
         "jump": 1,
-        "activar_cylons": True,
+        "activaciones": ["heavy_raiders"],
     },
     {
         "titulo": "Terrorist Investigations",
@@ -571,7 +571,7 @@ CRISIS_DECK = [
         "intermedio": {"umbral": 6, "efectos": [{"tipo": "mensaje", "texto": "Sin efecto."}]},
         "fracaso": [{"tipo": "recurso", "recurso": "moral", "delta": -1}],
         "jump": 1,
-        "activar_cylons": True,
+        "activaciones": ["heavy_raiders"],
     },
     {
         "titulo": "The Olympic Carrier",
@@ -584,7 +584,7 @@ CRISIS_DECK = [
         "intermedio": {"umbral": 8, "efectos": [{"tipo": "recurso", "recurso": "poblacion", "delta": -1}]},
         "fracaso": [{"tipo": "recurso", "recurso": "moral", "delta": -1}, {"tipo": "recurso", "recurso": "poblacion", "delta": -1}],
         "jump": 1,
-        "activar_cylons": True,
+        "activaciones": ["heavy_raiders"],
     },
     {
         "titulo": "Unexpected Reunion",
@@ -596,7 +596,7 @@ CRISIS_DECK = [
         "exito": [{"tipo": "mensaje", "texto": "Sin efecto."}],
         "fracaso": [{"tipo": "recurso", "recurso": "moral", "delta": -1}, {"tipo": "descartar", "quien": "activo", "cantidad": 99}],
         "jump": 0,
-        "activar_cylons": True,
+        "activaciones": ["raiders"],
     },
     {
         "titulo": "Unidentified Ship",
@@ -608,7 +608,7 @@ CRISIS_DECK = [
         "exito": [{"tipo": "mensaje", "texto": "Sin efecto."}],
         "fracaso": [{"tipo": "recurso", "recurso": "poblacion", "delta": -1}],
         "jump": 0,
-        "activar_cylons": True,
+        "activaciones": ["launch_raiders"],
     },
     {
         "titulo": "Water Sabotaged",
@@ -621,7 +621,7 @@ CRISIS_DECK = [
         "fracaso": [{"tipo": "recurso", "recurso": "comida", "delta": -2}],
         "alternativa": {"label": "🛡️ - 1 Food", "efectos": [{"tipo": "recurso", "recurso": "comida", "delta": -1}]},
         "jump": 1,
-        "activar_cylons": True,
+        "activaciones": ["raiders"],
     },
     {
         "titulo": "Water Shortage (B/*)",
@@ -630,7 +630,7 @@ CRISIS_DECK = [
         "decisor": "presidente",
         "opciones": [{"label": "A) -1 Food", "efectos": [{"tipo": "recurso", "recurso": "comida", "delta": -1}]}, {"label": "B) The President discards 2 Skill Cards, then the Curre…", "efectos": [{"tipo": "descartar", "quien": "presidente", "cantidad": 2}, {"tipo": "descartar", "quien": "activo", "cantidad": 3}]}],
         "jump": 1,
-        "activar_cylons": True,
+        "activaciones": ["centuriones"],
     },
     {
         "titulo": "Water Shortage (R/*)",
@@ -639,7 +639,7 @@ CRISIS_DECK = [
         "decisor": "presidente",
         "opciones": [{"label": "A) -1 Food", "efectos": [{"tipo": "recurso", "recurso": "comida", "delta": -1}]}, {"label": "B) The President discards 2 Skill Cards, then the Curre…", "efectos": [{"tipo": "descartar", "quien": "presidente", "cantidad": 2}, {"tipo": "descartar", "quien": "activo", "cantidad": 3}]}],
         "jump": 0,
-        "activar_cylons": True,
+        "activaciones": ["raiders"],
     },
     {
         "titulo": "Water Shortage (B/-)",
@@ -648,7 +648,7 @@ CRISIS_DECK = [
         "decisor": "presidente",
         "opciones": [{"label": "A) -1 Food", "efectos": [{"tipo": "recurso", "recurso": "comida", "delta": -1}]}, {"label": "B) The President discards 2 Skill Cards, then the Curre…", "efectos": [{"tipo": "descartar", "quien": "presidente", "cantidad": 2}, {"tipo": "descartar", "quien": "activo", "cantidad": 3}]}],
         "jump": 0,
-        "activar_cylons": True,
+        "activaciones": ["centuriones"],
     },
     {
         "titulo": "Weapon Malfunction",
@@ -660,7 +660,7 @@ CRISIS_DECK = [
         "exito": [{"tipo": "mensaje", "texto": "Sin efecto."}],
         "fracaso": [{"tipo": "danar_vipers", "cantidad": 2, "donde": "espacio"}, {"tipo": "sickbay", "quien": "ubicacion:weapons"}],
         "jump": 0,
-        "activar_cylons": True,
+        "activaciones": ["launch_raiders"],
     },
     {
         "titulo": "Witch Hunt",
@@ -673,7 +673,7 @@ CRISIS_DECK = [
         "intermedio": {"umbral": 6, "efectos": [{"tipo": "recurso", "recurso": "moral", "delta": -1}]},
         "fracaso": [{"tipo": "recurso", "recurso": "moral", "delta": -1}, {"tipo": "elegir_objetivo", "quien": "activo", "accion": "sickbay"}],
         "jump": 1,
-        "activar_cylons": True,
+        "activaciones": ["heavy_raiders"],
     },
     {
         "titulo": "Bomb on Colonial One",

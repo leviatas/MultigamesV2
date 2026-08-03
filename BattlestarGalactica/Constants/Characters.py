@@ -135,7 +135,7 @@ PERSONAJES = {
         "tipo": "Piloto",
         "ubicacion": "hangar",
         "titulo": None,
-        "skill_set": [PILOTAJE, PILOTAJE, TACTICA, TACTICA, LIDERAZGO, INGENIERIA],
+        "skill_set": [PILOTAJE, PILOTAJE, TACTICA, TACTICA, [LIDERAZGO, INGENIERIA]],
         "abilities": (
             "Piloto Experta: si empiezas tu turno pilotando un Viper, tomas 2 acciones en tu paso de Acción.\n"
             "Destino Secreto (1/juego): justo tras revelar una carta de Crisis, descártala y roba otra.\n"
