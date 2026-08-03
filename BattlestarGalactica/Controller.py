@@ -422,11 +422,9 @@ async def _robar_carta_color(bot, game, player, color, anunciar=True):
     if st.skill_decks.get(color):
         carta = st.skill_decks[color].pop()
     if carta and anunciar:
-        color_nombre = Skills.NOMBRE_COLOR.get(carta['color'], carta['color'])
         await bot.send_message(
             game.cid,
-            f"🃏 *{player.name}* roba una carta {Skills.EMOJI_COLOR[carta['color']]} "
-            f"*{color_nombre}* ({carta['color']}).",
+            f"🃏 *{player.name}* roba {Skills.EMOJI_COLOR[carta['color']]} {carta['color']}×1",
             parse_mode=ParseMode.MARKDOWN,
         )
     return carta
