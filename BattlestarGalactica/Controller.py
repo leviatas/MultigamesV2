@@ -2668,6 +2668,16 @@ def _resumen_crisis(crisis):
             lineas.append(f"{alt.get('label', '🛡️ Alternativa')}: {_resumen_lista(alt.get('efectos', []))}")
     else:
         lineas.append(_resumen_lista(crisis.get("efectos", [])))
+
+    iconos = crisis.get("activaciones")
+    if iconos is None and crisis.get("activar_cylons"):
+        iconos = _activaciones_para_crisis(crisis)
+    if iconos:
+        desc = ", ".join(ICONOS_CYLON.get(i, i) for i in iconos)
+        lineas.append(f"🤖 Activación Cylon: {desc}")
+    else:
+        lineas.append("🤖 Activación Cylon: ninguna")
+
     salto = crisis.get("jump", 0)
     lineas.append(f"🌌 Salto: {'sí (+' + str(salto) + ')' if salto else 'no'}")
     return "\n".join(lineas)
