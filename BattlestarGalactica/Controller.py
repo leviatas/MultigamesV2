@@ -426,7 +426,7 @@ async def _robar_carta_color(bot, game, player, color, anunciar=True):
         await bot.send_message(
             game.cid,
             f"🃏 *{player.name}* roba una carta {Skills.EMOJI_COLOR[carta['color']]} "
-            f"*{color_nombre}* ({carta['color']}) valor {carta['valor']} — _{carta.get('nombre','')}_.",
+            f"*{color_nombre}* ({carta['color']}).",
             parse_mode=ParseMode.MARKDOWN,
         )
     return carta
