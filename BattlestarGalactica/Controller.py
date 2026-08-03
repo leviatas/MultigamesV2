@@ -422,10 +422,11 @@ async def _robar_carta_color(bot, game, player, color, anunciar=True):
     if st.skill_decks.get(color):
         carta = st.skill_decks[color].pop()
     if carta and anunciar:
+        color_nombre = Skills.NOMBRE_COLOR.get(carta['color'], carta['color'])
         await bot.send_message(
             game.cid,
-            f"🃏 *{player.name}* roba {Skills.EMOJI_COLOR[carta['color']]} "
-            f"*{carta['color']}* {carta['valor']} — _{carta.get('nombre','')}_.",
+            f"🃏 *{player.name}* roba una carta {Skills.EMOJI_COLOR[carta['color']]} "
+            f"*{color_nombre}* ({carta['color']}) valor {carta['valor']} — _{carta.get('nombre','')}_.",
             parse_mode=ParseMode.MARKDOWN,
         )
     return carta
@@ -2827,9 +2828,11 @@ async def carta_draw_color(bot, game, uid, color):
     carta = await _robar_carta_color(bot, game, player, color)
     if carta:
         player.skill_hand.append(carta)
+        color_nombre = Skills.NOMBRE_COLOR.get(carta['color'], carta['color'])
         await bot.send_message(
             uid,
-            f"➕ *{etiqueta}*: robaste {Skills.EMOJI_COLOR[carta['color']]} {color} {carta['valor']}.",
+            f"➕ *{etiqueta}*: robaste {Skills.EMOJI_COLOR[carta['color']]} "
+            f"*{color_nombre}* ({carta['color']}) valor {carta['valor']}.",
             parse_mode=ParseMode.MARKDOWN,
         )
     else:
