@@ -854,6 +854,8 @@ def main(stop_event):
 	app.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)\*bsgAdminArea\*([0-9]+)\*(-?[0-9]*)", callback=BSGCommands.callback_bsg_admin_area))
 	app.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)\*bsgAdminRaiders\*([0-9]+)_(m5|m1|p1|p5|done)\*(-?[0-9]*)", callback=BSGCommands.callback_bsg_admin_raiders))
 	app.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)\*bsgAdminCylon\*(raiders|heavy_raiders|launch_raiders)\*(-?[0-9]*)", callback=BSGCommands.callback_bsg_admin_cylon))
+	app.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)\*bsgAdminCartaJug\*(-?[0-9]*)\*(-?[0-9]*)", callback=BSGCommands.callback_bsg_admin_carta_jugador))
+	app.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)\*bsgAdminCarta\*(-?[0-9]+)_([0-9]+)\*(-?[0-9]*)", callback=BSGCommands.callback_bsg_admin_carta))
 	app.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)\*bsgPick\*([a-z_]*)\*(-?[0-9]*)", callback=BSGCommands.callback_bsg_pick))
 	app.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)\*bsgDraw\*([A-Za-z]*)\*(-?[0-9]*)", callback=BSGCommands.callback_bsg_draw))
 	app.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)\*bsgSetup\*([A-Za-z]*)\*(-?[0-9]*)", callback=BSGCommands.callback_bsg_setup))
