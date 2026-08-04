@@ -3384,6 +3384,20 @@ async def _descartar_skills(bot, game, player, cantidad, modo="azar"):
     await bot.send_message(player.uid, f"🗑️ Descartaste {n} carta(s) de habilidad (te quedan {len(player.skill_hand)}).")
 
 
+def quitar_carta_a_mazo(st, player, idx):
+    """Herramienta de admin: quita la carta en la posición 'idx' (0-based) de
+    la mano del jugador y la devuelve mezclada al mazo de su color (no al
+    descarte, para que pueda volver a salir enseguida). Devuelve la carta
+    quitada, o None si el índice ya no es válido."""
+    if idx < 0 or idx >= len(player.skill_hand):
+        return None
+    carta = player.skill_hand.pop(idx)
+    mazo = st.skill_decks.setdefault(carta["color"], [])
+    mazo.append(carta)
+    random.shuffle(mazo)
+    return carta
+
+
 async def _danar_vipers(bot, game, cantidad, donde="reserva"):
     """Daña Vipers (pasan a 'dañados', fuera de combate hasta repararlos).
     donde: 'reserva' (de la reserva) | 'espacio' (desplegados en las áreas)."""

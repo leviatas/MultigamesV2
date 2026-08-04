@@ -1661,6 +1661,7 @@ async def command_bsgadmin(update: Update, context: CallbackContext):
     btns = [
         [InlineKeyboardButton("🛸 Corregir Raiders en un área", callback_data=f"{cid}*bsgAdmin*fix_raiders*{uid}")],
         [InlineKeyboardButton("🤖 Activar naves Cylon", callback_data=f"{cid}*bsgAdmin*activar_cylon*{uid}")],
+        [InlineKeyboardButton("🃏 Quitar carta a un jugador", callback_data=f"{cid}*bsgAdmin*quitar_carta*{uid}")],
     ]
     await bot.send_message(cid, "🛠️ *Panel de Admin (BSG)* — ¿qué querés corregir?",
                            reply_markup=InlineKeyboardMarkup(btns), parse_mode=ParseMode.MARKDOWN)
@@ -1698,6 +1699,14 @@ async def callback_bsg_admin(update: Update, context: CallbackContext):
                 [InlineKeyboardButton("🛸 Lanzar Raiders (Basestars)", callback_data=f"{cid}*bsgAdminCylon*launch_raiders*{presser}")],
             ]
             texto = "🤖 ¿Qué activación Cylon querés forzar?"
+        elif opcion == "quitar_carta":
+            btns = [[InlineKeyboardButton(f"{p.name} ({len(p.skill_hand)} 🃏)",
+                                          callback_data=f"{cid}*bsgAdminCartaJug*{p_uid}*{presser}")]
+                    for p_uid, p in game.playerlist.items()]
+            if not btns:
+                await bot.send_message(cid, "No hay jugadores en la partida.")
+                return
+            texto = "🃏 ¿A qué jugador le querés quitar una carta?"
         else:
             return
 
@@ -1833,3 +1842,96 @@ async def callback_bsg_admin_cylon(update: Update, context: CallbackContext):
         except Exception:
             pass
         await bot.send_message(ADMIN[0], f"BSG admin cylon error: {e}")
+
+
+async def callback_bsg_admin_carta_jugador(update: Update, context: CallbackContext):
+    """Elegido el jugador: muestra su mano para elegir qué carta quitarle."""
+    bot = context.bot
+    callback = update.callback_query
+    presser = callback.from_user.id
+    try:
+        regex = re.search(r"(-?[0-9]*)\*bsgAdminCartaJug\*(-?[0-9]*)\*(-?[0-9]*)", callback.data)
+        cid = int(regex.group(1))
+        objetivo = int(regex.group(2))
+        ordenante = int(regex.group(3))
+        game = get_game(cid)
+        if not _validar(game):
+            await callback.answer("Partida no encontrada.")
+            return
+        if presser != ordenante or presser != ADMIN[0]:
+            await callback.answer("No puedes usar este panel.")
+            return
+        p = game.playerlist.get(objetivo)
+        if not p:
+            await callback.answer("Jugador no encontrado.")
+            return
+        if not p.skill_hand:
+            await callback.answer(f"{p.name} no tiene cartas en la mano.")
+            return
+        await callback.answer()
+        btns = [[InlineKeyboardButton(
+                    f"{Skills.EMOJI_COLOR[c['color']]} {c['color']} {c['valor']} — {c.get('nombre', '')}",
+                    callback_data=f"{cid}*bsgAdminCarta*{objetivo}_{i}*{presser}")]
+                for i, c in enumerate(p.skill_hand)]
+        texto = f"🃏 ¿Qué carta le quitás a {p.name}? (vuelve mezclada al mazo)"
+        try:
+            await bot.edit_message_text(texto, cid, callback.message.message_id,
+                                        reply_markup=InlineKeyboardMarkup(btns), parse_mode=ParseMode.MARKDOWN)
+        except Exception:
+            await bot.send_message(cid, texto, reply_markup=InlineKeyboardMarkup(btns), parse_mode=ParseMode.MARKDOWN)
+    except Exception as e:
+        logger.error(f"callback_bsg_admin_carta_jugador error: {e}")
+        try:
+            await callback.answer("Error.")
+        except Exception:
+            pass
+        await bot.send_message(ADMIN[0], f"BSG admin carta jugador error: {e}")
+
+
+async def callback_bsg_admin_carta(update: Update, context: CallbackContext):
+    """Quita la carta elegida de la mano del jugador y la devuelve mezclada
+    al mazo de su color."""
+    bot = context.bot
+    callback = update.callback_query
+    presser = callback.from_user.id
+    try:
+        regex = re.search(r"(-?[0-9]*)\*bsgAdminCarta\*(-?[0-9]+)_([0-9]+)\*(-?[0-9]*)", callback.data)
+        cid = int(regex.group(1))
+        objetivo = int(regex.group(2))
+        idx = int(regex.group(3))
+        ordenante = int(regex.group(4))
+        game = get_game(cid)
+        if not _validar(game):
+            await callback.answer("Partida no encontrada.")
+            return
+        if presser != ordenante or presser != ADMIN[0]:
+            await callback.answer("No puedes usar este panel.")
+            return
+        p = game.playerlist.get(objetivo)
+        if not p:
+            await callback.answer("Jugador no encontrado.")
+            return
+        st = game.board.state
+        carta = BSGController.quitar_carta_a_mazo(st, p, idx)
+        if not carta:
+            await callback.answer("Esa carta ya no está en su mano.")
+            return
+        desc = f"{Skills.EMOJI_COLOR[carta['color']]} {carta['color']} {carta['valor']} — {carta.get('nombre', '')}"
+        await callback.answer("Carta quitada.")
+        try:
+            await bot.edit_message_text(f"🃏 Se le quitó {desc} a {p.name}: vuelve mezclada al mazo de {carta['color']}.",
+                                        cid, callback.message.message_id, parse_mode=ParseMode.MARKDOWN)
+        except Exception:
+            pass
+        await bot.send_message(cid, f"🃏 *{p.name}* pierde una carta de habilidad ({desc}), que vuelve al mazo.",
+                               parse_mode=ParseMode.MARKDOWN)
+        await bot.send_message(p.uid, f"🃏 El admin te quitó {desc} (vuelve al mazo). Te quedan {len(p.skill_hand)} carta(s).",
+                               parse_mode=ParseMode.MARKDOWN)
+        await save(bot, cid)
+    except Exception as e:
+        logger.error(f"callback_bsg_admin_carta error: {e}")
+        try:
+            await callback.answer("Error.")
+        except Exception:
+            pass
+        await bot.send_message(ADMIN[0], f"BSG admin carta error: {e}")
