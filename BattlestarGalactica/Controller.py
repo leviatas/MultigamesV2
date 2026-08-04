@@ -799,6 +799,21 @@ CIVILES_CARGAS = [
     {"recurso": None, "cantidad": 0},
 ]
 
+# Letra identificadora de una nave civil MIENTRAS ESTÁ EN EL TABLERO (viaja
+# con ella aunque se mueva o se inspeccione, para poder reconocerla en
+# Comunicaciones de una vez a otra). Se asigna recién al entrar al tablero
+# (no en la pila de reserva) y se pierde al salir de él (destruida y devuelta
+# a la pila), así una nave reciclada vuelve a entrar como una nave "nueva".
+_CIVIL_LETRAS = "ABCDEFGH"
+
+
+def _letra_civil_libre(st):
+    """Letra identificadora no usada por ninguna nave civil actualmente en el
+    tablero, para asignar a una que recién entra en juego."""
+    usadas = {c.get("id") for a in st.areas for c in a["civiles"]}
+    libres = [l for l in _CIVIL_LETRAS if l not in usadas]
+    return random.choice(libres) if libres else "?"
+
 
 def _colocar_flota_inicial(st):
     """Despliega la disposición inicial del juego base sobre las áreas:
@@ -816,11 +831,14 @@ def _colocar_flota_inicial(st):
     st.areas[Space.AREA_PROA]["basestars"].append(0)   # 0 tokens de daño
     st.areas[Space.AREA_PROA]["raiders"] += 3
 
-    # Naves civiles: 2 en la Popa, el resto a la pila de reserva
+    # Naves civiles: 2 en la Popa (reciben su identificador recién al entrar),
+    # el resto a la pila de reserva sin identificador.
     pila = [dict(c) for c in CIVILES_CARGAS]
     random.shuffle(pila)
     for _ in range(min(2, len(pila))):
-        st.areas[Space.AREA_POPA]["civiles"].append(pila.pop())
+        carga = pila.pop()
+        carga["id"] = _letra_civil_libre(st)
+        st.areas[Space.AREA_POPA]["civiles"].append(carga)
     st.civiles_pile = pila
 
 
@@ -1054,7 +1072,7 @@ async def ejecutar_accion_ubicacion(bot, game, uid, accion, objetivo=None):
         lineas = []
         for i, a in enumerate(st.areas):
             for c in a["civiles"]:
-                lineas.append(f"{Space.nombre(i)}: {c['recurso'] or 'vacía'}")
+                lineas.append(f"[{c.get('id', '?')}] {Space.nombre(i)}: {c['recurso'] or 'vacía'}")
         info = "\n".join(lineas) or "ninguna"
         await bot.send_message(uid, f"🔭 Cargas de las naves civiles:\n{info}")
         await bot.send_message(game.cid, f"🔭 {player.name} inspecciona las naves civiles.")
@@ -1315,9 +1333,10 @@ async def mover_civil(bot, game, area_idx):
         return
     civil = st.areas[area_idx]["civiles"].pop()
     st.areas[destino]["civiles"].append(civil)
+    letra = civil.get("id", "?")
     await bot.send_message(
         game.cid,
-        f"🚚 Una nave civil se reposiciona de {Space.nombre(area_idx)} a {Space.nombre(destino)}.",
+        f"🚚 La nave civil [{letra}] se reposiciona de {Space.nombre(area_idx)} a {Space.nombre(destino)}.",
     )
     await save(bot, game.cid)
 
@@ -1939,7 +1958,10 @@ def _destruir_centurion_avanzado(st):
 
 
 async def _destruir_civil(bot, game, area_idx=None):
-    """Destruye una nave civil (de un área concreta o, si no, de un área al azar)."""
+    """Destruye una nave civil (de un área concreta o, si no, de un área al
+    azar). La carga vuelve a la pila de reserva para poder reaparecer más
+    adelante como una nave "nueva": pierde su identificador al salir del
+    tablero (se le asigna uno nuevo recién cuando vuelva a entrar en juego)."""
     st = game.board.state
     if area_idx is None:
         objetivos = _areas_con(st, "civiles")
@@ -1950,11 +1972,14 @@ async def _destruir_civil(bot, game, area_idx=None):
     if not area["civiles"]:
         return
     carga = area["civiles"].pop(random.randrange(len(area["civiles"])))
+    letra = carga.pop("id", "?")
     if carga["recurso"]:
-        await bot.send_message(game.cid, f"🛰️💀 ¡Nave civil destruida en {Space.nombre(area_idx)}! Transportaba {carga['recurso']}.")
+        await bot.send_message(game.cid, f"🛰️💀 ¡Nave civil [{letra}] destruida en {Space.nombre(area_idx)}! Transportaba {carga['recurso']}.")
         await modificar_recurso(bot, game, carga["recurso"], -carga["cantidad"])
     else:
-        await bot.send_message(game.cid, f"🛰️💀 Nave civil destruida en {Space.nombre(area_idx)} (estaba vacía).")
+        await bot.send_message(game.cid, f"🛰️💀 Nave civil [{letra}] destruida en {Space.nombre(area_idx)} (estaba vacía).")
+    st.civiles_pile.append(carga)
+    random.shuffle(st.civiles_pile)
 
 
 # ===================== SABOTAJE CYLON =====================
@@ -3420,13 +3445,16 @@ async def _recall_vipers(bot, game):
 
 
 def _colocar_civiles(st, cantidad):
-    """Coloca naves civiles tras Galactica (Popa), tomándolas de la pila de reserva.
+    """Coloca naves civiles tras Galactica (Popa), tomándolas de la pila de
+    reserva y asignándoles un identificador nuevo al entrar al tablero.
     Devuelve cuántas se colocaron realmente."""
     colocadas = 0
     for _ in range(cantidad):
         if not st.civiles_pile:
             break
-        st.areas[Space.AREA_POPA]["civiles"].append(st.civiles_pile.pop())
+        carga = st.civiles_pile.pop()
+        carga["id"] = _letra_civil_libre(st)
+        st.areas[Space.AREA_POPA]["civiles"].append(carga)
         colocadas += 1
     return colocadas
 

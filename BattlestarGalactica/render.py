@@ -73,7 +73,8 @@ def _naves_html(area):
     if area["vipers"]:
         piezas.append(f"<span class='ship vp'>V×{area['vipers']}</span>")
     if area["civiles"]:
-        piezas.append(f"<span class='ship cv'>C×{len(area['civiles'])}</span>")
+        letras = ",".join(c.get("id", "?") for c in area["civiles"])
+        piezas.append(f"<span class='ship cv'>C[{letras}]</span>")
     return "".join(piezas)
 
 
