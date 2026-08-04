@@ -32,7 +32,8 @@ def naves_de_area(area):
     if area["vipers"]:
         piezas.append(f"✈️×{area['vipers']}")
     if area["civiles"]:
-        piezas.append(f"🛰️×{len(area['civiles'])}")
+        letras = ",".join(c.get("id", "?") for c in area["civiles"])
+        piezas.append(f"🛰️[{letras}]")
     return piezas
 
 
