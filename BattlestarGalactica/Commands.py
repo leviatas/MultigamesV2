@@ -7,7 +7,7 @@ import re
 
 import BattlestarGalactica.Controller as BSGController
 from BattlestarGalactica.Constants import Characters, Skills, Loyalty, Locations, Space
-from Utils import get_game, save
+from Utils import get_game, save, player_call
 from Constants.Config import ADMIN
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
@@ -42,7 +42,7 @@ async def command_call(bot, game):
     if st.fase_actual == "En Juego" and st.active_player:
         await bot.send_message(
             game.cid,
-            f"🚀 *BSG en curso* — turno de *{st.active_player.name}*.\n"
+            f"🚀 *BSG en curso* — turno de {player_call(st.active_player)}.\n"
             "Mover: `/mover` · Acción: `/accion` · Crisis: `/crisis` · Tablero: `/estado` · Mapa: `/mapa`\n"
             "Mano: `/mano` · Jugar carta: `/jugar` · Aportar a chequeo: `/aportar`\n"
             "Habilidad: `/habilidad` · Presidente: `/quorum` · Cylons: `/revelar`\n"
