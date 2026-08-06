@@ -72,6 +72,20 @@ def save_extended_game_stats(game, game_endcode):
             conn.close()
 
 
+def get_game_endcode(game_id):
+    # Consulta el game_endcode real guardado para una partida ya finalizada.
+    # Se usa para reparar partidas donde game.board.state.game_endcode quedo
+    # en 0 pese a haber terminado (ver Commands._repair_game_endcode_if_needed).
+    conn = _connect()
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT game_endcode FROM stats_secret_hitler_games WHERE id = %s;", (game_id,))
+        row = cur.fetchone()
+        return row[0] if row else None
+    finally:
+        conn.close()
+
+
 def finalize_mvp_stats(game):
     # Se corre una vez que todos los jugadores de la partida ya votaron su /mvp
     # (post-partida): marca al ganador en su fila de stats y recien ahi evalua

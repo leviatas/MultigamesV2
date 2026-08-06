@@ -664,7 +664,7 @@ def command_calltovote(update: Update, context: CallbackContext):
 		#Check if there is a current game
 		game = get_game(cid)
 		if game:
-			if game.board is not None and game.board.state.game_endcode != 0:
+			if game.board is not None and _game_has_ended(game):
 				# La partida ya termino y esta esperando los votos de /mvp.
 				faltan = [p for u, p in game.playerlist.items() if u not in getattr(game, "mvp_votes", {})]
 				if not faltan:
@@ -2108,6 +2108,28 @@ def format_guesses_reveal(game):
 	return "\n".join(lineas)
 
 
+def _repair_game_endcode_if_needed(game):
+	# Cura partidas afectadas por un bug historico (choose_kill no seteaba
+	# game.board.state.game_endcode) donde la partida ya termino y sus stats
+	# ya se guardaron (stats_game_id seteado), pero el codigo quedo en 0.
+	if game.board is None or game.board.state is None:
+		return
+	if game.board.state.game_endcode != 0:
+		return
+	game_id = getattr(game, "stats_game_id", None)
+	if game_id is None:
+		return
+	real_endcode = StatsExtended.get_game_endcode(game_id)
+	if real_endcode:
+		game.board.state.game_endcode = real_endcode
+		save_game(game.cid, game.groupName, game)
+
+def _game_has_ended(game):
+	if game.board is None or game.board.state is None:
+		return False
+	_repair_game_endcode_if_needed(game)
+	return game.board.state.game_endcode != 0
+
 def command_mvp(update: Update, context: CallbackContext):
 	bot = context.bot
 	uid = update.message.from_user.id
@@ -2122,7 +2144,7 @@ def command_mvp(update: Update, context: CallbackContext):
 		if uid not in game.playerlist:
 			bot.send_message(cid, "Debes ser un jugador de la partida para usar /mvp.")
 			return
-		if game.board.state.game_endcode == 0:
+		if not _game_has_ended(game):
 			bot.send_message(cid, "Todavía no terminó la partida. Esperá a que termine para votar al MVP.")
 			return
 		bot.send_message(cid, "Te mandé un mensaje privado para que votes al MVP. ¡Revisa tu chat privado conmigo!")
@@ -2132,7 +2154,7 @@ def command_mvp(update: Update, context: CallbackContext):
 		all_games = {
 			key: "{}: {}".format(game.groupName, game.tipo)
 			for key, game in all_games_unfiltered.items()
-			if uid in game.playerlist and game.board is not None and game.board.state.game_endcode != 0
+			if uid in game.playerlist and game.board is not None and _game_has_ended(game)
 		}
 		if not all_games:
 			bot.send_message(cid, "No tenés partidas recién terminadas donde votar al MVP.")
@@ -2159,7 +2181,7 @@ def callback_mvp_game(update: Update, context: CallbackContext):
 	_send_mvp_buttons(bot, game, uid)
 
 def _send_mvp_buttons(bot, game, uid):
-	if game.board.state.game_endcode == 0:
+	if not _game_has_ended(game):
 		bot.send_message(uid, "Todavía no terminó la partida. Esperá a que termine para votar al MVP.")
 		return
 	strcid = str(game.cid)
@@ -2197,7 +2219,7 @@ def callback_mvp_vote(update: Update, context: CallbackContext):
 	if uid not in game.playerlist:
 		bot.send_message(uid, "Debes ser un jugador de la partida para votar.")
 		return
-	if game.board.state.game_endcode == 0:
+	if not _game_has_ended(game):
 		bot.send_message(uid, "Todavía no terminó la partida. Esperá a que termine para votar al MVP.")
 		return
 	if candidate_uid == uid:
@@ -2266,7 +2288,7 @@ def command_end(update: Update, context: CallbackContext):
 	if uid not in game.playerlist:
 		bot.send_message(cid, "Debes ser un jugador de la partida para usar /end.")
 		return
-	if game.board.state.game_endcode == 0:
+	if not _game_has_ended(game):
 		bot.send_message(cid, "La partida todavía no terminó, no hay nada que cerrar.")
 		return
 
