@@ -109,6 +109,7 @@ def build_context(cur, game, game_endcode, uid, player):
         hitler_uid=hitler_player.uid if hitler_player else None,
         fascist_uids=frozenset(f.uid for f in game.get_fascists()),
         best_guessers=frozenset(game.compute_best_guessers()),
+        game_player_uids=frozenset(game.playerlist.keys()),
     )
 
 
