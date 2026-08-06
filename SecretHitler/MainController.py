@@ -1332,6 +1332,8 @@ def main():
 	dp.add_handler(CommandHandler("end", Commands.command_end))
 	dp.add_handler(CommandHandler("vincularstats", Commands.command_vincularstats))
 	dp.add_handler(CommandHandler("vincularstats2", Commands.command_vincularstats2))
+	dp.add_handler(CommandHandler("admin", Commands.command_admin))
+	dp.add_handler(CallbackQueryHandler(pattern=r"^admin_first$", callback=Commands.callback_admin_first))
 	dp.add_handler(CommandHandler("newgame", Commands.command_newgame))
 	dp.add_handler(CommandHandler("startgame", Commands.command_startgame))
 	dp.add_handler(CommandHandler("cancelgame", Commands.command_cancelgame))
