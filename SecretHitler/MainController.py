@@ -968,6 +968,12 @@ def end_game(bot, game, game_endcode):
 				bot.send_message(cid, reveal, ParseMode.MARKDOWN)
 		except Exception as e:
 			log.error("No se pudo mostrar los resultados de las adivinanzas: %s" % str(e))
+		try:
+			mvp_reveal = Commands.format_mvp_reveal(game)
+			if mvp_reveal is not None:
+				bot.send_message(cid, mvp_reveal, ParseMode.MARKDOWN)
+		except Exception as e:
+			log.error("No se pudo mostrar la votación de MVP: %s" % str(e))
 		showHiddenhistory(bot, game)
 		try:
 			anuncio = Achievements.format_unlock_announcement(nuevos_logros, game)
@@ -1311,8 +1317,12 @@ def main():
 	dp.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)\*chooseGameGuess\*(.*)\*(-?[0-9]*)", callback=Commands.callback_guess_game))
 	dp.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)_guessf_(-?[0-9]*)", callback=Commands.callback_guess_fascist))
 	dp.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)_guessh_(-?[0-9]*)", callback=Commands.callback_guess_hitler))
+	dp.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)_guesspred_(-?[0-9]*)", callback=Commands.callback_guess_prediction))
 	dp.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)_guessconfirm", callback=Commands.callback_guess_confirm))
 	dp.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)_guessrestart", callback=Commands.callback_guess_restart))
+	dp.add_handler(CommandHandler("mvp", Commands.command_mvp))
+	dp.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)\*chooseGameMvp\*(.*)\*(-?[0-9]*)", callback=Commands.callback_mvp_game))
+	dp.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)_mvpvote_(-?[0-9]*)", callback=Commands.callback_mvp_vote))
 	dp.add_handler(CommandHandler("vincularstats", Commands.command_vincularstats))
 	dp.add_handler(CommandHandler("vincularstats2", Commands.command_vincularstats2))
 	dp.add_handler(CommandHandler("newgame", Commands.command_newgame))
@@ -1405,6 +1415,7 @@ def main():
 			BotCommand("stats2", "Muestra tus estadisticas nuevas vinculadas a tu ID"),
 			BotCommand("logros", "Muestra tus logros desbloqueados"),
 			BotCommand("guess", "Adivina en privado quienes son los fascistas y Hitler"),
+			BotCommand("mvp", "Vota en privado al mejor jugador de la partida"),
 		])
 	except Exception as e:
 		log.error(str(e))

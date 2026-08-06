@@ -98,11 +98,17 @@ def _check_me_toco_lo_que_pedi(ctx):
 
 
 def _check_lo_sabia(ctx):
+    # Solo Liberal: Hitler y Fascista ya conocen la respuesta de antemano por su rol,
+    # asi que su /guess ni siquiera les pide adivinar quien es Hitler.
+    if ctx["role"] != "Liberal":
+        return False
     guess = ctx["guess"]
     return guess is not None and ctx["hitler_uid"] is not None and guess.get("hitler") == ctx["hitler_uid"]
 
 
 def _check_detective(ctx):
+    if ctx["role"] != "Liberal":
+        return False
     guess = ctx["guess"]
     if guess is None:
         return False
@@ -110,12 +116,49 @@ def _check_detective(ctx):
 
 
 def _check_no_debi_dudar(ctx):
+    if ctx["role"] != "Liberal":
+        return False
     history = ctx["guess_history"]
     hitler_uid = ctx["hitler_uid"]
     if hitler_uid is None or len(history) < 2:
         return False
     primer_intento, segundo_intento = history[0], history[1]
     return primer_intento.get("hitler") == hitler_uid and segundo_intento.get("hitler") != hitler_uid
+
+
+def _check_companeros_de_ideologia(ctx):
+    # Solo Hitler: el /guess de Hitler solo pide adivinar a los compañeros fascistas.
+    if ctx["role"] != "Hitler":
+        return False
+    guess = ctx["guess"]
+    if guess is None:
+        return False
+    return set(guess.get("fascists", [])) == ctx["fascist_uids"]
+
+
+def _check_prediccion_certera(ctx):
+    # Solo Fascista: el /guess de Fascista predice quien sera el mejor adivinando (los liberales).
+    if ctx["role"] != "Fascista":
+        return False
+    guess = ctx["guess"]
+    if guess is None:
+        return False
+    predicted = guess.get("predicted")
+    if predicted is None:
+        return False
+    return predicted in ctx["best_guessers"]
+
+
+def _check_mvp_una_vez(ctx):
+    return ctx.mvp_count() >= 1
+
+
+def _check_mvp_cinco_veces(ctx):
+    return ctx.mvp_count() >= 5
+
+
+def _check_mvp_mas_de_diez(ctx):
+    return ctx.mvp_count() > 10
 
 
 LOGROS = [
@@ -136,6 +179,10 @@ LOGROS = [
           "🔍", "roles", False, _check_detective),
     Logro("no_debi_dudar", "No debí dudar", "En tu primer /guess acertaste quién era Hitler, pero en el segundo te equivocaste.",
           "😩", "roles", False, _check_no_debi_dudar),
+    Logro("companeros_de_ideologia", "Compañeros de ideología", "Como Hitler, identificaste correctamente a todos tus compañeros fascistas con /guess.",
+          "🥸", "roles", False, _check_companeros_de_ideologia),
+    Logro("prediccion_certera", "Ojo fascista", "Como fascista, predijiste correctamente quién sería el jugador que más acertaría con /guess.",
+          "👁️", "roles", False, _check_prediccion_certera),
 
     # Muerte y ejecuciones
     Logro("bala_certera", "Bala certera", "Ejecutaste a Hitler y los liberales ganaron.",
@@ -168,6 +215,12 @@ LOGROS = [
           "🤖", "social", False, _check_piloto_automatico),
     Logro("me_toco_lo_que_pedi", "Me tocó lo que pedí", "Te tocó el rol que pediste y ganaste.",
           "🎲", "social", False, _check_me_toco_lo_que_pedi),
+    Logro("mvp_una_vez", "MVP", "Te votaron como MVP de la partida.",
+          "🌟", "social", False, _check_mvp_una_vez),
+    Logro("mvp_cinco_veces", "MVP Recurrente", "Te votaron como MVP en 5 partidas.",
+          "🏆", "social", False, _check_mvp_cinco_veces),
+    Logro("mvp_mas_de_diez", "El MVP de Siempre", "Te votaron como MVP en más de 10 partidas.",
+          "💫", "social", False, _check_mvp_mas_de_diez),
 ]
 
 LOGROS_BY_CODE = {logro.code: logro for logro in LOGROS}

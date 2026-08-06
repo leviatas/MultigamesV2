@@ -56,7 +56,8 @@ commands = [  # command description used in the "help" command
     '/startautoja - Activa tu voto automático Ja apenas se proponga una fórmula (fuera de Zona Hitler)',
     '/stopautoja - Desactiva tu voto automático Ja',
     '/logros - Muestra tus logros desbloqueados',
-    '/guess - Adivina en privado quiénes son los fascistas y Hitler'
+    '/guess - Adivina en privado quiénes son los fascistas y Hitler',
+    '/mvp - Vota en privado al mejor jugador de la partida'
 ]
 
 symbols = [
@@ -997,11 +998,22 @@ def load_game(cid):
 		for guesser_uid in game.guesses:
 			history = game.guesses[guesser_uid]
 			for entry in history:
-				entry["fascists"] = [int(u) for u in entry.get("fascists", [])]
+				if "fascists" in entry:
+					entry["fascists"] = [int(u) for u in entry.get("fascists", [])]
 				if entry.get("hitler") is not None:
 					entry["hitler"] = int(entry["hitler"])
+				if entry.get("predicted") is not None:
+					entry["predicted"] = int(entry["predicted"])
 			temp_guesses[int(guesser_uid)] = history
 		game.guesses = temp_guesses
+
+		# Partidas guardadas antes de agregar /mvp no tienen este atributo.
+		if not hasattr(game, "mvp_votes"):
+			game.mvp_votes = {}
+		temp_mvp_votes = {}
+		for voter_uid in game.mvp_votes:
+			temp_mvp_votes[int(voter_uid)] = int(game.mvp_votes[voter_uid])
+		game.mvp_votes = temp_mvp_votes
 
 		if game.board is not None and game.board.state is not None:
 			temp_last_votes = {}	
@@ -1700,39 +1712,71 @@ def callback_guess_game(update: Update, context: CallbackContext):
 		return
 	_start_guess_flow(bot, game, uid)
 
+def _init_guess_progress(game, uid):
+	# El rol determina que tiene que adivinar cada jugador:
+	# - Liberal (o sin rol): adivina los fascistas comunes Y a Hitler ("full").
+	# - Hitler: ya sabe que es Hitler, solo adivina a sus compañeros fascistas ("hitler").
+	# - Fascista: ya sabe todo, en vez de adivinar predice quien sera el jugador que
+	#   mas acierte en el modo "full" ("fascist_prediction").
+	player = game.playerlist.get(uid)
+	role = player.role if player else None
+	if role == "Hitler":
+		progress = {"mode": "hitler", "fascists": [], "num_fascists": _guess_num_fascists(game)}
+	elif role == "Fascista":
+		progress = {"mode": "fascist_prediction", "predicted": None}
+	else:
+		progress = {"mode": "full", "fascists": [], "hitler": None, "num_fascists": _guess_num_fascists(game)}
+	GamesController.guess_progress[(game.cid, uid)] = progress
+	return progress
+
+def _build_first_guess_prompt(game, uid):
+	progress = GamesController.guess_progress[(game.cid, uid)]
+	if progress["mode"] == "fascist_prediction":
+		return _build_guess_prediction_prompt(game, uid)
+	return _build_guess_fascist_prompt(game, uid)
+
 def _start_guess_flow(bot, game, uid):
 	history = getattr(game, "guesses", {}).get(uid, [])
 	attempts_done = len(history)
 	if attempts_done >= 2:
 		bot.send_message(uid, "Ya hiciste tu palpito 2 veces. Tu segunda elección quedó *definitiva* y no se puede volver a cambiar.", parse_mode=ParseMode.MARKDOWN)
 		return
-	num_fascists = _guess_num_fascists(game)
-	if num_fascists == 0:
+
+	player = game.playerlist.get(uid)
+	role = player.role if player else None
+	if role != "Fascista" and _guess_num_fascists(game) == 0:
 		bot.send_message(uid, "No se puede adivinar en esta partida.")
 		return
+
 	if attempts_done == 0:
-		bot.send_message(uid,
-			"🔮 Vas a elegir quiénes creés que son los fascistas comunes y quién es Hitler. "
-			"Podés repetir esta elección una sola vez más después de confirmar; se guardan tus dos intentos, "
-			"pero la *segunda* elección es la definitiva.",
-			parse_mode=ParseMode.MARKDOWN)
+		if role == "Hitler":
+			intro = ("🔮 Sos *Hitler*, así que en vez de adivinar quién es Hitler vas a intentar identificar a tus "
+				"compañeros fascistas. Podés repetir esta elección una sola vez más después de confirmar; "
+				"se guardan tus dos intentos, pero la *segunda* elección es la definitiva.")
+		elif role == "Fascista":
+			intro = ("🔮 Sos *fascista*, así que en vez de adivinar roles vas a predecir quién creés que será el "
+				"jugador que más acierte a Hitler y a los fascistas comunes. Podés repetir esta elección una sola "
+				"vez más después de confirmar; se guardan tus dos intentos, pero la *segunda* elección es la definitiva.")
+		else:
+			intro = ("🔮 Vas a elegir quiénes creés que son los fascistas comunes y quién es Hitler. "
+				"Podés repetir esta elección una sola vez más después de confirmar; se guardan tus dos intentos, "
+				"pero la *segunda* elección es la definitiva.")
+		bot.send_message(uid, intro, parse_mode=ParseMode.MARKDOWN)
 	else:
 		bot.send_message(uid,
 			"🔮 Esta es tu *última* oportunidad para adivinar: lo que confirmes ahora quedará definitivo.",
 			parse_mode=ParseMode.MARKDOWN)
-	GamesController.guess_progress[(game.cid, uid)] = {
-		"fascists": [],
-		"hitler": None,
-		"num_fascists": num_fascists,
-	}
-	texto, markup = _build_guess_fascist_prompt(game, uid)
+
+	_init_guess_progress(game, uid)
+	texto, markup = _build_first_guess_prompt(game, uid)
 	bot.send_message(uid, texto, reply_markup=markup, parse_mode=ParseMode.MARKDOWN)
 
 def _build_guess_fascist_prompt(game, uid):
 	progress = GamesController.guess_progress[(game.cid, uid)]
 	selected = progress["fascists"]
 	num_fascists = progress["num_fascists"]
-	texto = "🔮 *Adivina quiénes son los fascistas comunes* ({}/{})\n".format(len(selected), num_fascists)
+	titulo = "tus compañeros fascistas" if progress["mode"] == "hitler" else "los fascistas comunes"
+	texto = "🔮 *Adivina quiénes son {}* ({}/{})\n".format(titulo, len(selected), num_fascists)
 	if selected:
 		nombres_elegidos = ", ".join(game.playerlist[u].name for u in selected if u in game.playerlist)
 		texto += "Ya elegiste: {}\n".format(nombres_elegidos)
@@ -1771,7 +1815,10 @@ def callback_guess_fascist(update: Update, context: CallbackContext):
 		progress["fascists"].append(candidate_uid)
 
 	if len(progress["fascists"]) >= progress["num_fascists"]:
-		texto, markup = _build_guess_hitler_prompt(game, uid)
+		if progress["mode"] == "full":
+			texto, markup = _build_guess_hitler_prompt(game, uid)
+		else:
+			texto, markup = _build_guess_confirm_prompt(game, uid)
 	else:
 		texto, markup = _build_guess_fascist_prompt(game, uid)
 
@@ -1815,12 +1862,70 @@ def callback_guess_hitler(update: Update, context: CallbackContext):
 	bot.edit_message_text(texto, chat_id=callback.message.chat_id, message_id=callback.message.message_id,
 		reply_markup=markup, parse_mode=ParseMode.MARKDOWN)
 
+def _build_guess_prediction_prompt(game, uid):
+	texto = "🔮 *¿Quién creés que será el jugador que más acierte a Hitler y a los fascistas comunes?*"
+	strcid = str(game.cid)
+	hitler = game.get_hitler()
+	excluded = {f.uid for f in game.get_fascists()}
+	if hitler is not None:
+		excluded.add(hitler.uid)
+	btns = []
+	for player_uid, player in game.playerlist.items():
+		if player_uid in excluded:
+			continue
+		btns.append([InlineKeyboardButton(player.name, callback_data=strcid + "_guesspred_" + str(player_uid))])
+	if not btns:
+		for player_uid, player in game.playerlist.items():
+			if player_uid == uid:
+				continue
+			btns.append([InlineKeyboardButton(player.name, callback_data=strcid + "_guesspred_" + str(player_uid))])
+	markup = InlineKeyboardMarkup(btns)
+	return texto, markup
+
+def callback_guess_prediction(update: Update, context: CallbackContext):
+	bot = context.bot
+	log.info('callback_guess_prediction called')
+	callback = update.callback_query
+	regex = re.search(r"(-?[0-9]*)_guesspred_(-?[0-9]*)", callback.data)
+	cid = int(regex.group(1))
+	candidate_uid = int(regex.group(2))
+	uid = callback.from_user.id
+
+	game = get_game(cid)
+	if game is None or game.board is None:
+		bot.send_message(uid, "Esa partida ya no está activa.")
+		return
+	if uid not in game.playerlist:
+		bot.send_message(uid, "Debes ser un jugador de la partida para adivinar.")
+		return
+
+	progress = GamesController.guess_progress.get((cid, uid))
+	if progress is None:
+		bot.send_message(uid, "Tu sesión de /guess expiró, usa /guess de nuevo para empezar.")
+		return
+	if candidate_uid in game.playerlist:
+		progress["predicted"] = candidate_uid
+
+	texto, markup = _build_guess_confirm_prompt(game, uid)
+	bot.edit_message_text(texto, chat_id=callback.message.chat_id, message_id=callback.message.message_id,
+		reply_markup=markup, parse_mode=ParseMode.MARKDOWN)
+
 def _build_guess_confirm_prompt(game, uid):
 	progress = GamesController.guess_progress[(game.cid, uid)]
-	nombres_fascistas = ", ".join(game.playerlist[u].name for u in progress["fascists"] if u in game.playerlist)
-	nombre_hitler = game.playerlist[progress["hitler"]].name if progress["hitler"] in game.playerlist else "?"
-	texto = "🔮 *Confirma tu palpito*\nFascistas sospechosos: {}\nHitler: {}\n\n¿Confirmas?".format(nombres_fascistas, nombre_hitler)
 	strcid = str(game.cid)
+
+	if progress["mode"] == "hitler":
+		nombres_fascistas = ", ".join(game.playerlist[u].name for u in progress["fascists"] if u in game.playerlist)
+		texto = "🔮 *Confirma tu palpito*\nCompañeros fascistas sospechosos: {}\n\n¿Confirmas?".format(nombres_fascistas)
+	elif progress["mode"] == "fascist_prediction":
+		predicted = progress.get("predicted")
+		nombre = game.playerlist[predicted].name if predicted in game.playerlist else "?"
+		texto = "🔮 *Confirma tu predicción*\n¿Quién más acierte a Hitler y a los fascistas?: *{}*\n\n¿Confirmas?".format(nombre)
+	else:
+		nombres_fascistas = ", ".join(game.playerlist[u].name for u in progress["fascists"] if u in game.playerlist)
+		nombre_hitler = game.playerlist[progress["hitler"]].name if progress["hitler"] in game.playerlist else "?"
+		texto = "🔮 *Confirma tu palpito*\nFascistas sospechosos: {}\nHitler: {}\n\n¿Confirmas?".format(nombres_fascistas, nombre_hitler)
+
 	btns = [
 		[InlineKeyboardButton("✅ Confirmar", callback_data=strcid + "_guessconfirm")],
 		[InlineKeyboardButton("↩️ Empezar de nuevo", callback_data=strcid + "_guessrestart")],
@@ -1841,14 +1946,27 @@ def callback_guess_confirm(update: Update, context: CallbackContext):
 		bot.send_message(uid, "Esa partida ya no está activa.")
 		return
 	progress = GamesController.guess_progress.get((cid, uid))
-	if progress is None or progress.get("hitler") is None:
+	if progress is None:
 		bot.send_message(uid, "Tu sesión de /guess expiró, usa /guess de nuevo para empezar.")
 		return
+
+	if progress["mode"] == "hitler":
+		entry = {"fascists": list(progress["fascists"])}
+	elif progress["mode"] == "fascist_prediction":
+		if progress.get("predicted") is None:
+			bot.send_message(uid, "Tenés que elegir a alguien antes de confirmar.")
+			return
+		entry = {"predicted": progress["predicted"]}
+	else:
+		if progress.get("hitler") is None:
+			bot.send_message(uid, "Tenés que elegir quién es Hitler antes de confirmar.")
+			return
+		entry = {"fascists": list(progress["fascists"]), "hitler": progress["hitler"]}
 
 	if not hasattr(game, "guesses"):
 		game.guesses = {}
 	history = list(game.guesses.get(uid, []))
-	history.append({"fascists": list(progress["fascists"]), "hitler": progress["hitler"]})
+	history.append(entry)
 	game.guesses[uid] = history
 	save_game(game.cid, game.groupName, game)
 	del GamesController.guess_progress[(cid, uid)]
@@ -1879,9 +1997,8 @@ def callback_guess_restart(update: Update, context: CallbackContext):
 		bot.send_message(uid, "Debes ser un jugador de la partida para adivinar.")
 		return
 
-	num_fascists = _guess_num_fascists(game)
-	GamesController.guess_progress[(cid, uid)] = {"fascists": [], "hitler": None, "num_fascists": num_fascists}
-	texto, markup = _build_guess_fascist_prompt(game, uid)
+	_init_guess_progress(game, uid)
+	texto, markup = _build_first_guess_prompt(game, uid)
 	bot.edit_message_text(texto, chat_id=callback.message.chat_id, message_id=callback.message.message_id,
 		reply_markup=markup, parse_mode=ParseMode.MARKDOWN)
 
@@ -1895,7 +2012,10 @@ def format_guesses_reveal(game):
 	fascist_uids = {f.uid for f in game.get_fascists()}
 	total_fascists = len(fascist_uids)
 
-	resultados = []
+	liberal_resultados = []  # (score, name, texto) - flujo completo, arma el ranking "mas cerca de la verdad"
+	hitler_lineas = []
+	fascista_entries = []    # (predicted_uid, texto)
+
 	for guesser_uid, history in guesses.items():
 		if not history:
 			continue
@@ -1903,6 +2023,26 @@ def format_guesses_reveal(game):
 		guesser = game.playerlist.get(guesser_uid)
 		if guesser is None:
 			continue
+		nota_cambio = " _(cambió su palpito una vez)_" if len(history) > 1 else ""
+
+		if guesser.role == "Hitler":
+			guessed_fascist_uids = [u for u in guess.get("fascists", []) if u in game.playerlist]
+			aciertos = [u for u in guessed_fascist_uids if u in fascist_uids]
+			nombres = ", ".join(game.playerlist[u].name for u in guessed_fascist_uids) or "nadie"
+			hitler_lineas.append(
+				"*{}* (Hitler) sospechó que sus compañeros fascistas eran: {}{}\n   ↳ Acertó {}/{} compañeros".format(
+					guesser.name, nombres, nota_cambio, len(aciertos), total_fascists))
+			continue
+
+		if guesser.role == "Fascista":
+			predicted_uid = guess.get("predicted")
+			nombre_prediccion = game.playerlist[predicted_uid].name if predicted_uid in game.playerlist else "nadie"
+			texto = "*{}* (fascista) predijo que *{}* sería quien más acierte a Hitler y a los fascistas{}".format(
+				guesser.name, nombre_prediccion, nota_cambio)
+			fascista_entries.append((predicted_uid, texto))
+			continue
+
+		# Liberal (o rol desconocido): flujo completo
 		guessed_fascist_uids = [u for u in guess.get("fascists", []) if u in game.playerlist]
 		guessed_hitler_uid = guess.get("hitler")
 
@@ -1912,26 +2052,157 @@ def format_guesses_reveal(game):
 
 		nombres_fascistas = ", ".join(game.playerlist[u].name for u in guessed_fascist_uids) or "nadie"
 		nombre_hitler = game.playerlist[guessed_hitler_uid].name if guessed_hitler_uid in game.playerlist else "nadie"
-		nota_cambio = " _(cambió su palpito una vez)_" if len(history) > 1 else ""
 
 		texto = "*{}* sospechó de: {} y dijo que Hitler era *{}*{}\n   ↳ Acertó {}/{} fascistas comunes, {} a Hitler".format(
 			guesser.name, nombres_fascistas, nombre_hitler, nota_cambio,
 			len(aciertos_fascistas), total_fascists,
 			"acertó ✅" if hitler_acierto else "no acertó ❌"
 		)
-		resultados.append((score, guesser.name, texto))
+		liberal_resultados.append((score, guesser.name, texto))
 
-	if not resultados:
+	if not liberal_resultados and not hitler_lineas and not fascista_entries:
 		return None
 
 	lineas = ["🔮 *Resultados de las adivinanzas* 🔮\n"]
-	for _, _, texto in resultados:
-		lineas.append(texto)
 
-	max_score = max(r[0] for r in resultados)
-	ganadores = [nombre for score, nombre, _ in resultados if score == max_score]
-	lineas.append("\n🏆 Más cerca de la verdad: *{}* ({} de {} aciertos)".format(
-		", ".join(ganadores), max_score, total_fascists + 1))
+	mejores_liberales = game.compute_best_guessers()
+	if liberal_resultados:
+		for _, _, texto in liberal_resultados:
+			lineas.append(texto)
+		max_score = max(r[0] for r in liberal_resultados)
+		ganadores = [nombre for score, nombre, _ in liberal_resultados if score == max_score]
+		lineas.append("\n🏆 Más cerca de la verdad: *{}* ({} de {} aciertos)".format(
+			", ".join(ganadores), max_score, total_fascists + 1))
+
+	if hitler_lineas:
+		lineas.append("")
+		lineas.extend(hitler_lineas)
+
+	if fascista_entries:
+		lineas.append("")
+		for predicted_uid, texto in fascista_entries:
+			acierto = predicted_uid in mejores_liberales
+			lineas.append(texto + "\n   ↳ {}".format("Predijo correctamente ✅" if acierto else "No acertó ❌"))
+
+	return "\n".join(lineas)
+
+
+def command_mvp(update: Update, context: CallbackContext):
+	bot = context.bot
+	uid = update.message.from_user.id
+	cid = update.message.chat_id
+	groupType = update.message.chat.type
+
+	if groupType in ['group', 'supergroup']:
+		game = get_game(cid)
+		if game is None or game.board is None:
+			bot.send_message(cid, "No hay una partida activa en este chat.")
+			return
+		if uid not in game.playerlist:
+			bot.send_message(cid, "Debes ser un jugador de la partida para usar /mvp.")
+			return
+		bot.send_message(cid, "Te mandé un mensaje privado para que votes al MVP. ¡Revisa tu chat privado conmigo!")
+		_send_mvp_buttons(bot, game, uid)
+	else:
+		all_games_unfiltered = MainController.getGamesByTipo("Todos")
+		all_games = {
+			key: "{}: {}".format(game.groupName, game.tipo)
+			for key, game in all_games_unfiltered.items()
+			if uid in game.playerlist and game.board is not None
+		}
+		if not all_games:
+			bot.send_message(cid, "No tienes partidas activas de Secret Hitler.")
+			return
+		if len(all_games) == 1:
+			game_cid = int(next(iter(all_games)))
+			game = get_game(game_cid)
+			_send_mvp_buttons(bot, game, uid)
+		else:
+			msg = "Elige el juego donde quieres votar al MVP"
+			simple_choose_buttons(bot, cid, uid, uid, "chooseGameMvp", msg, all_games)
+
+def callback_mvp_game(update: Update, context: CallbackContext):
+	bot = context.bot
+	log.info('callback_mvp_game called')
+	callback = update.callback_query
+	regex = re.search(r"(-?[0-9]*)\*chooseGameMvp\*(.*)\*(-?[0-9]*)", callback.data)
+	game_cid = int(regex.group(2))
+	uid = int(regex.group(3))
+	game = get_game(game_cid)
+	if game is None or game.board is None:
+		bot.send_message(uid, "No hay una partida activa en ese chat.")
+		return
+	_send_mvp_buttons(bot, game, uid)
+
+def _send_mvp_buttons(bot, game, uid):
+	strcid = str(game.cid)
+	current_vote = getattr(game, "mvp_votes", {}).get(uid)
+	texto = "🏅 *¿Quién fue el MVP de la partida?*\n(No podés votarte a vos mismo)"
+	if current_vote in game.playerlist:
+		texto += "\n\nVotaste actualmente a: *{}*. Podés cambiarlo eligiendo otro jugador.".format(game.playerlist[current_vote].name)
+	btns = []
+	for player_uid, player in game.playerlist.items():
+		if player_uid == uid:
+			continue
+		btns.append([InlineKeyboardButton(player.name, callback_data=strcid + "_mvpvote_" + str(player_uid))])
+	if not btns:
+		bot.send_message(uid, "No hay otros jugadores a quien votar en esta partida.")
+		return
+	markup = InlineKeyboardMarkup(btns)
+	bot.send_message(uid, texto, reply_markup=markup, parse_mode=ParseMode.MARKDOWN)
+
+def callback_mvp_vote(update: Update, context: CallbackContext):
+	bot = context.bot
+	log.info('callback_mvp_vote called')
+	callback = update.callback_query
+	regex = re.search(r"(-?[0-9]*)_mvpvote_(-?[0-9]*)", callback.data)
+	cid = int(regex.group(1))
+	candidate_uid = int(regex.group(2))
+	uid = callback.from_user.id
+
+	game = get_game(cid)
+	if game is None or game.board is None:
+		bot.send_message(uid, "Esa partida ya no está activa.")
+		return
+	if uid not in game.playerlist:
+		bot.send_message(uid, "Debes ser un jugador de la partida para votar.")
+		return
+	if candidate_uid == uid:
+		bot.send_message(uid, "No podés votarte a vos mismo como MVP.")
+		return
+	if candidate_uid not in game.playerlist:
+		bot.send_message(uid, "Ese jugador ya no está en la partida.")
+		return
+
+	if not hasattr(game, "mvp_votes"):
+		game.mvp_votes = {}
+	game.mvp_votes[uid] = candidate_uid
+	save_game(game.cid, game.groupName, game)
+
+	bot.edit_message_text(
+		"✅ ¡Listo! Votaste a *{}* como MVP de la partida. Podés cambiar tu voto en cualquier momento con /mvp.".format(
+			game.playerlist[candidate_uid].name),
+		chat_id=callback.message.chat_id, message_id=callback.message.message_id, parse_mode=ParseMode.MARKDOWN)
+
+def format_mvp_reveal(game):
+	votes = getattr(game, "mvp_votes", {})
+	tally = {}
+	for voter_uid, voted_uid in votes.items():
+		if voted_uid in game.playerlist:
+			tally[voted_uid] = tally.get(voted_uid, 0) + 1
+	if not tally:
+		return None
+
+	lineas = ["🏅 *Votación a MVP de la partida* 🏅\n"]
+	for voted_uid, count in sorted(tally.items(), key=lambda kv: -kv[1]):
+		nombre = game.playerlist[voted_uid].name
+		lineas.append("{}: {} voto{}".format(nombre, count, "" if count == 1 else "s"))
+
+	mvp_uid = game.compute_mvp()
+	if mvp_uid is not None:
+		lineas.append("\n🏆 El MVP de la partida es *{}*!".format(game.playerlist[mvp_uid].name))
+	else:
+		lineas.append("\n🤝 Hubo un empate en la votación, no hay MVP esta partida.")
 
 	return "\n".join(lineas)
 

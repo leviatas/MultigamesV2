@@ -31,6 +31,7 @@ class Ctx(dict):
         self._uid = uid
         self._history = None
         self._kills_history = None
+        self._mvp_count = None
 
     def history(self):
         # Filas (role, party, won, died, killed_by_uid, game_id) de todas las
@@ -54,6 +55,17 @@ class Ctx(dict):
             )
             self._kills_history = [row[0] for row in self._cur.fetchall()]
         return self._kills_history
+
+    def mvp_count(self):
+        # Cantidad de partidas en las que este uid fue elegido MVP. Corre en la
+        # misma transaccion que el INSERT de la partida actual, asi que ya la incluye.
+        if self._mvp_count is None:
+            self._cur.execute(
+                "SELECT COUNT(*) FROM stats_secret_hitler_players WHERE uid = %s AND mvp = TRUE;",
+                (self._uid,)
+            )
+            self._mvp_count = self._cur.fetchone()[0]
+        return self._mvp_count
 
 
 def build_context(cur, game, game_endcode, uid, player):
@@ -96,6 +108,7 @@ def build_context(cur, game, game_endcode, uid, player):
         guess_history=guess_history,
         hitler_uid=hitler_player.uid if hitler_player else None,
         fascist_uids=frozenset(f.uid for f in game.get_fascists()),
+        best_guessers=frozenset(game.compute_best_guessers()),
     )
 
 

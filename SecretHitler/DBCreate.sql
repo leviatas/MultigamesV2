@@ -70,6 +70,7 @@ CREATE TABLE IF NOT EXISTS stats_secret_hitler_players (
     killed_by_uid BIGINT, -- NULL si no lo mataron o si el dato no se pudo reconstruir al migrar
     UNIQUE (game_id, uid)
 );
+ALTER TABLE stats_secret_hitler_players ADD COLUMN IF NOT EXISTS mvp BOOLEAN NOT NULL DEFAULT FALSE;
 
 -- Logros desbloqueados por jugador. El catalogo (nombre, descripcion, condicion)
 -- vive en SecretHitler/Constants/Achievements.py; aca solo se guarda quien
