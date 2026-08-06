@@ -51,13 +51,14 @@ commands = [  # command description used in the "help" command
     '/board - Imprime el tablero actual con la pista liberal y la pista fascista, orden presidencial y contador de elección',
     '/history - Imprime el historial del juego actual',
     '/votes - Imprime quien ha votado',
-    '/calltovote - Avisa a los jugadores que se tiene que votar',
+    '/calltovote - Avisa a los jugadores que se tiene que votar (o que falten votar el MVP si la partida ya terminó)',
     '/retirar - Retira tu voto de Ja o Nein para poder votar de nuevo',
     '/startautoja - Activa tu voto automático Ja apenas se proponga una fórmula (fuera de Zona Hitler)',
     '/stopautoja - Desactiva tu voto automático Ja',
     '/logros - Muestra tus logros desbloqueados',
     '/guess - Adivina en privado quiénes son los fascistas y Hitler',
-    '/mvp - Vota en privado al mejor jugador de la partida'
+    '/mvp - Vota en privado al mejor jugador de la partida',
+    '/end - Cierra la votación de MVP sin esperar a que voten todos'
 ]
 
 symbols = [
@@ -651,14 +652,25 @@ def command_votes(update: Update, context: CallbackContext):
 def command_calltovote(update: Update, context: CallbackContext):
 	bot = context.bot
 	try:
-		#Send message of executing command   
+		#Send message of executing command
 		cid = update.message.chat_id
 		#bot.send_message(cid, "Looking for history...")
-		#Check if there is a current game 
+		#Check if there is a current game
 		game = get_game(cid)
-		if game:			
+		if game:
+			if game.board is not None and game.board.state.game_endcode != 0:
+				# La partida ya termino y esta esperando los votos de /mvp.
+				faltan = [p for u, p in game.playerlist.items() if u not in getattr(game, "mvp_votes", {})]
+				if not faltan:
+					bot.send_message(cid, "¡Ya votaron todos! El resultado del MVP se revela en breve.")
+				else:
+					texto = "🏅 Todavía falta que voten quién fue el MVP de la partida:\n"
+					for p in faltan:
+						texto += "[%s](tg://user?id=%d) - ¡Usá /mvp en privado!\n" % (p.name, p.uid)
+					bot.send_message(cid, texto, parse_mode=ParseMode.MARKDOWN)
+				return
 			if not game.dateinitvote:
-				# If date of init vote is null, then the voting didnt start          
+				# If date of init vote is null, then the voting didnt start
 				bot.send_message(cid, "La votación no ha comenzado todavia!")
 			else:
 				#If there is a time, compare it and send history of votes.
@@ -2209,8 +2221,8 @@ def _finalize_mvp(bot, game):
 	cid = game.cid
 	try:
 		reveal = format_mvp_reveal(game)
-		if reveal is not None:
-			bot.send_message(cid, reveal, ParseMode.MARKDOWN)
+		texto = reveal if reveal is not None else "🏅 Se cerró la votación de MVP sin votos. No hay MVP esta partida."
+		bot.send_message(cid, texto, ParseMode.MARKDOWN)
 	except Exception as e:
 		log.error("No se pudo mostrar la votación de MVP: %s" % str(e))
 
@@ -2230,6 +2242,32 @@ def _finalize_mvp(bot, game):
 	if cid in GamesController.games:
 		del GamesController.games[cid]
 	delete_game(cid)
+
+def command_end(update: Update, context: CallbackContext):
+	bot = context.bot
+	cid = update.message.chat_id
+	uid = update.message.from_user.id
+	groupType = update.message.chat.type
+
+	if groupType not in ['group', 'supergroup']:
+		bot.send_message(cid, "Este comando se usa en el chat del grupo.")
+		return
+
+	game = get_game(cid)
+	if game is None or game.board is None:
+		bot.send_message(cid, "No hay una partida en este chat.")
+		return
+	if uid not in game.playerlist:
+		bot.send_message(cid, "Debes ser un jugador de la partida para usar /end.")
+		return
+	if game.board.state.game_endcode == 0:
+		bot.send_message(cid, "La partida todavía no terminó, no hay nada que cerrar.")
+		return
+
+	faltan = [p.name for u, p in game.playerlist.items() if u not in getattr(game, "mvp_votes", {})]
+	if faltan:
+		bot.send_message(cid, "Cerrando la votación de MVP sin esperar a: {}".format(", ".join(faltan)))
+	_finalize_mvp(bot, game)
 
 def format_mvp_reveal(game):
 	votes = getattr(game, "mvp_votes", {})
