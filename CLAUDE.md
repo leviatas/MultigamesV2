@@ -109,6 +109,8 @@ Key helpers used everywhere:
 
 `SecretHitler/` is a **self-contained** bot with its own `MainController`, `Commands`, `GamesController`, `Boardgamebox/`, `Constants/`, and DB connection. It shares only `Utils.command_status` from the root. It has its own `DBCreate.sql`, `requirements.txt`, and formerly its own Heroku/Jenkins deployment (`Procfile`, `Jenkinsfile`, `app.json`). It also has its own player stats layer: `PlayerStats.py` (per-user, per-game-type stats/achievements dict, persisted separately from game state) and `EstadisticsCalculator.py` (hypergeometric-distribution helpers for role-probability stats). At startup `main()` registers the bot's `/`-menu via `set_my_commands` — keep that list in sync when adding/removing commands.
 
+`Constants/Config.py` has a hardcoded `VERSION` string (starting at `1.0.0`), shown by `/version`. Bump it (semver) on every change committed to this bot — patch for fixes, minor for new commands/features, major for breaking changes.
+
 ### Config (`Constants/Config.py`)
 
 - `TOKEN`: main bot token (or set via DB)

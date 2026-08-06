@@ -1313,6 +1313,7 @@ def main():
 	dp.add_handler(CommandHandler("board", Commands.command_board))
 	dp.add_handler(CommandHandler("rules", Commands.command_rules))
 	dp.add_handler(CommandHandler("ping", Commands.command_ping))
+	dp.add_handler(CommandHandler("version", Commands.command_version))
 	dp.add_handler(CommandHandler("symbols", Commands.command_symbols))
 	dp.add_handler(CommandHandler("stats", Commands.command_stats))
 	dp.add_handler(CommandHandler("stats2", Commands.command_stats2))
@@ -1422,6 +1423,7 @@ def main():
 			BotCommand("guess", "Adivina en privado quienes son los fascistas y Hitler"),
 			BotCommand("mvp", "Vota en privado al mejor jugador de la partida"),
 			BotCommand("end", "Cierra la votacion de MVP sin esperar a que voten todos"),
+			BotCommand("version", "Muestra la version actual del bot"),
 		])
 	except Exception as e:
 		log.error(str(e))

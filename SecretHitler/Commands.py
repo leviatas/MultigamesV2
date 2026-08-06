@@ -17,7 +17,7 @@ from collections import namedtuple
 
 import SecretHitler.MainController as MainController
 import SecretHitler.GamesController as GamesController
-from SecretHitler.Constants.Config import ADMIN
+from SecretHitler.Constants.Config import ADMIN, VERSION
 from SecretHitler.Constants.Cards import opciones_choose_posible_role, playerSets
 from SecretHitler.Boardgamebox.Board import Board
 from SecretHitler.Boardgamebox.Game import Game
@@ -58,7 +58,8 @@ commands = [  # command description used in the "help" command
     '/logros - Muestra tus logros desbloqueados',
     '/guess - Adivina en privado quiénes son los fascistas y Hitler',
     '/mvp - Vota en privado al mejor jugador de la partida',
-    '/end - Cierra la votación de MVP sin esperar a que voten todos'
+    '/end - Cierra la votación de MVP sin esperar a que voten todos',
+    '/version - Muestra la versión actual del bot'
 ]
 
 symbols = [
@@ -156,6 +157,11 @@ def command_ping(update: Update, context: CallbackContext):
 	bot = context.bot
 	cid = update.message.chat_id
 	bot.send_message(cid, 'pong - v0.3')
+
+def command_version(update: Update, context: CallbackContext):
+	bot = context.bot
+	cid = update.message.chat_id
+	bot.send_message(cid, "Secret Hitler bot v%s" % VERSION)
 
 
 def get_stat_query(query, partidas_totales, partidas_fascista, partidas_hitler, partidas_liberal, partidas_murio, partidas_fascista_gano, partidas_hitler_gano, partidas_liberal_gano):
