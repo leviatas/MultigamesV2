@@ -109,6 +109,15 @@ def _check_detective(ctx):
     return guess.get("hitler") == ctx["hitler_uid"] and set(guess.get("fascists", [])) == ctx["fascist_uids"]
 
 
+def _check_no_debi_dudar(ctx):
+    history = ctx["guess_history"]
+    hitler_uid = ctx["hitler_uid"]
+    if hitler_uid is None or len(history) < 2:
+        return False
+    primer_intento, segundo_intento = history[0], history[1]
+    return primer_intento.get("hitler") == hitler_uid and segundo_intento.get("hitler") != hitler_uid
+
+
 LOGROS = [
     # Roles y victorias
     Logro("hitler_ganador", "Canciller Supremo", "Ganaste una partida siendo Hitler.",
@@ -125,6 +134,8 @@ LOGROS = [
           "🔮", "roles", False, _check_lo_sabia),
     Logro("detective", "Detective", "Adivinaste correctamente a todos los fascistas y a Hitler con /guess.",
           "🔍", "roles", False, _check_detective),
+    Logro("no_debi_dudar", "No debí dudar", "En tu primer /guess acertaste quién era Hitler, pero en el segundo te equivocaste.",
+          "😩", "roles", False, _check_no_debi_dudar),
 
     # Muerte y ejecuciones
     Logro("bala_certera", "Bala certera", "Ejecutaste a Hitler y los liberales ganaron.",
