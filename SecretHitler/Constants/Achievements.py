@@ -65,6 +65,18 @@ def _check_cazador_de_hitler(ctx):
     return sum(1 for role in ctx.kills_history() if role == "Hitler") >= 2
 
 
+def _check_gafe(ctx):
+    return sum(1 for row in ctx.history() if row[3]) >= 3  # row[3] = died
+
+
+def _check_carne_de_canon(ctx):
+    return sum(1 for row in ctx.history() if row[3]) >= 5
+
+
+def _check_alma_en_pena(ctx):
+    return sum(1 for row in ctx.history() if row[3]) >= 10
+
+
 def _check_primera_partida(ctx):
     # >=1 (no ==1): si el primer registro de un jugador vino de una migracion
     # legacy (/vincularstats) o de antes de que existiera este logro, el
@@ -207,6 +219,12 @@ LOGROS = [
           "🛡", "muerte", False, _check_intocable),
     Logro("cazador_de_hitler", "Cazador de Hitler", "Ejecutaste a Hitler en 2 partidas distintas.",
           "🎯", "muerte", False, _check_cazador_de_hitler),
+    Logro("gafe", "Gafe", "Te ejecutaron 3 veces en total.",
+          "💀", "muerte", False, _check_gafe),
+    Logro("carne_de_canon", "Carne de cañón", "Te ejecutaron 5 veces en total.",
+          "⚰️", "muerte", False, _check_carne_de_canon),
+    Logro("alma_en_pena", "Alma en pena", "Te ejecutaron 10 veces en total.",
+          "👻", "muerte", False, _check_alma_en_pena),
 
     # Hitos
     Logro("primera_partida", "Primera vez", "Jugaste tu primera partida.",
