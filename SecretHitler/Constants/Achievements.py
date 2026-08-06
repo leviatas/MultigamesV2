@@ -118,6 +118,18 @@ def _check_no_debi_dudar(ctx):
     return primer_intento.get("hitler") == hitler_uid and segundo_intento.get("hitler") != hitler_uid
 
 
+def _check_mvp_una_vez(ctx):
+    return ctx.mvp_count() >= 1
+
+
+def _check_mvp_cinco_veces(ctx):
+    return ctx.mvp_count() >= 5
+
+
+def _check_mvp_mas_de_diez(ctx):
+    return ctx.mvp_count() > 10
+
+
 LOGROS = [
     # Roles y victorias
     Logro("hitler_ganador", "Canciller Supremo", "Ganaste una partida siendo Hitler.",
@@ -168,6 +180,12 @@ LOGROS = [
           "🤖", "social", False, _check_piloto_automatico),
     Logro("me_toco_lo_que_pedi", "Me tocó lo que pedí", "Te tocó el rol que pediste y ganaste.",
           "🎲", "social", False, _check_me_toco_lo_que_pedi),
+    Logro("mvp_una_vez", "MVP", "Te votaron como MVP de la partida.",
+          "🌟", "social", False, _check_mvp_una_vez),
+    Logro("mvp_cinco_veces", "MVP Recurrente", "Te votaron como MVP en 5 partidas.",
+          "🏆", "social", False, _check_mvp_cinco_veces),
+    Logro("mvp_mas_de_diez", "El MVP de Siempre", "Te votaron como MVP en más de 10 partidas.",
+          "💫", "social", False, _check_mvp_mas_de_diez),
 ]
 
 LOGROS_BY_CODE = {logro.code: logro for logro in LOGROS}

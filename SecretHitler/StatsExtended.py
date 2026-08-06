@@ -42,6 +42,8 @@ def save_extended_game_stats(game, game_endcode):
         )
         game_id = cur.fetchone()[0]
 
+        mvp_uid = game.compute_mvp()
+
         for uid, player in game.playerlist.items():
             if player.party == "liberal":
                 won = won_liberal
@@ -51,11 +53,11 @@ def save_extended_game_stats(game, game_endcode):
                 won = False
             cur.execute(
                 "INSERT INTO stats_secret_hitler_players"
-                "(game_id, uid, name, role, party, won, died, killed_by_uid) "
-                "VALUES (%s, %s, %s, %s, %s, %s, %s, %s) "
+                "(game_id, uid, name, role, party, won, died, killed_by_uid, mvp) "
+                "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s) "
                 "ON CONFLICT (game_id, uid) DO NOTHING;",
                 (game_id, uid, player.name, player.role, player.party, won,
-                 player.is_dead, getattr(player, "killed_by_uid", None))
+                 player.is_dead, getattr(player, "killed_by_uid", None), uid == mvp_uid)
             )
 
         nuevos_por_uid = Achievements.evaluate_and_store(cur, game, game_endcode, game_id)

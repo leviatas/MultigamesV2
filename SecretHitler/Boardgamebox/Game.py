@@ -21,7 +21,9 @@ class Game(object):
 		self.tipo = 'SecretHitler'
 		# {guesser_uid: [{"fascists": [uid, ...], "hitler": uid}, ...]} - historial de palpitos de /guess (maximo 2 intentos, el ultimo es definitivo)
 		self.guesses = {}
-    
+		# {voter_uid: voted_uid} - voto de /mvp, uno por jugador, se puede cambiar hasta el fin de la partida
+		self.mvp_votes = {}
+
 	def add_player(self, uid, player):
 		if any([True for k,v in self.playerlist.items() if v.name.strip() == player.name.strip()]):
 			# Pongo al player con su uid
@@ -39,6 +41,21 @@ class Game(object):
 			if self.playerlist[uid].role == "Fascista":
 				fascists.append(self.playerlist[uid])
 		return fascists
+
+	def compute_mvp(self):
+		# Devuelve el uid con mas votos de /mvp, o None si nadie voto o hay empate.
+		votes = getattr(self, "mvp_votes", {})
+		tally = {}
+		for voter_uid, voted_uid in votes.items():
+			if voted_uid in self.playerlist:
+				tally[voted_uid] = tally.get(voted_uid, 0) + 1
+		if not tally:
+			return None
+		max_votes = max(tally.values())
+		top = [uid for uid, count in tally.items() if count == max_votes]
+		if len(top) != 1:
+			return None
+		return top[0]
 
 	def shuffle_player_sequence(self):
 		for uid in self.playerlist:
