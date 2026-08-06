@@ -594,6 +594,7 @@ def choose_kill(update: Update, context: CallbackContext):
         bot.edit_message_text("Has matado a %s!" % chosen.name, callback.from_user.id, callback.message.message_id)
         if chosen.role == "Hitler":
             bot.send_message(game.cid, "El Presidente " + game.board.state.president.name + " ha matado a " + chosen.name + ". ")
+            game.board.state.game_endcode = 2
             end_game(bot, game, 2)
         else:
             bot.send_message(game.cid,
