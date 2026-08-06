@@ -93,6 +93,7 @@ def build_context(cur, game, game_endcode, uid, player):
         auto_ja=getattr(player, "auto_ja", False),
         preference_rol=getattr(player, "preference_rol", ""),
         guess=guess_history[-1] if guess_history else None,
+        guess_history=guess_history,
         hitler_uid=hitler_player.uid if hitler_player else None,
         fascist_uids=frozenset(f.uid for f in game.get_fascists()),
     )
