@@ -21,8 +21,11 @@ class Game(object):
 		self.tipo = 'SecretHitler'
 		# {guesser_uid: [{"fascists": [uid, ...], "hitler": uid}, ...]} - historial de palpitos de /guess (maximo 2 intentos, el ultimo es definitivo)
 		self.guesses = {}
-		# {voter_uid: voted_uid} - voto de /mvp, uno por jugador, se puede cambiar hasta el fin de la partida
+		# {voter_uid: voted_uid} - voto de /mvp, uno por jugador, se puede cambiar hasta que todos hayan votado
 		self.mvp_votes = {}
+		# id de stats_secret_hitler_games para esta partida, seteado por end_game(); lo usa
+		# la finalizacion de /mvp post-partida para actualizar la columna mvp en la fila correcta
+		self.stats_game_id = None
 
 	def add_player(self, uid, player):
 		if any([True for k,v in self.playerlist.items() if v.name.strip() == player.name.strip()]):

@@ -25,10 +25,12 @@ def _connect():
 def save_extended_game_stats(game, game_endcode):
     # Guarda, ademas de lo que ya se guarda hoy, un registro por jugador vinculado a su uid,
     # y evalua/otorga logros nuevos con ese mismo registro ya escrito.
+    # El MVP todavia no se conoce en este punto (se vota despues de que termina la partida,
+    # ver finalize_mvp_stats), asi que la columna mvp arranca en False para todos.
     # No propaga excepciones: un fallo aca nunca debe impedir que end_game() termine su flujo normal.
-    # Devuelve {uid: [Logro nuevo, ...]} (vacio si no hubo logros nuevos, error, o game_endcode==99).
+    # Devuelve ({uid: [Logro nuevo, ...]}, game_id); ({}, None) si error o game_endcode==99.
     if game_endcode == 99:
-        return {}
+        return {}, None
     conn = None
     try:
         won_liberal = game_endcode in (1, 2)
@@ -41,8 +43,6 @@ def save_extended_game_stats(game, game_endcode):
             (game_endcode,)
         )
         game_id = cur.fetchone()[0]
-
-        mvp_uid = game.compute_mvp()
 
         for uid, player in game.playerlist.items():
             if player.party == "liberal":
@@ -57,15 +57,44 @@ def save_extended_game_stats(game, game_endcode):
                 "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s) "
                 "ON CONFLICT (game_id, uid) DO NOTHING;",
                 (game_id, uid, player.name, player.role, player.party, won,
-                 player.is_dead, getattr(player, "killed_by_uid", None), uid == mvp_uid)
+                 player.is_dead, getattr(player, "killed_by_uid", None), False)
             )
 
         nuevos_por_uid = Achievements.evaluate_and_store(cur, game, game_endcode, game_id)
 
         conn.commit()
-        return nuevos_por_uid
+        return nuevos_por_uid, game_id
     except Exception as e:
         log.error("save_extended_game_stats failed: %s" % str(e))
+        return {}, None
+    finally:
+        if conn is not None:
+            conn.close()
+
+
+def finalize_mvp_stats(game):
+    # Se corre una vez que todos los jugadores de la partida ya votaron su /mvp
+    # (post-partida): marca al ganador en su fila de stats y recien ahi evalua
+    # los logros que dependen de mvp_count(), ya con el resultado definitivo de
+    # la votacion. No propaga excepciones.
+    # Devuelve {uid: [Logro nuevo, ...]} (vacio si no hubo, hubo empate, o error).
+    game_id = getattr(game, "stats_game_id", None)
+    mvp_uid = game.compute_mvp()
+    if game_id is None or mvp_uid is None:
+        return {}
+    conn = None
+    try:
+        conn = _connect()
+        cur = conn.cursor()
+        cur.execute(
+            "UPDATE stats_secret_hitler_players SET mvp = TRUE WHERE game_id = %s AND uid = %s;",
+            (game_id, mvp_uid)
+        )
+        nuevos_por_uid = Achievements.evaluate_and_store(cur, game, game.board.state.game_endcode, game_id)
+        conn.commit()
+        return nuevos_por_uid
+    except Exception as e:
+        log.error("finalize_mvp_stats failed: %s" % str(e))
         return {}
     finally:
         if conn is not None:
