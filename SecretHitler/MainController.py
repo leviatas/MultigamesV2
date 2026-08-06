@@ -1317,6 +1317,7 @@ def main():
 	dp.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)\*chooseGameGuess\*(.*)\*(-?[0-9]*)", callback=Commands.callback_guess_game))
 	dp.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)_guessf_(-?[0-9]*)", callback=Commands.callback_guess_fascist))
 	dp.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)_guessh_(-?[0-9]*)", callback=Commands.callback_guess_hitler))
+	dp.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)_guesspred_(-?[0-9]*)", callback=Commands.callback_guess_prediction))
 	dp.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)_guessconfirm", callback=Commands.callback_guess_confirm))
 	dp.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)_guessrestart", callback=Commands.callback_guess_restart))
 	dp.add_handler(CommandHandler("mvp", Commands.command_mvp))
