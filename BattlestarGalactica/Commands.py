@@ -212,24 +212,74 @@ async def command_lealtad(update: Update, context: CallbackContext):
 
 
 async def command_mano(update: Update, context: CallbackContext):
-    """Muestra la mano de habilidad por privado."""
+    """Muestra la mano de habilidad por privado, con un botón por carta:
+    tocarla te dice qué hace. Funciona tanto desde el grupo como escrito
+    directamente por privado al bot."""
     bot = context.bot
-    cid = update.message.chat_id
     uid = update.message.from_user.id
+    cid = update.message.chat_id
+    # Localizar la partida (también funciona desde el privado).
     game = get_game(cid)
-    if not _validar(game):
-        await bot.send_message(cid, "No hay partida de Battlestar Galactica activa aquí.")
-        return
-    if uid not in game.playerlist:
-        await bot.send_message(uid, "No estás en esta partida.")
+    if not (_validar(game) and uid in getattr(game, "playerlist", {})):
+        game = None
+        for g in GamesController.games.values():
+            if getattr(g, "tipo", None) == "BattlestarGalactica" and uid in getattr(g, "playerlist", {}):
+                game = g
+                break
+    if not game or not game.board:
+        await bot.send_message(uid, "No estás en una partida activa de BSG.")
         return
     player = game.playerlist[uid]
     if not player.skill_hand:
         await bot.send_message(uid, "No tienes cartas de habilidad.")
         return
-    lineas = [f"{i+1}. {Skills.EMOJI_COLOR[c['color']]} {c['color']} {c['valor']} — _{c.get('nombre','')}_"
-              for i, c in enumerate(player.skill_hand)]
-    await bot.send_message(uid, "🃏 *Tu mano:*\n" + "\n".join(lineas), parse_mode=ParseMode.MARKDOWN)
+    btns = [[InlineKeyboardButton(
+                f"{i+1}. {Skills.EMOJI_COLOR[c['color']]} {c['color']} {c['valor']} — {c.get('nombre','')}",
+                callback_data=f"{game.cid}*bsgManoCarta*{i}*{uid}")]
+            for i, c in enumerate(player.skill_hand)]
+    await bot.send_message(
+        uid,
+        "🃏 *Tu mano* — tocá una carta para ver qué hace (usá `/aportar N` para aportarla a un chequeo):",
+        reply_markup=InlineKeyboardMarkup(btns), parse_mode=ParseMode.MARKDOWN,
+    )
+
+
+async def callback_bsg_mano_carta(update: Update, context: CallbackContext):
+    """Muestra el efecto de la carta elegida desde /mano."""
+    bot = context.bot
+    callback = update.callback_query
+    presser = callback.from_user.id
+    try:
+        regex = re.search(r"(-?[0-9]*)\*bsgManoCarta\*([0-9]+)\*(-?[0-9]*)", callback.data)
+        cid = int(regex.group(1))
+        idx = int(regex.group(2))
+        ordenante = int(regex.group(3))
+        if presser != ordenante:
+            await callback.answer("Esta no es tu mano.")
+            return
+        game = get_game(cid)
+        if not _validar(game) or presser not in game.playerlist:
+            await callback.answer("Partida no encontrada.")
+            return
+        player = game.playerlist[presser]
+        if idx < 0 or idx >= len(player.skill_hand):
+            await callback.answer("Esa carta ya no está en tu mano.")
+            return
+        c = player.skill_hand[idx]
+        await callback.answer()
+        texto = c.get("texto") or "No tiene un efecto especial: solo suma su valor en un chequeo."
+        await bot.send_message(
+            presser,
+            f"{Skills.EMOJI_COLOR[c['color']]} *{c['color']} {c['valor']} — {c.get('nombre','')}*\n{texto}",
+            parse_mode=ParseMode.MARKDOWN,
+        )
+    except Exception as e:
+        logger.error(f"callback_bsg_mano_carta error: {e}")
+        try:
+            await callback.answer("Error.")
+        except Exception:
+            pass
+        await bot.send_message(ADMIN[0], f"BSG mano carta error: {e}")
 
 
 async def command_jugar(update: Update, context: CallbackContext):
