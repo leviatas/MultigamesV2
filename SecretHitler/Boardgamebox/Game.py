@@ -18,7 +18,9 @@ class Game(object):
 		self.hiddenhistory = []
 		self.is_debugging = False
 		self.groupName = groupName
-		self.tipo = 'SecretHitler'   
+		self.tipo = 'SecretHitler'
+		# {guesser_uid: [{"fascists": [uid, ...], "hitler": uid}, ...]} - historial de palpitos de /guess (maximo 2 intentos, el ultimo es definitivo)
+		self.guesses = {}
     
 	def add_player(self, uid, player):
 		if any([True for k,v in self.playerlist.items() if v.name.strip() == player.name.strip()]):

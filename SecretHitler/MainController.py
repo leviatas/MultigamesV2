@@ -962,6 +962,12 @@ def end_game(bot, game, game_endcode):
 		if game_endcode == 2:
 			bot.send_message(game.cid, "Juego finalizado! Los liberales ganaron matando a Hitler!\n\n%s" % game.print_roles())
 			set_stats("liberalwinkillhitler", stats[4] + 1, bot, cid)
+		try:
+			reveal = Commands.format_guesses_reveal(game)
+			if reveal is not None:
+				bot.send_message(cid, reveal, ParseMode.MARKDOWN)
+		except Exception as e:
+			log.error("No se pudo mostrar los resultados de las adivinanzas: %s" % str(e))
 		showHiddenhistory(bot, game)
 		try:
 			anuncio = Achievements.format_unlock_announcement(nuevos_logros, game)
@@ -1301,6 +1307,12 @@ def main():
 	dp.add_handler(CommandHandler("stats", Commands.command_stats))
 	dp.add_handler(CommandHandler("stats2", Commands.command_stats2))
 	dp.add_handler(CommandHandler("logros", Commands.command_logros))
+	dp.add_handler(CommandHandler("guess", Commands.command_guess))
+	dp.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)\*chooseGameGuess\*(.*)\*(-?[0-9]*)", callback=Commands.callback_guess_game))
+	dp.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)_guessf_(-?[0-9]*)", callback=Commands.callback_guess_fascist))
+	dp.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)_guessh_(-?[0-9]*)", callback=Commands.callback_guess_hitler))
+	dp.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)_guessconfirm", callback=Commands.callback_guess_confirm))
+	dp.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)_guessrestart", callback=Commands.callback_guess_restart))
 	dp.add_handler(CommandHandler("vincularstats", Commands.command_vincularstats))
 	dp.add_handler(CommandHandler("vincularstats2", Commands.command_vincularstats2))
 	dp.add_handler(CommandHandler("newgame", Commands.command_newgame))
@@ -1392,6 +1404,7 @@ def main():
 			BotCommand("stats", "Muestra las estadisticas"),
 			BotCommand("stats2", "Muestra tus estadisticas nuevas vinculadas a tu ID"),
 			BotCommand("logros", "Muestra tus logros desbloqueados"),
+			BotCommand("guess", "Adivina en privado quienes son los fascistas y Hitler"),
 		])
 	except Exception as e:
 		log.error(str(e))
