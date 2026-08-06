@@ -2013,7 +2013,6 @@ def format_guesses_reveal(game):
 	total_fascists = len(fascist_uids)
 
 	liberal_resultados = []  # (score, name, texto) - flujo completo, arma el ranking "mas cerca de la verdad"
-	liberal_scores = {}      # uid -> score, para chequear la prediccion de los fascistas
 	hitler_lineas = []
 	fascista_entries = []    # (predicted_uid, texto)
 
@@ -2050,7 +2049,6 @@ def format_guesses_reveal(game):
 		aciertos_fascistas = [u for u in guessed_fascist_uids if u in fascist_uids]
 		hitler_acierto = guessed_hitler_uid is not None and guessed_hitler_uid == hitler_uid
 		score = len(aciertos_fascistas) + (1 if hitler_acierto else 0)
-		liberal_scores[guesser_uid] = score
 
 		nombres_fascistas = ", ".join(game.playerlist[u].name for u in guessed_fascist_uids) or "nadie"
 		nombre_hitler = game.playerlist[guessed_hitler_uid].name if guessed_hitler_uid in game.playerlist else "nadie"
@@ -2067,12 +2065,11 @@ def format_guesses_reveal(game):
 
 	lineas = ["🔮 *Resultados de las adivinanzas* 🔮\n"]
 
-	mejores_liberales = set()
+	mejores_liberales = game.compute_best_guessers()
 	if liberal_resultados:
 		for _, _, texto in liberal_resultados:
 			lineas.append(texto)
 		max_score = max(r[0] for r in liberal_resultados)
-		mejores_liberales = {u for u, score in liberal_scores.items() if score == max_score}
 		ganadores = [nombre for score, nombre, _ in liberal_resultados if score == max_score]
 		lineas.append("\n🏆 Más cerca de la verdad: *{}* ({} de {} aciertos)".format(
 			", ".join(ganadores), max_score, total_fascists + 1))

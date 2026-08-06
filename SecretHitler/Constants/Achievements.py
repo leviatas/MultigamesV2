@@ -136,6 +136,19 @@ def _check_companeros_de_ideologia(ctx):
     return set(guess.get("fascists", [])) == ctx["fascist_uids"]
 
 
+def _check_prediccion_certera(ctx):
+    # Solo Fascista: el /guess de Fascista predice quien sera el mejor adivinando (los liberales).
+    if ctx["role"] != "Fascista":
+        return False
+    guess = ctx["guess"]
+    if guess is None:
+        return False
+    predicted = guess.get("predicted")
+    if predicted is None:
+        return False
+    return predicted in ctx["best_guessers"]
+
+
 def _check_mvp_una_vez(ctx):
     return ctx.mvp_count() >= 1
 
@@ -168,6 +181,8 @@ LOGROS = [
           "😩", "roles", False, _check_no_debi_dudar),
     Logro("companeros_de_ideologia", "Compañeros de ideología", "Como Hitler, identificaste correctamente a todos tus compañeros fascistas con /guess.",
           "🥸", "roles", False, _check_companeros_de_ideologia),
+    Logro("prediccion_certera", "Ojo fascista", "Como fascista, predijiste correctamente quién sería el jugador que más acertaría con /guess.",
+          "👁️", "roles", False, _check_prediccion_certera),
 
     # Muerte y ejecuciones
     Logro("bala_certera", "Bala certera", "Ejecutaste a Hitler y los liberales ganaron.",
