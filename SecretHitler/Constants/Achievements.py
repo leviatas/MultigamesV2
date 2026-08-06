@@ -97,6 +97,18 @@ def _check_me_toco_lo_que_pedi(ctx):
     return ctx["won"] and ctx["preference_rol"] != "" and ctx["preference_rol"] == ctx["role"]
 
 
+def _check_lo_sabia(ctx):
+    guess = ctx["guess"]
+    return guess is not None and ctx["hitler_uid"] is not None and guess.get("hitler") == ctx["hitler_uid"]
+
+
+def _check_detective(ctx):
+    guess = ctx["guess"]
+    if guess is None:
+        return False
+    return guess.get("hitler") == ctx["hitler_uid"] and set(guess.get("fascists", [])) == ctx["fascist_uids"]
+
+
 LOGROS = [
     # Roles y victorias
     Logro("hitler_ganador", "Canciller Supremo", "Ganaste una partida siendo Hitler.",
@@ -109,6 +121,10 @@ LOGROS = [
           "🔥", "roles", False, _check_regimen_consolidado),
     Logro("actor_completo", "Actor completo", "Ganaste al menos una vez como Liberal, Fascista y Hitler.",
           "🎭", "roles", False, _check_actor_completo),
+    Logro("lo_sabia", "¡Lo sabía!", "Adivinaste correctamente quién era Hitler con /guess.",
+          "🔮", "roles", False, _check_lo_sabia),
+    Logro("detective", "Detective", "Adivinaste correctamente a todos los fascistas y a Hitler con /guess.",
+          "🔍", "roles", False, _check_detective),
 
     # Muerte y ejecuciones
     Logro("bala_certera", "Bala certera", "Ejecutaste a Hitler y los liberales ganaron.",

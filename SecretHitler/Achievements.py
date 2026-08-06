@@ -72,6 +72,10 @@ def build_context(cur, game, game_endcode, uid, player):
         if getattr(p, "killed_by_uid", None) == uid
     ]
 
+    hitler_player = game.get_hitler()
+    # El ultimo intento de /guess (maximo 2) es el definitivo, el que cuenta para logros.
+    guess_history = getattr(game, "guesses", {}).get(uid) or []
+
     return Ctx(
         cur, uid,
         role=player.role,
@@ -88,6 +92,9 @@ def build_context(cur, game, game_endcode, uid, player):
         was_investigated=getattr(player, "was_investigated", False),
         auto_ja=getattr(player, "auto_ja", False),
         preference_rol=getattr(player, "preference_rol", ""),
+        guess=guess_history[-1] if guess_history else None,
+        hitler_uid=hitler_player.uid if hitler_player else None,
+        fascist_uids=frozenset(f.uid for f in game.get_fascists()),
     )
 
 
