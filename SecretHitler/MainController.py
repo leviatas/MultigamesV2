@@ -935,9 +935,10 @@ def end_game(bot, game, game_endcode):
 	
 	# Grabo detalles de la partida
 	nuevos_logros = {}
+	game.stats_game_id = None
 	if game_endcode != 99:
 		save_game_details(bot, game.print_roles(), game_endcode, game.board.state.liberal_track, game.board.state.fascist_track, game.board.num_players)
-		nuevos_logros = StatsExtended.save_extended_game_stats(game, game_endcode)
+		nuevos_logros, game.stats_game_id = StatsExtended.save_extended_game_stats(game, game_endcode)
 
 
 	#bot.send_message(cid, "Datos a guardar %s %s %s %s %s" % (game.print_roles(), str(game_endcode), str(game.board.state.liberal_track), str(game.board.state.fascist_track), str(game.board.num_players)))
@@ -968,12 +969,6 @@ def end_game(bot, game, game_endcode):
 				bot.send_message(cid, reveal, ParseMode.MARKDOWN)
 		except Exception as e:
 			log.error("No se pudo mostrar los resultados de las adivinanzas: %s" % str(e))
-		try:
-			mvp_reveal = Commands.format_mvp_reveal(game)
-			if mvp_reveal is not None:
-				bot.send_message(cid, mvp_reveal, ParseMode.MARKDOWN)
-		except Exception as e:
-			log.error("No se pudo mostrar la votación de MVP: %s" % str(e))
 		showHiddenhistory(bot, game)
 		try:
 			anuncio = Achievements.format_unlock_announcement(nuevos_logros, game)
@@ -981,8 +976,17 @@ def end_game(bot, game, game_endcode):
 				bot.send_message(cid, anuncio, ParseMode.MARKDOWN)
 		except Exception as e:
 			log.error("No se pudo anunciar los logros nuevos: %s" % str(e))
-	del GamesController.games[cid]
-	Commands.delete_game(cid)
+		bot.send_message(cid,
+			"🏅 ¡Ahora podés usar /mvp para votar en privado quién fue el MVP de esta partida! "
+			"Cuando todos los jugadores hayan votado se revela el resultado.")
+
+	if game_endcode == 99:
+		del GamesController.games[cid]
+		Commands.delete_game(cid)
+	else:
+		# La partida sigue viva (en memoria y en BD) hasta que todos voten su /mvp;
+		# recien ahi callback_mvp_vote la termina de borrar.
+		Commands.save_game(cid, game.groupName, game)
 	
 def showHiddenhistory(bot, game):	
 	#game.pedrote = 3

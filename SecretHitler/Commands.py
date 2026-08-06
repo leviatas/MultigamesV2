@@ -1015,6 +1015,9 @@ def load_game(cid):
 			temp_mvp_votes[int(voter_uid)] = int(game.mvp_votes[voter_uid])
 		game.mvp_votes = temp_mvp_votes
 
+		if not hasattr(game, "stats_game_id"):
+			game.stats_game_id = None
+
 		if game.board is not None and game.board.state is not None:
 			temp_last_votes = {}	
 			for uid in game.board.state.last_votes:
@@ -2101,6 +2104,9 @@ def command_mvp(update: Update, context: CallbackContext):
 		if uid not in game.playerlist:
 			bot.send_message(cid, "Debes ser un jugador de la partida para usar /mvp.")
 			return
+		if game.board.state.game_endcode == 0:
+			bot.send_message(cid, "Todavía no terminó la partida. Esperá a que termine para votar al MVP.")
+			return
 		bot.send_message(cid, "Te mandé un mensaje privado para que votes al MVP. ¡Revisa tu chat privado conmigo!")
 		_send_mvp_buttons(bot, game, uid)
 	else:
@@ -2108,10 +2114,10 @@ def command_mvp(update: Update, context: CallbackContext):
 		all_games = {
 			key: "{}: {}".format(game.groupName, game.tipo)
 			for key, game in all_games_unfiltered.items()
-			if uid in game.playerlist and game.board is not None
+			if uid in game.playerlist and game.board is not None and game.board.state.game_endcode != 0
 		}
 		if not all_games:
-			bot.send_message(cid, "No tienes partidas activas de Secret Hitler.")
+			bot.send_message(cid, "No tenés partidas recién terminadas donde votar al MVP.")
 			return
 		if len(all_games) == 1:
 			game_cid = int(next(iter(all_games)))
@@ -2135,11 +2141,17 @@ def callback_mvp_game(update: Update, context: CallbackContext):
 	_send_mvp_buttons(bot, game, uid)
 
 def _send_mvp_buttons(bot, game, uid):
+	if game.board.state.game_endcode == 0:
+		bot.send_message(uid, "Todavía no terminó la partida. Esperá a que termine para votar al MVP.")
+		return
 	strcid = str(game.cid)
 	current_vote = getattr(game, "mvp_votes", {}).get(uid)
 	texto = "🏅 *¿Quién fue el MVP de la partida?*\n(No podés votarte a vos mismo)"
 	if current_vote in game.playerlist:
-		texto += "\n\nVotaste actualmente a: *{}*. Podés cambiarlo eligiendo otro jugador.".format(game.playerlist[current_vote].name)
+		texto += "\n\nVotaste actualmente a: *{}*. Podés cambiarlo eligiendo otro jugador mientras falten votos.".format(game.playerlist[current_vote].name)
+	faltan = [p.name for u, p in game.playerlist.items() if u not in getattr(game, "mvp_votes", {})]
+	if faltan:
+		texto += "\n\nTodavía no votaron: {}".format(", ".join(faltan))
 	btns = []
 	for player_uid, player in game.playerlist.items():
 		if player_uid == uid:
@@ -2167,6 +2179,9 @@ def callback_mvp_vote(update: Update, context: CallbackContext):
 	if uid not in game.playerlist:
 		bot.send_message(uid, "Debes ser un jugador de la partida para votar.")
 		return
+	if game.board.state.game_endcode == 0:
+		bot.send_message(uid, "Todavía no terminó la partida. Esperá a que termine para votar al MVP.")
+		return
 	if candidate_uid == uid:
 		bot.send_message(uid, "No podés votarte a vos mismo como MVP.")
 		return
@@ -2177,12 +2192,44 @@ def callback_mvp_vote(update: Update, context: CallbackContext):
 	if not hasattr(game, "mvp_votes"):
 		game.mvp_votes = {}
 	game.mvp_votes[uid] = candidate_uid
-	save_game(game.cid, game.groupName, game)
+	todos_votaron = len(game.mvp_votes) >= len(game.playerlist)
+	if not todos_votaron:
+		save_game(game.cid, game.groupName, game)
 
 	bot.edit_message_text(
-		"✅ ¡Listo! Votaste a *{}* como MVP de la partida. Podés cambiar tu voto en cualquier momento con /mvp.".format(
-			game.playerlist[candidate_uid].name),
+		"✅ ¡Listo! Votaste a *{}* como MVP de la partida.{}".format(
+			game.playerlist[candidate_uid].name,
+			"" if todos_votaron else " Podés cambiar tu voto en cualquier momento con /mvp mientras falten votos."),
 		chat_id=callback.message.chat_id, message_id=callback.message.message_id, parse_mode=ParseMode.MARKDOWN)
+
+	if todos_votaron:
+		_finalize_mvp(bot, game)
+
+def _finalize_mvp(bot, game):
+	cid = game.cid
+	try:
+		reveal = format_mvp_reveal(game)
+		if reveal is not None:
+			bot.send_message(cid, reveal, ParseMode.MARKDOWN)
+	except Exception as e:
+		log.error("No se pudo mostrar la votación de MVP: %s" % str(e))
+
+	try:
+		nuevos_logros = StatsExtended.finalize_mvp_stats(game)
+	except Exception as e:
+		log.error("No se pudo finalizar las stats de MVP: %s" % str(e))
+		nuevos_logros = {}
+
+	try:
+		anuncio = Achievements.format_unlock_announcement(nuevos_logros, game)
+		if anuncio is not None:
+			bot.send_message(cid, anuncio, ParseMode.MARKDOWN)
+	except Exception as e:
+		log.error("No se pudo anunciar los logros de MVP: %s" % str(e))
+
+	if cid in GamesController.games:
+		del GamesController.games[cid]
+	delete_game(cid)
 
 def format_mvp_reveal(game):
 	votes = getattr(game, "mvp_votes", {})
