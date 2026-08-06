@@ -147,6 +147,30 @@ def evaluate_and_store(cur, game, game_endcode, game_id):
     return nuevos_por_uid
 
 
+def backfill_primera_partida():
+    # Otorga retroactivamente "primera_partida" a todo uid con al menos una
+    # partida registrada que todavia no lo tenga. El check de ese logro paso
+    # de ==1 a >=1 (ver Constants/Achievements.py), pero esa correccion solo
+    # se evalua en la proxima partida de cada jugador; esto lo resuelve ya
+    # mismo para quienes no vuelvan a jugar pronto. game_id queda NULL
+    # porque no esta atado a ninguna partida puntual (uso admin, ver /admin).
+    conn = _connect()
+    try:
+        cur = conn.cursor()
+        cur.execute(
+            "INSERT INTO achievements_secret_hitler_players (uid, achievement_code, game_id) "
+            "SELECT DISTINCT uid, 'primera_partida', NULL "
+            "FROM stats_secret_hitler_players "
+            "ON CONFLICT (uid, achievement_code) DO NOTHING "
+            "RETURNING uid;"
+        )
+        nuevos_uids = [row[0] for row in cur.fetchall()]
+        conn.commit()
+        return nuevos_uids
+    finally:
+        conn.close()
+
+
 def get_unlocked_codes(uid):
     conn = _connect()
     try:

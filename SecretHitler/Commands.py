@@ -458,6 +458,38 @@ def command_vincularstats2(update: Update, context: CallbackContext):
 
 	bot.send_message(cid, "\n".join(resultados))
 
+def command_admin(update: Update, context: CallbackContext):
+	bot = context.bot
+	cid = update.message.chat_id
+	uid = update.message.from_user.id
+	if uid != ADMIN:
+		return
+	btns = [
+		[InlineKeyboardButton("first", callback_data="admin_first")],
+	]
+	markup = InlineKeyboardMarkup(btns)
+	bot.send_message(cid, "🛠 *Panel de administración*", reply_markup=markup, parse_mode=ParseMode.MARKDOWN)
+
+def callback_admin_first(update: Update, context: CallbackContext):
+	bot = context.bot
+	log.info('callback_admin_first called')
+	callback = update.callback_query
+	uid = callback.from_user.id
+	if uid != ADMIN:
+		return
+	try:
+		nuevos_uids = Achievements.backfill_primera_partida()
+	except Exception as e:
+		bot.send_message(uid, "Error al correr el backfill: %s" % str(e))
+		return
+	if nuevos_uids:
+		texto = "✅ Se otorgó *Primera vez* retroactivamente a {} jugador{}.".format(
+			len(nuevos_uids), "" if len(nuevos_uids) == 1 else "es")
+	else:
+		texto = "✅ No había nadie pendiente, todos los que califican ya tenían el logro."
+	bot.edit_message_text(texto, chat_id=callback.message.chat_id, message_id=callback.message.message_id,
+		parse_mode=ParseMode.MARKDOWN)
+
 # help page
 def command_help(update: Update, context: CallbackContext):
 	bot = context.bot
