@@ -3038,7 +3038,7 @@ async def carta_executive_order(bot, game, uid, objetivo_uid):
     st.bonus_moves = 0
     await bot.send_message(
         game.cid,
-        f"📋 {game.playerlist[uid].name} da una *Orden Ejecutiva* a {objetivo.name}, "
+        f"📋 {game.playerlist[uid].name} da una *Orden Ejecutiva* a {player_call(objetivo)}, "
         "que elige cómo usarla.",
         parse_mode=ParseMode.MARKDOWN,
     )
