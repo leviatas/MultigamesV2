@@ -66,7 +66,11 @@ def _check_cazador_de_hitler(ctx):
 
 
 def _check_primera_partida(ctx):
-    return len(ctx.history()) == 1
+    # >=1 (no ==1): si el primer registro de un jugador vino de una migracion
+    # legacy (/vincularstats) o de antes de que existiera este logro, el
+    # momento exacto en que history() valia 1 nunca se evaluo, y con ==1
+    # el logro quedaba inalcanzable para siempre.
+    return len(ctx.history()) >= 1
 
 
 def _check_veterano(ctx):
