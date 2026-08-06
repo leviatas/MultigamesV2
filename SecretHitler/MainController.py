@@ -1327,6 +1327,7 @@ def main():
 	dp.add_handler(CommandHandler("mvp", Commands.command_mvp))
 	dp.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)\*chooseGameMvp\*(.*)\*(-?[0-9]*)", callback=Commands.callback_mvp_game))
 	dp.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)_mvpvote_(-?[0-9]*)", callback=Commands.callback_mvp_vote))
+	dp.add_handler(CommandHandler("end", Commands.command_end))
 	dp.add_handler(CommandHandler("vincularstats", Commands.command_vincularstats))
 	dp.add_handler(CommandHandler("vincularstats2", Commands.command_vincularstats2))
 	dp.add_handler(CommandHandler("newgame", Commands.command_newgame))
@@ -1408,7 +1409,7 @@ def main():
 			BotCommand("board", "Imprime el tablero actual"),
 			BotCommand("history", "Imprime el historial del juego actual"),
 			BotCommand("votes", "Imprime quien ha votado"),
-			BotCommand("calltovote", "Avisa a los jugadores que hay que votar"),
+			BotCommand("calltovote", "Avisa a los jugadores que hay que votar (o el MVP si ya termino)"),
 			BotCommand("retirar", "Retira tu voto de Ja o Nein para volver a votar"),
 			BotCommand("startautoja", "Activa tu voto automático Ja fuera de Zona Hitler"),
 			BotCommand("stopautoja", "Desactiva tu voto automático Ja"),
@@ -1420,6 +1421,7 @@ def main():
 			BotCommand("logros", "Muestra tus logros desbloqueados"),
 			BotCommand("guess", "Adivina en privado quienes son los fascistas y Hitler"),
 			BotCommand("mvp", "Vota en privado al mejor jugador de la partida"),
+			BotCommand("end", "Cierra la votacion de MVP sin esperar a que voten todos"),
 		])
 	except Exception as e:
 		log.error(str(e))
