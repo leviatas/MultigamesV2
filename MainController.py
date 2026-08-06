@@ -831,6 +831,7 @@ def main(stop_event):
 	# Handlers de Battlestar Galactica
 	app.add_handler(CommandHandler("lealtad", BSGCommands.command_lealtad))
 	app.add_handler(CommandHandler("mano", BSGCommands.command_mano))
+	app.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)\*bsgManoCarta\*([0-9]+)\*(-?[0-9]*)", callback=BSGCommands.callback_bsg_mano_carta))
 	app.add_handler(CommandHandler("estado", BSGCommands.command_estado))
 	app.add_handler(CommandHandler("watch", BSGCommands.command_watch))
 	app.add_handler(CommandHandler("mapa", BSGCommands.command_mapa))
