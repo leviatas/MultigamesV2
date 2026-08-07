@@ -41,7 +41,10 @@ class State(BaseState):
         # --- Mazos ---
         self.skill_decks = {}             # color -> lista de cartas
         self.skill_discards = {}          # color -> lista de descartes
-        self.destiny_deck = []            # cartas de destino (mezcla de colores)
+        self.destiny_deck = []            # mazo de Destino de HABILIDAD (secreto, para chequeos; mezcla de colores)
+        self.destination_deck = []        # mazo de Destino de SALTO (Destination Cards): distancia/combustible/efectos
+        self.destination_discard = []
+        self.destino_especial_pendiente = None  # dict {tipo, carta} esperando la decisión opcional del Almirante
         self.crisis_deck = []
         self.crisis_discard = []
         self.crisis_actual = None         # dict de la crisis en curso
