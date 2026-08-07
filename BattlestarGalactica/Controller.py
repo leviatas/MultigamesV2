@@ -3168,6 +3168,28 @@ async def resolver_scout_roll(bot, game, uid):
     return True
 
 
+async def otorgar_resultado_scout(bot, game, uid):
+    """Herramienta de admin: le da a un jugador el resultado de una Sonda
+    exitosa (elegir el mazo de Crisis o de Destino y decidir si la carta de
+    arriba se mantiene o va al fondo), sin tirada ni gasto de Raptor — para
+    cuando la carta no llegó a jugarse en la partida pero corresponde
+    dársela igual. Reusa el mismo paso que sigue a una tirada exitosa real."""
+    st = game.board.state
+    player = game.playerlist[uid]
+    st.play_pending = {"tipo": "scout_deck", "uid": uid}
+    btns = [[InlineKeyboardButton("⚠️ Mazo de Crisis", callback_data=f"{game.cid}*bsgScoutMazo*crisis*{uid}"),
+             InlineKeyboardButton("🔮 Mazo de Destino", callback_data=f"{game.cid}*bsgScoutMazo*destino*{uid}")]]
+    await bot.send_message(
+        game.cid,
+        f"🔭 El admin le da a {player_call(player)} el resultado de una *Sonda exitosa*: puede mirar la carta "
+        f"de arriba del mazo de *Crisis* o de *Destino* y decidir si la deja arriba o la manda al fondo. "
+        f"¿Qué mazo mira?",
+        reply_markup=InlineKeyboardMarkup(btns),
+        parse_mode=ParseMode.MARKDOWN,
+    )
+    await save(bot, game.cid)
+
+
 async def elegir_mazo_scout(bot, game, uid, mazo_key):
     """Elegido el mazo a mirar tras una Sonda exitosa: anuncia la elección en
     público y revela la carta de arriba por privado, con la elección de
