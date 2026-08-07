@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 """
-Mazo de Quórum del JUEGO BASE (hoja "Quorum Cards", Module=B).
+Mazo de Quórum del JUEGO BASE (16 cartas, hoja "Quorum Cards", Module=B).
+Repeticiones: Discurso Inspirador x4, Racionamiento de Comida x2, Orden de
+Arresto x2; el resto de los títulos tiene 1 sola copia.
 
 Cada carta:
   id, titulo, texto (oficial)
@@ -33,7 +35,31 @@ QUORUM_DECK = [
                      "fracaso": [{"tipo": "mensaje", "texto": "El discurso no cala."}]}],
     },
     {
+        "id": "inspirational_speech_3",
+        "titulo": "Discurso Inspirador",
+        "texto": "Tira 1d8: con 6-8, +1 Moral.",
+        "efectos": [{"tipo": "roll", "rango": [6, 8],
+                     "exito": [{"tipo": "recurso", "recurso": "moral", "delta": 1}],
+                     "fracaso": [{"tipo": "mensaje", "texto": "El discurso no cala."}]}],
+    },
+    {
+        "id": "inspirational_speech_4",
+        "titulo": "Discurso Inspirador",
+        "texto": "Tira 1d8: con 6-8, +1 Moral.",
+        "efectos": [{"tipo": "roll", "rango": [6, 8],
+                     "exito": [{"tipo": "recurso", "recurso": "moral", "delta": 1}],
+                     "fracaso": [{"tipo": "mensaje", "texto": "El discurso no cala."}]}],
+    },
+    {
         "id": "food_rationing",
+        "titulo": "Racionamiento de Comida",
+        "texto": "Tira 1d8: con 6-8, +1 Comida.",
+        "efectos": [{"tipo": "roll", "rango": [6, 8],
+                     "exito": [{"tipo": "recurso", "recurso": "comida", "delta": 1}],
+                     "fracaso": [{"tipo": "mensaje", "texto": "El racionamiento no rinde."}]}],
+    },
+    {
+        "id": "food_rationing_2",
         "titulo": "Racionamiento de Comida",
         "texto": "Tira 1d8: con 6-8, +1 Comida.",
         "efectos": [{"tipo": "roll", "rango": [6, 8],
@@ -50,16 +76,13 @@ QUORUM_DECK = [
                      "fracaso": [{"tipo": "mensaje", "texto": "Sin bajas civiles."}]}],
     },
     {
-        "id": "brutal_force_2",
-        "titulo": "Autorización de Fuerza Brutal",
-        "texto": "Destruye 3 Raiders (o 1 centurión). Tira 1d8: con 1-2, -1 Población.",
-        "efectos": [{"tipo": "raiders", "cantidad": -3},
-                    {"tipo": "roll", "rango": [1, 2],
-                     "exito": [{"tipo": "recurso", "recurso": "poblacion", "delta": -1}],
-                     "fracaso": [{"tipo": "mensaje", "texto": "Sin bajas civiles."}]}],
+        "id": "arrest_order",
+        "titulo": "Orden de Arresto",
+        "texto": "Envía a un personaje al Calabozo.",
+        "target_efecto": "brig",
     },
     {
-        "id": "arrest_order",
+        "id": "arrest_order_2",
         "titulo": "Orden de Arresto",
         "texto": "Envía a un personaje al Calabozo.",
         "target_efecto": "brig",
