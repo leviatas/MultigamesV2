@@ -180,6 +180,38 @@ def backfill_primera_partida():
         conn.close()
 
 
+def cleanup_mision_imposible():
+    # Revoca "mision_imposible" a quien lo tenga sin cumplir la regla actual
+    # (ganar Y estar en el mismo equipo que MISION_IMPOSIBLE_UID, sin contar
+    # a esa misma uid). El logro se otorgaba antes solo por compartir
+    # partida con esa uid sin chequear equipo; esto limpia lo mal otorgado
+    # con esa regla vieja. Uso admin, ver /admin.
+    conn = _connect()
+    try:
+        cur = conn.cursor()
+        cur.execute(
+            "DELETE FROM achievements_secret_hitler_players a "
+            "USING stats_secret_hitler_players sp "
+            "WHERE a.achievement_code = 'mision_imposible' "
+            "AND sp.uid = a.uid AND sp.game_id = a.game_id "
+            "AND ("
+            "  a.uid = %(mi_uid)s "
+            "  OR NOT sp.won "
+            "  OR NOT EXISTS ("
+            "    SELECT 1 FROM stats_secret_hitler_players mi "
+            "    WHERE mi.game_id = sp.game_id AND mi.uid = %(mi_uid)s AND mi.party = sp.party"
+            "  )"
+            ") "
+            "RETURNING a.uid;",
+            {"mi_uid": MISION_IMPOSIBLE_UID}
+        )
+        removed_uids = [row[0] for row in cur.fetchall()]
+        conn.commit()
+        return removed_uids
+    finally:
+        conn.close()
+
+
 def get_unlocked_codes(uid):
     conn = _connect()
     try:
