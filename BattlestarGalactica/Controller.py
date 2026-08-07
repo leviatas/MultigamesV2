@@ -847,9 +847,10 @@ def _d8():
 
 
 def _tirar_ataque(st):
-    """Tirada de ataque del bando humano. Aplica las pasivas/cartas que afectan
-    la tirada: Helo 'Oficial ECO' (repite 1/turno y se queda con la mejor) y
-    'Strategic Planning' (Planificación Estratégica, +N armado)."""
+    """Tirada de dado del bando humano (ataques, y también la tirada de la
+    Sonda). Aplica las pasivas/cartas que afectan cualquier tirada: Helo
+    'Oficial ECO' (repite 1/turno y se queda con la mejor) y 'Strategic
+    Planning' (Planificación Estratégica, +N armado)."""
     base = random.randint(1, 8)
     if getattr(st, "reroll_armed", False):
         st.reroll_armed = False
@@ -3038,7 +3039,7 @@ async def carta_executive_order(bot, game, uid, objetivo_uid):
     st.bonus_moves = 0
     await bot.send_message(
         game.cid,
-        f"📋 {game.playerlist[uid].name} da una *Orden Ejecutiva* a {objetivo.name}, "
+        f"📋 {game.playerlist[uid].name} da una *Orden Ejecutiva* a {player_call(objetivo)}, "
         "que elige cómo usarla.",
         parse_mode=ParseMode.MARKDOWN,
     )
@@ -3078,19 +3079,144 @@ async def resolver_executive_order(bot, game, uid, opcion):
     await save(bot, game.cid)
 
 
+async def iniciar_scout(bot, game, uid):
+    """Explorar (Launch Scout): anuncia en público que se arriesga 1 Raptor y
+    abre una ventana para que el resto de jugadores jueguen Planificación
+    Estratégica antes de la tirada. Quien lanzó la Sonda (o un admin) usa
+    /sonda cuando esté listo para tirar."""
+    st = game.board.state
+    player = game.playerlist[uid]
+    st.play_pending = {"tipo": "scout_planning", "uid": uid}
+    otros = [p for p in game.playerlist.values()
+             if p.uid != uid and not p.revealed and not p.en_calabozo]
+    btns = None
+    aviso = ""
+    if otros:
+        menciones = ", ".join(player_call(p) for p in otros)
+        aviso = f"\n\n¿Alguien quiere jugar 📐 *Planificación Estratégica* antes de tirar? {menciones}"
+        btns = [[InlineKeyboardButton("📐 Jugar Planificación Estratégica",
+                                      callback_data=f"{game.cid}*bsgScoutSP*x*0")]]
+    await bot.send_message(
+        game.cid,
+        f"🔭 {player_call(player)} lanza una *Sonda*: arriesga 1 Raptor (quedan {st.raptors_reserva}) "
+        f"y va a tirar el dado.{aviso}\n\n"
+        f"Cuando {player.name} esté listo, usa `/sonda` para tirar.",
+        reply_markup=InlineKeyboardMarkup(btns) if btns else None,
+        parse_mode=ParseMode.MARKDOWN,
+    )
+    await save(bot, game.cid)
+
+
+async def jugar_strategic_planning_reactiva(bot, game, uid):
+    """Un jugador (no el que lanzó la Sonda) juega Planificación Estratégica
+    durante la ventana de aportes previa a la tirada de una Sonda. Devuelve
+    None si se jugó, o un texto de error para mostrarle a quien intentó."""
+    st = game.board.state
+    pp = st.play_pending
+    if not pp or pp.get("tipo") != "scout_planning":
+        return "Ya no se puede jugar Planificación Estratégica para esta Sonda."
+    if uid == pp.get("uid"):
+        return "Sos quien lanzó la Sonda: no podés aportarte a tu propia tirada así."
+    player = game.playerlist.get(uid)
+    if not player or player.revealed or player.en_calabozo:
+        return "No puedes jugar cartas de habilidad ahora."
+    idx = next((i for i, c in enumerate(player.skill_hand) if c.get("nombre") == "Strategic Planning"), None)
+    if idx is None:
+        return "No tienes una carta de Planificación Estratégica."
+    ok = await carta_strategic_planning(bot, game, player)
+    if not ok:
+        return "Ya había una Planificación Estratégica armada."
+    player.skill_hand.pop(idx)
+    await save(bot, game.cid)
+    return None
+
+
+async def resolver_scout_roll(bot, game, uid):
+    """Quien lanzó la Sonda tira el dado (tras la ventana de Planificación
+    Estratégica). 3+: puede mirar la próxima carta de Crisis o de Destino y
+    decidir si la deja arriba o la manda al fondo. Si no: se destruye 1
+    Raptor. Devuelve True si había una Sonda pendiente de este jugador."""
+    st = game.board.state
+    pp = st.play_pending
+    if not pp or pp.get("tipo") != "scout_planning" or pp.get("uid") != uid:
+        return False
+    player = game.playerlist[uid]
+    r = _tirar_ataque(st)   # aplica Planificación Estratégica y la repetición de Helo si están armadas
+    exito = r >= 3
+    await bot.send_message(
+        game.cid,
+        f"🎲 {player_call(player)} tira para la Sonda: *{r}* ({'éxito' if exito else 'fallo'} en 3-8).",
+        parse_mode=ParseMode.MARKDOWN,
+    )
+    if not exito:
+        st.raptors_reserva = max(0, st.raptors_reserva - 1)
+        st.play_pending = None
+        await bot.send_message(game.cid, f"💥 ¡El Raptor es destruido! (quedan {st.raptors_reserva}).")
+        await save(bot, game.cid)
+        return True
+    st.play_pending = {"tipo": "scout_deck", "uid": uid}
+    btns = [[InlineKeyboardButton("⚠️ Mazo de Crisis", callback_data=f"{game.cid}*bsgScoutMazo*crisis*{uid}"),
+             InlineKeyboardButton("🔮 Mazo de Destino", callback_data=f"{game.cid}*bsgScoutMazo*destino*{uid}")]]
+    await bot.send_message(
+        game.cid,
+        f"🔭 ¡Éxito! {player_call(player)} puede mirar la carta de arriba del mazo de *Crisis* o de *Destino* "
+        f"y decidir si la deja arriba o la manda al fondo. ¿Qué mazo mira?",
+        reply_markup=InlineKeyboardMarkup(btns),
+        parse_mode=ParseMode.MARKDOWN,
+    )
+    await save(bot, game.cid)
+    return True
+
+
+async def elegir_mazo_scout(bot, game, uid, mazo_key):
+    """Elegido el mazo a mirar tras una Sonda exitosa: anuncia la elección en
+    público y revela la carta de arriba por privado, con la elección de
+    dejarla arriba o mandarla al fondo (reusa carta_scout_resolve)."""
+    st = game.board.state
+    pp = st.play_pending
+    if not pp or pp.get("tipo") != "scout_deck" or pp.get("uid") != uid:
+        return False
+    player = game.playerlist[uid]
+    etiqueta = "Crisis" if mazo_key == "crisis" else "Destino"
+    mazo = st.crisis_deck if mazo_key == "crisis" else st.destiny_deck
+    await bot.send_message(game.cid, f"🔭 {player_call(player)} decide mirar el mazo de *{etiqueta}*.", parse_mode=ParseMode.MARKDOWN)
+    if not mazo:
+        st.play_pending = None
+        await bot.send_message(game.cid, f"🔭 El mazo de {etiqueta} está vacío: no hay nada que mirar.")
+        await save(bot, game.cid)
+        return True
+    top = mazo[-1]
+    if mazo_key == "crisis":
+        txt = f"🔭 Próxima carta de Crisis: *{top['titulo']}*\n_{top['texto'][:180]}_"
+    else:
+        txt = (f"🔭 Próxima carta de Destino: {Skills.EMOJI_COLOR[top['color']]} "
+               f"{top['color']} {top['valor']} — {top.get('nombre', '')}")
+    st.play_pending = {"tipo": "scout", "uid": uid, "mazo": mazo_key}
+    btns = [[InlineKeyboardButton("⬆️ Mantener arriba", callback_data=f"{game.cid}*bsgJugar*ls_keep*{uid}"),
+             InlineKeyboardButton("⬇️ Enviar al fondo", callback_data=f"{game.cid}*bsgJugar*ls_bottom*{uid}")]]
+    await bot.send_message(player.uid, txt, reply_markup=InlineKeyboardMarkup(btns), parse_mode=ParseMode.MARKDOWN)
+    await save(bot, game.cid)
+    return True
+
+
 async def carta_scout_resolve(bot, game, uid, mantener):
-    """Explorar: mantiene la próxima Crisis arriba o la manda al fondo del mazo."""
+    """Explorar: mantiene arriba o manda al fondo la próxima carta del mazo
+    mirado ('mazo' en play_pending: 'crisis' -por defecto, usado también por
+    la pasiva de Boomer- o 'destino', de la Sonda completa)."""
     st = game.board.state
     pp = st.play_pending
     if not pp or pp.get("tipo") != "scout" or pp.get("uid") != uid:
         return
+    mazo_key = pp.get("mazo", "crisis")
+    mazo = st.crisis_deck if mazo_key == "crisis" else st.destiny_deck
+    etiqueta = "Crisis" if mazo_key == "crisis" else "Destino"
     st.play_pending = None
-    if st.crisis_deck and not mantener:
-        c = st.crisis_deck.pop()         # cima
-        st.crisis_deck.insert(0, c)      # al fondo
-        await bot.send_message(game.cid, "🔭 *Lanzar Sonda*: la próxima Crisis se envía al fondo del mazo.", parse_mode=ParseMode.MARKDOWN)
+    if mazo and not mantener:
+        c = mazo.pop()         # cima
+        mazo.insert(0, c)      # al fondo
+        await bot.send_message(game.cid, f"🔭 *Sonda*: la próxima carta de {etiqueta} se envía al fondo del mazo.", parse_mode=ParseMode.MARKDOWN)
     else:
-        await bot.send_message(game.cid, "🔭 *Lanzar Sonda*: la próxima Crisis se mantiene arriba.", parse_mode=ParseMode.MARKDOWN)
+        await bot.send_message(game.cid, f"🔭 *Sonda*: la próxima carta de {etiqueta} se mantiene arriba.", parse_mode=ParseMode.MARKDOWN)
     await save(bot, game.cid)
 
 

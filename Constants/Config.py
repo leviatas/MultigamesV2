@@ -142,6 +142,7 @@ COMANDOS_JUEGO = {
 		"/aportar N - Aportar la carta N de tu mano a un chequeo (en privado)\n"
 		"/resolver - Resolver el chequeo de habilidad\n"
 		"/jugar - Jugar una carta de habilidad de acción\n"
+		"/sonda - Tirar el dado de una Sonda (Launch Scout) que lanzaste\n"
 		"/quorum - (Presidente) Jugar una carta de Quórum\n"
 		"/habilidad - Usar tu habilidad de una vez por juego\n"
 		"/revelar - (Cylon) Revelarte\n"

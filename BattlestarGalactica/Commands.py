@@ -389,16 +389,12 @@ async def callback_bsg_jugar(update: Update, context: CallbackContext):
                     player.skill_hand.pop(idx - 1)
                 await BSGController.save(bot, cid)
             elif nombre == "Launch Scout":
+                if st.raptors_reserva <= 0:
+                    await bot.send_message(presser, "No quedan Raptors para arriesgar en una Sonda.")
+                    return
                 player.skill_hand.pop(idx - 1)
                 BSGController._consumir_accion(st, presser)
-                st.play_pending = {"tipo": "scout", "uid": presser}
-                await BSGController.save(bot, cid)
-                top = st.crisis_deck[-1] if st.crisis_deck else None
-                txt = (f"🔭 Próxima Crisis: *{top['titulo']}*\n_{top['texto'][:180]}_"
-                       if top else "El mazo de Crisis está vacío.")
-                btns = [[InlineKeyboardButton("⬆️ Mantener arriba", callback_data=f"{cid}*bsgJugar*ls_keep*{presser}"),
-                         InlineKeyboardButton("⬇️ Enviar al fondo", callback_data=f"{cid}*bsgJugar*ls_bottom*{presser}")]]
-                await bot.send_message(presser, txt, reply_markup=InlineKeyboardMarkup(btns), parse_mode=ParseMode.MARKDOWN)
+                await BSGController.iniciar_scout(bot, game, presser)
             elif nombre == "Repair":
                 ok = await BSGController.carta_repair(bot, game, player)
                 if ok:
@@ -1180,6 +1176,86 @@ async def command_resolver(update: Update, context: CallbackContext):
         await bot.send_message(cid, "Solo el Almirante, el jugador activo o un admin pueden resolver.")
         return
     await BSGController.resolver_chequeo(bot, game)
+
+
+async def command_sonda(update: Update, context: CallbackContext):
+    """Quien lanzó una Sonda (o un admin) tira el dado cuando ya no hace
+    falta esperar más aportes de Planificación Estratégica. Funciona tanto
+    desde el grupo como escrito directamente por privado al bot."""
+    bot = context.bot
+    uid = update.message.from_user.id
+    cid = update.message.chat_id
+    game = get_game(cid)
+    if not (_validar(game) and uid in getattr(game, "playerlist", {})):
+        game = None
+        for g in GamesController.games.values():
+            if getattr(g, "tipo", None) == "BattlestarGalactica" and uid in getattr(g, "playerlist", {}):
+                game = g
+                break
+    if not game or not game.board:
+        await bot.send_message(uid, "No estás en una partida activa de BSG.")
+        return
+    st = game.board.state
+    pp = st.play_pending
+    if not pp or pp.get("tipo") != "scout_planning":
+        await bot.send_message(uid, "No hay ninguna Sonda esperando tirada.")
+        return
+    if uid != pp.get("uid") and uid not in ADMIN:
+        await bot.send_message(uid, "Solo quien lanzó la Sonda (o un admin) puede tirar.")
+        return
+    await BSGController.resolver_scout_roll(bot, game, pp["uid"])
+
+
+async def callback_bsg_scout_sp(update: Update, context: CallbackContext):
+    """Un jugador distinto al que lanzó la Sonda juega Planificación
+    Estratégica durante la ventana de aportes, antes de la tirada."""
+    bot = context.bot
+    callback = update.callback_query
+    presser = callback.from_user.id
+    try:
+        regex = re.search(r"(-?[0-9]*)\*bsgScoutSP\*x\*(-?[0-9]*)", callback.data)
+        cid = int(regex.group(1))
+        game = get_game(cid)
+        if not _validar(game):
+            await callback.answer("Partida no encontrada.")
+            return
+        error = await BSGController.jugar_strategic_planning_reactiva(bot, game, presser)
+        await callback.answer(error or "Planificación Estratégica jugada.")
+    except Exception as e:
+        logger.error(f"callback_bsg_scout_sp error: {e}")
+        try:
+            await callback.answer("Error.")
+        except Exception:
+            pass
+        await bot.send_message(ADMIN[0], f"BSG scout sp error: {e}")
+
+
+async def callback_bsg_scout_mazo(update: Update, context: CallbackContext):
+    """Elegido el mazo a mirar tras una Sonda exitosa (Crisis o Destino)."""
+    bot = context.bot
+    callback = update.callback_query
+    presser = callback.from_user.id
+    try:
+        regex = re.search(r"(-?[0-9]*)\*bsgScoutMazo\*(crisis|destino)\*(-?[0-9]*)", callback.data)
+        cid = int(regex.group(1))
+        mazo_key = regex.group(2)
+        ordenante = int(regex.group(3))
+        if presser != ordenante:
+            await callback.answer("Esta elección no es tuya.")
+            return
+        game = get_game(cid)
+        if not _validar(game):
+            await callback.answer("Partida no encontrada.")
+            return
+        await callback.answer()
+        await BSGController.elegir_mazo_scout(bot, game, presser, mazo_key)
+    except Exception as e:
+        logger.error(f"callback_bsg_scout_mazo error: {e}")
+        try:
+            await callback.answer("Error.")
+        except Exception:
+            pass
+        await bot.send_message(ADMIN[0], f"BSG scout mazo error: {e}")
 
 
 async def callback_bsg_cylon(update: Update, context: CallbackContext):

@@ -89,6 +89,7 @@ class State(BaseState):
         self.vipers_reserva = 8
         self.vipers_danados = 0           # Vipers dañados (fuera de combate hasta reparar)
         self.nukes = 2                    # Ojivas Nucleares del Almirante (2 al inicio)
+        self.raptors_reserva = 2          # Raptors disponibles para arriesgar en la Sonda (Launch Scout)
 
         # --- Naves civiles aún no desplegadas (con carga oculta) ---
         self.civiles_pile = []
