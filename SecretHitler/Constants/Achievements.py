@@ -168,7 +168,9 @@ def _check_prediccion_certera(ctx):
 
 
 def _check_mision_imposible(ctx):
-    return ctx["won"] and MISION_IMPOSIBLE_UID in ctx["game_player_uids"]
+    # ctx["mision_imposible_party"] es None si MISION_IMPOSIBLE_UID no jugo
+    # esta partida, o si el jugador evaluado es el mismo MISION_IMPOSIBLE_UID.
+    return ctx["won"] and ctx["mision_imposible_party"] is not None and ctx["mision_imposible_party"] == ctx["party"]
 
 
 def _check_mvp_una_vez(ctx):
@@ -249,7 +251,7 @@ LOGROS = [
           "🏆", "social", False, _check_mvp_cinco_veces),
     Logro("mvp_mas_de_diez", "El MVP de Siempre", "Te votaron como MVP en más de 10 partidas.",
           "💫", "social", False, _check_mvp_mas_de_diez),
-    Logro("mision_imposible", "Misión Imposible", "Ganaste una partida jugando junto a un jugador muy particular.",
+    Logro("mision_imposible", "Misión Imposible", "Ganaste una partida en el mismo equipo que un jugador muy particular.",
           "🕶️", "social", True, _check_mision_imposible),
 ]
 

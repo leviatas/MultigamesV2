@@ -4,7 +4,7 @@ import urllib.parse
 
 import psycopg2
 
-from SecretHitler.Constants.Achievements import LOGROS, LOGROS_BY_CODE, CATEGORIAS, CATEGORIA_TITULOS
+from SecretHitler.Constants.Achievements import LOGROS, LOGROS_BY_CODE, CATEGORIAS, CATEGORIA_TITULOS, MISION_IMPOSIBLE_UID
 
 # DB Connection (mismo patron que StatsExtended.py / MainController.py)
 urllib.parse.uses_netloc.append("postgres")
@@ -88,6 +88,15 @@ def build_context(cur, game, game_endcode, uid, player):
     # El ultimo intento de /guess (maximo 2) es el definitivo, el que cuenta para logros.
     guess_history = getattr(game, "guesses", {}).get(uid) or []
 
+    mision_imposible_player = game.playerlist.get(MISION_IMPOSIBLE_UID)
+    # None si MISION_IMPOSIBLE_UID no jugo esta partida o es este mismo uid
+    # (jugar "con" alguien implica ser otro jugador en su mismo equipo).
+    mision_imposible_party = (
+        mision_imposible_player.party
+        if mision_imposible_player is not None and mision_imposible_player.uid != uid
+        else None
+    )
+
     return Ctx(
         cur, uid,
         role=player.role,
@@ -109,7 +118,7 @@ def build_context(cur, game, game_endcode, uid, player):
         hitler_uid=hitler_player.uid if hitler_player else None,
         fascist_uids=frozenset(f.uid for f in game.get_fascists()),
         best_guessers=frozenset(game.compute_best_guessers()),
-        game_player_uids=frozenset(game.playerlist.keys()),
+        mision_imposible_party=mision_imposible_party,
     )
 
 
