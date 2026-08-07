@@ -2037,6 +2037,8 @@ def callback_guess_confirm(update: Update, context: CallbackContext):
 			return
 		entry = {"fascists": list(progress["fascists"]), "hitler": progress["hitler"]}
 
+	entry["timestamp"] = datetime.datetime.now()
+
 	if not hasattr(game, "guesses"):
 		game.guesses = {}
 	history = list(game.guesses.get(uid, []))
@@ -2045,12 +2047,14 @@ def callback_guess_confirm(update: Update, context: CallbackContext):
 	save_game(game.cid, game.groupName, game)
 	del GamesController.guess_progress[(cid, uid)]
 
+	fecha_registro = entry["timestamp"].strftime("%d/%m/%Y %H:%M")
 	if len(history) >= 2:
 		texto_final = ("✅ ¡Listo! Esta era tu segunda vez, así que tu palpito quedó *definitivo* y ya no se puede cambiar. "
-			"Se revelará al final de la partida quién estuvo más cerca de la verdad.")
+			"Quedó registrado el {}. "
+			"Se revelará al final de la partida quién estuvo más cerca de la verdad.").format(fecha_registro)
 	else:
-		texto_final = ("✅ ¡Listo! Tu palpito quedó guardado. Podés usar /guess una vez más para cambiarlo "
-			"(la segunda vez es definitiva). Se revelará al final de la partida quién estuvo más cerca de la verdad.")
+		texto_final = ("✅ ¡Listo! Tu palpito quedó guardado (registrado el {}). Podés usar /guess una vez más para cambiarlo "
+			"(la segunda vez es definitiva). Se revelará al final de la partida quién estuvo más cerca de la verdad.").format(fecha_registro)
 
 	bot.edit_message_text(texto_final, chat_id=callback.message.chat_id, message_id=callback.message.message_id,
 		parse_mode=ParseMode.MARKDOWN)
@@ -2098,6 +2102,9 @@ def format_guesses_reveal(game):
 		if guesser is None:
 			continue
 		nota_cambio = " _(cambió su palpito una vez)_" if len(history) > 1 else ""
+		timestamp = guess.get("timestamp")
+		nota_fecha = " _({})_".format(timestamp.strftime("%d/%m/%Y %H:%M")) if timestamp else ""
+		nota_cambio += nota_fecha
 
 		if guesser.role == "Hitler":
 			guessed_fascist_uids = [u for u in guess.get("fascists", []) if u in game.playerlist]
@@ -2122,15 +2129,16 @@ def format_guesses_reveal(game):
 
 		aciertos_fascistas = [u for u in guessed_fascist_uids if u in fascist_uids]
 		hitler_acierto = guessed_hitler_uid is not None and guessed_hitler_uid == hitler_uid
-		score = len(aciertos_fascistas) + (1 if hitler_acierto else 0)
+		score = game.compute_guess_score(guess)
 
 		nombres_fascistas = ", ".join(game.playerlist[u].name for u in guessed_fascist_uids) or "nadie"
 		nombre_hitler = game.playerlist[guessed_hitler_uid].name if guessed_hitler_uid in game.playerlist else "nadie"
 
-		texto = "*{}* sospechó de: {} y dijo que Hitler era *{}*{}\n   ↳ Acertó {}/{} fascistas comunes, {} a Hitler".format(
+		texto = "*{}* sospechó de: {} y dijo que Hitler era *{}*{}\n   ↳ Acertó {}/{} fascistas comunes, {} a Hitler ({} pts)".format(
 			guesser.name, nombres_fascistas, nombre_hitler, nota_cambio,
 			len(aciertos_fascistas), total_fascists,
-			"acertó ✅" if hitler_acierto else "no acertó ❌"
+			"acertó ✅" if hitler_acierto else "no acertó ❌",
+			score
 		)
 		liberal_resultados.append((score, guesser.name, texto))
 
@@ -2145,8 +2153,8 @@ def format_guesses_reveal(game):
 			lineas.append(texto)
 		max_score = max(r[0] for r in liberal_resultados)
 		ganadores = [nombre for score, nombre, _ in liberal_resultados if score == max_score]
-		lineas.append("\n🏆 Más cerca de la verdad: *{}* ({} de {} aciertos)".format(
-			", ".join(ganadores), max_score, total_fascists + 1))
+		lineas.append("\n🏆 Más cerca de la verdad: *{}* ({} de {} pts)".format(
+			", ".join(ganadores), max_score, total_fascists + 3))
 
 	if hitler_lineas:
 		lineas.append("")

@@ -60,12 +60,31 @@ class Game(object):
 			return None
 		return top[0]
 
-	def compute_best_guessers(self):
-		# Devuelve el conjunto de uids de Liberales con mas aciertos en el /guess
-		# "completo" (fascistas comunes + Hitler). Vacio si ningun liberal adivino.
+	def compute_guess_score(self, guess):
+		# Puntaje de un palpito "completo" (fascistas comunes + Hitler) de /guess.
+		# +1 por cada acierto de equipo fascista (fascista comun o el propio Hitler),
+		# sin importar si se lo marco en la lista de fascistas o en la casilla de
+		# Hitler; +2 puntos adicionales si se acierta exactamente a Hitler en su casilla.
+		# Compartido entre el ranking de /guess y el texto de revelacion de fin de
+		# partida para que no puedan desincronizarse.
 		hitler = self.get_hitler()
 		hitler_uid = hitler.uid if hitler else None
 		fascist_uids = {f.uid for f in self.get_fascists()}
+		fascist_team_uids = fascist_uids | ({hitler_uid} if hitler_uid is not None else set())
+
+		guessed_fascist_uids = {u for u in guess.get("fascists", []) if u in self.playerlist}
+		guessed_hitler_uid = guess.get("hitler")
+
+		score = len([u for u in guessed_fascist_uids if u in fascist_team_uids])
+		if guessed_hitler_uid in fascist_team_uids:
+			score += 1
+		if guessed_hitler_uid is not None and guessed_hitler_uid == hitler_uid:
+			score += 2
+		return score
+
+	def compute_best_guessers(self):
+		# Devuelve el conjunto de uids de Liberales con mas puntaje en el /guess
+		# "completo" (fascistas comunes + Hitler). Vacio si ningun liberal adivino.
 		guesses = getattr(self, "guesses", {})
 
 		scores = {}
@@ -75,12 +94,7 @@ class Game(object):
 			guesser = self.playerlist.get(guesser_uid)
 			if guesser is None or guesser.role != "Liberal":
 				continue
-			guess = history[-1]
-			guessed_fascist_uids = [u for u in guess.get("fascists", []) if u in self.playerlist]
-			guessed_hitler_uid = guess.get("hitler")
-			aciertos = len([u for u in guessed_fascist_uids if u in fascist_uids])
-			acierto_hitler = 1 if (guessed_hitler_uid is not None and guessed_hitler_uid == hitler_uid) else 0
-			scores[guesser_uid] = aciertos + acierto_hitler
+			scores[guesser_uid] = self.compute_guess_score(history[-1])
 
 		if not scores:
 			return set()
