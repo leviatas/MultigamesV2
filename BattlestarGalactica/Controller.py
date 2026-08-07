@@ -969,10 +969,9 @@ ACCIONES_UBICACION = {
 # Acciones que requieren elegir un personaje objetivo (abren chequeo de ubicación)
 ACCIONES_CON_OBJETIVO = {"brig_check": "brig", "president_check": "president"}
 
-# Acciones que requieren elegir un ÁREA del espacio (Control de Armas) → tipo de nave
-# ("cualquiera" = áreas con cualquier nave Cylon, p. ej. la Ojiva Nuclear).
+# Acciones que requieren elegir un ÁREA del espacio (Control de Armas) → tipo de nave.
 ACCIONES_CON_AREA = {"shoot_raider": "raiders", "shoot_basestar": "basestars",
-                     "launch_nuke": "cualquiera"}
+                     "launch_nuke": "basestars"}
 
 # Acciones disponibles mientras se pilota un Viper tripulado.
 ACCIONES_PILOTO = ["pilot_attack", "pilot_move", "pilot_land"]
@@ -1447,8 +1446,10 @@ async def _lanzar_piloto(bot, game, player, area_idx=None):
 
 
 async def _pilot_atacar(bot, game, player):
-    """El Viper tripulado ataca una nave Cylon de su área (Raider 3+, Heavy 4+,
-    Basestar 6+). Devuelve True si hubo ataque."""
+    """El Viper tripulado ataca una nave Cylon de su área: Raider con 3-8,
+    Heavy Raider/Centurión con 7-8 (tabla de combate oficial). Los Vipers no
+    pueden atacar Basestars (solo Galactica -vía Control de Armas- o una
+    Ojiva Nuclear las dañan). Devuelve True si hubo ataque."""
     st = game.board.state
     i = player.viper_area
     area = st.areas[i]
@@ -1460,18 +1461,14 @@ async def _pilot_atacar(bot, game, player):
         else:
             await bot.send_message(game.cid, f"✈️ Tirada {r}: {player.name} falla contra el Raider.")
     elif area.get("heavy_raiders", 0) > 0:
-        if r >= 4:
+        if r >= 7:
             area["heavy_raiders"] -= 1
             await bot.send_message(game.cid, f"✈️🔫 Tirada {r}: {player.name} derriba un Heavy Raider en {Space.nombre(i)}.")
         else:
             await bot.send_message(game.cid, f"✈️ Tirada {r}: {player.name} falla contra el Heavy Raider.")
-    elif area["basestars"]:
-        if r >= 6:
-            await _danar_basestar(bot, game, i)
-        else:
-            await bot.send_message(game.cid, f"✈️ Tirada {r}: {player.name} no logra dañar la Basestar.")
     else:
-        await bot.send_message(game.cid, "No hay naves Cylon en tu área para atacar.")
+        await bot.send_message(game.cid, "No hay Raiders ni Heavy Raiders en tu área para atacar "
+                                         "(las Basestars solo se dañan desde Galactica o con una Ojiva Nuclear).")
         return False
     return True
 
@@ -1536,47 +1533,48 @@ async def _activar_un_viper(bot, game):
             return
 
 
-def _areas_con_cylons(st):
-    """Áreas del espacio que contienen alguna nave Cylon (Raiders, Heavy Raiders
-    o Basestars)."""
-    return [i for i, a in enumerate(st.areas)
-            if a["raiders"] > 0 or a.get("heavy_raiders", 0) > 0 or a["basestars"]]
-
-
 async def _nuke(bot, game, area_idx=None):
-    """Lanza una Ojiva Nuclear del Almirante sobre un área del espacio: destruye
-    TODAS las naves Cylon de esa área (Raiders, Heavy Raiders y Basestars).
-    Consume 1 Ojiva (hay 2 al inicio de la partida). True si se lanzó."""
+    """Lanza una Ojiva Nuclear del Almirante contra una Basestar de un área
+    del espacio (tabla de combate oficial). Tira 1d8: 1-2 → 2 tokens de daño
+    a la Basestar (no necesariamente la destruye); 3-6 → la Basestar es
+    destruida; 7-8 → destruida y además se destruyen hasta 3 Raiders del
+    área. Consume 1 Ojiva (hay 2 al inicio de la partida). True si se lanzó."""
     st = game.board.state
     if st.nukes <= 0:
         await bot.send_message(game.cid, "☢️ No quedan Ojivas Nucleares.")
         return False
-    objetivos = _areas_con_cylons(st)
+    objetivos = [i for i, a in enumerate(st.areas) if a["basestars"]]
     if not objetivos:
-        await bot.send_message(game.cid, "No hay naves Cylon en el espacio a las que disparar.")
+        await bot.send_message(game.cid, "No hay Basestars en el espacio a las que disparar.")
         return False
     if area_idx is None or area_idx not in objetivos:
         area_idx = objetivos[0]
     st.nukes -= 1
     area = st.areas[area_idx]
-    nb, nr, nh = len(area["basestars"]), area["raiders"], area.get("heavy_raiders", 0)
-    area["basestars"] = []
-    area["raiders"] = 0
-    area["heavy_raiders"] = 0
-    partes = []
-    if nb:
-        partes.append(f"{nb} Basestar(s)")
-    if nr:
-        partes.append(f"{nr} Raider(s)")
-    if nh:
-        partes.append(f"{nh} Heavy Raider(s)")
-    destruidas = ", ".join(partes) if partes else "el área (sin naves)"
-    await bot.send_message(
-        game.cid,
-        f"☢️ *¡OJIVA NUCLEAR sobre {Space.nombre(area_idx)}!* Se destruye(n) {destruidas}. "
-        f"Ojivas restantes: {st.nukes}.",
-        parse_mode=ParseMode.MARKDOWN,
-    )
+    r = _d8()
+    if r <= 2:
+        await bot.send_message(
+            game.cid,
+            f"☢️ *¡OJIVA NUCLEAR sobre una Basestar en {Space.nombre(area_idx)}!* Tirada {r}: 2 tokens de daño.",
+            parse_mode=ParseMode.MARKDOWN,
+        )
+        await _danar_basestar(bot, game, area_idx, cantidad=2)
+    else:
+        k = max(range(len(area["basestars"])), key=lambda j: area["basestars"][j])
+        area["basestars"].pop(k)
+        extra = ""
+        if r >= 7:
+            n = min(3, area["raiders"])
+            area["raiders"] -= n
+            if n:
+                extra = f" y {n} Raider(s)"
+        await bot.send_message(
+            game.cid,
+            f"☢️ *¡OJIVA NUCLEAR sobre una Basestar en {Space.nombre(area_idx)}!* Tirada {r}: "
+            f"¡destruida{extra}!",
+            parse_mode=ParseMode.MARKDOWN,
+        )
+    await bot.send_message(game.cid, f"Ojivas restantes: {st.nukes}.")
     await _chequear_fin(bot, game)
     return True
 

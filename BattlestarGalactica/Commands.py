@@ -729,10 +729,8 @@ async def callback_bsg_accion(update: Update, context: CallbackContext):
             for i, a in enumerate(st.areas):
                 if tipo == "raiders":
                     cant = a["raiders"]
-                elif tipo == "basestars":
+                else:  # "basestars"
                     cant = len(a["basestars"])
-                else:  # "cualquiera": cualquier nave Cylon (Ojiva Nuclear)
-                    cant = a["raiders"] + a.get("heavy_raiders", 0) + len(a["basestars"])
                 if cant > 0:
                     btns.append([InlineKeyboardButton(
                         f"{Space.nombre(i)} ({cant})",
