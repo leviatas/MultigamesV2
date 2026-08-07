@@ -466,6 +466,7 @@ def command_admin(update: Update, context: CallbackContext):
 		return
 	btns = [
 		[InlineKeyboardButton("first", callback_data="admin_first")],
+		[InlineKeyboardButton("cleanup mision imposible", callback_data="admin_cleanup_mision")],
 	]
 	markup = InlineKeyboardMarkup(btns)
 	bot.send_message(cid, "🛠 *Panel de administración*", reply_markup=markup, parse_mode=ParseMode.MARKDOWN)
@@ -487,6 +488,26 @@ def callback_admin_first(update: Update, context: CallbackContext):
 			len(nuevos_uids), "" if len(nuevos_uids) == 1 else "es")
 	else:
 		texto = "✅ No había nadie pendiente, todos los que califican ya tenían el logro."
+	bot.edit_message_text(texto, chat_id=callback.message.chat_id, message_id=callback.message.message_id,
+		parse_mode=ParseMode.MARKDOWN)
+
+def callback_admin_cleanup_mision(update: Update, context: CallbackContext):
+	bot = context.bot
+	log.info('callback_admin_cleanup_mision called')
+	callback = update.callback_query
+	uid = callback.from_user.id
+	if uid != ADMIN:
+		return
+	try:
+		removed_uids = Achievements.cleanup_mision_imposible()
+	except Exception as e:
+		bot.send_message(uid, "Error al correr la limpieza: %s" % str(e))
+		return
+	if removed_uids:
+		texto = "🧹 Se quitó *Misión Imposible* a {} jugador{} que no cumplían la regla correcta.".format(
+			len(removed_uids), "" if len(removed_uids) == 1 else "es")
+	else:
+		texto = "🧹 No había nadie con el logro mal otorgado."
 	bot.edit_message_text(texto, chat_id=callback.message.chat_id, message_id=callback.message.message_id,
 		parse_mode=ParseMode.MARKDOWN)
 
