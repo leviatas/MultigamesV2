@@ -93,7 +93,7 @@ def asegurar_estado(game):
             # porque tanto el mazo como su descarte están vacíos (uno de los
             # dos siempre tiene cartas en una partida que sí lo usó).
             if not st.destination_deck and not st.destination_discard:
-                st.destination_deck = [dict(c) for c in Destinations.DESTINATION_DECK]
+                st.destination_deck = Destinations.construir_mazo_destino()
                 random.shuffle(st.destination_deck)
         for p in list(getattr(game, "playerlist", {}).values()):
             try:
@@ -151,7 +151,7 @@ async def init_game(bot, game):
         # Mazo de Destino de Salto (Destination Cards): se roba al ejecutar un
         # salto FTL. No confundir con el mazo de arriba (destiny_deck), que es
         # de habilidad y sirve para los chequeos.
-        st.destination_deck = [dict(c) for c in Destinations.DESTINATION_DECK]
+        st.destination_deck = Destinations.construir_mazo_destino()
         random.shuffle(st.destination_deck)
         st.destination_discard = []
 
