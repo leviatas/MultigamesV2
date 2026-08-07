@@ -1788,6 +1788,7 @@ async def command_bsgadmin(update: Update, context: CallbackContext):
         [InlineKeyboardButton("🛸 Corregir Raiders en un área", callback_data=f"{cid}*bsgAdmin*fix_raiders*{uid}")],
         [InlineKeyboardButton("🤖 Activar naves Cylon", callback_data=f"{cid}*bsgAdmin*activar_cylon*{uid}")],
         [InlineKeyboardButton("🃏 Quitar carta a un jugador", callback_data=f"{cid}*bsgAdmin*quitar_carta*{uid}")],
+        [InlineKeyboardButton("🔭 Dar resultado de Sonda exitosa", callback_data=f"{cid}*bsgAdmin*dar_scout*{uid}")],
     ]
     await bot.send_message(cid, "🛠️ *Panel de Admin (BSG)* — ¿qué querés corregir?",
                            reply_markup=InlineKeyboardMarkup(btns), parse_mode=ParseMode.MARKDOWN)
@@ -1833,6 +1834,13 @@ async def callback_bsg_admin(update: Update, context: CallbackContext):
                 await bot.send_message(cid, "No hay jugadores en la partida.")
                 return
             texto = "🃏 ¿A qué jugador le querés quitar una carta?"
+        elif opcion == "dar_scout":
+            btns = [[InlineKeyboardButton(p.name, callback_data=f"{cid}*bsgAdminScout*{p_uid}*{presser}")]
+                    for p_uid, p in game.playerlist.items()]
+            if not btns:
+                await bot.send_message(cid, "No hay jugadores en la partida.")
+                return
+            texto = "🔭 ¿A qué jugador le das el resultado de una Sonda exitosa?"
         else:
             return
 
@@ -1968,6 +1976,44 @@ async def callback_bsg_admin_cylon(update: Update, context: CallbackContext):
         except Exception:
             pass
         await bot.send_message(ADMIN[0], f"BSG admin cylon error: {e}")
+
+
+async def callback_bsg_admin_scout(update: Update, context: CallbackContext):
+    """Elegido el jugador: le otorga el resultado de una Sonda exitosa
+    (mirar el mazo de Crisis o de Destino), sin tirada ni gasto de Raptor."""
+    bot = context.bot
+    callback = update.callback_query
+    presser = callback.from_user.id
+    try:
+        regex = re.search(r"(-?[0-9]*)\*bsgAdminScout\*(-?[0-9]*)\*(-?[0-9]*)", callback.data)
+        cid = int(regex.group(1))
+        objetivo = int(regex.group(2))
+        ordenante = int(regex.group(3))
+        game = get_game(cid)
+        if not _validar(game):
+            await callback.answer("Partida no encontrada.")
+            return
+        if presser != ordenante or presser != ADMIN[0]:
+            await callback.answer("No puedes usar este panel.")
+            return
+        p = game.playerlist.get(objetivo)
+        if not p:
+            await callback.answer("Jugador no encontrado.")
+            return
+        await callback.answer()
+        try:
+            await bot.edit_message_text(f"🔭 Dando a {p.name} el resultado de una Sonda exitosa…",
+                                        cid, callback.message.message_id)
+        except Exception:
+            pass
+        await BSGController.otorgar_resultado_scout(bot, game, objetivo)
+    except Exception as e:
+        logger.error(f"callback_bsg_admin_scout error: {e}")
+        try:
+            await callback.answer("Error.")
+        except Exception:
+            pass
+        await bot.send_message(ADMIN[0], f"BSG admin scout error: {e}")
 
 
 async def callback_bsg_admin_carta_jugador(update: Update, context: CallbackContext):
