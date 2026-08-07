@@ -92,6 +92,7 @@ class Board(BaseBoard):
         tripulados = sum(1 for p in game.playerlist.values() if getattr(p, "viper_area", None) is not None)
         board += (f"✈️ Vipers (espacio/tripulados/reserva/dañados): "
                   f"{st.total_vipers_espacio()}/{tripulados}/{st.vipers_reserva}/{st.vipers_danados}\n")
+        board += f"🔭 Raptors en reserva (para Sonda): {getattr(st, 'raptors_reserva', 0)}\n"
         board += (f"👾 Raiders: {st.total_raiders()}   🚁 Heavy Raiders: {st.total_heavy_raiders()}   "
                   f"🛸 Basestars: {st.total_basestars()}\n")
         board += f"🛰️ Naves civiles: {st.total_civiles()}\n"
