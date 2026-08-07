@@ -168,7 +168,7 @@ def backfill_primera_partida():
         cur = conn.cursor()
         cur.execute(
             "INSERT INTO achievements_secret_hitler_players (uid, achievement_code, game_id) "
-            "SELECT DISTINCT uid, 'primera_partida', NULL "
+            "SELECT DISTINCT uid, 'primera_partida', NULL::integer "
             "FROM stats_secret_hitler_players "
             "ON CONFLICT (uid, achievement_code) DO NOTHING "
             "RETURNING uid;"
