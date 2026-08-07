@@ -442,6 +442,14 @@ def enact_policy(bot, game, policy, anarchy):
 	if not anarchy:
 		bot.send_message(game.cid, "El Presidente %s y el Canciller %s promulgaron una política %s!" % (game.board.state.president.name, game.board.state.chancellor.name, policy))
 		game.history.append("El Presidente %s y el Canciller %s promulgaron una política %s!" % (game.board.state.president.name, game.board.state.chancellor.name, policy))
+		if not hasattr(game, "formula_history"):
+			game.formula_history = []
+		game.formula_history.append({
+			"round": game.board.state.currentround,
+			"president_uid": game.board.state.president.uid,
+			"chancellor_uid": game.board.state.chancellor.uid,
+			"policy": policy,
+		})
 	else:
 		bot.send_message(game.cid, "La política en la cima del mazo ha sido promulgada y es %s" % policy)
 		game.history.append("La política en la cima del mazo ha sido promulgada y es %s" % policy)

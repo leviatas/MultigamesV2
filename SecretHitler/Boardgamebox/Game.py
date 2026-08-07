@@ -26,6 +26,11 @@ class Game(object):
 		# id de stats_secret_hitler_games para esta partida, seteado por end_game(); lo usa
 		# la finalizacion de /mvp post-partida para actualizar la columna mvp en la fila correcta
 		self.stats_game_id = None
+		# [{"round": int, "president_uid": uid, "chancellor_uid": uid, "policy": "liberal"|"fascista"}, ...]
+		# una entrada por cada formula (presidente+canciller) que efectivamente promulgo una politica
+		# (no incluye promulgaciones por anarquia, que no fueron votadas). Fines estadisticos / futuros logros;
+		# se vuelca a stats_secret_hitler_formulas en StatsExtended.save_extended_game_stats().
+		self.formula_history = []
 
 	def add_player(self, uid, player):
 		if any([True for k,v in self.playerlist.items() if v.name.strip() == player.name.strip()]):

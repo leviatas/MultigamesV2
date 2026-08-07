@@ -85,6 +85,23 @@ CREATE TABLE IF NOT EXISTS achievements_secret_hitler_players (
 );
 CREATE INDEX IF NOT EXISTS idx_achievements_shp_uid ON achievements_secret_hitler_players(uid);
 
+-- Una fila por cada formula (presidente+canciller) que efectivamente promulgo una
+-- politica (no incluye promulgaciones por anarquia, que no fueron votadas). Fines
+-- estadisticos y posible base para futuros logros. Ver Game.formula_history y
+-- StatsExtended.save_extended_game_stats().
+CREATE TABLE IF NOT EXISTS stats_secret_hitler_formulas (
+    id SERIAL PRIMARY KEY,
+    game_id INTEGER NOT NULL REFERENCES stats_secret_hitler_games(id),
+    round INTEGER NOT NULL,
+    president_uid BIGINT NOT NULL,
+    chancellor_uid BIGINT NOT NULL,
+    policy TEXT NOT NULL, -- 'liberal' o 'fascista'
+    created_at TIMESTAMP DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_stats_shf_game_id ON stats_secret_hitler_formulas(game_id);
+CREATE INDEX IF NOT EXISTS idx_stats_shf_president_uid ON stats_secret_hitler_formulas(president_uid);
+CREATE INDEX IF NOT EXISTS idx_stats_shf_chancellor_uid ON stats_secret_hitler_formulas(chancellor_uid);
+
 -- If there are no stats in the stats table I initiate it.
 DO $$
 BEGIN 

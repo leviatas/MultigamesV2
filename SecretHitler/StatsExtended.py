@@ -60,6 +60,14 @@ def save_extended_game_stats(game, game_endcode):
                  player.is_dead, getattr(player, "killed_by_uid", None), False)
             )
 
+        for entry in getattr(game, "formula_history", []):
+            cur.execute(
+                "INSERT INTO stats_secret_hitler_formulas"
+                "(game_id, round, president_uid, chancellor_uid, policy) "
+                "VALUES (%s, %s, %s, %s, %s);",
+                (game_id, entry["round"], entry["president_uid"], entry["chancellor_uid"], entry["policy"])
+            )
+
         nuevos_por_uid = Achievements.evaluate_and_store(cur, game, game_endcode, game_id)
 
         conn.commit()
