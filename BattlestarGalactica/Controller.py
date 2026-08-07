@@ -66,7 +66,7 @@ from telegram.ext import CallbackContext
 from Utils import get_game, save, simple_choose_buttons, player_call
 from Constants.Config import ADMIN
 from BattlestarGalactica.Boardgamebox.Game import Game
-from BattlestarGalactica.Constants import Characters, Locations, Skills, Crisis, Loyalty, Quorum, Space
+from BattlestarGalactica.Constants import Characters, Locations, Skills, Crisis, Loyalty, Quorum, Space, Destinations
 
 import GamesController
 
@@ -89,6 +89,12 @@ def asegurar_estado(game):
             for k, v in ref.__dict__.items():
                 if not hasattr(st, k):
                     setattr(st, k, copy.deepcopy(v))
+            # Partida vieja que nunca tuvo mazo de Destino de Salto: se nota
+            # porque tanto el mazo como su descarte están vacíos (uno de los
+            # dos siempre tiene cartas en una partida que sí lo usó).
+            if not st.destination_deck and not st.destination_discard:
+                st.destination_deck = [dict(c) for c in Destinations.DESTINATION_DECK]
+                random.shuffle(st.destination_deck)
         for p in list(getattr(game, "playerlist", {}).values()):
             try:
                 refp = type(p)(p.name, p.uid)
@@ -141,6 +147,13 @@ async def init_game(bot, game):
         st.crisis_deck = [dict(c) for c in Crisis.CRISIS_DECK]
         random.shuffle(st.crisis_deck)
         st.crisis_discard = []
+
+        # Mazo de Destino de Salto (Destination Cards): se roba al ejecutar un
+        # salto FTL. No confundir con el mazo de arriba (destiny_deck), que es
+        # de habilidad y sirve para los chequeos.
+        st.destination_deck = [dict(c) for c in Destinations.DESTINATION_DECK]
+        random.shuffle(st.destination_deck)
+        st.destination_discard = []
 
         # Mazo de súper crisis (para Cylons revelados)
         st.super_crisis_deck = [dict(c) for c in Crisis.SUPER_CRISIS_DECK]
@@ -3200,7 +3213,7 @@ async def elegir_mazo_scout(bot, game, uid, mazo_key):
         return False
     player = game.playerlist[uid]
     etiqueta = "Crisis" if mazo_key == "crisis" else "Destino"
-    mazo = st.crisis_deck if mazo_key == "crisis" else st.destiny_deck
+    mazo = st.crisis_deck if mazo_key == "crisis" else st.destination_deck
     await bot.send_message(game.cid, f"🔭 {player_call(player)} decide mirar el mazo de *{etiqueta}*.", parse_mode=ParseMode.MARKDOWN)
     if not mazo:
         st.play_pending = None
@@ -3211,8 +3224,8 @@ async def elegir_mazo_scout(bot, game, uid, mazo_key):
     if mazo_key == "crisis":
         txt = f"🔭 Próxima carta de Crisis: *{top['titulo']}*\n_{top['texto'][:180]}_"
     else:
-        txt = (f"🔭 Próxima carta de Destino: {Skills.EMOJI_COLOR[top['color']]} "
-               f"{top['color']} {top['valor']} — {top.get('nombre', '')}")
+        txt = (f"🔭 Próxima carta de Destino: *{top['titulo']}* "
+               f"(distancia {top['distancia']}, combustible {top['combustible']:+d})")
     st.play_pending = {"tipo": "scout", "uid": uid, "mazo": mazo_key}
     btns = [[InlineKeyboardButton("⬆️ Mantener arriba", callback_data=f"{game.cid}*bsgJugar*ls_keep*{uid}"),
              InlineKeyboardButton("⬇️ Enviar al fondo", callback_data=f"{game.cid}*bsgJugar*ls_bottom*{uid}")]]
@@ -3230,7 +3243,7 @@ async def carta_scout_resolve(bot, game, uid, mantener):
     if not pp or pp.get("tipo") != "scout" or pp.get("uid") != uid:
         return
     mazo_key = pp.get("mazo", "crisis")
-    mazo = st.crisis_deck if mazo_key == "crisis" else st.destiny_deck
+    mazo = st.crisis_deck if mazo_key == "crisis" else st.destination_deck
     etiqueta = "Crisis" if mazo_key == "crisis" else "Destino"
     st.play_pending = None
     if mazo and not mantener:
@@ -3903,22 +3916,163 @@ async def modificar_recurso(bot, game, recurso, delta):
 
 # ===================== SALTO / SLEEPER =====================
 
+async def _robar_destino_salto(st):
+    """Roba la carta de arriba del mazo de Destino de Salto (Destination
+    Cards), rebarajando el descarte si hace falta. None si no hay ninguna."""
+    if not st.destination_deck:
+        st.destination_deck = st.destination_discard
+        st.destination_discard = []
+        random.shuffle(st.destination_deck)
+    if not st.destination_deck:
+        return None
+    return st.destination_deck.pop()
+
+
+async def _aplicar_efectos_destino(bot, game, efectos):
+    """Efectos automáticos de una carta de Destino de Salto: subconjunto de
+    los de Crisis (mismos helpers de bajo nivel), más 'raptor'."""
+    st = game.board.state
+    for ef in efectos or []:
+        tipo = ef.get("tipo")
+        if tipo == "recurso":
+            await modificar_recurso(bot, game, ef["recurso"], ef["delta"])
+        elif tipo == "destruir_civil":
+            await _destruir_civil(bot, game)
+        elif tipo == "raptor":
+            st.raptors_reserva = max(0, st.raptors_reserva + ef["delta"])
+            await bot.send_message(game.cid, f"🚀 Se pierde 1 Raptor en el salto (quedan {st.raptors_reserva}).")
+        elif tipo == "basestar":
+            for _ in range(ef["cantidad"]):
+                st.areas[Space.AREA_PROA]["basestars"].append(0)
+            await bot.send_message(game.cid, f"🛸 Aparece(n) {ef['cantidad']} Basestar(s) en {Space.nombre(Space.AREA_PROA)}.")
+        elif tipo == "raiders":
+            st.areas[Space.AREA_PROA]["raiders"] += ef["cantidad"]
+            await bot.send_message(game.cid, f"👾 Aparecen {ef['cantidad']} Raiders en {Space.nombre(Space.AREA_PROA)}.")
+        elif tipo == "civiles":
+            n = _colocar_civiles(st, ef.get("cantidad", 1))
+            await bot.send_message(game.cid, f"🛰️ Aparece(n) {n} nave(s) civil(es) tras Galactica.")
+
+
+async def _ofrecer_destino_especial(bot, game, carta):
+    """Si la carta de Destino trae una decisión opcional del Almirante
+    (reparar en Ragnar, o arriesgar Vipers/un Raptor por una tirada), la
+    ofrece con botones públicos."""
+    especial = carta.get("especial")
+    if not especial:
+        return
+    st = game.board.state
+    st.destino_especial_pendiente = {"tipo": especial, "carta": carta["titulo"]}
+    btns = [[InlineKeyboardButton("✅ Sí", callback_data=f"{game.cid}*bsgDestinoEsp*si*{st.almirante_uid or 0}"),
+             InlineKeyboardButton("❌ No", callback_data=f"{game.cid}*bsgDestinoEsp*no*{st.almirante_uid or 0}")]]
+    await bot.send_message(
+        game.cid,
+        f"📍 *{carta['titulo']}*: {carta.get('especial_texto', '')}\n¿El Almirante lo usa?",
+        reply_markup=InlineKeyboardMarkup(btns),
+        parse_mode=ParseMode.MARKDOWN,
+    )
+
+
+async def resolver_destino_especial(bot, game, presser_uid, quiere):
+    """Resuelve la decisión opcional del Almirante ofrecida tras un salto
+    (Ragnar Anchorage / Cylon Refinery / Icy Moon / Tylium Planet). Devuelve
+    un texto de error para mostrarle a quien presionó, o None si se resolvió."""
+    st = game.board.state
+    pend = st.destino_especial_pendiente
+    if not pend:
+        return "Ya no hay ninguna decisión de Destino pendiente."
+    if presser_uid != st.almirante_uid and presser_uid != ADMIN[0]:
+        return "Solo el Almirante puede decidir esto."
+    st.destino_especial_pendiente = None
+    tipo = pend["tipo"]
+    if not quiere:
+        await bot.send_message(game.cid, f"📍 El Almirante no usa la opción de *{pend['carta']}*.", parse_mode=ParseMode.MARKDOWN)
+        await save(bot, game.cid)
+        return None
+
+    if tipo == "ragnar":
+        rep_v = min(3, st.vipers_danados)
+        st.vipers_danados -= rep_v
+        st.vipers_reserva += rep_v
+        st.raptors_reserva += 1
+        await bot.send_message(
+            game.cid,
+            f"🔧 *Ragnar Anchorage*: se reparan {rep_v} Viper(s) y 1 Raptor "
+            f"(Vipers dañados: {st.vipers_danados}, Raptors: {st.raptors_reserva}).",
+            parse_mode=ParseMode.MARKDOWN,
+        )
+    elif tipo == "cylon_refinery":
+        if st.vipers_reserva < 2:
+            await bot.send_message(game.cid, "🎲 No hay 2 Vipers en la reserva para arriesgar en la Refinería Cylon.")
+            await save(bot, game.cid)
+            return None
+        st.vipers_reserva -= 2
+        r = _d8()
+        if r <= 5:
+            st.vipers_danados += 2
+            await bot.send_message(game.cid, f"🎲 *Refinería Cylon*: tirada {r} — los 2 Vipers se dañan (dañados: {st.vipers_danados}).", parse_mode=ParseMode.MARKDOWN)
+        else:
+            st.vipers_reserva += 2
+            await modificar_recurso(bot, game, "combustible", 2)
+            await bot.send_message(game.cid, f"🎲 *Refinería Cylon*: tirada {r} — los Vipers vuelven ilesos.", parse_mode=ParseMode.MARKDOWN)
+    elif tipo == "icy_moon":
+        if st.raptors_reserva < 1:
+            await bot.send_message(game.cid, "🎲 No hay Raptors disponibles para arriesgar en la Luna Helada.")
+            await save(bot, game.cid)
+            return None
+        r = _d8()
+        if r <= 2:
+            st.raptors_reserva -= 1
+            await bot.send_message(game.cid, f"🎲 *Luna Helada*: tirada {r} — se pierde el Raptor (quedan {st.raptors_reserva}).", parse_mode=ParseMode.MARKDOWN)
+        else:
+            await modificar_recurso(bot, game, "comida", 1)
+            await bot.send_message(game.cid, f"🎲 *Luna Helada*: tirada {r} — el Raptor vuelve con provisiones.", parse_mode=ParseMode.MARKDOWN)
+    elif tipo == "tylium_planet":
+        if st.raptors_reserva < 1:
+            await bot.send_message(game.cid, "🎲 No hay Raptors disponibles para arriesgar en el Planeta de Tylium.")
+            await save(bot, game.cid)
+            return None
+        r = _d8()
+        if r <= 2:
+            st.raptors_reserva -= 1
+            await bot.send_message(game.cid, f"🎲 *Planeta de Tylium*: tirada {r} — se pierde el Raptor (quedan {st.raptors_reserva}).", parse_mode=ParseMode.MARKDOWN)
+        else:
+            await modificar_recurso(bot, game, "combustible", 2)
+            await bot.send_message(game.cid, f"🎲 *Planeta de Tylium*: tirada {r} — el Raptor vuelve con Tylium.", parse_mode=ParseMode.MARKDOWN)
+    await _chequear_fin(bot, game)
+    await save(bot, game.cid)
+    return None
+
+
 async def ejecutar_salto(bot, game, auto=False):
     st = game.board.state
     st.jump_prep = 0
-    # La carta de destino del salto avanza 1 o 2 unidades de distancia.
-    avance = random.choice([1, 1, 2])
-    # Poder presidencial "Especialista de Misión": elige el destino (mejor avance)
-    # en este salto y luego cesa en el cargo.
+    st.destino_especial_pendiente = None   # una carta nueva reemplaza cualquier oferta anterior sin resolver
+
+    carta = await _robar_destino_salto(st)
+    # Poder presidencial "Especialista de Misión": mira las 2 cartas de arriba
+    # y se queda con la de mayor distancia (la otra vuelve al descarte); luego
+    # cesa en el cargo.
     esp = game.playerlist.get(st.especialista_uid)
-    if esp:
-        avance = 2
+    if esp and carta:
+        carta2 = await _robar_destino_salto(st)
+        if carta2:
+            peor, mejor = (carta, carta2) if carta["distancia"] <= carta2["distancia"] else (carta2, carta)
+            st.destination_discard.append(peor)
+            carta = mejor
         st.especialista_uid = None
         await bot.send_message(
             game.cid,
-            f"🧭 *{esp.name}* (Especialista de Misión) guía el salto y elige el mejor destino.",
+            f"🧭 *{esp.name}* (Especialista de Misión) guía el salto: mira 2 Destinos y elige *{carta['titulo']}* "
+            f"(distancia {carta['distancia']}).",
             parse_mode=ParseMode.MARKDOWN,
         )
+
+    if carta:
+        avance = carta["distancia"]
+        st.destination_discard.append(carta)
+    else:
+        # No debería pasar (el descarte se rebaraja solo), pero por las dudas.
+        avance = random.choice([1, 1, 2])
     st.distancia = min(st.objetivo_distancia, st.distancia + avance)
 
     # Tras el salto: las naves Cylon no siguen a la flota; los Vipers regresan a
@@ -3939,15 +4093,34 @@ async def ejecutar_salto(bot, game, auto=False):
             st.vipers_reserva += 1
 
     etiqueta = "AUTOMÁTICO" if auto else "FTL"
-    await bot.send_message(
-        game.cid,
-        f"🌌 *¡SALTO {etiqueta}!* La flota avanza y deja atrás a los Cylons. "
-        f"Distancia: *{st.distancia}/{st.objetivo_distancia}*.",
-        parse_mode=ParseMode.MARKDOWN,
-    )
+    if carta:
+        await bot.send_message(
+            game.cid,
+            f"🌌 *¡SALTO {etiqueta}!* Destino: *{carta['titulo']}* (distancia +{carta['distancia']}, "
+            f"combustible {carta['combustible']:+d}). La flota avanza y deja atrás a los Cylons. "
+            f"Distancia: *{st.distancia}/{st.objetivo_distancia}*.",
+            parse_mode=ParseMode.MARKDOWN,
+        )
+        if carta.get("combustible"):
+            await modificar_recurso(bot, game, "combustible", carta["combustible"])
+        await _aplicar_efectos_destino(bot, game, carta.get("efectos"))
+        if await _chequear_fin(bot, game):
+            return
+        await _ofrecer_destino_especial(bot, game, carta)
+    else:
+        await bot.send_message(
+            game.cid,
+            f"🌌 *¡SALTO {etiqueta}!* La flota avanza y deja atrás a los Cylons. "
+            f"Distancia: *{st.distancia}/{st.objetivo_distancia}*.",
+            parse_mode=ParseMode.MARKDOWN,
+        )
+
+    if await _chequear_fin(bot, game):
+        return
     # Fase del Agente Durmiente
     if not st.sleeper_hecho and st.distancia >= Loyalty.DISTANCIA_SLEEPER:
         await fase_durmiente(bot, game)
+    await save(bot, game.cid)
 
 
 async def fase_durmiente(bot, game):
