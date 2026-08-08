@@ -291,7 +291,7 @@ async def finalizar_setup(bot, game):
         for _ in range(cantidad):
             if st.loyalty_deck:
                 player.loyalty_cards.append(st.loyalty_deck.pop())
-        player.is_cylon = Loyalty.CYLON in player.loyalty_cards
+        player.is_cylon = any(Loyalty.es_cylon(c) for c in player.loyalty_cards)
         await _dm_lealtad(bot, player)
 
     # El Simpatizante entra al mazo restante (partidas de 4 y 6 jugadores).
@@ -445,7 +445,7 @@ async def _robar_carta_color(bot, game, player, color, anunciar=True):
 
 async def _dm_lealtad(bot, player):
     cartas = player.loyalty_cards
-    es_cylon = Loyalty.CYLON in cartas
+    es_cylon = any(Loyalty.es_cylon(c) for c in cartas)
     es_simp = Loyalty.SIMPATIZANTE in cartas
     detalle = "\n".join(f"• {Loyalty.NOMBRE_CARTA.get(c, c)}" for c in cartas)
     txt = f"🃏 *Tus cartas de lealtad ({len(cartas)}):*\n{detalle}\n\n"
@@ -2015,6 +2015,53 @@ ETIQUETA_ACCION_CYLON = {
 }
 
 
+async def _activar_poder_lealtad(bot, game, player):
+    """Poder de un solo uso de la variante específica de carta de lealtad
+    Cylon del jugador (Loyalty.CYLON_VARIANTES), disparado justo al
+    revelarse: enviar a alguien a la Enfermería o al Calabozo (elección),
+    reducir la Moral en 1, o dañar Galactica una vez. No hace nada si el
+    jugador no tiene ninguna de esas variantes (p. ej. Simpatizante)."""
+    st = game.board.state
+    variante = next((c for c in player.loyalty_cards if c in Loyalty.CYLON_VARIANTES), None)
+    if not variante:
+        return
+    accion = Loyalty.PODER_POR_VARIANTE[variante]
+    if accion == "moral":
+        await bot.send_message(game.cid, f"🤖 Poder de lealtad de *{player.name}*: reduce la Moral en 1.", parse_mode=ParseMode.MARKDOWN)
+        await modificar_recurso(bot, game, "moral", -1)
+        return
+    if accion == "galactica":
+        await bot.send_message(game.cid, f"🤖 Poder de lealtad de *{player.name}*: daña Galactica.", parse_mode=ParseMode.MARKDOWN)
+        await _danar_galactica(bot, game, fuente="lealtad")
+        return
+    # sickbay / brig: elegir un objetivo (opcional), salvo que ya haya otra
+    # elección de objetivo en curso (no se pisa).
+    if st.target_select is not None:
+        await bot.send_message(game.cid, f"🤖 {player.name} no pudo usar su poder de lealtad justo ahora "
+                                         "(hay otra elección de objetivo en curso).")
+        return
+    candidatos = _candidatos_objetivo(game, player, "todos")
+    if not candidatos:
+        return
+    etiqueta, emoji = _ETIQUETA_ACCION_OBJETIVO.get(accion, (accion, "🎯"))
+    st.target_select = {
+        "chooser": player.uid,
+        "accion": accion,
+        "candidatos": [p.uid for p in candidatos],
+        "restantes": [],
+        "opcional": True,
+    }
+    btns = [[InlineKeyboardButton(p.name, callback_data=f"{game.cid}*bsgCrisisTgt*{p.uid}*{player.uid}")]
+            for p in candidatos]
+    btns.append([InlineKeyboardButton("✋ No elegir a nadie", callback_data=f"{game.cid}*bsgCrisisTgt*none*{player.uid}")])
+    await bot.send_message(
+        game.cid,
+        f"{emoji} Poder de lealtad: {player_call(player)} puede *{etiqueta}* a un personaje (opcional):",
+        reply_markup=InlineKeyboardMarkup(btns),
+        parse_mode=ParseMode.MARKDOWN,
+    )
+
+
 async def revelar_cylon(bot, game, uid, con_super_crisis=True):
     """Un jugador con carta de Cylon se revela y desata su poder.
     con_super_crisis=False para el Simpatizante (se une a los Cylons pero no
@@ -2052,6 +2099,10 @@ async def revelar_cylon(bot, game, uid, con_super_crisis=True):
         f"🤖 *¡{player.name} se revela como CYLON!* Se traslada a la Flota Cylon.",
         parse_mode=ParseMode.MARKDOWN,
     )
+
+    # Poder de un solo uso de su variante específica de carta de lealtad
+    # (Enfermería/Calabozo/Moral/Galactica), si tiene una.
+    await _activar_poder_lealtad(bot, game, player)
 
     # Roba una Súper Crisis a su mano (la jugará desde Caprica)
     if not con_super_crisis:
@@ -4138,7 +4189,7 @@ async def fase_durmiente(bot, game):
             if st.loyalty_deck:
                 carta = st.loyalty_deck.pop()
                 player.loyalty_cards.append(carta)
-                if carta == Loyalty.CYLON and not player.is_cylon:
+                if Loyalty.es_cylon(carta) and not player.is_cylon:
                     player.is_cylon = True
                 elif carta == Loyalty.SIMPATIZANTE:
                     recibio_simpatizante = True
