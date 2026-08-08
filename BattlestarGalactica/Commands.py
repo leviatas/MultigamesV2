@@ -199,7 +199,7 @@ async def command_lealtad(update: Update, context: CallbackContext):
         return
     player = game.playerlist[uid]
     pj = Characters.PERSONAJES.get(player.personaje)
-    es_cylon = Loyalty.CYLON in player.loyalty_cards
+    es_cylon = any(Loyalty.es_cylon(c) for c in player.loyalty_cards)
     rol = "🤖 *ERES UN CYLON*" if es_cylon else "🧑 No eres un Cylon (por ahora)"
     nombre_pj = pj["nombre"] if pj else "sin asignar"
     detalle = "\n".join(f"• {Loyalty.NOMBRE_CARTA.get(c, c)}" for c in player.loyalty_cards)
@@ -729,10 +729,8 @@ async def callback_bsg_accion(update: Update, context: CallbackContext):
             for i, a in enumerate(st.areas):
                 if tipo == "raiders":
                     cant = a["raiders"]
-                elif tipo == "basestars":
+                else:  # "basestars"
                     cant = len(a["basestars"])
-                else:  # "cualquiera": cualquier nave Cylon (Ojiva Nuclear)
-                    cant = a["raiders"] + a.get("heavy_raiders", 0) + len(a["basestars"])
                 if cant > 0:
                     btns.append([InlineKeyboardButton(
                         f"{Space.nombre(i)} ({cant})",
