@@ -2954,22 +2954,54 @@ async def resolver_voto_crisis(bot, game):
         await cerrar_crisis(bot, game, crisis)
 
 
+def _orden_aporte(game):
+    """Orden de aporte de cartas para el chequeo de una Crisis: empieza por el
+    siguiente jugador al jugador activo (siguiendo el orden de turno) y
+    termina con el jugador activo en último lugar. Los Cylons revelados no
+    participan del chequeo."""
+    st = game.board.state
+    seq = game.player_sequence
+    if not seq:
+        return []
+    i = st.player_counter % len(seq)
+    rotado = seq[i + 1:] + seq[:i + 1]
+    return [p.uid for p in rotado if not p.revealed]
+
+
+def _turno_aporte_actual(sc):
+    """uid del jugador al que le toca aportar (o pasar) en el chequeo, según
+    el orden de turno. None si no hay orden definido o ya pasó por todos."""
+    orden = sc.get("orden")
+    idx = sc.get("turno_idx", 0)
+    if not orden or idx >= len(orden):
+        return None
+    return orden[idx]
+
+
 async def abrir_chequeo(bot, game, crisis):
     st = game.board.state
     colores = crisis["colores"]
     emojis = " ".join(Skills.EMOJI_COLOR[c] for c in colores)
+    orden = _orden_aporte(game)
     st.skill_check = {
         "crisis_id": crisis.get("id", crisis.get("titulo")),
         "colores": colores,
         "dificultad": crisis["dificultad"],
         "aportes": {},   # uid -> lista de cartas
+        "orden": orden,
+        "turno_idx": 0,
     }
+    primero = game.playerlist.get(orden[0]) if orden else None
+    turno_txt = f"\n\n▶️ Turno de *{primero.name}* para aportar." if primero else ""
     await bot.send_message(
         game.cid,
         f"🎲 *Chequeo de habilidad* — dificultad *{crisis['dificultad']}*.\n"
         f"Colores positivos: {emojis} ({', '.join(colores)}).\n\n"
-        f"Cada jugador puede aportar cartas en privado con `/aportar N` (número de carta de su mano). "
-        f"Cuando todos hayan aportado, el Almirante o el jugador activo usa `/resolver`.",
+        f"Se aporta *en orden de turno*, empezando por el siguiente jugador al jugador "
+        f"activo y terminando por el jugador activo. En tu turno, aporta cuantas cartas "
+        f"quieras en privado con `/aportar N` (número de carta de tu mano) y luego usa "
+        f"`/pasarchequeo` para ceder el turno. Cuando todos hayan pasado, el Almirante o "
+        f"el jugador activo usa `/resolver`.{turno_txt}",
         parse_mode=ParseMode.MARKDOWN,
     )
     await save(bot, game.cid)
@@ -3309,6 +3341,13 @@ async def aportar_carta(bot, game, uid, indice):
     if not st.skill_check:
         await bot.send_message(uid, "No hay ningún chequeo de habilidad abierto.")
         return
+    turno_uid = _turno_aporte_actual(st.skill_check)
+    if turno_uid is not None and turno_uid != uid:
+        turno_player = game.playerlist.get(turno_uid)
+        nombre = turno_player.name if turno_player else "otro jugador"
+        await bot.send_message(uid, f"No es tu turno para aportar todavía. Le toca a *{nombre}*.",
+                               parse_mode=ParseMode.MARKDOWN)
+        return
     player = game.playerlist.get(uid)
     if not player or indice < 1 or indice > len(player.skill_hand):
         await bot.send_message(uid, "Número de carta inválido.")
@@ -3318,10 +3357,51 @@ async def aportar_carta(bot, game, uid, indice):
     await bot.send_message(
         uid,
         f"Aportaste {Skills.EMOJI_COLOR[carta['color']]} {carta['color']} {carta['valor']} "
-        f"(boca abajo).",
+        f"(boca abajo). Podés aportar otra carta o usar `/pasarchequeo` para ceder el turno.",
         parse_mode=ParseMode.MARKDOWN,
     )
     await _dm_mano(bot, player)
+    await save(bot, game.cid)
+
+
+async def pasar_aporte(bot, game, uid):
+    """Cede el turno de aporte al siguiente jugador del orden del chequeo
+    (ver _orden_aporte). Cuando el último jugador (el jugador activo) pasa,
+    el chequeo queda listo para resolverse."""
+    st = game.board.state
+    sc = st.skill_check
+    if not sc:
+        await bot.send_message(uid, "No hay ningún chequeo de habilidad abierto.")
+        return
+    turno_uid = _turno_aporte_actual(sc)
+    if turno_uid is None:
+        await bot.send_message(uid, "Ya pasaron todos los turnos de este chequeo. "
+                                    "Usa `/resolver` para resolverlo.")
+        return
+    if turno_uid != uid:
+        turno_player = game.playerlist.get(turno_uid)
+        nombre = turno_player.name if turno_player else "otro jugador"
+        await bot.send_message(uid, f"No es tu turno todavía. Le toca a *{nombre}*.",
+                               parse_mode=ParseMode.MARKDOWN)
+        return
+    sc["turno_idx"] = sc.get("turno_idx", 0) + 1
+    quien_paso = game.playerlist.get(uid)
+    siguiente_uid = _turno_aporte_actual(sc)
+    if siguiente_uid:
+        siguiente = game.playerlist.get(siguiente_uid)
+        await bot.send_message(
+            game.cid,
+            f"⏭️ {quien_paso.name if quien_paso else uid} cede su turno de aporte. "
+            f"▶️ Turno de *{siguiente.name if siguiente else '???'}*.",
+            parse_mode=ParseMode.MARKDOWN,
+        )
+    else:
+        await bot.send_message(
+            game.cid,
+            "✅ Todos los jugadores tuvieron su turno para aportar. "
+            "El Almirante o el jugador activo puede usar `/resolver`.",
+            parse_mode=ParseMode.MARKDOWN,
+        )
     await save(bot, game.cid)
 
 

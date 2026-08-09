@@ -1155,6 +1155,23 @@ async def command_aportar(update: Update, context: CallbackContext):
     await BSGController.aportar_carta(bot, game, uid, int(args[0]))
 
 
+async def command_pasar_chequeo(update: Update, context: CallbackContext):
+    """Cede el turno de aporte a cartas de un chequeo de habilidad al siguiente
+    jugador en el orden del chequeo (por privado o en el grupo)."""
+    bot = context.bot
+    uid = update.message.from_user.id
+
+    game = None
+    for g in GamesController.games.values():
+        if getattr(g, "tipo", None) == "BattlestarGalactica" and uid in getattr(g, "playerlist", {}):
+            game = g
+            break
+    if not game or not game.board:
+        await bot.send_message(uid, "No estás en una partida activa de BSG.")
+        return
+    await BSGController.pasar_aporte(bot, game, uid)
+
+
 async def command_resolver(update: Update, context: CallbackContext):
     """Resuelve el chequeo de habilidad abierto (Almirante, jugador activo o admin)."""
     bot = context.bot
