@@ -1836,6 +1836,7 @@ async def command_bsgadmin(update: Update, context: CallbackContext):
         [InlineKeyboardButton("🤖 Activar naves Cylon", callback_data=f"{cid}*bsgAdmin*activar_cylon*{uid}")],
         [InlineKeyboardButton("🃏 Quitar carta a un jugador", callback_data=f"{cid}*bsgAdmin*quitar_carta*{uid}")],
         [InlineKeyboardButton("🔭 Dar resultado de Sonda exitosa", callback_data=f"{cid}*bsgAdmin*dar_scout*{uid}")],
+        [InlineKeyboardButton("🎲 Reiniciar pedido de cartas (crisis activa)", callback_data=f"{cid}*bsgAdmin*reabrir_chequeo*{uid}")],
     ]
     await bot.send_message(cid, "🛠️ *Panel de Admin (BSG)* — ¿qué querés corregir?",
                            reply_markup=InlineKeyboardMarkup(btns), parse_mode=ParseMode.MARKDOWN)
@@ -1888,6 +1889,14 @@ async def callback_bsg_admin(update: Update, context: CallbackContext):
                 await bot.send_message(cid, "No hay jugadores en la partida.")
                 return
             texto = "🔭 ¿A qué jugador le das el resultado de una Sonda exitosa?"
+        elif opcion == "reabrir_chequeo":
+            crisis = st.crisis_actual
+            if not crisis:
+                await bot.send_message(cid, "⚠️ No hay ninguna crisis activa en este momento.")
+                return
+            await BSGController.abrir_chequeo(bot, game, crisis)
+            await bot.send_message(cid, "✅ Se reinició el pedido de cartas para la crisis activa.")
+            return
         else:
             return
 
