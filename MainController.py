@@ -840,6 +840,7 @@ def main(stop_event):
 	app.add_handler(CommandHandler("mover", BSGCommands.command_mover))
 	app.add_handler(CommandHandler("crisis", BSGCommands.command_crisis))
 	app.add_handler(CommandHandler("aportar", BSGCommands.command_aportar))
+	app.add_handler(CommandHandler("pasarchequeo", BSGCommands.command_pasar_chequeo))
 	app.add_handler(CommandHandler("jugar", BSGCommands.command_jugar))
 	app.add_handler(CommandHandler("resolver", BSGCommands.command_resolver))
 	app.add_handler(CommandHandler("sonda", BSGCommands.command_sonda))
