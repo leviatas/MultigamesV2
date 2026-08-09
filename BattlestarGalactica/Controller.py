@@ -473,6 +473,86 @@ async def _dm_mano(bot, player):
     )
 
 
+def _texto_carta_corto(c):
+    return f"{Skills.EMOJI_COLOR[c['color']]} {c['color']} {c['valor']} — {c.get('nombre','')}"
+
+
+async def _mostrar_selector_aporte(bot, game, uid, message_id=None):
+    """Botonera de selección de cartas a aportar al chequeo de una Crisis, en
+    privado. Cada botón marca/desmarca una carta (multi-selección); al elegir
+    al menos una se habilita 'Continuar', que pasa a la confirmación
+    (ver _mostrar_confirmacion_aporte). Si message_id se pasa, edita ese
+    mensaje en vez de mandar uno nuevo (para que tocar un botón actualice la
+    misma botonera sin spamear el chat)."""
+    st = game.board.state
+    player = game.playerlist.get(uid)
+    if not player:
+        return
+    pend = st.aporte_pendiente
+    if not pend or pend.get("uid") != uid:
+        pend = {"uid": uid, "indices": []}
+        st.aporte_pendiente = pend
+    indices = pend["indices"]
+
+    if not player.skill_hand:
+        texto = "No tenés cartas de habilidad para aportar. Usá `/pasarchequeo` para ceder el turno."
+        markup = None
+    else:
+        filas = []
+        for i, c in enumerate(player.skill_hand):
+            marca = "☑️" if i in indices else "⬜"
+            filas.append([InlineKeyboardButton(f"{marca} {_texto_carta_corto(c)}",
+                                               callback_data=f"{game.cid}*bsgAportarSel*{i}*{uid}")])
+        fila_control = []
+        if indices:
+            n = len(indices)
+            fila_control.append(InlineKeyboardButton(
+                f"➡️ Continuar ({n} elegida{'s' if n != 1 else ''})",
+                callback_data=f"{game.cid}*bsgAportarContinuar*0*{uid}"))
+        fila_control.append(InlineKeyboardButton("⏭️ Pasar sin aportar",
+                                                  callback_data=f"{game.cid}*bsgAportarPasar*0*{uid}"))
+        filas.append(fila_control)
+        texto = "🃏 *Elegí qué cartas aportar al chequeo* (tocá para marcar/desmarcar):"
+        markup = InlineKeyboardMarkup(filas)
+
+    if message_id:
+        try:
+            await bot.edit_message_text(texto, uid, message_id, reply_markup=markup, parse_mode=ParseMode.MARKDOWN)
+            return
+        except Exception:
+            pass
+    await bot.send_message(uid, texto, reply_markup=markup, parse_mode=ParseMode.MARKDOWN)
+
+
+async def _mostrar_confirmacion_aporte(bot, game, uid, message_id=None):
+    """Paso 2: muestra el resumen de las cartas elegidas y pide confirmar o
+    volver a elegir."""
+    st = game.board.state
+    player = game.playerlist.get(uid)
+    pend = st.aporte_pendiente
+    if not player or not pend or pend.get("uid") != uid or not pend["indices"]:
+        await _mostrar_selector_aporte(bot, game, uid, message_id)
+        return
+    cartas = [player.skill_hand[i] for i in pend["indices"] if 0 <= i < len(player.skill_hand)]
+    if not cartas:
+        await _mostrar_selector_aporte(bot, game, uid, message_id)
+        return
+    lineas = [f"• {_texto_carta_corto(c)}" for c in cartas]
+    texto = ("🃏 *Vas a aportar estas cartas* (van boca abajo, no se revela quién las jugó):\n"
+             + "\n".join(lineas) + "\n\n¿Confirmás?")
+    markup = InlineKeyboardMarkup([
+        [InlineKeyboardButton("✅ Sí, aportar", callback_data=f"{game.cid}*bsgAportarOk*0*{uid}")],
+        [InlineKeyboardButton("✏️ Cambiar selección", callback_data=f"{game.cid}*bsgAportarCambiar*0*{uid}")],
+    ])
+    if message_id:
+        try:
+            await bot.edit_message_text(texto, uid, message_id, reply_markup=markup, parse_mode=ParseMode.MARKDOWN)
+            return
+        except Exception:
+            pass
+    await bot.send_message(uid, texto, reply_markup=markup, parse_mode=ParseMode.MARKDOWN)
+
+
 # ===================== BUCLE DE TURNO =====================
 
 # ---- Economía de acciones/movimientos del turno ----
@@ -2991,6 +3071,7 @@ async def abrir_chequeo(bot, game, crisis):
         "orden": orden,
         "turno_idx": 0,
     }
+    st.aporte_pendiente = None
     primero = game.playerlist.get(orden[0]) if orden else None
     turno_txt = f"\n\n▶️ Turno de *{primero.name}* para aportar." if primero else ""
     await bot.send_message(
@@ -2998,12 +3079,14 @@ async def abrir_chequeo(bot, game, crisis):
         f"🎲 *Chequeo de habilidad* — dificultad *{crisis['dificultad']}*.\n"
         f"Colores positivos: {emojis} ({', '.join(colores)}).\n\n"
         f"Se aporta *en orden de turno*, empezando por el siguiente jugador al jugador "
-        f"activo y terminando por el jugador activo. En tu turno, aporta cuantas cartas "
-        f"quieras en privado con `/aportar N` (número de carta de tu mano) y luego usa "
-        f"`/pasarchequeo` para ceder el turno. Cuando todos hayan pasado, el Almirante o "
-        f"el jugador activo usa `/resolver`.{turno_txt}",
+        f"activo y terminando por el jugador activo. A cada jugador le va a llegar por "
+        f"privado una botonera para elegir sus cartas cuando le toque el turno. "
+        f"Cuando todos hayan pasado, el Almirante o el jugador activo usa "
+        f"`/resolver`.{turno_txt}",
         parse_mode=ParseMode.MARKDOWN,
     )
+    if primero:
+        await _mostrar_selector_aporte(bot, game, primero.uid)
     await save(bot, game.cid)
 
 
@@ -3354,6 +3437,10 @@ async def aportar_carta(bot, game, uid, indice):
         return
     carta = player.skill_hand.pop(indice - 1)
     st.skill_check["aportes"].setdefault(uid, []).append(carta)
+    # Los índices de una selección pendiente en la botonera quedarían
+    # desalineados tras este pop: se descarta y se vuelve a mostrar limpia.
+    if st.aporte_pendiente and st.aporte_pendiente.get("uid") == uid:
+        st.aporte_pendiente = None
     await bot.send_message(
         uid,
         f"Aportaste {Skills.EMOJI_COLOR[carta['color']]} {carta['color']} {carta['valor']} "
@@ -3384,6 +3471,8 @@ async def pasar_aporte(bot, game, uid):
         await bot.send_message(uid, f"No es tu turno todavía. Le toca a *{nombre}*.",
                                parse_mode=ParseMode.MARKDOWN)
         return
+    if st.aporte_pendiente and st.aporte_pendiente.get("uid") == uid:
+        st.aporte_pendiente = None
     sc["turno_idx"] = sc.get("turno_idx", 0) + 1
     quien_paso = game.playerlist.get(uid)
     siguiente_uid = _turno_aporte_actual(sc)
@@ -3395,6 +3484,7 @@ async def pasar_aporte(bot, game, uid):
             f"▶️ Turno de *{siguiente.name if siguiente else '???'}*.",
             parse_mode=ParseMode.MARKDOWN,
         )
+        await _mostrar_selector_aporte(bot, game, siguiente_uid)
     else:
         await bot.send_message(
             game.cid,
@@ -3405,12 +3495,44 @@ async def pasar_aporte(bot, game, uid):
     await save(bot, game.cid)
 
 
+async def confirmar_aporte(bot, game, uid):
+    """Confirma la selección de cartas armada en la botonera (st.aporte_pendiente)
+    de `uid`: las mueve de su mano a los aportes del chequeo y le cede el
+    turno automáticamente al siguiente jugador."""
+    st = game.board.state
+    sc = st.skill_check
+    pend = st.aporte_pendiente
+    if not sc or not pend or pend.get("uid") != uid:
+        return
+    turno_uid = _turno_aporte_actual(sc)
+    if turno_uid != uid:
+        return
+    player = game.playerlist.get(uid)
+    if not player:
+        return
+    indices = sorted(set(pend["indices"]), reverse=True)
+    cartas = []
+    for i in indices:
+        if 0 <= i < len(player.skill_hand):
+            cartas.append(player.skill_hand.pop(i))
+    st.aporte_pendiente = None
+    if cartas:
+        cartas.reverse()  # volver al orden en que se eligieron
+        sc["aportes"].setdefault(uid, []).extend(cartas)
+        resumen = ", ".join(_texto_carta_corto(c) for c in cartas)
+        await bot.send_message(uid, f"✅ Aportaste {len(cartas)} carta(s) (boca abajo): {resumen}.",
+                               parse_mode=ParseMode.MARKDOWN)
+        await _dm_mano(bot, player)
+    await pasar_aporte(bot, game, uid)
+
+
 async def resolver_chequeo(bot, game):
     st = game.board.state
     sc = st.skill_check
     if not sc:
         await bot.send_message(game.cid, "No hay chequeo abierto.")
         return
+    st.aporte_pendiente = None
 
     colores = sc["colores"]
     total = 0

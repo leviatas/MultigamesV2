@@ -24,6 +24,7 @@ mientras /watch esté activo. Es un caso raro y /watch ya es una herramienta
 de admin de confianza, así que se acepta el riesgo en vez de instrumentar
 cada punto de envío del módulo para evitarlo.
 """
+import functools
 import logging as log
 
 from telegram.constants import ParseMode
@@ -105,3 +106,42 @@ def activar_relay(bot):
     if isinstance(bot, _WatchRelayExtBot):
         return
     bot.__class__ = _WatchRelayExtBot
+
+
+async def _relay_comando_usuario(bot, chat_id, from_user, texto):
+    ctx = _contexto_watch(chat_id)
+    if not ctx:
+        return
+    game, jugador = ctx
+    if jugador is None:
+        # El comando se ejecutó en el grupo: identificar al jugador por uid
+        # (en privado, chat_id YA es el uid del jugador, así que _contexto_watch
+        # ya lo resolvió).
+        jugador = game.playerlist.get(from_user.id)
+    nombre = jugador.name if jugador else (from_user.full_name or from_user.username or str(from_user.id))
+    cuerpo = f"⌨️ *[{game.groupName}]* — {nombre} ejecuta:\n`{texto}`"
+    for w_uid in list(game.board.state.watchers):
+        try:
+            await ExtBot.send_message(bot, w_uid, cuerpo, parse_mode=ParseMode.MARKDOWN)
+        except Exception as e:
+            logger.error(f"BSG watch relay (comando) error (uid {w_uid}): {e}")
+
+
+def relay_comando(func):
+    """Decorator para los handlers de comandos de BSG (`command_xxx(update,
+    context)`): si hay espectadores (/watch) activos sobre la partida del
+    chat desde el que se ejecuta, les reenvía qué comando corrió el usuario
+    y con qué argumentos (deducidos del texto del mensaje) antes de
+    despachar el comando real. No hace nada si no hay watchers."""
+
+    @functools.wraps(func)
+    async def wrapper(update, context, *args, **kwargs):
+        message = getattr(update, "message", None)
+        if message is not None and message.text:
+            try:
+                await _relay_comando_usuario(context.bot, message.chat_id, message.from_user, message.text)
+            except Exception as e:
+                logger.error(f"BSG watch relay (comando) wrapper error: {e}")
+        return await func(update, context, *args, **kwargs)
+
+    return wrapper

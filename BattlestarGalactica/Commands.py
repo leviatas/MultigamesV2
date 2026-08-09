@@ -6,6 +6,7 @@ import logging as log
 import re
 
 import BattlestarGalactica.Controller as BSGController
+from BattlestarGalactica.Watch import relay_comando
 from BattlestarGalactica.Constants import Characters, Skills, Loyalty, Locations, Space
 from Utils import get_game, save, player_call
 from Constants.Config import ADMIN
@@ -185,6 +186,7 @@ def _esperando_robo(st, uid):
                 and st.skill_draw["uid"] == uid)
 
 
+@relay_comando
 async def command_lealtad(update: Update, context: CallbackContext):
     """Muestra al jugador su personaje y su lealtad por privado."""
     bot = context.bot
@@ -211,6 +213,7 @@ async def command_lealtad(update: Update, context: CallbackContext):
     )
 
 
+@relay_comando
 async def command_mano(update: Update, context: CallbackContext):
     """Muestra la mano de habilidad por privado, con un botón por carta:
     tocarla te dice qué hace. Funciona tanto desde el grupo como escrito
@@ -282,6 +285,7 @@ async def callback_bsg_mano_carta(update: Update, context: CallbackContext):
         await bot.send_message(ADMIN[0], f"BSG mano carta error: {e}")
 
 
+@relay_comando
 async def command_jugar(update: Update, context: CallbackContext):
     """Juega una carta de habilidad de ACCIÓN por su efecto (en tu turno)."""
     bot = context.bot
@@ -523,6 +527,7 @@ async def callback_bsg_mod(update: Update, context: CallbackContext):
         await bot.send_message(ADMIN[0], f"BSG mod error: {e}")
 
 
+@relay_comando
 async def command_estado(update: Update, context: CallbackContext):
     """Muestra el tablero/estado de la partida."""
     bot = context.bot
@@ -534,6 +539,7 @@ async def command_estado(update: Update, context: CallbackContext):
     await bot.send_message(cid, game.board.print_board(game), parse_mode=ParseMode.MARKDOWN)
 
 
+@relay_comando
 async def command_watch(update: Update, context: CallbackContext):
     """Modo espectador: solo el admin puede activarlo. Alterna (toggle) si
     recibe por privado una copia de cada mensaje que el bot envía a esta
@@ -560,6 +566,7 @@ async def command_watch(update: Update, context: CallbackContext):
     await save(bot, cid)
 
 
+@relay_comando
 async def command_mapa(update: Update, context: CallbackContext):
     """Muestra el mapa textual de la flota (ubicaciones y espacio)."""
     bot = context.bot
@@ -571,6 +578,7 @@ async def command_mapa(update: Update, context: CallbackContext):
     await bot.send_message(cid, game.board.print_map(game), parse_mode=ParseMode.MARKDOWN)
 
 
+@relay_comando
 async def command_mapa_img(update: Update, context: CallbackContext):
     """Envía una imagen del tablero (ubicaciones, personajes y espacio con Vipers)."""
     bot = context.bot
@@ -589,6 +597,7 @@ async def command_mapa_img(update: Update, context: CallbackContext):
         await bot.send_message(cid, game.board.print_map(game), parse_mode=ParseMode.MARKDOWN)
 
 
+@relay_comando
 async def command_accion(update: Update, context: CallbackContext):
     """Acción del jugador activo (menú simplificado en esta capa)."""
     bot = context.bot
@@ -860,6 +869,7 @@ async def callback_bsg_target(update: Update, context: CallbackContext):
         await bot.send_message(ADMIN[0], f"BSG target error: {e}")
 
 
+@relay_comando
 async def command_mover(update: Update, context: CallbackContext):
     """El jugador activo elige una ubicación a la que moverse."""
     bot = context.bot
@@ -941,6 +951,7 @@ async def callback_bsg_mover(update: Update, context: CallbackContext):
         await bot.send_message(ADMIN[0], f"BSG mover error: {e}")
 
 
+@relay_comando
 async def command_crisis(update: Update, context: CallbackContext):
     """Revela y resuelve la crisis del turno (jugador activo o admin)."""
     bot = context.bot
@@ -1125,6 +1136,7 @@ async def callback_bsg_crisis_target(update: Update, context: CallbackContext):
         await bot.send_message(ADMIN[0], f"BSG crisis target error: {e}")
 
 
+@relay_comando
 async def command_aportar(update: Update, context: CallbackContext):
     """Aporta una carta de la mano a un chequeo de habilidad (por privado)."""
     bot = context.bot
@@ -1155,6 +1167,7 @@ async def command_aportar(update: Update, context: CallbackContext):
     await BSGController.aportar_carta(bot, game, uid, int(args[0]))
 
 
+@relay_comando
 async def command_pasar_chequeo(update: Update, context: CallbackContext):
     """Cede el turno de aporte a cartas de un chequeo de habilidad al siguiente
     jugador en el orden del chequeo (por privado o en el grupo)."""
@@ -1172,6 +1185,7 @@ async def command_pasar_chequeo(update: Update, context: CallbackContext):
     await BSGController.pasar_aporte(bot, game, uid)
 
 
+@relay_comando
 async def command_resolver(update: Update, context: CallbackContext):
     """Resuelve el chequeo de habilidad abierto (Almirante, jugador activo o admin)."""
     bot = context.bot
@@ -1193,6 +1207,207 @@ async def command_resolver(update: Update, context: CallbackContext):
     await BSGController.resolver_chequeo(bot, game)
 
 
+def _bsg_chequeo_turno_valido(game, presser):
+    """Valida que haya un chequeo de habilidad de Crisis abierto (con orden de
+    turno) y que le toque a `presser`. Devuelve (st, sc) o (None, None) si no,
+    habiendo ya respondido el callback con el motivo."""
+    st = game.board.state
+    sc = st.skill_check
+    if not sc:
+        return None, None
+    turno_uid = BSGController._turno_aporte_actual(sc)
+    if turno_uid is not None and turno_uid != presser:
+        return None, None
+    return st, sc
+
+
+async def callback_bsg_aportar_sel(update: Update, context: CallbackContext):
+    """Botonera de selección de cartas a aportar: marca/desmarca una carta."""
+    bot = context.bot
+    callback = update.callback_query
+    presser = callback.from_user.id
+    try:
+        regex = re.search(r"(-?[0-9]*)\*bsgAportarSel\*([0-9]+)\*(-?[0-9]*)", callback.data)
+        cid = int(regex.group(1))
+        idx = int(regex.group(2))
+        ordenante = int(regex.group(3))
+        if presser != ordenante:
+            await callback.answer("Esta no es tu selección.")
+            return
+        game = get_game(cid)
+        if not _validar(game) or presser not in game.playerlist:
+            await callback.answer("Partida no encontrada.")
+            return
+        st, sc = _bsg_chequeo_turno_valido(game, presser)
+        if sc is None:
+            await callback.answer("No es tu turno para aportar (o no hay chequeo abierto).")
+            return
+        player = game.playerlist[presser]
+        if idx < 0 or idx >= len(player.skill_hand):
+            await callback.answer("Esa carta ya no está en tu mano.")
+            return
+        pend = st.aporte_pendiente
+        if not pend or pend.get("uid") != presser:
+            pend = {"uid": presser, "indices": []}
+            st.aporte_pendiente = pend
+        if idx in pend["indices"]:
+            pend["indices"].remove(idx)
+        else:
+            pend["indices"].append(idx)
+        await callback.answer()
+        await BSGController._mostrar_selector_aporte(bot, game, presser, callback.message.message_id)
+        await save(bot, cid)
+    except Exception as e:
+        logger.error(f"callback_bsg_aportar_sel error: {e}")
+        try:
+            await callback.answer("Error.")
+        except Exception:
+            pass
+        await bot.send_message(ADMIN[0], f"BSG aportar sel error: {e}")
+
+
+async def callback_bsg_aportar_continuar(update: Update, context: CallbackContext):
+    """Pasa de la selección de cartas a la pantalla de confirmación."""
+    bot = context.bot
+    callback = update.callback_query
+    presser = callback.from_user.id
+    try:
+        regex = re.search(r"(-?[0-9]*)\*bsgAportarContinuar\*[0-9]*\*(-?[0-9]*)", callback.data)
+        cid = int(regex.group(1))
+        ordenante = int(regex.group(2))
+        if presser != ordenante:
+            await callback.answer("Esta no es tu selección.")
+            return
+        game = get_game(cid)
+        if not _validar(game) or presser not in game.playerlist:
+            await callback.answer("Partida no encontrada.")
+            return
+        st, sc = _bsg_chequeo_turno_valido(game, presser)
+        if sc is None:
+            await callback.answer("No es tu turno para aportar (o no hay chequeo abierto).")
+            return
+        pend = st.aporte_pendiente
+        if not pend or pend.get("uid") != presser or not pend["indices"]:
+            await callback.answer("Elegí al menos una carta.")
+            return
+        player = game.playerlist[presser]
+        ya_aportadas = len(sc.get("aportes", {}).get(presser, []))
+        if player.en_calabozo and ya_aportadas + len(pend["indices"]) > 1:
+            await callback.answer("En el calabozo solo podés aportar 1 carta por chequeo.")
+            return
+        await callback.answer()
+        await BSGController._mostrar_confirmacion_aporte(bot, game, presser, callback.message.message_id)
+    except Exception as e:
+        logger.error(f"callback_bsg_aportar_continuar error: {e}")
+        try:
+            await callback.answer("Error.")
+        except Exception:
+            pass
+        await bot.send_message(ADMIN[0], f"BSG aportar continuar error: {e}")
+
+
+async def callback_bsg_aportar_cambiar(update: Update, context: CallbackContext):
+    """Vuelve de la confirmación a la pantalla de selección de cartas."""
+    bot = context.bot
+    callback = update.callback_query
+    presser = callback.from_user.id
+    try:
+        regex = re.search(r"(-?[0-9]*)\*bsgAportarCambiar\*[0-9]*\*(-?[0-9]*)", callback.data)
+        cid = int(regex.group(1))
+        ordenante = int(regex.group(2))
+        if presser != ordenante:
+            await callback.answer("Esta no es tu selección.")
+            return
+        game = get_game(cid)
+        if not _validar(game) or presser not in game.playerlist:
+            await callback.answer("Partida no encontrada.")
+            return
+        st, sc = _bsg_chequeo_turno_valido(game, presser)
+        if sc is None:
+            await callback.answer("No es tu turno para aportar (o no hay chequeo abierto).")
+            return
+        await callback.answer()
+        await BSGController._mostrar_selector_aporte(bot, game, presser, callback.message.message_id)
+    except Exception as e:
+        logger.error(f"callback_bsg_aportar_cambiar error: {e}")
+        try:
+            await callback.answer("Error.")
+        except Exception:
+            pass
+        await bot.send_message(ADMIN[0], f"BSG aportar cambiar error: {e}")
+
+
+async def callback_bsg_aportar_ok(update: Update, context: CallbackContext):
+    """Confirma la selección: aporta las cartas elegidas y cede el turno."""
+    bot = context.bot
+    callback = update.callback_query
+    presser = callback.from_user.id
+    try:
+        regex = re.search(r"(-?[0-9]*)\*bsgAportarOk\*[0-9]*\*(-?[0-9]*)", callback.data)
+        cid = int(regex.group(1))
+        ordenante = int(regex.group(2))
+        if presser != ordenante:
+            await callback.answer("Esta no es tu selección.")
+            return
+        game = get_game(cid)
+        if not _validar(game) or presser not in game.playerlist:
+            await callback.answer("Partida no encontrada.")
+            return
+        st, sc = _bsg_chequeo_turno_valido(game, presser)
+        if sc is None:
+            await callback.answer("No es tu turno para aportar (o no hay chequeo abierto).")
+            return
+        await callback.answer()
+        try:
+            await bot.edit_message_reply_markup(presser, callback.message.message_id, reply_markup=None)
+        except Exception:
+            pass
+        await BSGController.confirmar_aporte(bot, game, presser)
+    except Exception as e:
+        logger.error(f"callback_bsg_aportar_ok error: {e}")
+        try:
+            await callback.answer("Error.")
+        except Exception:
+            pass
+        await bot.send_message(ADMIN[0], f"BSG aportar ok error: {e}")
+
+
+async def callback_bsg_aportar_pasar(update: Update, context: CallbackContext):
+    """Cede el turno de aporte sin aportar ninguna carta, desde la botonera."""
+    bot = context.bot
+    callback = update.callback_query
+    presser = callback.from_user.id
+    try:
+        regex = re.search(r"(-?[0-9]*)\*bsgAportarPasar\*[0-9]*\*(-?[0-9]*)", callback.data)
+        cid = int(regex.group(1))
+        ordenante = int(regex.group(2))
+        if presser != ordenante:
+            await callback.answer("Esta no es tu selección.")
+            return
+        game = get_game(cid)
+        if not _validar(game) or presser not in game.playerlist:
+            await callback.answer("Partida no encontrada.")
+            return
+        st, sc = _bsg_chequeo_turno_valido(game, presser)
+        if sc is None:
+            await callback.answer("No es tu turno para aportar (o no hay chequeo abierto).")
+            return
+        await callback.answer()
+        try:
+            await bot.edit_message_reply_markup(presser, callback.message.message_id, reply_markup=None)
+        except Exception:
+            pass
+        await BSGController.pasar_aporte(bot, game, presser)
+    except Exception as e:
+        logger.error(f"callback_bsg_aportar_pasar error: {e}")
+        try:
+            await callback.answer("Error.")
+        except Exception:
+            pass
+        await bot.send_message(ADMIN[0], f"BSG aportar pasar error: {e}")
+
+
+@relay_comando
 async def command_sonda(update: Update, context: CallbackContext):
     """Quien lanzó una Sonda (o un admin) tira el dado cuando ya no hace
     falta esperar más aportes de Planificación Estratégica. Funciona tanto
@@ -1312,6 +1527,7 @@ async def callback_bsg_cylon(update: Update, context: CallbackContext):
         await bot.send_message(ADMIN[0], f"BSG cylon error: {e}")
 
 
+@relay_comando
 async def command_revelar(update: Update, context: CallbackContext):
     """Un Cylon se revela (puede usarse desde el grupo o el privado)."""
     bot = context.bot
@@ -1333,6 +1549,7 @@ async def command_revelar(update: Update, context: CallbackContext):
     await BSGController.revelar_cylon(bot, game, uid)
 
 
+@relay_comando
 async def command_habilidad(update: Update, context: CallbackContext):
     """Usa la habilidad de una vez por juego del personaje."""
     bot = context.bot
@@ -1353,6 +1570,7 @@ async def command_habilidad(update: Update, context: CallbackContext):
     await BSGController.usar_habilidad(bot, game, uid)
 
 
+@relay_comando
 async def command_quorum(update: Update, context: CallbackContext):
     """El Presidente juega una carta de Quórum de su mano."""
     bot = context.bot
@@ -1541,6 +1759,7 @@ async def callback_bsg_qtarget(update: Update, context: CallbackContext):
         await bot.send_message(ADMIN[0], f"BSG qtarget error: {e}")
 
 
+@relay_comando
 async def command_encarcelar(update: Update, context: CallbackContext):
     """El Presidente o Almirante envía a un jugador (sospechoso) al calabozo."""
     bot = context.bot
@@ -1604,6 +1823,7 @@ async def callback_bsg_brig(update: Update, context: CallbackContext):
         await bot.send_message(ADMIN[0], f"BSG brig error: {e}")
 
 
+@relay_comando
 async def command_dar(update: Update, context: CallbackContext):
     """Solo el admin: otorga a un jugador 1 movimiento o 1 acción extra."""
     bot = context.bot
@@ -1702,6 +1922,7 @@ async def callback_bsg_dar_tipo(update: Update, context: CallbackContext):
         await bot.send_message(ADMIN[0], f"BSG dar tipo error: {e}")
 
 
+@relay_comando
 async def command_liberar(update: Update, context: CallbackContext):
     """El Presidente o Almirante libera a un jugador del calabozo."""
     bot = context.bot
@@ -1817,6 +2038,7 @@ def _botones_admin_raiders(cid, i, uid):
     ]
 
 
+@relay_comando
 async def command_bsgadmin(update: Update, context: CallbackContext):
     """Solo el admin: panel de correcciones manuales para cuando algo salió
     mal en la partida (p. ej. la cantidad de Raiders quedó mal contada, o
