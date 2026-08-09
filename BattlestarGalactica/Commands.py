@@ -199,7 +199,7 @@ async def command_lealtad(update: Update, context: CallbackContext):
         return
     player = game.playerlist[uid]
     pj = Characters.PERSONAJES.get(player.personaje)
-    es_cylon = Loyalty.CYLON in player.loyalty_cards
+    es_cylon = any(Loyalty.es_cylon(c) for c in player.loyalty_cards)
     rol = "🤖 *ERES UN CYLON*" if es_cylon else "🧑 No eres un Cylon (por ahora)"
     nombre_pj = pj["nombre"] if pj else "sin asignar"
     detalle = "\n".join(f"• {Loyalty.NOMBRE_CARTA.get(c, c)}" for c in player.loyalty_cards)
@@ -729,10 +729,8 @@ async def callback_bsg_accion(update: Update, context: CallbackContext):
             for i, a in enumerate(st.areas):
                 if tipo == "raiders":
                     cant = a["raiders"]
-                elif tipo == "basestars":
+                else:  # "basestars"
                     cant = len(a["basestars"])
-                else:  # "cualquiera": cualquier nave Cylon (Ojiva Nuclear)
-                    cant = a["raiders"] + a.get("heavy_raiders", 0) + len(a["basestars"])
                 if cant > 0:
                     btns.append([InlineKeyboardButton(
                         f"{Space.nombre(i)} ({cant})",
@@ -1155,6 +1153,23 @@ async def command_aportar(update: Update, context: CallbackContext):
         await bot.send_message(uid, "Uso: `/aportar N` (N = número de carta de tu mano).", parse_mode=ParseMode.MARKDOWN)
         return
     await BSGController.aportar_carta(bot, game, uid, int(args[0]))
+
+
+async def command_pasar_chequeo(update: Update, context: CallbackContext):
+    """Cede el turno de aporte a cartas de un chequeo de habilidad al siguiente
+    jugador en el orden del chequeo (por privado o en el grupo)."""
+    bot = context.bot
+    uid = update.message.from_user.id
+
+    game = None
+    for g in GamesController.games.values():
+        if getattr(g, "tipo", None) == "BattlestarGalactica" and uid in getattr(g, "playerlist", {}):
+            game = g
+            break
+    if not game or not game.board:
+        await bot.send_message(uid, "No estás en una partida activa de BSG.")
+        return
+    await BSGController.pasar_aporte(bot, game, uid)
 
 
 async def command_resolver(update: Update, context: CallbackContext):
@@ -1821,6 +1836,7 @@ async def command_bsgadmin(update: Update, context: CallbackContext):
         [InlineKeyboardButton("🤖 Activar naves Cylon", callback_data=f"{cid}*bsgAdmin*activar_cylon*{uid}")],
         [InlineKeyboardButton("🃏 Quitar carta a un jugador", callback_data=f"{cid}*bsgAdmin*quitar_carta*{uid}")],
         [InlineKeyboardButton("🔭 Dar resultado de Sonda exitosa", callback_data=f"{cid}*bsgAdmin*dar_scout*{uid}")],
+        [InlineKeyboardButton("🎲 Reiniciar pedido de cartas (crisis activa)", callback_data=f"{cid}*bsgAdmin*reabrir_chequeo*{uid}")],
     ]
     await bot.send_message(cid, "🛠️ *Panel de Admin (BSG)* — ¿qué querés corregir?",
                            reply_markup=InlineKeyboardMarkup(btns), parse_mode=ParseMode.MARKDOWN)
@@ -1873,6 +1889,14 @@ async def callback_bsg_admin(update: Update, context: CallbackContext):
                 await bot.send_message(cid, "No hay jugadores en la partida.")
                 return
             texto = "🔭 ¿A qué jugador le das el resultado de una Sonda exitosa?"
+        elif opcion == "reabrir_chequeo":
+            crisis = st.crisis_actual
+            if not crisis:
+                await bot.send_message(cid, "⚠️ No hay ninguna crisis activa en este momento.")
+                return
+            await BSGController.abrir_chequeo(bot, game, crisis)
+            await bot.send_message(cid, "✅ Se reinició el pedido de cartas para la crisis activa.")
+            return
         else:
             return
 

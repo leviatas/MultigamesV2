@@ -55,7 +55,9 @@ class State(BaseState):
         self.quorum_pendiente = None      # carta de Quórum esperando elección de objetivo
 
         # --- Chequeo de habilidad en curso ---
-        self.skill_check = None           # dict: {crisis, colores, dificultad, aportes:{uid:[cartas]}, ...}
+        self.skill_check = None           # dict: {crisis, colores, dificultad, aportes:{uid:[cartas]},
+                                           #        orden:[uid,...] (chequeo de Crisis: siguiente jugador
+                                           #        al activo primero, activo último), turno_idx, ...}
         self.crisis_vote = None           # dict: {opciones, votos:{uid:idx}} para crisis de voto
         self.target_select = None         # dict: {chooser, accion, candidatos:[uid], restantes:[efectos], opcional}
         self.recrisis_pendiente = False   # tras cerrar la crisis, robar y resolver otra (sin avanzar turno)

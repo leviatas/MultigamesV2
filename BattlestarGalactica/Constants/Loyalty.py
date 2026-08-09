@@ -18,18 +18,51 @@ Datos confirmados contra el reglamento oficial:
   (Baltar recibe 2 cartas al inicio; Boomer recibe 2 en la Fase Durmiente).
 - La Fase del Agente Durmiente ocurre tras alcanzar la distancia 4 (mitad del
   recorrido hacia la distancia 8).
+- Las cartas "Eres un Cylon" del mazo base NO son todas iguales: hay 4
+  variantes distintas, cada una con un poder de un solo uso al revelarse
+  (enviar un personaje a la Enfermería, enviarlo al Calabozo, reducir la
+  Moral en 1, o dañar Galactica una vez). Cada partida se sortean al azar
+  tantas variantes distintas como CYLON_CARDS_POR_JUGADORES indique (1 o 2),
+  así que no siempre son las mismas 2 en cada partida.
 """
+
+import random
 
 CYLON = "cylon"
 HUMANO = "humano"
 SIMPATIZANTE = "simpatizante"
 
+# Las 4 variantes de "Eres un Cylon" del juego base, cada una con un poder de
+# un solo uso al revelarse (ver Controller._activar_poder_lealtad).
+CYLON_SICKBAY = "cylon_sickbay"
+CYLON_BRIG = "cylon_brig"
+CYLON_MORAL = "cylon_moral"
+CYLON_GALACTICA = "cylon_galactica"
+CYLON_VARIANTES = [CYLON_SICKBAY, CYLON_BRIG, CYLON_MORAL, CYLON_GALACTICA]
+
+# Variante -> acción que dispara al revelarse.
+PODER_POR_VARIANTE = {
+    CYLON_SICKBAY: "sickbay",
+    CYLON_BRIG: "brig",
+    CYLON_MORAL: "moral",
+    CYLON_GALACTICA: "galactica",
+}
+
 # Nombre visible de cada carta de lealtad.
 NOMBRE_CARTA = {
     CYLON: "🤖 Eres un Cylon",
+    CYLON_SICKBAY: "🤖 Eres un Cylon (puede enviar a alguien a la Enfermería)",
+    CYLON_BRIG: "🤖 Eres un Cylon (puede enviar a alguien al Calabozo)",
+    CYLON_MORAL: "🤖 Eres un Cylon (puede reducir la Moral en 1)",
+    CYLON_GALACTICA: "🤖 Eres un Cylon (puede dañar Galactica)",
     HUMANO: "🧑 No eres un Cylon",
     SIMPATIZANTE: "🕵️ Eres un Simpatizante",
 }
+
+
+def es_cylon(carta):
+    """True si 'carta' es cualquier variante de 'Eres un Cylon'."""
+    return carta == CYLON or carta in CYLON_VARIANTES
 
 # Número de cartas "Eres un Cylon" en el mazo, por cantidad de jugadores
 # (valores oficiales del reglamento del juego base).
@@ -57,7 +90,8 @@ def usa_sympathizer(num_jugadores):
 
 def construir_mazo_lealtad(num_jugadores, num_baltar_boomer=0, incluir_sympathizer=True):
     """
-    Construye el mazo de lealtad como lista de strings (CYLON/HUMANO/SIMPATIZANTE).
+    Construye el mazo de lealtad como lista de strings (variante de Cylon /
+    HUMANO / SIMPATIZANTE).
 
     Total de cartas = 2 * num_jugadores (la Sympathizer, si aplica, reemplaza
     a una carta humana para mantener el reparto de 2 por jugador).
@@ -65,12 +99,16 @@ def construir_mazo_lealtad(num_jugadores, num_baltar_boomer=0, incluir_sympathiz
     Con incluir_sympathizer=False la carta de Simpatizante se omite del mazo
     (el reparto inicial no debe poder contenerla: según el reglamento se añade
     al mazo restante recién para la Fase del Agente Durmiente).
+
+    Las cartas de Cylon se sortean al azar entre las 4 variantes distintas
+    (CYLON_VARIANTES), así que qué poder específico está en juego cambia de
+    partida en partida.
     """
     total = 2 * num_jugadores
     cylons = CYLON_CARDS_POR_JUGADORES.get(num_jugadores, 2)
     con_sympathizer = usa_sympathizer(num_jugadores)
 
-    mazo = [CYLON] * cylons
+    mazo = random.sample(CYLON_VARIANTES, min(cylons, len(CYLON_VARIANTES)))
     if con_sympathizer and incluir_sympathizer:
         mazo.append(SIMPATIZANTE)
 

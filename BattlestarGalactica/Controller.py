@@ -291,7 +291,7 @@ async def finalizar_setup(bot, game):
         for _ in range(cantidad):
             if st.loyalty_deck:
                 player.loyalty_cards.append(st.loyalty_deck.pop())
-        player.is_cylon = Loyalty.CYLON in player.loyalty_cards
+        player.is_cylon = any(Loyalty.es_cylon(c) for c in player.loyalty_cards)
         await _dm_lealtad(bot, player)
 
     # El Simpatizante entra al mazo restante (partidas de 4 y 6 jugadores).
@@ -445,7 +445,7 @@ async def _robar_carta_color(bot, game, player, color, anunciar=True):
 
 async def _dm_lealtad(bot, player):
     cartas = player.loyalty_cards
-    es_cylon = Loyalty.CYLON in cartas
+    es_cylon = any(Loyalty.es_cylon(c) for c in cartas)
     es_simp = Loyalty.SIMPATIZANTE in cartas
     detalle = "\n".join(f"• {Loyalty.NOMBRE_CARTA.get(c, c)}" for c in cartas)
     txt = f"🃏 *Tus cartas de lealtad ({len(cartas)}):*\n{detalle}\n\n"
@@ -969,10 +969,9 @@ ACCIONES_UBICACION = {
 # Acciones que requieren elegir un personaje objetivo (abren chequeo de ubicación)
 ACCIONES_CON_OBJETIVO = {"brig_check": "brig", "president_check": "president"}
 
-# Acciones que requieren elegir un ÁREA del espacio (Control de Armas) → tipo de nave
-# ("cualquiera" = áreas con cualquier nave Cylon, p. ej. la Ojiva Nuclear).
+# Acciones que requieren elegir un ÁREA del espacio (Control de Armas) → tipo de nave.
 ACCIONES_CON_AREA = {"shoot_raider": "raiders", "shoot_basestar": "basestars",
-                     "launch_nuke": "cualquiera"}
+                     "launch_nuke": "basestars"}
 
 # Acciones disponibles mientras se pilota un Viper tripulado.
 ACCIONES_PILOTO = ["pilot_attack", "pilot_move", "pilot_land"]
@@ -1447,8 +1446,10 @@ async def _lanzar_piloto(bot, game, player, area_idx=None):
 
 
 async def _pilot_atacar(bot, game, player):
-    """El Viper tripulado ataca una nave Cylon de su área (Raider 3+, Heavy 4+,
-    Basestar 6+). Devuelve True si hubo ataque."""
+    """El Viper tripulado ataca una nave Cylon de su área: Raider con 3-8,
+    Heavy Raider/Centurión con 7-8 (tabla de combate oficial). Los Vipers no
+    pueden atacar Basestars (solo Galactica -vía Control de Armas- o una
+    Ojiva Nuclear las dañan). Devuelve True si hubo ataque."""
     st = game.board.state
     i = player.viper_area
     area = st.areas[i]
@@ -1460,18 +1461,14 @@ async def _pilot_atacar(bot, game, player):
         else:
             await bot.send_message(game.cid, f"✈️ Tirada {r}: {player.name} falla contra el Raider.")
     elif area.get("heavy_raiders", 0) > 0:
-        if r >= 4:
+        if r >= 7:
             area["heavy_raiders"] -= 1
             await bot.send_message(game.cid, f"✈️🔫 Tirada {r}: {player.name} derriba un Heavy Raider en {Space.nombre(i)}.")
         else:
             await bot.send_message(game.cid, f"✈️ Tirada {r}: {player.name} falla contra el Heavy Raider.")
-    elif area["basestars"]:
-        if r >= 6:
-            await _danar_basestar(bot, game, i)
-        else:
-            await bot.send_message(game.cid, f"✈️ Tirada {r}: {player.name} no logra dañar la Basestar.")
     else:
-        await bot.send_message(game.cid, "No hay naves Cylon en tu área para atacar.")
+        await bot.send_message(game.cid, "No hay Raiders ni Heavy Raiders en tu área para atacar "
+                                         "(las Basestars solo se dañan desde Galactica o con una Ojiva Nuclear).")
         return False
     return True
 
@@ -1536,47 +1533,48 @@ async def _activar_un_viper(bot, game):
             return
 
 
-def _areas_con_cylons(st):
-    """Áreas del espacio que contienen alguna nave Cylon (Raiders, Heavy Raiders
-    o Basestars)."""
-    return [i for i, a in enumerate(st.areas)
-            if a["raiders"] > 0 or a.get("heavy_raiders", 0) > 0 or a["basestars"]]
-
-
 async def _nuke(bot, game, area_idx=None):
-    """Lanza una Ojiva Nuclear del Almirante sobre un área del espacio: destruye
-    TODAS las naves Cylon de esa área (Raiders, Heavy Raiders y Basestars).
-    Consume 1 Ojiva (hay 2 al inicio de la partida). True si se lanzó."""
+    """Lanza una Ojiva Nuclear del Almirante contra una Basestar de un área
+    del espacio (tabla de combate oficial). Tira 1d8: 1-2 → 2 tokens de daño
+    a la Basestar (no necesariamente la destruye); 3-6 → la Basestar es
+    destruida; 7-8 → destruida y además se destruyen hasta 3 Raiders del
+    área. Consume 1 Ojiva (hay 2 al inicio de la partida). True si se lanzó."""
     st = game.board.state
     if st.nukes <= 0:
         await bot.send_message(game.cid, "☢️ No quedan Ojivas Nucleares.")
         return False
-    objetivos = _areas_con_cylons(st)
+    objetivos = [i for i, a in enumerate(st.areas) if a["basestars"]]
     if not objetivos:
-        await bot.send_message(game.cid, "No hay naves Cylon en el espacio a las que disparar.")
+        await bot.send_message(game.cid, "No hay Basestars en el espacio a las que disparar.")
         return False
     if area_idx is None or area_idx not in objetivos:
         area_idx = objetivos[0]
     st.nukes -= 1
     area = st.areas[area_idx]
-    nb, nr, nh = len(area["basestars"]), area["raiders"], area.get("heavy_raiders", 0)
-    area["basestars"] = []
-    area["raiders"] = 0
-    area["heavy_raiders"] = 0
-    partes = []
-    if nb:
-        partes.append(f"{nb} Basestar(s)")
-    if nr:
-        partes.append(f"{nr} Raider(s)")
-    if nh:
-        partes.append(f"{nh} Heavy Raider(s)")
-    destruidas = ", ".join(partes) if partes else "el área (sin naves)"
-    await bot.send_message(
-        game.cid,
-        f"☢️ *¡OJIVA NUCLEAR sobre {Space.nombre(area_idx)}!* Se destruye(n) {destruidas}. "
-        f"Ojivas restantes: {st.nukes}.",
-        parse_mode=ParseMode.MARKDOWN,
-    )
+    r = _d8()
+    if r <= 2:
+        await bot.send_message(
+            game.cid,
+            f"☢️ *¡OJIVA NUCLEAR sobre una Basestar en {Space.nombre(area_idx)}!* Tirada {r}: 2 tokens de daño.",
+            parse_mode=ParseMode.MARKDOWN,
+        )
+        await _danar_basestar(bot, game, area_idx, cantidad=2)
+    else:
+        k = max(range(len(area["basestars"])), key=lambda j: area["basestars"][j])
+        area["basestars"].pop(k)
+        extra = ""
+        if r >= 7:
+            n = min(3, area["raiders"])
+            area["raiders"] -= n
+            if n:
+                extra = f" y {n} Raider(s)"
+        await bot.send_message(
+            game.cid,
+            f"☢️ *¡OJIVA NUCLEAR sobre una Basestar en {Space.nombre(area_idx)}!* Tirada {r}: "
+            f"¡destruida{extra}!",
+            parse_mode=ParseMode.MARKDOWN,
+        )
+    await bot.send_message(game.cid, f"Ojivas restantes: {st.nukes}.")
     await _chequear_fin(bot, game)
     return True
 
@@ -2017,6 +2015,53 @@ ETIQUETA_ACCION_CYLON = {
 }
 
 
+async def _activar_poder_lealtad(bot, game, player):
+    """Poder de un solo uso de la variante específica de carta de lealtad
+    Cylon del jugador (Loyalty.CYLON_VARIANTES), disparado justo al
+    revelarse: enviar a alguien a la Enfermería o al Calabozo (elección),
+    reducir la Moral en 1, o dañar Galactica una vez. No hace nada si el
+    jugador no tiene ninguna de esas variantes (p. ej. Simpatizante)."""
+    st = game.board.state
+    variante = next((c for c in player.loyalty_cards if c in Loyalty.CYLON_VARIANTES), None)
+    if not variante:
+        return
+    accion = Loyalty.PODER_POR_VARIANTE[variante]
+    if accion == "moral":
+        await bot.send_message(game.cid, f"🤖 Poder de lealtad de *{player.name}*: reduce la Moral en 1.", parse_mode=ParseMode.MARKDOWN)
+        await modificar_recurso(bot, game, "moral", -1)
+        return
+    if accion == "galactica":
+        await bot.send_message(game.cid, f"🤖 Poder de lealtad de *{player.name}*: daña Galactica.", parse_mode=ParseMode.MARKDOWN)
+        await _danar_galactica(bot, game, fuente="lealtad")
+        return
+    # sickbay / brig: elegir un objetivo (opcional), salvo que ya haya otra
+    # elección de objetivo en curso (no se pisa).
+    if st.target_select is not None:
+        await bot.send_message(game.cid, f"🤖 {player.name} no pudo usar su poder de lealtad justo ahora "
+                                         "(hay otra elección de objetivo en curso).")
+        return
+    candidatos = _candidatos_objetivo(game, player, "todos")
+    if not candidatos:
+        return
+    etiqueta, emoji = _ETIQUETA_ACCION_OBJETIVO.get(accion, (accion, "🎯"))
+    st.target_select = {
+        "chooser": player.uid,
+        "accion": accion,
+        "candidatos": [p.uid for p in candidatos],
+        "restantes": [],
+        "opcional": True,
+    }
+    btns = [[InlineKeyboardButton(p.name, callback_data=f"{game.cid}*bsgCrisisTgt*{p.uid}*{player.uid}")]
+            for p in candidatos]
+    btns.append([InlineKeyboardButton("✋ No elegir a nadie", callback_data=f"{game.cid}*bsgCrisisTgt*none*{player.uid}")])
+    await bot.send_message(
+        game.cid,
+        f"{emoji} Poder de lealtad: {player_call(player)} puede *{etiqueta}* a un personaje (opcional):",
+        reply_markup=InlineKeyboardMarkup(btns),
+        parse_mode=ParseMode.MARKDOWN,
+    )
+
+
 async def revelar_cylon(bot, game, uid, con_super_crisis=True):
     """Un jugador con carta de Cylon se revela y desata su poder.
     con_super_crisis=False para el Simpatizante (se une a los Cylons pero no
@@ -2054,6 +2099,10 @@ async def revelar_cylon(bot, game, uid, con_super_crisis=True):
         f"🤖 *¡{player.name} se revela como CYLON!* Se traslada a la Flota Cylon.",
         parse_mode=ParseMode.MARKDOWN,
     )
+
+    # Poder de un solo uso de su variante específica de carta de lealtad
+    # (Enfermería/Calabozo/Moral/Galactica), si tiene una.
+    await _activar_poder_lealtad(bot, game, player)
 
     # Roba una Súper Crisis a su mano (la jugará desde Caprica)
     if not con_super_crisis:
@@ -2905,22 +2954,54 @@ async def resolver_voto_crisis(bot, game):
         await cerrar_crisis(bot, game, crisis)
 
 
+def _orden_aporte(game):
+    """Orden de aporte de cartas para el chequeo de una Crisis: empieza por el
+    siguiente jugador al jugador activo (siguiendo el orden de turno) y
+    termina con el jugador activo en último lugar. Los Cylons revelados no
+    participan del chequeo."""
+    st = game.board.state
+    seq = game.player_sequence
+    if not seq:
+        return []
+    i = st.player_counter % len(seq)
+    rotado = seq[i + 1:] + seq[:i + 1]
+    return [p.uid for p in rotado if not p.revealed]
+
+
+def _turno_aporte_actual(sc):
+    """uid del jugador al que le toca aportar (o pasar) en el chequeo, según
+    el orden de turno. None si no hay orden definido o ya pasó por todos."""
+    orden = sc.get("orden")
+    idx = sc.get("turno_idx", 0)
+    if not orden or idx >= len(orden):
+        return None
+    return orden[idx]
+
+
 async def abrir_chequeo(bot, game, crisis):
     st = game.board.state
     colores = crisis["colores"]
     emojis = " ".join(Skills.EMOJI_COLOR[c] for c in colores)
+    orden = _orden_aporte(game)
     st.skill_check = {
         "crisis_id": crisis.get("id", crisis.get("titulo")),
         "colores": colores,
         "dificultad": crisis["dificultad"],
         "aportes": {},   # uid -> lista de cartas
+        "orden": orden,
+        "turno_idx": 0,
     }
+    primero = game.playerlist.get(orden[0]) if orden else None
+    turno_txt = f"\n\n▶️ Turno de *{primero.name}* para aportar." if primero else ""
     await bot.send_message(
         game.cid,
         f"🎲 *Chequeo de habilidad* — dificultad *{crisis['dificultad']}*.\n"
         f"Colores positivos: {emojis} ({', '.join(colores)}).\n\n"
-        f"Cada jugador puede aportar cartas en privado con `/aportar N` (número de carta de su mano). "
-        f"Cuando todos hayan aportado, el Almirante o el jugador activo usa `/resolver`.",
+        f"Se aporta *en orden de turno*, empezando por el siguiente jugador al jugador "
+        f"activo y terminando por el jugador activo. En tu turno, aporta cuantas cartas "
+        f"quieras en privado con `/aportar N` (número de carta de tu mano) y luego usa "
+        f"`/pasarchequeo` para ceder el turno. Cuando todos hayan pasado, el Almirante o "
+        f"el jugador activo usa `/resolver`.{turno_txt}",
         parse_mode=ParseMode.MARKDOWN,
     )
     await save(bot, game.cid)
@@ -3260,6 +3341,13 @@ async def aportar_carta(bot, game, uid, indice):
     if not st.skill_check:
         await bot.send_message(uid, "No hay ningún chequeo de habilidad abierto.")
         return
+    turno_uid = _turno_aporte_actual(st.skill_check)
+    if turno_uid is not None and turno_uid != uid:
+        turno_player = game.playerlist.get(turno_uid)
+        nombre = turno_player.name if turno_player else "otro jugador"
+        await bot.send_message(uid, f"No es tu turno para aportar todavía. Le toca a *{nombre}*.",
+                               parse_mode=ParseMode.MARKDOWN)
+        return
     player = game.playerlist.get(uid)
     if not player or indice < 1 or indice > len(player.skill_hand):
         await bot.send_message(uid, "Número de carta inválido.")
@@ -3269,10 +3357,51 @@ async def aportar_carta(bot, game, uid, indice):
     await bot.send_message(
         uid,
         f"Aportaste {Skills.EMOJI_COLOR[carta['color']]} {carta['color']} {carta['valor']} "
-        f"(boca abajo).",
+        f"(boca abajo). Podés aportar otra carta o usar `/pasarchequeo` para ceder el turno.",
         parse_mode=ParseMode.MARKDOWN,
     )
     await _dm_mano(bot, player)
+    await save(bot, game.cid)
+
+
+async def pasar_aporte(bot, game, uid):
+    """Cede el turno de aporte al siguiente jugador del orden del chequeo
+    (ver _orden_aporte). Cuando el último jugador (el jugador activo) pasa,
+    el chequeo queda listo para resolverse."""
+    st = game.board.state
+    sc = st.skill_check
+    if not sc:
+        await bot.send_message(uid, "No hay ningún chequeo de habilidad abierto.")
+        return
+    turno_uid = _turno_aporte_actual(sc)
+    if turno_uid is None:
+        await bot.send_message(uid, "Ya pasaron todos los turnos de este chequeo. "
+                                    "Usa `/resolver` para resolverlo.")
+        return
+    if turno_uid != uid:
+        turno_player = game.playerlist.get(turno_uid)
+        nombre = turno_player.name if turno_player else "otro jugador"
+        await bot.send_message(uid, f"No es tu turno todavía. Le toca a *{nombre}*.",
+                               parse_mode=ParseMode.MARKDOWN)
+        return
+    sc["turno_idx"] = sc.get("turno_idx", 0) + 1
+    quien_paso = game.playerlist.get(uid)
+    siguiente_uid = _turno_aporte_actual(sc)
+    if siguiente_uid:
+        siguiente = game.playerlist.get(siguiente_uid)
+        await bot.send_message(
+            game.cid,
+            f"⏭️ {quien_paso.name if quien_paso else uid} cede su turno de aporte. "
+            f"▶️ Turno de *{siguiente.name if siguiente else '???'}*.",
+            parse_mode=ParseMode.MARKDOWN,
+        )
+    else:
+        await bot.send_message(
+            game.cid,
+            "✅ Todos los jugadores tuvieron su turno para aportar. "
+            "El Almirante o el jugador activo puede usar `/resolver`.",
+            parse_mode=ParseMode.MARKDOWN,
+        )
     await save(bot, game.cid)
 
 
@@ -4140,7 +4269,7 @@ async def fase_durmiente(bot, game):
             if st.loyalty_deck:
                 carta = st.loyalty_deck.pop()
                 player.loyalty_cards.append(carta)
-                if carta == Loyalty.CYLON and not player.is_cylon:
+                if Loyalty.es_cylon(carta) and not player.is_cylon:
                     player.is_cylon = True
                 elif carta == Loyalty.SIMPATIZANTE:
                     recibio_simpatizante = True
