@@ -61,6 +61,9 @@ class State(BaseState):
         self.crisis_vote = None           # dict: {opciones, votos:{uid:idx}} para crisis de voto
         self.target_select = None         # dict: {chooser, accion, candidatos:[uid], restantes:[efectos], opcional}
         self.recrisis_pendiente = False   # tras cerrar la crisis, robar y resolver otra (sin avanzar turno)
+        self.aporte_pendiente = None      # dict {uid, indices:[int]} selección de cartas (aún no confirmada)
+                                           # del jugador al que le toca aportar en el chequeo de una Crisis
+                                           # (botonera de selección + confirmación, ver Controller.aportar_carta*)
 
         # --- Paso "Recibir Habilidades" en curso (elección de color) ---
         self.skill_draw = None            # dict: {uid, restantes, pool:[colores]}
