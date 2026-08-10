@@ -3080,7 +3080,8 @@ async def abrir_chequeo(bot, game, crisis):
         f"Colores positivos: {emojis} ({', '.join(colores)}).\n\n"
         f"Se aporta *en orden de turno*, empezando por el siguiente jugador al jugador "
         f"activo y terminando por el jugador activo. A cada jugador le va a llegar por "
-        f"privado una botonera para elegir sus cartas cuando le toque el turno. "
+        f"privado una botonera para elegir sus cartas cuando le toque el turno (si no te "
+        f"llegó, escribí `/aportar` por privado para pedirla de nuevo). "
         f"Cuando todos hayan pasado, el Almirante o el jugador activo usa "
         f"`/resolver`.{turno_txt}",
         parse_mode=ParseMode.MARKDOWN,

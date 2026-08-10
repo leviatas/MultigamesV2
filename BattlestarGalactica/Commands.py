@@ -1161,8 +1161,23 @@ async def command_aportar(update: Update, context: CallbackContext):
             and len(sc.get("aportes", {}).get(uid, [])) >= 1):
         await bot.send_message(uid, "En el calabozo solo puedes aportar 1 carta por chequeo.")
         return
-    if not args or not args[0].isdigit():
-        await bot.send_message(uid, "Uso: `/aportar N` (N = número de carta de tu mano).", parse_mode=ParseMode.MARKDOWN)
+    if not args:
+        # Sin argumento: (re)muestra la botonera de selección, por si no
+        # llegó (o se perdió) el mensaje automático al abrirse el chequeo
+        # o al cederle el turno.
+        turno_uid = BSGController._turno_aporte_actual(sc)
+        if turno_uid is not None and turno_uid != uid:
+            turno_player = game.playerlist.get(turno_uid)
+            nombre = turno_player.name if turno_player else "otro jugador"
+            await bot.send_message(uid, f"No es tu turno para aportar todavía. Le toca a *{nombre}*.",
+                                   parse_mode=ParseMode.MARKDOWN)
+            return
+        await BSGController._mostrar_selector_aporte(bot, game, uid)
+        await save(bot, game.cid)
+        return
+    if not args[0].isdigit():
+        await bot.send_message(uid, "Uso: `/aportar` (para ver la botonera) o `/aportar N` "
+                                    "(N = número de carta de tu mano).", parse_mode=ParseMode.MARKDOWN)
         return
     await BSGController.aportar_carta(bot, game, uid, int(args[0]))
 
