@@ -620,7 +620,6 @@ def command_startgame(update: Update, context: CallbackContext):
 	else:
 		player_number = len(game.playerlist)
 		MainController.inform_players(bot, game, game.cid, player_number)
-		MainController.inform_fascists(bot, game, player_number)
 		game.board = Board(player_number, game)
 		log.info(game.board)
 		log.info("len(games) Command_startgame: " + str(len(GamesController.games)))
