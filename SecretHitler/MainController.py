@@ -1048,12 +1048,22 @@ def inform_players(bot, game, cid, player_number):
 		party = get_membership(role)
 		game.playerlist[uid].role = role
 		game.playerlist[uid].party = party
-		
+
+	# Recien aca, con los roles de TODOS los jugadores ya asignados (get_private_info necesita
+	# poder consultar game.get_fascists()/game.get_hitler() completos), mando un unico mensaje
+	# por jugador con toda su info y lo pinneo en su chat privado con el bot.
+	for uid in player_ids:
 		# I comment so tyhe player aren't discturbed in testing, uncomment when deploy to production
 		if not game.is_debugging:
-			bot.send_message(uid, "Tu rol secreto es: %s\nTu afiliación política es: %s" % (role, party))
+			msg = game.playerlist[uid].get_private_info(game)
+			sent = bot.send_message(uid, msg, parse_mode=ParseMode.MARKDOWN)
+			try:
+				bot.pin_chat_message(uid, sent.message_id, disable_notification=True)
+			except Exception as e:
+				log.error("No se pudo pinnear el mensaje de rol de %s: %s" % (game.playerlist[uid].name, str(e)))
 		else:
-			bot.send_message(ADMIN, "El jugador %s es %s y su afiliación política es: %s" % (game.playerlist[uid].name, role, party))
+			bot.send_message(ADMIN, "El jugador %s es %s y su afiliación política es: %s" % (
+				game.playerlist[uid].name, game.playerlist[uid].role, game.playerlist[uid].party))
 
 
 def print_player_info(player_number):
@@ -1069,35 +1079,6 @@ def print_player_info(player_number):
         return "Hay  5 Liberales, 3 Fascistas y Hitler. Hitler no conoce quienes son los Fascistas."
     elif player_number == 10:
         return "Hay  6 Liberales, 3 Fascistas y Hitler. Hitler no conoce quienes son los Fascistas."
-
-
-def inform_fascists(bot, game, player_number):
-	log.info('inform_fascists called')
-
-	for uid in game.playerlist:
-		role = game.playerlist[uid].role
-		if role == "Fascista":
-			fascists = game.get_fascists()
-			if player_number > 6:
-				fstring = ""
-				for f in fascists:
-					if f.uid != uid:
-						fstring += f.name + ", "
-				fstring = fstring[:-2]
-				if not game.is_debugging:
-					bot.send_message(uid, "Tus compañeros fascistas son: %s" % fstring)
-			hitler = game.get_hitler()
-			if not game.is_debugging:
-				bot.send_message(uid, "Hitler es: %s" % hitler.name) #Uncoomend on production
-		elif role == "Hitler":
-			if player_number <= 6:
-				fascists = game.get_fascists()
-				if not game.is_debugging:
-					bot.send_message(uid, "Tu compañero fascista es: %s" % fascists[0].name)
-		elif role == "Liberal":
-			pass
-		else:
-			log.error("inform_fascists: can\'t handle the role %s" % role)
 
 
 def get_membership(role):
