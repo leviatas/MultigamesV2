@@ -77,6 +77,10 @@ def _check_alma_en_pena(ctx):
     return sum(1 for row in ctx.history() if row[3]) >= 10
 
 
+def _check_mas_muerto_que_alee(ctx):
+    return sum(1 for row in ctx.history() if row[3]) > 10  # row[3] = died
+
+
 def _check_primera_partida(ctx):
     # >=1 (no ==1): si el primer registro de un jugador vino de una migracion
     # legacy (/vincularstats) o de antes de que existiera este logro, el
@@ -227,6 +231,8 @@ LOGROS = [
           "⚰️", "muerte", False, _check_carne_de_canon),
     Logro("alma_en_pena", "Alma en pena", "Te ejecutaron 10 veces en total.",
           "👻", "muerte", False, _check_alma_en_pena),
+    Logro("mas_muerto_que_alee", "Más muerto que Alee", "Te ejecutaron más de 10 veces en total.",
+          "🪦", "muerte", False, _check_mas_muerto_que_alee),
 
     # Hitos
     Logro("primera_partida", "Primera vez", "Jugaste tu primera partida.",
