@@ -489,13 +489,9 @@ def _pista_aporte(sc, cartas):
     valor = sum(Skills.signo_para_check(c["color"], colores) * c["valor"] for c in cartas)
     n_jugadores = len(sc.get("orden") or []) or 1
     reparto_justo = sc["dificultad"] / n_jugadores
-    if valor <= 0:
-        return "⚠️ Ojo: con esos colores no suma a favor del chequeo (o directamente resta)."
-    if valor < reparto_justo * 0.6:
-        return "🔽 Es un aporte más bien *bajo* para lo que hace falta en promedio."
-    if valor > reparto_justo * 1.4:
-        return "🔼 Es un aporte *alto*, ayuda bastante al chequeo."
-    return "➖ Es un aporte parejo con el promedio necesario."
+    if valor < reparto_justo:
+        return "🔽 Es un aporte *bajo* para lo que hace falta en promedio."
+    return "🔼 Es un aporte *alto*, ayuda bastante al chequeo."
 
 
 async def _mostrar_selector_aporte(bot, game, uid, message_id=None):
