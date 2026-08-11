@@ -279,6 +279,143 @@ async def callback_pickb(update: Update, context: CallbackContext):
     await SecretoCodigoController.process_pick(bot, game, uid, numero)
 
 
+def _build_vote_keyboard(game, uid):
+    st = game.board.state
+    votos = SecretoCodigoController.votos_actuales(st)
+    strcid = str(game.cid)
+
+    buttons = []
+    row = []
+    for card in st.tablero:
+        numero = card["numero"]
+        word = card["word"].upper()
+        if card["revealed"]:
+            label = "✓"
+        else:
+            n_votos = len(votos.get(numero, []))
+            label = f"{word} ({n_votos})" if n_votos else word
+        cb = f"{strcid}*votebCN*{numero}*{uid}"
+        row.append(InlineKeyboardButton(label, callback_data=cb))
+        if len(row) == 5:
+            buttons.append(row)
+            row = []
+    if row:
+        buttons.append(row)
+    return InlineKeyboardMarkup(buttons)
+
+
+async def command_votar(update: Update, context: CallbackContext):
+    bot = context.bot
+    args = context.args
+    cid = update.message.chat_id
+    uid = update.message.from_user.id
+
+    game = get_game(cid)
+    if not game or game.tipo != "SecretoCodigo" or not game.board:
+        return
+
+    if game.modo == "Cooperativo":
+        await bot.send_message(cid, "El modo Dúo no usa votación (solo hay un jugador adivinando). Usa /pick.")
+        return
+
+    if len(args) < 1:
+        await bot.send_message(cid, "Uso: /votar NUMERO  (ej: /votar 7)")
+        return
+
+    try:
+        numero = int(args[0])
+    except ValueError:
+        await bot.send_message(cid, "El argumento debe ser un número entre 1 y 25.")
+        return
+
+    if numero < 1 or numero > 25:
+        await bot.send_message(cid, "El número debe ser entre 1 y 25.")
+        return
+
+    team = game.board.state.turno_actual
+    fase = game.board.state.fase_actual
+
+    if fase != f"Turno {team} - Adivinar":
+        await bot.send_message(cid, "No es el momento de votar.")
+        return
+
+    if not game.is_field_operative(uid, team):
+        await bot.send_message(cid, "No eres un agente de campo del equipo activo.")
+        return
+
+    card = next((c for c in game.board.state.tablero if c["numero"] == numero), None)
+    if card is None or card["revealed"]:
+        await bot.send_message(cid, "Carta inválida o ya revelada.")
+        return
+
+    await SecretoCodigoController.process_vote(bot, game, uid, numero)
+
+
+async def command_votarb(update: Update, context: CallbackContext):
+    bot = context.bot
+    cid = update.message.chat_id
+    uid = update.message.from_user.id
+
+    game = get_game(cid)
+    if not game or game.tipo != "SecretoCodigo" or not game.board:
+        return
+
+    if game.modo == "Cooperativo":
+        await bot.send_message(cid, "El modo Dúo no usa votación (solo hay un jugador adivinando). Usa /pickb.")
+        return
+
+    markup = _build_vote_keyboard(game, uid)
+    await bot.send_message(
+        cid,
+        "🗳 Marca las cartas que creés correctas (podés marcar varias; tocar de nuevo la "
+        "destoca). Se elige con mitad + 1 de votos del equipo:",
+        reply_markup=markup,
+    )
+
+
+async def callback_voteb(update: Update, context: CallbackContext):
+    bot = context.bot
+    callback = update.callback_query
+    regex = re.search(r"(-?[0-9]*)\*votebCN\*([0-9]*)\*([0-9]*)", callback.data)
+    cid = int(regex.group(1))
+    numero = int(regex.group(2))
+    uid = callback.from_user.id
+
+    game = get_game(cid)
+    if not game or game.tipo != "SecretoCodigo" or not game.board:
+        await callback.answer("No hay partida activa.")
+        return
+
+    if game.modo == "Cooperativo":
+        await callback.answer("El modo Dúo no usa votación.")
+        return
+
+    card = next((c for c in game.board.state.tablero if c["numero"] == numero), None)
+    if card is None or card["revealed"]:
+        await callback.answer("Carta ya revelada o inválida.")
+        return
+
+    team = game.board.state.turno_actual
+    fase = game.board.state.fase_actual
+    if fase != f"Turno {team} - Adivinar":
+        await callback.answer("No es el momento de votar.")
+        return
+    if not game.is_field_operative(uid, team):
+        await callback.answer("No eres un agente de campo del equipo activo.")
+        return
+
+    await callback.answer("Voto registrado.")
+    await SecretoCodigoController.process_vote(bot, game, uid, numero)
+
+    try:
+        await bot.edit_message_reply_markup(
+            cid, callback.message.message_id,
+            reply_markup=_build_vote_keyboard(game, uid),
+        )
+    except Exception:
+        pass
+
+
 async def command_endturn(update: Update, context: CallbackContext):
     bot = context.bot
     cid = update.message.chat_id
@@ -531,7 +668,8 @@ async def command_call(bot, game):
             photo=game.board.render_board_image(game),
             caption=(
                 f"Equipo *{team}*: pista *{pista}* — {numero_display}. "
-                f"Intentos restantes: {intentos_display}.\nUsa `/pick NUMERO` o `/endturn`.\n"
+                f"Intentos restantes: {intentos_display}.\n"
+                f"Usa `/pick NUMERO`, `/votar NUMERO` (o `/votarb`) o `/endturn`.\n"
                 f"Toca adivinar a: {menciones}"
             ),
             parse_mode=ParseMode.MARKDOWN,
