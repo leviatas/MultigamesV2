@@ -36,6 +36,7 @@ import SpyFall.Controller as SpyFallController
 import Insider.Controller as InsiderController
 import BattlestarGalactica.Controller as BSGController
 import PuertoBanana.Controller as PuertoBananaController
+import Flip7.Controller as Flip7Controller
 
 # Importo los comandos de los juegos que vaya agregando
 import JustOne.Commands as JustoneCommands
@@ -52,6 +53,7 @@ import SpyFall.Commands as SpyFallCommands
 import Insider.Commands as InsiderCommands
 import BattlestarGalactica.Commands as BSGCommands
 import PuertoBanana.Commands as PuertoBananaCommands
+import Flip7.Commands as Flip7Commands
 
 from Constants.Cards import playerSets, actions
 from Constants.Config import TOKEN, STATS, ADMIN
@@ -147,6 +149,9 @@ async def init_game(bot, game):
 	elif game.tipo == "PuertoBanana":
 		game.create_board()
 		await PuertoBananaController.init_game(bot, game)
+	elif game.tipo == "Flip7":
+		game.create_board()
+		await Flip7Controller.init_game(bot, game)
 
 
 async def init_lost_expedition(bot, game, player_number):
@@ -898,6 +903,13 @@ def main(stop_event):
 	app.add_handler(CommandHandler("puja", PuertoBananaCommands.command_puja))
 	app.add_handler(CallbackQueryHandler(pattern=r"(-[0-9]*)\*choosegamepujaPB\*(-?[0-9]*)\*([0-9]*)", callback=PuertoBananaCommands.callback_choose_game_puja))
 	app.add_handler(CallbackQueryHandler(pattern=r"(-[0-9]*)\*chooseendPB\*(.*)\*([0-9]*)", callback=PuertoBananaController.callback_finish_game_buttons_pb))
+
+	# Handlers de Flip 7
+	app.add_handler(CallbackQueryHandler(pattern=r"(-[0-9]*)\*chooseturnF7\*(hit|stay)\*([0-9]*)", callback=Flip7Controller.callback_choose_turn))
+	app.add_handler(CallbackQueryHandler(pattern=r"(-[0-9]*)\*choosefreezeF7\*([0-9]*)\*([0-9]*)", callback=Flip7Controller.callback_choose_freeze_target))
+	app.add_handler(CallbackQueryHandler(pattern=r"(-[0-9]*)\*choosef3F7\*([0-9]*)\*([0-9]*)", callback=Flip7Controller.callback_choose_flip_three_target))
+	app.add_handler(CallbackQueryHandler(pattern=r"(-[0-9]*)\*choosescgiveF7\*([0-9]*)\*([0-9]*)", callback=Flip7Controller.callback_choose_sc_give))
+	app.add_handler(CallbackQueryHandler(pattern=r"(-[0-9]*)\*chooseendF7\*(.*)\*([0-9]*)", callback=Flip7Controller.callback_finish_game_buttons_f7))
 
 	app.add_handler(CommandHandler("status", command_status))
 

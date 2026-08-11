@@ -97,6 +97,11 @@ JUEGOS_DISPONIBLES = {
                     "PuertoBanana" : "Puerto Banana"
                 },
         },
+	"Flip7" : {
+                "comandos" : {
+                    "Flip7" : "Flip 7"
+                },
+        },
 }
 
 
@@ -324,6 +329,15 @@ MODULOS_DISPONIBES = {
                         },
                         "min_jugadores" : 3,
                         "max_jugadores" : 10
+                }
+        },
+	"Flip7" : {
+                "Clasico" : {
+                        "comandos" : {
+                            "Clasico" : "Clásico"
+                        },
+                        "min_jugadores" : 3,
+                        "max_jugadores" : 18
                 }
         },
 }
