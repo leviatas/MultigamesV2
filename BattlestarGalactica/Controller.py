@@ -477,6 +477,23 @@ def _texto_carta_corto(c):
     return f"{Skills.EMOJI_COLOR[c['color']]} {c['color']} {c['valor']} — {c.get('nombre','')}"
 
 
+def _pista_aporte(sc, cartas):
+    """Da una pista cualitativa (sin revelar el número exacto a nadie más:
+    esto va en un mensaje privado) de si lo que se acaba de aportar es poco o
+    mucho, comparando el valor a favor/en contra que suma para el chequeo
+    contra el reparto parejo de la dificultad entre los jugadores que
+    participan del chequeo."""
+    if not cartas:
+        return None
+    colores = sc["colores"]
+    valor = sum(Skills.signo_para_check(c["color"], colores) * c["valor"] for c in cartas)
+    n_jugadores = len(sc.get("orden") or []) or 1
+    reparto_justo = sc["dificultad"] / n_jugadores
+    if valor < reparto_justo:
+        return "🔽 Es un aporte *bajo* para lo que hace falta en promedio."
+    return "🔼 Es un aporte *alto*, ayuda bastante al chequeo."
+
+
 async def _mostrar_selector_aporte(bot, game, uid, message_id=None):
     """Botonera de selección de cartas a aportar al chequeo de una Crisis, en
     privado. Cada botón marca/desmarca una carta (multi-selección); al elegir
@@ -538,8 +555,10 @@ async def _mostrar_confirmacion_aporte(bot, game, uid, message_id=None):
         await _mostrar_selector_aporte(bot, game, uid, message_id)
         return
     lineas = [f"• {_texto_carta_corto(c)}" for c in cartas]
+    pista = _pista_aporte(st.skill_check, cartas) if st.skill_check else None
+    pista_txt = f"\n\n{pista}" if pista else ""
     texto = ("🃏 *Vas a aportar estas cartas* (van boca abajo, no se revela quién las jugó):\n"
-             + "\n".join(lineas) + "\n\n¿Confirmás?")
+             + "\n".join(lineas) + pista_txt + "\n\n¿Confirmás?")
     markup = InlineKeyboardMarkup([
         [InlineKeyboardButton("✅ Sí, aportar", callback_data=f"{game.cid}*bsgAportarOk*0*{uid}")],
         [InlineKeyboardButton("✏️ Cambiar selección", callback_data=f"{game.cid}*bsgAportarCambiar*0*{uid}")],
@@ -3442,10 +3461,13 @@ async def aportar_carta(bot, game, uid, indice):
     # desalineados tras este pop: se descarta y se vuelve a mostrar limpia.
     if st.aporte_pendiente and st.aporte_pendiente.get("uid") == uid:
         st.aporte_pendiente = None
+    pista = _pista_aporte(st.skill_check, st.skill_check["aportes"][uid])
+    pista_txt = f"\n{pista}" if pista else ""
     await bot.send_message(
         uid,
         f"Aportaste {Skills.EMOJI_COLOR[carta['color']]} {carta['color']} {carta['valor']} "
-        f"(boca abajo). Podés aportar otra carta o usar `/pasarchequeo` para ceder el turno.",
+        f"(boca abajo). Podés aportar otra carta o usar `/pasarchequeo` para ceder el turno."
+        f"{pista_txt}",
         parse_mode=ParseMode.MARKDOWN,
     )
     await _dm_mano(bot, player)
@@ -3610,11 +3632,15 @@ async def resolver_chequeo(bot, game):
     crisis = st.crisis_actual
     intermedio = crisis.get("intermedio") if crisis else None
     if exito:
-        resultado_txt = "✅ ÉXITO"
+        margen = total - dificultad
+        margen_txt = " _(por poco)_" if margen <= 2 else " _(con margen de sobra)_"
+        resultado_txt = f"✅ ÉXITO{margen_txt}"
     elif intermedio and total >= intermedio["umbral"]:
         resultado_txt = f"🟨 PARCIAL ({intermedio['umbral']}+)"
     else:
-        resultado_txt = "❌ FRACASO"
+        faltante = dificultad - total
+        margen_txt = " _(faltó poco)_" if faltante <= 2 else " _(faltó mucho)_"
+        resultado_txt = f"❌ FRACASO{margen_txt}"
     extra = (" (" + "; ".join(notas) + ")") if notas else ""
     await bot.send_message(
         game.cid,
