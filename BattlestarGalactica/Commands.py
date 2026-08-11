@@ -2074,6 +2074,7 @@ async def command_bsgadmin(update: Update, context: CallbackContext):
         [InlineKeyboardButton("🃏 Quitar carta a un jugador", callback_data=f"{cid}*bsgAdmin*quitar_carta*{uid}")],
         [InlineKeyboardButton("🔭 Dar resultado de Sonda exitosa", callback_data=f"{cid}*bsgAdmin*dar_scout*{uid}")],
         [InlineKeyboardButton("🎲 Reiniciar pedido de cartas (crisis activa)", callback_data=f"{cid}*bsgAdmin*reabrir_chequeo*{uid}")],
+        [InlineKeyboardButton("❌ Cancelar", callback_data=f"{cid}*bsgAdmin*cancelar*{uid}")],
     ]
     await bot.send_message(cid, "🛠️ *Panel de Admin (BSG)* — ¿qué querés corregir?",
                            reply_markup=InlineKeyboardMarkup(btns), parse_mode=ParseMode.MARKDOWN)
@@ -2096,6 +2097,15 @@ async def callback_bsg_admin(update: Update, context: CallbackContext):
         if presser != ordenante or presser != ADMIN[0]:
             await callback.answer("No puedes usar este panel.")
             return
+
+        if opcion == "cancelar":
+            await callback.answer("Cancelado.")
+            try:
+                await bot.delete_message(cid, callback.message.message_id)
+            except Exception:
+                pass
+            return
+
         await callback.answer()
         st = game.board.state
 
