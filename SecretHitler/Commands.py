@@ -1662,6 +1662,7 @@ def callback_choose_posible_role(update: Update, context: CallbackContext):
 			if uid in game.playerlist:
 				mensaje_edit = 'Mensaje Editado: Has elegido el Rol: %s' % opcion
 				game.playerlist[uid].preference_rol = opcion
+				save_game(cid, game.groupName, game)
 				choose_posible_role(bot, cid, uid)
 			else:
 				mensaje_edit = 'No estas unido a esta partida, intentalo cuando te hayas unido'			
