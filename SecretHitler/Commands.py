@@ -59,6 +59,8 @@ commands = [  # command description used in the "help" command
     '/guess - Adivina en privado quiénes son los fascistas y Hitler',
     '/mvp - Vota en privado al mejor jugador de la partida',
     '/end - Cierra la votación de MVP sin esperar a que voten todos',
+    '/guessresults - Reimprime los resultados de las adivinanzas de la partida que terminó',
+    '/miguess - Muestra en privado solo tu propio resultado de /guess',
     '/version - Muestra la versión actual del bot'
 ]
 
@@ -2079,7 +2081,26 @@ def callback_guess_restart(update: Update, context: CallbackContext):
 	bot.edit_message_text(texto, chat_id=callback.message.chat_id, message_id=callback.message.message_id,
 		reply_markup=markup, parse_mode=ParseMode.MARKDOWN)
 
-def format_guesses_reveal(game):
+def send_chunked_message(bot, cid, text, parse_mode=None, max_len=3500):
+	# Telegram limita los mensajes a 4096 caracteres; textos armados dinamicamente
+	# (revelacion de /guess con muchos jugadores, etc.) pueden superarlo y el envio
+	# fallaria entero. Corta por saltos de linea para no partir una entrada al medio.
+	if len(text) <= max_len:
+		bot.send_message(cid, text, parse_mode=parse_mode)
+		return
+	lineas = text.split("\n")
+	chunk = ""
+	for linea in lineas:
+		candidato = (chunk + "\n" + linea) if chunk else linea
+		if len(candidato) > max_len and chunk:
+			bot.send_message(cid, chunk, parse_mode=parse_mode)
+			chunk = linea
+		else:
+			chunk = candidato
+	if chunk:
+		bot.send_message(cid, chunk, parse_mode=parse_mode)
+
+def format_guesses_reveal(game, only_uid=None):
 	guesses = getattr(game, "guesses", {})
 	if not guesses:
 		return None
@@ -2089,9 +2110,9 @@ def format_guesses_reveal(game):
 	fascist_uids = {f.uid for f in game.get_fascists()}
 	total_fascists = len(fascist_uids)
 
-	liberal_resultados = []  # (score, name, texto) - flujo completo, arma el ranking "mas cerca de la verdad"
-	hitler_lineas = []
-	fascista_entries = []    # (predicted_uid, texto)
+	liberal_resultados = []  # (score, name, texto, uid) - flujo completo, arma el ranking "mas cerca de la verdad"
+	hitler_lineas = []       # (texto, uid)
+	fascista_entries = []    # (predicted_uid, texto, uid)
 
 	for guesser_uid, history in guesses.items():
 		if not history:
@@ -2109,9 +2130,10 @@ def format_guesses_reveal(game):
 			guessed_fascist_uids = [u for u in guess.get("fascists", []) if u in game.playerlist]
 			aciertos = [u for u in guessed_fascist_uids if u in fascist_uids]
 			nombres = ", ".join(game.playerlist[u].name for u in guessed_fascist_uids) or "nadie"
-			hitler_lineas.append(
+			hitler_lineas.append((
 				"*{}* (Hitler) sospechó que sus compañeros fascistas eran: {}{}\n   ↳ Acertó {}/{} compañeros".format(
-					guesser.name, nombres, nota_cambio, len(aciertos), total_fascists))
+					guesser.name, nombres, nota_cambio, len(aciertos), total_fascists),
+				guesser_uid))
 			continue
 
 		if guesser.role == "Fascista":
@@ -2119,7 +2141,7 @@ def format_guesses_reveal(game):
 			nombre_prediccion = game.playerlist[predicted_uid].name if predicted_uid in game.playerlist else "nadie"
 			texto = "*{}* (fascista) predijo que *{}* sería quien más acierte a Hitler y a los fascistas{}".format(
 				guesser.name, nombre_prediccion, nota_cambio)
-			fascista_entries.append((predicted_uid, texto))
+			fascista_entries.append((predicted_uid, texto, guesser_uid))
 			continue
 
 		# Liberal (o rol desconocido): flujo completo
@@ -2139,33 +2161,161 @@ def format_guesses_reveal(game):
 			"acertó ✅" if hitler_acierto else "no acertó ❌",
 			score
 		)
-		liberal_resultados.append((score, guesser.name, texto))
+		liberal_resultados.append((score, guesser.name, texto, guesser_uid))
 
 	if not liberal_resultados and not hitler_lineas and not fascista_entries:
 		return None
 
-	lineas = ["🔮 *Resultados de las adivinanzas* 🔮\n"]
+	if only_uid is not None:
+		participo = (
+			any(uid == only_uid for _, _, _, uid in liberal_resultados) or
+			any(uid == only_uid for _, uid in hitler_lineas) or
+			any(uid == only_uid for _, _, uid in fascista_entries)
+		)
+		if not participo:
+			return None
 
+	titulo = "🔮 *Resultados de las adivinanzas* 🔮\n" if only_uid is None else "🔮 *Tu resultado en las adivinanzas* 🔮\n"
+	lineas = [titulo]
+
+	# El ranking y "quien acerto la prediccion" siempre se calculan sobre el set
+	# completo de jugadores, aunque solo_uid filtre que texto se termina mostrando.
 	mejores_liberales = game.compute_best_guessers()
 	if liberal_resultados:
-		for _, _, texto in liberal_resultados:
+		mostrar = [r for r in liberal_resultados if only_uid is None or r[3] == only_uid]
+		for _, _, texto, _ in mostrar:
 			lineas.append(texto)
-		max_score = max(r[0] for r in liberal_resultados)
-		ganadores = [nombre for score, nombre, _ in liberal_resultados if score == max_score]
-		lineas.append("\n🏆 Más cerca de la verdad: *{}* ({} de {} pts)".format(
-			", ".join(ganadores), max_score, total_fascists + 3))
+		if mostrar:
+			max_score = max(r[0] for r in liberal_resultados)
+			ganadores = [nombre for score, nombre, _, _ in liberal_resultados if score == max_score]
+			lineas.append("\n🏆 Más cerca de la verdad: *{}* ({} de {} pts)".format(
+				", ".join(ganadores), max_score, total_fascists + 3))
 
-	if hitler_lineas:
+	hitler_mostrar = [texto for texto, uid in hitler_lineas if only_uid is None or uid == only_uid]
+	if hitler_mostrar:
 		lineas.append("")
-		lineas.extend(hitler_lineas)
+		lineas.extend(hitler_mostrar)
 
-	if fascista_entries:
+	fascista_mostrar = [(p, texto) for p, texto, uid in fascista_entries if only_uid is None or uid == only_uid]
+	if fascista_mostrar:
 		lineas.append("")
-		for predicted_uid, texto in fascista_entries:
+		for predicted_uid, texto in fascista_mostrar:
 			acierto = predicted_uid in mejores_liberales
 			lineas.append(texto + "\n   ↳ {}".format("Predijo correctamente ✅" if acierto else "No acertó ❌"))
 
 	return "\n".join(lineas)
+
+def command_guessresults(update: Update, context: CallbackContext):
+	bot = context.bot
+	cid = update.message.chat_id
+	uid = update.message.from_user.id
+	groupType = update.message.chat.type
+
+	if groupType in ['group', 'supergroup']:
+		game = get_game(cid)
+		if game is None or game.board is None:
+			bot.send_message(cid, "No hay una partida en este chat.")
+			return
+		if uid not in game.playerlist:
+			bot.send_message(cid, "Debes ser un jugador de la partida para usar este comando.")
+			return
+		if not _game_has_ended(game):
+			bot.send_message(cid, "Todavía no terminó la partida.")
+			return
+		_send_guessresults(bot, cid, game)
+	else:
+		all_games_unfiltered = MainController.getGamesByTipo("Todos")
+		all_games = {
+			key: "{}: {}".format(game.groupName, game.tipo)
+			for key, game in all_games_unfiltered.items()
+			if uid in game.playerlist and game.board is not None and _game_has_ended(game)
+		}
+		if not all_games:
+			bot.send_message(cid, "No tenés partidas recién terminadas para revisar.")
+			return
+		if len(all_games) == 1:
+			game_cid = int(next(iter(all_games)))
+			game = get_game(game_cid)
+			_send_guessresults(bot, uid, game)
+		else:
+			msg = "Elige el juego para ver los resultados de las adivinanzas"
+			simple_choose_buttons(bot, cid, uid, uid, "chooseGameGuessResults", msg, all_games)
+
+def callback_guessresults_game(update: Update, context: CallbackContext):
+	bot = context.bot
+	log.info('callback_guessresults_game called')
+	callback = update.callback_query
+	regex = re.search(r"(-?[0-9]*)\*chooseGameGuessResults\*(.*)\*(-?[0-9]*)", callback.data)
+	game_cid = int(regex.group(2))
+	uid = int(regex.group(3))
+	game = get_game(game_cid)
+	if game is None or game.board is None:
+		bot.send_message(uid, "No hay una partida activa en ese chat.")
+		return
+	_send_guessresults(bot, uid, game)
+
+def _send_guessresults(bot, target_cid, game):
+	reveal = format_guesses_reveal(game)
+	if reveal is None:
+		bot.send_message(target_cid, "Nadie usó /guess en esa partida.")
+	else:
+		send_chunked_message(bot, target_cid, reveal, parse_mode=ParseMode.MARKDOWN)
+
+def command_miguess(update: Update, context: CallbackContext):
+	bot = context.bot
+	cid = update.message.chat_id
+	uid = update.message.from_user.id
+	groupType = update.message.chat.type
+
+	if groupType in ['group', 'supergroup']:
+		game = get_game(cid)
+		if game is None or game.board is None:
+			bot.send_message(cid, "No hay una partida en este chat.")
+			return
+		if uid not in game.playerlist:
+			bot.send_message(cid, "Debes ser un jugador de la partida para usar este comando.")
+			return
+		if not _game_has_ended(game):
+			bot.send_message(cid, "Todavía no terminó la partida.")
+			return
+		_send_miguess(bot, game, uid)
+	else:
+		all_games_unfiltered = MainController.getGamesByTipo("Todos")
+		all_games = {
+			key: "{}: {}".format(game.groupName, game.tipo)
+			for key, game in all_games_unfiltered.items()
+			if uid in game.playerlist and game.board is not None and _game_has_ended(game)
+		}
+		if not all_games:
+			bot.send_message(cid, "No tenés partidas recién terminadas para revisar.")
+			return
+		if len(all_games) == 1:
+			game_cid = int(next(iter(all_games)))
+			game = get_game(game_cid)
+			_send_miguess(bot, game, uid)
+		else:
+			msg = "Elige el juego para ver tu resultado de /guess"
+			simple_choose_buttons(bot, cid, uid, uid, "chooseGameMiguess", msg, all_games)
+
+def callback_miguess_game(update: Update, context: CallbackContext):
+	bot = context.bot
+	log.info('callback_miguess_game called')
+	callback = update.callback_query
+	regex = re.search(r"(-?[0-9]*)\*chooseGameMiguess\*(.*)\*(-?[0-9]*)", callback.data)
+	game_cid = int(regex.group(2))
+	uid = int(regex.group(3))
+	game = get_game(game_cid)
+	if game is None or game.board is None:
+		bot.send_message(uid, "No hay una partida activa en ese chat.")
+		return
+	_send_miguess(bot, game, uid)
+
+def _send_miguess(bot, game, uid):
+	reveal = format_guesses_reveal(game, only_uid=uid)
+	if reveal is None:
+		bot.send_message(uid, "No usaste /guess en esa partida.")
+	else:
+		send_chunked_message(bot, uid, reveal, parse_mode=ParseMode.MARKDOWN)
 
 
 def _repair_game_endcode_if_needed(game):
