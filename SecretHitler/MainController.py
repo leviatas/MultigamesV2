@@ -975,7 +975,7 @@ def end_game(bot, game, game_endcode):
 		try:
 			reveal = Commands.format_guesses_reveal(game)
 			if reveal is not None:
-				bot.send_message(cid, reveal, ParseMode.MARKDOWN)
+				Commands.send_chunked_message(bot, cid, reveal, parse_mode=ParseMode.MARKDOWN)
 		except Exception as e:
 			log.error("No se pudo mostrar los resultados de las adivinanzas: %s" % str(e))
 		showHiddenhistory(bot, game)
@@ -1319,6 +1319,10 @@ def main():
 	dp.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)\*chooseGameMvp\*(.*)\*(-?[0-9]*)", callback=Commands.callback_mvp_game))
 	dp.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)_mvpvote_(-?[0-9]*)", callback=Commands.callback_mvp_vote))
 	dp.add_handler(CommandHandler("end", Commands.command_end))
+	dp.add_handler(CommandHandler("guessresults", Commands.command_guessresults))
+	dp.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)\*chooseGameGuessResults\*(.*)\*(-?[0-9]*)", callback=Commands.callback_guessresults_game))
+	dp.add_handler(CommandHandler("miguess", Commands.command_miguess))
+	dp.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)\*chooseGameMiguess\*(.*)\*(-?[0-9]*)", callback=Commands.callback_miguess_game))
 	dp.add_handler(CommandHandler("vincularstats", Commands.command_vincularstats))
 	dp.add_handler(CommandHandler("vincularstats2", Commands.command_vincularstats2))
 	dp.add_handler(CommandHandler("admin", Commands.command_admin))
@@ -1416,6 +1420,8 @@ def main():
 			BotCommand("guess", "Adivina en privado quienes son los fascistas y Hitler"),
 			BotCommand("mvp", "Vota en privado al mejor jugador de la partida"),
 			BotCommand("end", "Cierra la votacion de MVP sin esperar a que voten todos"),
+			BotCommand("guessresults", "Reimprime los resultados de las adivinanzas"),
+			BotCommand("miguess", "Muestra en privado tu propio resultado de /guess"),
 			BotCommand("version", "Muestra la version actual del bot"),
 		])
 	except Exception as e:
