@@ -3,6 +3,9 @@ ADMIN = [387393551, 441820689, 445782140] #your telegram ID
 #Leviatas Ale Cadogan
 STATS = "../stats.json"
 
+# Se incrementa manualmente (semver) con cada cambio relevante que se despliega.
+VERSION = "1.0.0"
+
 JUEGOS_DISPONIBLES = {
         "LostExpedition" : {
                 "comandos" : {

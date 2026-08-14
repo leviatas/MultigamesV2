@@ -19,7 +19,7 @@ from telegram.ext import (CallbackContext)
 import MainController
 import GamesController
 
-from Constants.Config import STATS
+from Constants.Config import STATS, VERSION
 from Boardgamebox.Board import Board
 
 from Boardgamebox.Game import Game
@@ -341,6 +341,11 @@ async def command_start(update: Update, context: CallbackContext):
 	cid = update.message.chat_id
 	await bot.send_message(cid,"Bot para multiples juegos. Preguntar al ADMIN por los juegos disponibles")
     #command_help(bot, update)
+
+async def command_version(update: Update, context: CallbackContext):
+	bot = context.bot
+	cid = update.message.chat_id
+	await bot.send_message(cid, f"🤖 Versión del bot: {VERSION}")
 
 async def command_rules(update: Update, context: CallbackContext):
 	bot = context.bot

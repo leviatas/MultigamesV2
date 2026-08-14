@@ -598,6 +598,7 @@ def main(stop_event):
 
 	# on different commands - answer in Telegram
 	app.add_handler(CommandHandler("start", Commands.command_start))
+	app.add_handler(CommandHandler("version", Commands.command_version))
 	app.add_handler(CommandHandler("help", Commands.command_help))
 	app.add_handler(CommandHandler("board", Commands.command_board))
 	app.add_handler(CommandHandler("rules", Commands.command_rules))
