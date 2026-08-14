@@ -171,6 +171,50 @@ def _check_prediccion_certera(ctx):
     return predicted in ctx["best_guessers"]
 
 
+DEADLINE_PRESIDENCIA = 7  # currentround es 0-indexed: 7 == arranco la 8va presidencia
+
+
+def _check_detective_precoz(ctx):
+    # Como detective, pero el /guess definitivo tiene que haber quedado
+    # registrado antes de que arranque la 8va presidencia (currentround < 7).
+    if ctx["role"] != "Liberal":
+        return False
+    guess = ctx["guess"]
+    if guess is None:
+        return False
+    guess_round = guess.get("round")
+    if guess_round is None or guess_round >= DEADLINE_PRESIDENCIA:
+        return False
+    return guess.get("hitler") == ctx["hitler_uid"] and set(guess.get("fascists", [])) == ctx["fascist_uids"]
+
+
+def _check_companeros_de_ideologia_precoz(ctx):
+    if ctx["role"] != "Hitler":
+        return False
+    guess = ctx["guess"]
+    if guess is None:
+        return False
+    guess_round = guess.get("round")
+    if guess_round is None or guess_round >= DEADLINE_PRESIDENCIA:
+        return False
+    return set(guess.get("fascists", [])) == ctx["fascist_uids"]
+
+
+def _check_prediccion_certera_precoz(ctx):
+    if ctx["role"] != "Fascista":
+        return False
+    guess = ctx["guess"]
+    if guess is None:
+        return False
+    guess_round = guess.get("round")
+    if guess_round is None or guess_round >= DEADLINE_PRESIDENCIA:
+        return False
+    predicted = guess.get("predicted")
+    if predicted is None:
+        return False
+    return predicted in ctx["best_guessers"]
+
+
 def _check_mision_imposible(ctx):
     # ctx["mision_imposible_party"] es None si MISION_IMPOSIBLE_UID no jugo
     # esta partida, o si el jugador evaluado es el mismo MISION_IMPOSIBLE_UID.
@@ -211,6 +255,12 @@ LOGROS = [
           "🥸", "roles", False, _check_companeros_de_ideologia),
     Logro("prediccion_certera", "Ojo fascista", "Como fascista, predijiste correctamente quién sería el jugador que más acertaría con /guess.",
           "👁️", "roles", False, _check_prediccion_certera),
+    Logro("detective_precoz", "Detective precoz", "Adivinaste correctamente a todos los fascistas y a Hitler con /guess antes de la 8va presidencia.",
+          "⏱️", "roles", False, _check_detective_precoz),
+    Logro("companeros_de_ideologia_precoz", "Complicidad instantánea", "Como Hitler, identificaste a todos tus compañeros fascistas con /guess antes de la 8va presidencia.",
+          "⏱️", "roles", False, _check_companeros_de_ideologia_precoz),
+    Logro("prediccion_certera_precoz", "Vidente fascista", "Como fascista, predijiste correctamente quién sería el mejor adivinando con /guess antes de la 8va presidencia.",
+          "⏱️", "roles", False, _check_prediccion_certera_precoz),
 
     # Muerte y ejecuciones
     Logro("bala_certera", "Bala certera", "Ejecutaste a Hitler y los liberales ganaron.",
