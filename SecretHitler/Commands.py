@@ -2040,6 +2040,7 @@ def callback_guess_confirm(update: Update, context: CallbackContext):
 		entry = {"fascists": list(progress["fascists"]), "hitler": progress["hitler"]}
 
 	entry["timestamp"] = datetime.datetime.now()
+	entry["round"] = game.board.state.currentround
 
 	if not hasattr(game, "guesses"):
 		game.guesses = {}
