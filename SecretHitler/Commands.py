@@ -1708,11 +1708,14 @@ def command_info(update: Update, context: CallbackContext):
 		groupName = update.message.chat.title
 		game = get_game(cid)
 		if game:
-			if uid in game.playerlist:								
+			if uid in game.playerlist:
 				player = game.playerlist[uid]
 				msg = "--- *Info del grupo {}* ---\n".format(groupName)
 				msg += player.get_private_info(game)
-				bot.send_message(uid, msg, ParseMode.MARKDOWN)				
+				mis_guesses = format_my_guesses(game, uid)
+				if mis_guesses is not None:
+					msg += "\n\n" + mis_guesses
+				bot.send_message(uid, msg, ParseMode.MARKDOWN)
 			else:
 				bot.send_message(cid, "Debes ser un jugador del partido para obtener informacion.")
 		else:
@@ -1728,10 +1731,13 @@ def callback_info(update: Update, context: CallbackContext):
 	
 	game = get_game(int(opcion))
 	
-	if uid in game.playerlist:								
+	if uid in game.playerlist:
 		player = game.playerlist[uid]
 		msg = "--- *Info del grupo {}* ---\n".format(game.groupName)
 		msg += player.get_private_info(game)
+		mis_guesses = format_my_guesses(game, uid)
+		if mis_guesses is not None:
+			msg += "\n\n" + mis_guesses
 		bot.send_message(uid, msg, ParseMode.MARKDOWN)
 	else:
 		bot.send_message(uid, "Debes ser un jugador del partido para obtener informacion.")
@@ -2318,6 +2324,41 @@ def _send_miguess(bot, game, uid):
 		bot.send_message(uid, "No usaste /guess en esa partida.")
 	else:
 		send_chunked_message(bot, uid, reveal, parse_mode=ParseMode.MARKDOWN)
+
+def format_my_guesses(game, uid):
+	# Muestra ambos intentos de /guess del jugador (no solo el definitivo), sin
+	# revelar si acertaron o no: eso mostraria implicitamente roles/afiliaciones
+	# reales antes de que la partida termine. La correccion final vive en
+	# /miguess y /guessresults, que si estan gateados a que la partida ya termino.
+	history = getattr(game, "guesses", {}).get(uid)
+	if not history:
+		return None
+	player = game.playerlist.get(uid)
+	if player is None:
+		return None
+
+	lineas = ["🔮 *Tus palpitos de /guess*"]
+	for i, entry in enumerate(history, start=1):
+		etiqueta = "Intento {}".format(i) + (" (definitivo)" if i == len(history) else "")
+		timestamp = entry.get("timestamp")
+		nota_fecha = " _({})_".format(timestamp.strftime("%d/%m/%Y %H:%M")) if timestamp else ""
+
+		if player.role == "Hitler":
+			nombres = ", ".join(game.playerlist[u].name for u in entry.get("fascists", []) if u in game.playerlist) or "nadie"
+			texto = "*{}*{}: sospechaste de {} como tus compañeros fascistas".format(etiqueta, nota_fecha, nombres)
+		elif player.role == "Fascista":
+			predicted_uid = entry.get("predicted")
+			nombre = game.playerlist[predicted_uid].name if predicted_uid in game.playerlist else "nadie"
+			texto = "*{}*{}: predijiste que *{}* sería quien más acierte a Hitler y a los fascistas".format(etiqueta, nota_fecha, nombre)
+		else:
+			nombres = ", ".join(game.playerlist[u].name for u in entry.get("fascists", []) if u in game.playerlist) or "nadie"
+			hitler_uid = entry.get("hitler")
+			nombre_hitler = game.playerlist[hitler_uid].name if hitler_uid in game.playerlist else "nadie"
+			texto = "*{}*{}: sospechaste de {} y dijiste que Hitler era *{}*".format(etiqueta, nota_fecha, nombres, nombre_hitler)
+
+		lineas.append(texto)
+
+	return "\n".join(lineas)
 
 
 def _repair_game_endcode_if_needed(game):
