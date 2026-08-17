@@ -2508,6 +2508,13 @@ def _finalize_mvp(bot, game):
 		log.error("No se pudo mostrar la votación de MVP: %s" % str(e))
 
 	try:
+		detalle = format_mvp_votes_detail(game)
+		if detalle is not None:
+			bot.send_message(ADMIN, detalle, parse_mode=ParseMode.MARKDOWN)
+	except Exception as e:
+		log.error("No se pudo informar al admin el detalle de votos de MVP: %s" % str(e))
+
+	try:
 		nuevos_logros = StatsExtended.finalize_mvp_stats(game)
 	except Exception as e:
 		log.error("No se pudo finalizar las stats de MVP: %s" % str(e))
@@ -2570,6 +2577,22 @@ def format_mvp_reveal(game):
 	else:
 		lineas.append("\n🤝 Hubo un empate en la votación, no hay MVP esta partida.")
 
+	return "\n".join(lineas)
+
+def format_mvp_votes_detail(game):
+	# A diferencia de format_mvp_reveal (publico, solo el conteo agregado), esto
+	# muestra quien voto a quien: se manda solo al ADMIN cuando se cierra la
+	# votacion, nunca al grupo, para no exponer los votos individuales de nadie.
+	votes = getattr(game, "mvp_votes", {})
+	if not votes:
+		return None
+	lineas = ["🗳 *Detalle de votos MVP - {}*".format(game.groupName)]
+	for voter_uid, voted_uid in votes.items():
+		voter = game.playerlist.get(voter_uid)
+		voted = game.playerlist.get(voted_uid)
+		voter_name = voter.name if voter else str(voter_uid)
+		voted_name = voted.name if voted else str(voted_uid)
+		lineas.append("{} → {}".format(voter_name, voted_name))
 	return "\n".join(lineas)
 
 
