@@ -15,7 +15,7 @@ from telegram.ext import (Updater, CommandHandler, CallbackQueryHandler, Message
 
 import SecretHitler.Commands as Commands
 from SecretHitler.Constants.Cards import playerSets
-from SecretHitler.Constants.Config import ADMIN
+from SecretHitler.Constants.Config import ADMIN, VERSION
 from SecretHitler.Boardgamebox.Game import Game
 from SecretHitler.Boardgamebox.Player import Player
 from SecretHitler.PlayerStats import PlayerStats
@@ -1427,7 +1427,7 @@ def main():
 	except Exception as e:
 		log.error(str(e))
 
-	updater.bot.send_message(ADMIN, "Nueva version en linea\n%s" % db_status_text)
+	updater.bot.send_message(ADMIN, "Nueva version en linea: v%s\n%s" % (VERSION, db_status_text))
 
 	# Comentar linea de abajo si se quiere usar web deploy
 	updater.start_polling(timeout=30)
