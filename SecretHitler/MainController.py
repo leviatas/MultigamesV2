@@ -22,6 +22,7 @@ from SecretHitler.PlayerStats import PlayerStats
 import SecretHitler.GamesController as GamesController
 import SecretHitler.StatsExtended as StatsExtended
 import SecretHitler.Achievements as Achievements
+import SecretHitler.GroupMembers as GroupMembers
 
 import datetime
 import jsonpickle
@@ -1180,6 +1181,31 @@ def change_groupname(bot, update):
 	game.groupName = groupname
 	bot.send_message(ADMIN, text="El group en {cid} ha cambiado de nombre a {groupname}".format(groupname=groupname, cid=cid))
 
+def track_new_members(update: Update, context: CallbackContext):
+	cid = update.message.chat.id
+	for member in update.message.new_chat_members:
+		GroupMembers.upsert_member(cid, member.id, member.first_name.replace("_", " "), is_bot=member.is_bot, active=True)
+
+def track_left_member(update: Update, context: CallbackContext):
+	cid = update.message.chat.id
+	member = update.message.left_chat_member
+	GroupMembers.upsert_member(cid, member.id, member.first_name.replace("_", " "), is_bot=member.is_bot, active=False)
+
+def command_all(update: Update, context: CallbackContext):
+	bot = context.bot
+	cid = update.message.chat_id
+	groupType = update.message.chat.type
+	if groupType not in ['group', 'supergroup']:
+		bot.send_message(cid, "Este comando solo funciona en un grupo.")
+		return
+	miembros = GroupMembers.get_active_members(cid)
+	if not miembros:
+		bot.send_message(cid, "Todavia no tengo miembros registrados de este grupo. Se van registrando a medida que entran/salen del grupo o se unen a una partida con /join.")
+		return
+	menciones = ["[{}](tg://user?id={})".format(name, uid) for uid, name in miembros]
+	texto = "📢 *Atención a todos!*\n" + "\n".join(menciones)
+	Commands.send_chunked_message(bot, cid, texto, parse_mode=ParseMode.MARKDOWN)
+
 def get_TOKEN():
 	conn = psycopg2.connect(
 		database=url.path[1:],
@@ -1389,6 +1415,9 @@ def main():
 	dp.add_handler(CommandHandler("status", command_status))
 
 	dp.add_handler(MessageHandler(Filters.status_update.new_chat_title, change_groupname))
+	dp.add_handler(MessageHandler(Filters.status_update.new_chat_members, track_new_members))
+	dp.add_handler(MessageHandler(Filters.status_update.left_chat_member, track_left_member))
+	dp.add_handler(CommandHandler("all", command_all))
 	dp.add_handler(MessageHandler(Filters.text, command_status))
 
 	# log all errors
@@ -1423,6 +1452,7 @@ def main():
 			BotCommand("guessresults", "Reimprime los resultados de las adivinanzas"),
 			BotCommand("miguess", "Muestra en privado tu propio resultado de /guess"),
 			BotCommand("version", "Muestra la version actual del bot"),
+			BotCommand("all", "Menciona a todos los miembros conocidos del grupo"),
 		])
 	except Exception as e:
 		log.error(str(e))
