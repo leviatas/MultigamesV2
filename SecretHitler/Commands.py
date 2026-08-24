@@ -27,6 +27,7 @@ from SecretHitler.PlayerStats import PlayerStats
 from SecretHitler.EstadisticsCalculator import PrintEstadisticas
 import SecretHitler.StatsExtended as StatsExtended
 import SecretHitler.Achievements as Achievements
+import SecretHitler.GroupMembers as GroupMembers
 # Enable logging
 
 log.basicConfig(
@@ -61,7 +62,8 @@ commands = [  # command description used in the "help" command
     '/end - Cierra la votación de MVP sin esperar a que voten todos',
     '/guessresults - Reimprime los resultados de las adivinanzas de la partida que terminó',
     '/miguess - Muestra en privado solo tu propio resultado de /guess',
-    '/version - Muestra la versión actual del bot'
+    '/version - Muestra la versión actual del bot',
+    '/all - Menciona a todos los miembros conocidos del grupo'
 ]
 
 symbols = [
@@ -586,6 +588,9 @@ def command_join(update: Update, context: CallbackContext):
 			
 			game.add_player(uid, player)
 			log.info("%s (%d) joined a game in %d" % (fname, uid, game.cid))
+			# Cubre a quienes ya estaban en el grupo antes de que el tracking de /all existiera:
+			# al unirse a una partida quedan registrados igual.
+			GroupMembers.upsert_member(cid, uid, fname, is_bot=False, active=True)
 			if len(game.playerlist) > 4:
 				bot.send_message(game.cid, fname + " se ha unido al juego. Escribe /startgame si este es el último jugador y quieren comenzar con %d jugadores!" % len(game.playerlist))
 			elif len(game.playerlist) == 1:

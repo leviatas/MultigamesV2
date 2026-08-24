@@ -102,6 +102,21 @@ CREATE INDEX IF NOT EXISTS idx_stats_shf_game_id ON stats_secret_hitler_formulas
 CREATE INDEX IF NOT EXISTS idx_stats_shf_president_uid ON stats_secret_hitler_formulas(president_uid);
 CREATE INDEX IF NOT EXISTS idx_stats_shf_chancellor_uid ON stats_secret_hitler_formulas(chancellor_uid);
 
+-- Miembros conocidos de cada grupo, para poder mencionarlos a todos con /all.
+-- Telegram no permite a un bot enumerar los miembros de un grupo por API, asi que se
+-- van registrando via los eventos new_chat_members/left_chat_member y tambien al
+-- unirse a una partida con /join (para cubrir a quienes ya estaban en el grupo antes
+-- de que este tracking existiera).
+CREATE TABLE IF NOT EXISTS group_members_secret_hitler (
+    cid BIGINT NOT NULL,
+    uid BIGINT NOT NULL,
+    name TEXT NOT NULL,
+    is_bot BOOLEAN NOT NULL DEFAULT FALSE,
+    active BOOLEAN NOT NULL DEFAULT TRUE,
+    updated_at TIMESTAMP DEFAULT now(),
+    PRIMARY KEY (cid, uid)
+);
+
 -- If there are no stats in the stats table I initiate it.
 DO $$
 BEGIN 
