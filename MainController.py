@@ -308,9 +308,11 @@ async def unknown(update: Update, context: CallbackContext):
 	bot = context.bot
 	await bot.send_message(chat_id=update.message.chat_id, text="No conozco ese comando")
 
-def add_group(update: Update, context: CallbackContext):
+async def add_group(update: Update, context: CallbackContext):
 	cid = update.message.chat.id
 	for member in update.message.new_chat_members:
+		if member.is_bot:
+			continue
 		#ot.send_message(ADMIN[0], text="{username} {id} add group {groupname}".format(username=member.first_name, id=member.id, groupname = groupname, cid=cid))
 		add_member_group(cid, member.id)
 		add_user(member.id, member.first_name)
@@ -419,6 +421,28 @@ def remove_member_group(cid, uid):
 		conn.rollback()
 		conn.close()
 
+
+def get_group_members(cid):
+	# Devuelve [(uid, name), ...] de los miembros conocidos del grupo (los que
+	# entraron mientras el bot estaba en el grupo, o se unieron a una partida).
+	try:
+		conn = psycopg.connect(
+			dbname=url.path[1:],
+			user=url.username,
+			password=url.password,
+			host=url.hostname,
+			port=url.port
+		)
+		cur = conn.cursor()
+		query = ("SELECT u.id, u.name FROM users_group ug "
+				 "JOIN users u ON u.id = ug.user_id WHERE ug.group_id = %s;")
+		cur.execute(query, [cid])
+		miembros = cur.fetchall()
+		conn.close()
+		return miembros
+	except Exception as e:
+		log.info('No se pudo obtener los miembros del grupo debido a: '+str(e))
+		return []
 
 
 def put(update: Update, context: CallbackContext):
@@ -612,6 +636,7 @@ def main(stop_event):
 	app.add_handler(CommandHandler("leave", Commands.command_leave))
 	app.add_handler(CommandHandler("history", Commands.command_showhistory))
 	app.add_handler(CommandHandler("ping", Commands.call_players_group))
+	app.add_handler(CommandHandler("all", Commands.command_all))
 	app.add_handler(CommandHandler("call", Commands.command_call))
 	app.add_handler(CommandHandler("claim", Commands.command_claim))	
 	app.add_handler(CommandHandler("prueba", Commands.command_prueba))	
@@ -927,10 +952,10 @@ def main(stop_event):
 	app.add_handler(MessageHandler(filters.TEXT, command_status))
 	
 	# Handler cuando se una una persona al chat.
-	#app.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, add_group))
-	
+	app.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, add_group))
+
 	# Handler cuando se va una persona del chat.
-	#app.add_handler(MessageHandler(filters.StatusUpdate.LEFT_CHAT_MEMBER, remove_group))
+	app.add_handler(MessageHandler(filters.StatusUpdate.LEFT_CHAT_MEMBER, remove_group))
 	
 	# Handler cuando se cambia el nombre del chat 
 	app.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_TITLE, change_groupname))
