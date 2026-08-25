@@ -12,7 +12,7 @@ import SayAnything.Controller as SayAnythingController
 import Werewords.Controller as WerewordsController
 import Unanimo.Controller as UnanimoController
 
-from Utils import restricted, player_call, send_typing_action, get_game, delete_game, save, load_game, save_game
+from Utils import restricted, player_call, user_call, send_typing_action, get_game, delete_game, save, load_game, save_game
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update, ForceReply
 from telegram.constants import ParseMode
 from telegram.ext import (CallbackContext)
@@ -1261,6 +1261,25 @@ async def call_players_group(update: Update, context: CallbackContext):
 	except Exception as e:
 		log.info('No se busco bien los jugadores debido al siguiente error: '+str(e))
 		conn.rollback()
+
+async def command_all(update: Update, context: CallbackContext):
+	bot = context.bot
+	cid = update.message.chat_id
+	# Llama a todos los miembros conocidos del grupo (los que el bot vio entrar,
+	# o los que se unieron a una partida y quedaron registrados igual).
+	if update.message.chat.type not in ['group', 'supergroup']:
+		await bot.send_message(cid, "Este comando solo funciona en grupos.")
+		return
+	miembros = MainController.get_group_members(cid)
+	if not miembros:
+		await bot.send_message(cid, "Todavia no tengo miembros guardados de este grupo. Se van agregando a medida que entran al grupo o se unen a una partida.")
+		return
+	menciones = [user_call(nombre, uid) for uid, nombre in miembros]
+	# Telegram limita los mensajes a 4096 caracteres, mando en tandas por las dudas.
+	TANDA = 50
+	for i in range(0, len(menciones), TANDA):
+		texto = "📢 " + " ".join(menciones[i:i + TANDA])
+		await bot.send_message(cid, texto, parse_mode=ParseMode.MARKDOWN)
 
 async def callback_timer(update: Update, context: CallbackContext):
 	cid = update.message.chat_id
