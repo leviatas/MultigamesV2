@@ -46,6 +46,7 @@ commands = [  # command description used in the "help" command
     '/symbols - Te muestra todos los símbolos posibles en el tablero',
     '/rules - Te da un link al sitio oficial con las reglas de Secret Hitler',
     '/newgame - Crea un nuevo juego o carga un juego previo',
+    '/nextgame - Te avisa por privado que está por empezar una nueva partida',
     '/join - Te une a un juego existente',
     '/startgame - Comienza un juego existente cuando todos los jugadores se han unido',
     '/cancelgame - Cancela un juego existente, todos los datos son borrados.',
@@ -543,6 +544,23 @@ def command_newgame(update: Update, context: CallbackContext):
 			
 	except Exception as e:
 		bot.send_message(cid, str(e))
+
+
+def command_nextgame(update: Update, context: CallbackContext):
+	bot = context.bot
+	cid = update.message.chat_id
+	uid = update.message.from_user.id
+	groupName = update.message.chat.title
+	groupType = update.message.chat.type
+	if groupType not in ['group', 'supergroup']:
+		bot.send_message(cid, "Este comando solo funciona en un grupo.")
+		return
+	try:
+		bot.send_message(uid, "🎲 Está por empezar una nueva partida en %s!" % groupName)
+	except Exception as e:
+		log.error(e)
+		bot.send_message(cid,
+			"No te puedo enviar un mensaje privado. Por favor, ve a @secrethitlertestlbot y has pincha \"Start\".")
 
 
 def command_join(update: Update, context: CallbackContext):

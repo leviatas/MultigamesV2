@@ -1418,6 +1418,7 @@ def main():
 	dp.add_handler(MessageHandler(Filters.status_update.new_chat_members, track_new_members))
 	dp.add_handler(MessageHandler(Filters.status_update.left_chat_member, track_left_member))
 	dp.add_handler(CommandHandler("all", command_all))
+	dp.add_handler(CommandHandler("nextgame", Commands.command_nextgame))
 	dp.add_handler(MessageHandler(Filters.text, command_status))
 
 	# log all errors
@@ -1431,6 +1432,7 @@ def main():
 			BotCommand("rules", "Link al sitio oficial con las reglas"),
 			BotCommand("symbols", "Muestra los simbolos posibles en el tablero"),
 			BotCommand("newgame", "Crea un nuevo juego o carga uno previo"),
+			BotCommand("nextgame", "Te avisa por privado que esta por empezar una nueva partida"),
 			BotCommand("join", "Te une a un juego existente"),
 			BotCommand("startgame", "Comienza un juego cuando todos se unieron"),
 			BotCommand("board", "Imprime el tablero actual"),
