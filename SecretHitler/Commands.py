@@ -28,6 +28,7 @@ from SecretHitler.EstadisticsCalculator import PrintEstadisticas
 import SecretHitler.StatsExtended as StatsExtended
 import SecretHitler.Achievements as Achievements
 import SecretHitler.GroupMembers as GroupMembers
+import SecretHitler.NextGame as NextGame
 # Enable logging
 
 log.basicConfig(
@@ -46,7 +47,7 @@ commands = [  # command description used in the "help" command
     '/symbols - Te muestra todos los símbolos posibles en el tablero',
     '/rules - Te da un link al sitio oficial con las reglas de Secret Hitler',
     '/newgame - Crea un nuevo juego o carga un juego previo',
-    '/nextgame - Te avisa por privado que está por empezar una nueva partida',
+    '/nextgame - Guarda que querés jugar la próxima partida y te avisa por privado cuando se cree con /newgame',
     '/join - Te une a un juego existente',
     '/startgame - Comienza un juego existente cuando todos los jugadores se han unido',
     '/cancelgame - Cancela un juego existente, todos los datos son borrados.',
@@ -541,7 +542,15 @@ def command_newgame(update: Update, context: CallbackContext):
 		else:
 			GamesController.games[cid] = Game(cid, update.message.from_user.id, groupName)
 			bot.send_message(cid, "Nuevo juego creado! Cada jugador debe unirse al juego con el comando /join.\nEl iniciador del juego (o el administrador) pueden unirse tambien y escribir /startgame cuando todos se hayan unido al juego!")
-			
+			# Aviso por privado a quienes pidieron con /nextgame que se les avise
+			# apenas se cree una partida nueva en este grupo.
+			interesados = NextGame.pop_waiting(cid)
+			for uid_interesado, nombre_interesado in interesados:
+				try:
+					bot.send_message(uid_interesado, "🎲 Se creó una nueva partida en %s! Sumate con /join." % groupName)
+				except Exception as e:
+					log.error(e)
+
 	except Exception as e:
 		bot.send_message(cid, str(e))
 
@@ -550,17 +559,20 @@ def command_nextgame(update: Update, context: CallbackContext):
 	bot = context.bot
 	cid = update.message.chat_id
 	uid = update.message.from_user.id
+	fname = update.message.from_user.first_name.replace("_", " ")
 	groupName = update.message.chat.title
 	groupType = update.message.chat.type
 	if groupType not in ['group', 'supergroup']:
 		bot.send_message(cid, "Este comando solo funciona en un grupo.")
 		return
+	NextGame.add_waiting(cid, uid, fname)
+	bot.send_message(cid, "%s quiere jugar la próxima partida. Le voy a avisar por privado apenas se cree una con /newgame." % fname)
 	try:
-		bot.send_message(uid, "🎲 Está por empezar una nueva partida en %s!" % groupName)
+		bot.send_message(uid, "🎲 Listo! Te aviso por acá apenas se cree una nueva partida en %s." % groupName)
 	except Exception as e:
 		log.error(e)
 		bot.send_message(cid,
-			"No te puedo enviar un mensaje privado. Por favor, ve a @secrethitlertestlbot y has pincha \"Start\".")
+			fname + ", No te puedo enviar un mensaje privado. Por favor, ve a @secrethitlertestlbot y has pincha \"Start\" para poder avisarte.")
 
 
 def command_join(update: Update, context: CallbackContext):

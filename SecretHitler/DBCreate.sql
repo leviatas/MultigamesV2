@@ -117,6 +117,16 @@ CREATE TABLE IF NOT EXISTS group_members_secret_hitler (
     PRIMARY KEY (cid, uid)
 );
 
+-- Jugadores que pidieron con /nextgame que se les avise cuando se cree la proxima
+-- partida (/newgame) en un grupo. Se borran los registros de un cid apenas se les avisa.
+CREATE TABLE IF NOT EXISTS nextgame_secret_hitler_waitlist (
+    cid BIGINT NOT NULL,
+    uid BIGINT NOT NULL,
+    name TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT now(),
+    PRIMARY KEY (cid, uid)
+);
+
 -- If there are no stats in the stats table I initiate it.
 DO $$
 BEGIN 
