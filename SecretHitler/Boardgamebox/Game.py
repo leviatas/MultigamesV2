@@ -6,6 +6,10 @@ from SecretHitler.Boardgamebox.Player import Player
 from SecretHitler.Boardgamebox.Board import Board
 from SecretHitler.Boardgamebox.State import State
 
+# Cantidad de votos de /mvp a partir de la cual un jugador es MVP aunque no sea el
+# unico mas votado: si dos jugadores llegan a este numero, ambos son MVP de la partida.
+VOTOS_MVP_COMPARTIDO = 4
+
 class Game(object):
 	def __init__(self, cid, initiator, groupName):
 		self.playerlist = {}
@@ -50,20 +54,33 @@ class Game(object):
 				fascists.append(self.playerlist[uid])
 		return fascists
 
-	def compute_mvp(self):
-		# Devuelve el uid con mas votos de /mvp, o None si nadie voto o hay empate.
+	def compute_mvp_tally(self):
+		# {uid votado: cantidad de votos}, ignorando votos a jugadores que ya no estan.
 		votes = getattr(self, "mvp_votes", {})
 		tally = {}
 		for voter_uid, voted_uid in votes.items():
 			if voted_uid in self.playerlist:
 				tally[voted_uid] = tally.get(voted_uid, 0) + 1
+		return tally
+
+	def compute_mvps(self):
+		# Devuelve la lista de uids que son MVP de la partida (0, 1 o 2 jugadores).
+		# Si dos jugadores llegan a VOTOS_MVP_COMPARTIDO votos o mas, los dos son MVP
+		# (con el maximo de 10 jugadores nunca pueden llegar a esa cantidad mas de dos).
+		# Si no, es MVP el unico mas votado; si hay empate no hay MVP.
+		# Compartido entre el texto de revelacion de /mvp y la escritura de la columna
+		# mvp en stats para que no puedan desincronizarse.
+		tally = self.compute_mvp_tally()
 		if not tally:
-			return None
+			return []
+		compartido = [uid for uid, count in tally.items() if count >= VOTOS_MVP_COMPARTIDO]
+		if len(compartido) >= 2:
+			return sorted(compartido, key=lambda uid: -tally[uid])
 		max_votes = max(tally.values())
 		top = [uid for uid, count in tally.items() if count == max_votes]
 		if len(top) != 1:
-			return None
-		return top[0]
+			return []
+		return top
 
 	def compute_guess_score(self, guess):
 		# Puntaje de un palpito "completo" (fascistas comunes + Hitler) de /guess.
