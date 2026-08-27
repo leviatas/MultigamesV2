@@ -6,8 +6,8 @@ from SecretHitler.Boardgamebox.Player import Player
 from SecretHitler.Boardgamebox.Board import Board
 from SecretHitler.Boardgamebox.State import State
 
-# Cantidad de votos de /mvp a partir de la cual un jugador es MVP aunque no sea el
-# unico mas votado: si dos jugadores llegan a este numero, ambos son MVP de la partida.
+# Cantidad minima de votos de /mvp para que un empate se reparta: si los jugadores
+# mas votados empatan con este numero de votos o mas, todos ellos son MVP de la partida.
 VOTOS_MVP_COMPARTIDO = 4
 
 class Game(object):
@@ -65,22 +65,23 @@ class Game(object):
 
 	def compute_mvps(self):
 		# Devuelve la lista de uids que son MVP de la partida (0, 1 o 2 jugadores).
-		# Si dos jugadores llegan a VOTOS_MVP_COMPARTIDO votos o mas, los dos son MVP
-		# (con el maximo de 10 jugadores nunca pueden llegar a esa cantidad mas de dos).
-		# Si no, es MVP el unico mas votado; si hay empate no hay MVP.
+		# Es MVP el unico jugador mas votado. Si hay empate en el primer puesto, solo
+		# hay MVP compartido cuando los empatados llegan a VOTOS_MVP_COMPARTIDO votos
+		# o mas (ej: 4 y 4, o 5 y 5); con el maximo de 10 jugadores nunca pueden
+		# empatar en esa cantidad mas de dos. Un empate por debajo de ese numero deja
+		# la partida sin MVP.
 		# Compartido entre el texto de revelacion de /mvp y la escritura de la columna
 		# mvp en stats para que no puedan desincronizarse.
 		tally = self.compute_mvp_tally()
 		if not tally:
 			return []
-		compartido = [uid for uid, count in tally.items() if count >= VOTOS_MVP_COMPARTIDO]
-		if len(compartido) >= 2:
-			return sorted(compartido, key=lambda uid: -tally[uid])
 		max_votes = max(tally.values())
 		top = [uid for uid, count in tally.items() if count == max_votes]
-		if len(top) != 1:
-			return []
-		return top
+		if len(top) == 1:
+			return top
+		if max_votes >= VOTOS_MVP_COMPARTIDO:
+			return sorted(top)
+		return []
 
 	def compute_guess_score(self, guess):
 		# Puntaje de un palpito "completo" (fascistas comunes + Hitler) de /guess.
