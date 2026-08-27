@@ -96,21 +96,22 @@ def get_game_endcode(game_id):
 
 def finalize_mvp_stats(game):
     # Se corre una vez que todos los jugadores de la partida ya votaron su /mvp
-    # (post-partida): marca al ganador en su fila de stats y recien ahi evalua
+    # (post-partida): marca al/los ganador/es en su fila de stats y recien ahi evalua
     # los logros que dependen de mvp_count(), ya con el resultado definitivo de
-    # la votacion. No propaga excepciones.
+    # la votacion. Puede haber mas de un MVP por partida (ver Game.compute_mvps()).
+    # No propaga excepciones.
     # Devuelve {uid: [Logro nuevo, ...]} (vacio si no hubo, hubo empate, o error).
     game_id = getattr(game, "stats_game_id", None)
-    mvp_uid = game.compute_mvp()
-    if game_id is None or mvp_uid is None:
+    mvp_uids = game.compute_mvps()
+    if game_id is None or not mvp_uids:
         return {}
     conn = None
     try:
         conn = _connect()
         cur = conn.cursor()
         cur.execute(
-            "UPDATE stats_secret_hitler_players SET mvp = TRUE WHERE game_id = %s AND uid = %s;",
-            (game_id, mvp_uid)
+            "UPDATE stats_secret_hitler_players SET mvp = TRUE WHERE game_id = %s AND uid = ANY(%s);",
+            (game_id, list(mvp_uids))
         )
         nuevos_por_uid = Achievements.evaluate_and_store(cur, game, game.board.state.game_endcode, game_id)
         conn.commit()

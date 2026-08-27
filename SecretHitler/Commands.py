@@ -2593,11 +2593,7 @@ def command_end(update: Update, context: CallbackContext):
 	_finalize_mvp(bot, game)
 
 def format_mvp_reveal(game):
-	votes = getattr(game, "mvp_votes", {})
-	tally = {}
-	for voter_uid, voted_uid in votes.items():
-		if voted_uid in game.playerlist:
-			tally[voted_uid] = tally.get(voted_uid, 0) + 1
+	tally = game.compute_mvp_tally()
 	if not tally:
 		return None
 
@@ -2606,9 +2602,12 @@ def format_mvp_reveal(game):
 		nombre = game.playerlist[voted_uid].name
 		lineas.append("{}: {} voto{}".format(nombre, count, "" if count == 1 else "s"))
 
-	mvp_uid = game.compute_mvp()
-	if mvp_uid is not None:
-		lineas.append("\n🏆 El MVP de la partida es *{}*!".format(game.playerlist[mvp_uid].name))
+	mvp_uids = game.compute_mvps()
+	if len(mvp_uids) > 1:
+		nombres = ", ".join("*{}*".format(game.playerlist[u].name) for u in mvp_uids)
+		lineas.append("\n🏆 Los MVP de la partida son {}!".format(nombres))
+	elif mvp_uids:
+		lineas.append("\n🏆 El MVP de la partida es *{}*!".format(game.playerlist[mvp_uids[0]].name))
 	else:
 		lineas.append("\n🤝 Hubo un empate en la votación, no hay MVP esta partida.")
 
