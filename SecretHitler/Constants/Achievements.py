@@ -158,6 +158,20 @@ def _check_companeros_de_ideologia(ctx):
     return set(guess.get("fascists", [])) == ctx["fascist_uids"]
 
 
+def _check_dude_de_los_mios(ctx):
+    # Solo Hitler: en el primer /guess acerto a todos sus companeros fascistas,
+    # pero lo cambio por un segundo intento que ya no los tiene a todos.
+    if ctx["role"] != "Hitler":
+        return False
+    history = ctx["guess_history"]
+    if len(history) < 2:
+        return False
+    fascist_uids = ctx["fascist_uids"]
+    primer_intento, segundo_intento = history[0], history[1]
+    return (set(primer_intento.get("fascists", [])) == fascist_uids
+            and set(segundo_intento.get("fascists", [])) != fascist_uids)
+
+
 def _check_prediccion_certera(ctx):
     # Solo Fascista: el /guess de Fascista predice quien sera el mejor adivinando (los liberales).
     if ctx["role"] != "Fascista":
@@ -253,6 +267,8 @@ LOGROS = [
           "😩", "roles", False, _check_no_debi_dudar),
     Logro("companeros_de_ideologia", "Compañeros de ideología", "Como Hitler, identificaste correctamente a todos tus compañeros fascistas con /guess.",
           "🥸", "roles", False, _check_companeros_de_ideologia),
+    Logro("dude_de_los_mios", "Dudé de los míos", "Como Hitler, en tu primer /guess acertaste a todos tus compañeros fascistas, pero en el segundo te equivocaste.",
+          "😬", "roles", False, _check_dude_de_los_mios),
     Logro("prediccion_certera", "Ojo fascista", "Como fascista, predijiste correctamente quién sería el jugador que más acertaría con /guess.",
           "👁️", "roles", False, _check_prediccion_certera),
     Logro("detective_precoz", "Detective precoz", "Adivinaste correctamente a todos los fascistas y a Hitler con /guess antes de la 8va presidencia.",
