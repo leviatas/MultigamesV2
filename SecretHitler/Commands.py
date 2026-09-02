@@ -1868,7 +1868,8 @@ def _start_guess_flow(bot, game, uid):
 	if attempts_done == 0:
 		if role == "Hitler":
 			intro = ("🔮 Sos *Hitler*, así que en vez de adivinar quién es Hitler vas a intentar identificar a tus "
-				"compañeros fascistas. Podés repetir esta elección una sola vez más después de confirmar; "
+				"compañeros fascistas. Si de alguno no tenés idea podés tocar \"🤷 No sé\" y dejarlo en blanco. "
+				"Podés repetir esta elección una sola vez más después de confirmar; "
 				"se guardan tus dos intentos, pero la *segunda* elección es la definitiva.")
 		elif role == "Fascista":
 			intro = ("🔮 Sos *fascista*, así que en vez de adivinar roles vas a predecir quién creés que será el "
@@ -1876,6 +1877,7 @@ def _start_guess_flow(bot, game, uid):
 				"vez más después de confirmar; se guardan tus dos intentos, pero la *segunda* elección es la definitiva.")
 		else:
 			intro = ("🔮 Vas a elegir quiénes creés que son los fascistas comunes y quién es Hitler. "
+				"No hace falta que completes todo: de lo que no tengas idea tocá \"🤷 No sé\" y dejalo en blanco. "
 				"Podés repetir esta elección una sola vez más después de confirmar; se guardan tus dos intentos, "
 				"pero la *segunda* elección es la definitiva.")
 		bot.send_message(uid, intro, parse_mode=ParseMode.MARKDOWN)
@@ -1897,13 +1899,14 @@ def _build_guess_fascist_prompt(game, uid):
 	if selected:
 		nombres_elegidos = ", ".join(game.playerlist[u].name for u in selected if u in game.playerlist)
 		texto += "Ya elegiste: {}\n".format(nombres_elegidos)
-	texto += "Elige a otro sospechoso:"
+	texto += "Elige a otro sospechoso (o \"No sé\" para dejar el resto en blanco):"
 	strcid = str(game.cid)
 	btns = []
 	for player_uid, player in game.playerlist.items():
 		if player_uid in selected:
 			continue
 		btns.append([InlineKeyboardButton(player.name, callback_data=strcid + "_guessf_" + str(player_uid))])
+	btns.append([InlineKeyboardButton("🤷 No sé", callback_data=strcid + "_guessskip_f")])
 	markup = InlineKeyboardMarkup(btns)
 	return texto, markup
 
@@ -1948,6 +1951,7 @@ def _build_guess_hitler_prompt(game, uid):
 	btns = []
 	for player_uid, player in game.playerlist.items():
 		btns.append([InlineKeyboardButton(player.name, callback_data=strcid + "_guessh_" + str(player_uid))])
+	btns.append([InlineKeyboardButton("🤷 No sé", callback_data=strcid + "_guessskip_h")])
 	markup = InlineKeyboardMarkup(btns)
 	return texto, markup
 
@@ -1976,6 +1980,41 @@ def callback_guess_hitler(update: Update, context: CallbackContext):
 		progress["hitler"] = candidate_uid
 
 	texto, markup = _build_guess_confirm_prompt(game, uid)
+	bot.edit_message_text(texto, chat_id=callback.message.chat_id, message_id=callback.message.message_id,
+		reply_markup=markup, parse_mode=ParseMode.MARKDOWN)
+
+def callback_guess_skip(update: Update, context: CallbackContext):
+	# "No sé": permite palpitos parciales dejando en blanco una parte del palpito.
+	# Etapa "f": corta la eleccion de fascistas con los que ya haya elegido (puede ser
+	# ninguno); etapa "h": no arriesga quien es Hitler. El campo simplemente queda como
+	# estaba en el progress (lista incompleta / None) y se avanza al siguiente paso.
+	bot = context.bot
+	log.info('callback_guess_skip called')
+	callback = update.callback_query
+	regex = re.search(r"(-?[0-9]*)_guessskip_([a-z]+)", callback.data)
+	cid = int(regex.group(1))
+	etapa = regex.group(2)
+	uid = callback.from_user.id
+
+	game = get_game(cid)
+	if game is None or game.board is None:
+		bot.send_message(uid, "Esa partida ya no está activa.")
+		return
+	if uid not in game.playerlist:
+		bot.send_message(uid, "Debes ser un jugador de la partida para adivinar.")
+		return
+
+	progress = GamesController.guess_progress.get((cid, uid))
+	if progress is None:
+		bot.send_message(uid, "Tu sesión de /guess expiró, usa /guess de nuevo para empezar.")
+		return
+
+	if etapa == "f" and progress["mode"] == "full":
+		# Dejo de pedirle fascistas, pero todavia puede arriesgar quien es Hitler.
+		texto, markup = _build_guess_hitler_prompt(game, uid)
+	else:
+		texto, markup = _build_guess_confirm_prompt(game, uid)
+
 	bot.edit_message_text(texto, chat_id=callback.message.chat_id, message_id=callback.message.message_id,
 		reply_markup=markup, parse_mode=ParseMode.MARKDOWN)
 
@@ -2031,22 +2070,32 @@ def _build_guess_confirm_prompt(game, uid):
 	progress = GamesController.guess_progress[(game.cid, uid)]
 	strcid = str(game.cid)
 
+	# vacio = dejo TODO en "No sé": no hay nada que guardar, asi que no se ofrece confirmar
+	# (un palpito parcial, con al menos un dato, si se puede confirmar).
+	vacio = False
+
 	if progress["mode"] == "hitler":
-		nombres_fascistas = ", ".join(game.playerlist[u].name for u in progress["fascists"] if u in game.playerlist)
+		nombres_fascistas = ", ".join(game.playerlist[u].name for u in progress["fascists"] if u in game.playerlist) or "no sé"
+		vacio = not [u for u in progress["fascists"] if u in game.playerlist]
 		texto = "🔮 *Confirma tu palpito*\nCompañeros fascistas sospechosos: {}\n\n¿Confirmas?".format(nombres_fascistas)
 	elif progress["mode"] == "fascist_prediction":
 		predicted = progress.get("predicted")
 		nombre = game.playerlist[predicted].name if predicted in game.playerlist else "?"
 		texto = "🔮 *Confirma tu predicción*\n¿Quién más acierte a Hitler y a los fascistas?: *{}*\n\n¿Confirmas?".format(nombre)
 	else:
-		nombres_fascistas = ", ".join(game.playerlist[u].name for u in progress["fascists"] if u in game.playerlist)
-		nombre_hitler = game.playerlist[progress["hitler"]].name if progress["hitler"] in game.playerlist else "?"
+		nombres_fascistas = ", ".join(game.playerlist[u].name for u in progress["fascists"] if u in game.playerlist) or "no sé"
+		nombre_hitler = game.playerlist[progress["hitler"]].name if progress["hitler"] in game.playerlist else "no sé"
+		vacio = not [u for u in progress["fascists"] if u in game.playerlist] and progress["hitler"] not in game.playerlist
 		texto = "🔮 *Confirma tu palpito*\nFascistas sospechosos: {}\nHitler: {}\n\n¿Confirmas?".format(nombres_fascistas, nombre_hitler)
 
-	btns = [
-		[InlineKeyboardButton("✅ Confirmar", callback_data=strcid + "_guessconfirm")],
-		[InlineKeyboardButton("↩️ Empezar de nuevo", callback_data=strcid + "_guessrestart")],
-	]
+	if vacio:
+		texto = ("🔮 *Tu palpito quedó vacío*\nDejaste todo en \"No sé\", así que no hay nada para guardar. "
+			"Podés arriesgar aunque sea un nombre: no hace falta que completes todo el palpito.")
+
+	btns = []
+	if not vacio:
+		btns.append([InlineKeyboardButton("✅ Confirmar", callback_data=strcid + "_guessconfirm")])
+	btns.append([InlineKeyboardButton("↩️ Empezar de nuevo", callback_data=strcid + "_guessrestart")])
 	markup = InlineKeyboardMarkup(btns)
 	return texto, markup
 
@@ -2067,18 +2116,23 @@ def callback_guess_confirm(update: Update, context: CallbackContext):
 		bot.send_message(uid, "Tu sesión de /guess expiró, usa /guess de nuevo para empezar.")
 		return
 
+	# Se aceptan palpitos parciales (lo que se haya dejado en "No sé" queda vacio),
+	# pero no uno completamente vacio: gastaria un intento sin decir nada.
 	if progress["mode"] == "hitler":
 		entry = {"fascists": list(progress["fascists"])}
+		if not entry["fascists"]:
+			bot.send_message(uid, "Tenés que arriesgar al menos un nombre antes de confirmar.")
+			return
 	elif progress["mode"] == "fascist_prediction":
 		if progress.get("predicted") is None:
 			bot.send_message(uid, "Tenés que elegir a alguien antes de confirmar.")
 			return
 		entry = {"predicted": progress["predicted"]}
 	else:
-		if progress.get("hitler") is None:
-			bot.send_message(uid, "Tenés que elegir quién es Hitler antes de confirmar.")
-			return
 		entry = {"fascists": list(progress["fascists"]), "hitler": progress["hitler"]}
+		if not entry["fascists"] and entry["hitler"] is None:
+			bot.send_message(uid, "Tenés que arriesgar al menos un nombre antes de confirmar.")
+			return
 
 	entry["timestamp"] = datetime.datetime.now()
 	entry["round"] = game.board.state.currentround
@@ -2172,10 +2226,14 @@ def format_guesses_reveal(game, only_uid=None):
 		if guesser.role == "Hitler":
 			guessed_fascist_uids = [u for u in guess.get("fascists", []) if u in game.playerlist]
 			aciertos = [u for u in guessed_fascist_uids if u in fascist_uids]
-			nombres = ", ".join(game.playerlist[u].name for u in guessed_fascist_uids) or "nadie"
+			if guessed_fascist_uids:
+				frase = "sospechó que sus compañeros fascistas eran: {}".format(
+					", ".join(game.playerlist[u].name for u in guessed_fascist_uids))
+			else:
+				frase = "no arriesgó quiénes eran sus compañeros fascistas 🤷"
 			hitler_lineas.append((
-				"*{}* (Hitler) sospechó que sus compañeros fascistas eran: {}{}\n   ↳ Acertó {}/{} compañeros".format(
-					guesser.name, nombres, nota_cambio, len(aciertos), total_fascists),
+				"*{}* (Hitler) {}{}\n   ↳ Acertó {}/{} compañeros".format(
+					guesser.name, frase, nota_cambio, len(aciertos), total_fascists),
 				guesser_uid))
 			continue
 
@@ -2195,13 +2253,23 @@ def format_guesses_reveal(game, only_uid=None):
 		hitler_acierto = guessed_hitler_uid is not None and guessed_hitler_uid == hitler_uid
 		score = game.compute_guess_score(guess)
 
-		nombres_fascistas = ", ".join(game.playerlist[u].name for u in guessed_fascist_uids) or "nadie"
-		nombre_hitler = game.playerlist[guessed_hitler_uid].name if guessed_hitler_uid in game.playerlist else "nadie"
+		# Un palpito parcial ("No sé") deja alguna parte sin arriesgar: se distingue de haber errado.
+		if guessed_fascist_uids:
+			frase_fascistas = "sospechó de: {}".format(
+				", ".join(game.playerlist[u].name for u in guessed_fascist_uids))
+		else:
+			frase_fascistas = "no arriesgó quiénes eran los fascistas 🤷"
+		if guessed_hitler_uid in game.playerlist:
+			frase_hitler = "dijo que Hitler era *{}*".format(game.playerlist[guessed_hitler_uid].name)
+			detalle_hitler = "acertó ✅" if hitler_acierto else "no acertó ❌"
+		else:
+			frase_hitler = "no arriesgó quién era Hitler 🤷"
+			detalle_hitler = "no arriesgó 🤷"
 
-		texto = "*{}* sospechó de: {} y dijo que Hitler era *{}*{}\n   ↳ Acertó {}/{} fascistas comunes, {} a Hitler ({} pts)".format(
-			guesser.name, nombres_fascistas, nombre_hitler, nota_cambio,
+		texto = "*{}* {} y {}{}\n   ↳ Acertó {}/{} fascistas comunes, {} a Hitler ({} pts)".format(
+			guesser.name, frase_fascistas, frase_hitler, nota_cambio,
 			len(aciertos_fascistas), total_fascists,
-			"acertó ✅" if hitler_acierto else "no acertó ❌",
+			detalle_hitler,
 			score
 		)
 		liberal_resultados.append((score, guesser.name, texto, guesser_uid))
@@ -2378,18 +2446,24 @@ def format_my_guesses(game, uid):
 		timestamp = entry.get("timestamp")
 		nota_fecha = " _({})_".format(timestamp.strftime("%d/%m/%Y %H:%M")) if timestamp else ""
 
+		nombres = ", ".join(game.playerlist[u].name for u in entry.get("fascists", []) if u in game.playerlist)
 		if player.role == "Hitler":
-			nombres = ", ".join(game.playerlist[u].name for u in entry.get("fascists", []) if u in game.playerlist) or "nadie"
-			texto = "*{}*{}: sospechaste de {} como tus compañeros fascistas".format(etiqueta, nota_fecha, nombres)
+			if nombres:
+				texto = "*{}*{}: sospechaste de {} como tus compañeros fascistas".format(etiqueta, nota_fecha, nombres)
+			else:
+				texto = "*{}*{}: no arriesgaste quiénes eran tus compañeros fascistas 🤷".format(etiqueta, nota_fecha)
 		elif player.role == "Fascista":
 			predicted_uid = entry.get("predicted")
 			nombre = game.playerlist[predicted_uid].name if predicted_uid in game.playerlist else "nadie"
 			texto = "*{}*{}: predijiste que *{}* sería quien más acierte a Hitler y a los fascistas".format(etiqueta, nota_fecha, nombre)
 		else:
-			nombres = ", ".join(game.playerlist[u].name for u in entry.get("fascists", []) if u in game.playerlist) or "nadie"
+			frase_fascistas = "sospechaste de {}".format(nombres) if nombres else "no arriesgaste quiénes eran los fascistas 🤷"
 			hitler_uid = entry.get("hitler")
-			nombre_hitler = game.playerlist[hitler_uid].name if hitler_uid in game.playerlist else "nadie"
-			texto = "*{}*{}: sospechaste de {} y dijiste que Hitler era *{}*".format(etiqueta, nota_fecha, nombres, nombre_hitler)
+			if hitler_uid in game.playerlist:
+				frase_hitler = "dijiste que Hitler era *{}*".format(game.playerlist[hitler_uid].name)
+			else:
+				frase_hitler = "no arriesgaste quién era Hitler 🤷"
+			texto = "*{}*{}: {} y {}".format(etiqueta, nota_fecha, frase_fascistas, frase_hitler)
 
 		lineas.append(texto)
 
