@@ -2073,34 +2073,25 @@ def _build_guess_confirm_prompt(game, uid):
 	progress = GamesController.guess_progress[(game.cid, uid)]
 	strcid = str(game.cid)
 
-	# vacio = dejo TODO en "No sé": no hay nada que guardar, asi que no se ofrece confirmar
-	# (un palpito parcial, con al menos un dato, si se puede confirmar).
-	vacio = False
-
+	# "No sé" es una respuesta valida en si misma en cualquiera de los tres flujos:
+	# queda registrado que el jugador no arriesgo esa parte (o ninguna). Nada se rechaza
+	# por quedar en blanco; simplemente suma menos puntos en la revelacion final.
 	if progress["mode"] == "hitler":
 		nombres_fascistas = ", ".join(game.playerlist[u].name for u in progress["fascists"] if u in game.playerlist) or "no sé"
-		vacio = not [u for u in progress["fascists"] if u in game.playerlist]
 		texto = "🔮 *Confirma tu palpito*\nCompañeros fascistas sospechosos: {}\n\n¿Confirmas?".format(nombres_fascistas)
 	elif progress["mode"] == "fascist_prediction":
-		# La prediccion es un solo dato: dejarla en "No sé" es una respuesta valida en si
-		# misma (queda registrado que no arriesgo), no un palpito vacio a rechazar.
 		predicted = progress.get("predicted")
 		nombre = game.playerlist[predicted].name if predicted in game.playerlist else "no sé"
 		texto = "🔮 *Confirma tu predicción*\n¿Quién más acierte a Hitler y a los fascistas?: *{}*\n\n¿Confirmas?".format(nombre)
 	else:
 		nombres_fascistas = ", ".join(game.playerlist[u].name for u in progress["fascists"] if u in game.playerlist) or "no sé"
 		nombre_hitler = game.playerlist[progress["hitler"]].name if progress["hitler"] in game.playerlist else "no sé"
-		vacio = not [u for u in progress["fascists"] if u in game.playerlist] and progress["hitler"] not in game.playerlist
 		texto = "🔮 *Confirma tu palpito*\nFascistas sospechosos: {}\nHitler: {}\n\n¿Confirmas?".format(nombres_fascistas, nombre_hitler)
 
-	if vacio:
-		texto = ("🔮 *Tu palpito quedó vacío*\nDejaste todo en \"No sé\", así que no hay nada para guardar. "
-			"Podés arriesgar aunque sea un nombre: no hace falta que completes todo el palpito.")
-
-	btns = []
-	if not vacio:
-		btns.append([InlineKeyboardButton("✅ Confirmar", callback_data=strcid + "_guessconfirm")])
-	btns.append([InlineKeyboardButton("↩️ Empezar de nuevo", callback_data=strcid + "_guessrestart")])
+	btns = [
+		[InlineKeyboardButton("✅ Confirmar", callback_data=strcid + "_guessconfirm")],
+		[InlineKeyboardButton("↩️ Empezar de nuevo", callback_data=strcid + "_guessrestart")],
+	]
 	markup = InlineKeyboardMarkup(btns)
 	return texto, markup
 
@@ -2121,21 +2112,14 @@ def callback_guess_confirm(update: Update, context: CallbackContext):
 		bot.send_message(uid, "Tu sesión de /guess expiró, usa /guess de nuevo para empezar.")
 		return
 
-	# Se aceptan palpitos parciales (lo que se haya dejado en "No sé" queda vacio),
-	# pero no uno completamente vacio: gastaria un intento sin decir nada.
+	# Se aceptan palpitos parciales y tambien totalmente en blanco: lo que se haya dejado
+	# en "No sé" se guarda vacio (lista corta / None) y simplemente suma menos puntos.
 	if progress["mode"] == "hitler":
 		entry = {"fascists": list(progress["fascists"])}
-		if not entry["fascists"]:
-			bot.send_message(uid, "Tenés que arriesgar al menos un nombre antes de confirmar.")
-			return
 	elif progress["mode"] == "fascist_prediction":
-		# Puede quedar en None ("No sé"): se guarda igual como "no arriesgo".
 		entry = {"predicted": progress.get("predicted")}
 	else:
 		entry = {"fascists": list(progress["fascists"]), "hitler": progress["hitler"]}
-		if not entry["fascists"] and entry["hitler"] is None:
-			bot.send_message(uid, "Tenés que arriesgar al menos un nombre antes de confirmar.")
-			return
 
 	entry["timestamp"] = datetime.datetime.now()
 	entry["round"] = game.board.state.currentround
