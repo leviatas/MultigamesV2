@@ -48,6 +48,13 @@ def _check_martir(ctx):
     return ctx["died"] and ctx["party"] == "liberal" and ctx["won"]
 
 
+def _check_martir_fascista(ctx):
+    # Espejo fascista de "martir": lo ejecutaron y su equipo gano igual. En la practica
+    # siempre es un fascista comun: si ejecutan a Hitler la partida la ganan los liberales,
+    # asi que Hitler nunca puede estar muerto en una partida ganada por los fascistas.
+    return ctx["died"] and ctx["party"] == "fascista" and ctx["won"]
+
+
 def _check_error_de_calculo(ctx):
     return ctx["party"] == "liberal" and "Liberal" in ctx["killed_roles"]
 
@@ -283,6 +290,8 @@ LOGROS = [
           "🗡", "muerte", False, _check_bala_certera),
     Logro("martir", "Mártir de la República", "Te ejecutaron siendo liberal y tu equipo ganó igual.",
           "☠", "muerte", False, _check_martir),
+    Logro("martir_fascista", "Caído por la causa", "Te ejecutaron siendo fascista y tu equipo ganó igual.",
+          "⚱️", "muerte", False, _check_martir_fascista),
     Logro("error_de_calculo", "Error de cálculo", "Siendo liberal, ejecutaste a otro liberal.",
           "🤦", "muerte", True, _check_error_de_calculo),
     Logro("verdugo", "Verdugo", "Ejecutaste a 3 jugadores en total.",
