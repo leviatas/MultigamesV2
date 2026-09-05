@@ -2,6 +2,18 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Autoría de los commits
+
+Todo lo que se sube a este repo va a nombre del dueño del repo, no de Claude. Antes de commitear, corré:
+
+```bash
+git config --local user.name "Eduardo Peluffo"
+git config --local user.email "leviatas@gmail.com"
+git config --local commit.gpgsign false
+```
+
+`commit.gpgsign false` es a propósito: la clave de firma del entorno del agente no es la del dueño del repo, así que un commit firmado con ella queda "Unverified" en GitHub y con identidad mezclada. Esto se aplica solo localmente (no toca la config global) y se re-aplica automáticamente al arrancar una sesión de Claude Code gracias al hook `SessionStart` en `.claude/settings.json`.
+
 ## What This Is
 
 MultigamesV2 is a **Python Telegram bot ecosystem** for playing board games in group chats. It runs multiple bots concurrently in threads: a main Multigames bot (10+ games) and a dedicated Secret Hitler bot. The user-facing language is Spanish.
