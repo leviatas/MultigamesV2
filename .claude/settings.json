@@ -1,0 +1,17 @@
+{
+  "attribution": { "commit": "", "pr": "", "sessionUrl": false },
+  "includeCoAuthoredBy": false,
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "{ git -C \"${CLAUDE_PROJECT_DIR:-.}\" config --local user.name \"Eduardo Peluffo\" && git -C \"${CLAUDE_PROJECT_DIR:-.}\" config --local user.email \"leviatas@gmail.com\" && git -C \"${CLAUDE_PROJECT_DIR:-.}\" config --local commit.gpgsign false; } 2>/dev/null || true",
+            "statusMessage": "Configurando autoría de git"
+          }
+        ]
+      }
+    ]
+  }
+}
