@@ -18,7 +18,7 @@ from collections import namedtuple
 import SecretHitler.MainController as MainController
 import SecretHitler.GamesController as GamesController
 from SecretHitler.Constants.Config import ADMIN, VERSION
-from SecretHitler.Constants.Cards import opciones_choose_posible_role, playerSets, socialistSets
+from SecretHitler.Constants.Cards import opciones_choose_posible_role, opciones_choose_posible_role_socialista, playerSets, socialistSets
 from SecretHitler.Boardgamebox.Board import Board
 from SecretHitler.Boardgamebox.Game import Game
 from SecretHitler.Boardgamebox.Player import Player
@@ -197,6 +197,7 @@ Quién sabe qué:
 - *Hitler no conoce a nadie*, ni siquiera en partidas chicas (en el clásico, con 5 o 6 jugadores, sí conocía a su fascista).
 - Los socialistas se conocen entre ellos.
 - Los liberales, como siempre, no saben nada.
+Si querés pedir un rol antes de que arranque la partida, */role* también te ofrece *Socialista* (y las combinaciones con los otros roles). Es un pedido, no una garantía: si el cupo ya se lo llevó otro, te toca otra cosa.
 
 *CÓMO SE GANA*
 - *Liberales*: promulgando sus actas liberales (5, o *6 en partidas de 8 jugadores*) o matando a Hitler.
@@ -1778,7 +1779,14 @@ def choose_posible_role(bot, cid, uid):
 	frase_regex = "chooserole"
 	pregunta_arriba_botones = "¿Qué rol quisieras ser?"
 	chat_donde_se_pregunta = uid
-	multipurpose_choose_buttons(bot, cid, uid, chat_donde_se_pregunta, frase_regex, pregunta_arriba_botones, opciones_choose_posible_role)
+	# En una partida socialista se puede pedir tambien el rol Socialista.
+	game = get_game(cid)
+	if game is not None and game.es_socialista():
+		opciones = opciones_choose_posible_role_socialista
+		pregunta_arriba_botones = "¿Qué rol quisieras ser? (partida con Expansión Socialista)"
+	else:
+		opciones = opciones_choose_posible_role
+	multipurpose_choose_buttons(bot, cid, uid, chat_donde_se_pregunta, frase_regex, pregunta_arriba_botones, opciones)
 
 def callback_choose_posible_role(update: Update, context: CallbackContext):
 	bot = context.bot
