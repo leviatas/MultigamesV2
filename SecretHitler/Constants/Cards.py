@@ -443,9 +443,30 @@ opciones_choose_posible_role = {
             1 : "Liberal o Hitler"
         }
     },
-    "Fascista_Hitler" : {        
+    "Fascista_Hitler" : {
         "comandos" : {
             1 : "Fascista o Hitler"
         }
     }
+}
+
+
+def _opcion_rol(etiqueta):
+    return {"comandos": {1: etiqueta}}
+
+
+# Mismas opciones para el modo socialista, mas el rol Socialista y sus combinaciones.
+# La clave es lo que se guarda en Player.preference_rol y MainController.inform_players
+# la parte por "_", asi que cada parte tiene que ser un nombre de rol tal cual.
+opciones_choose_posible_role_socialista = {
+    "Liberal": _opcion_rol("Liberal"),
+    "Fascista": _opcion_rol("Fascista"),
+    "Hitler": _opcion_rol("Hitler"),
+    "Socialista": _opcion_rol("Socialista"),
+    "Liberal_Fascista": _opcion_rol("Liberal o Fascista"),
+    "Liberal_Hitler": _opcion_rol("Liberal o Hitler"),
+    "Liberal_Socialista": _opcion_rol("Liberal o Socialista"),
+    "Fascista_Hitler": _opcion_rol("Fascista o Hitler"),
+    "Fascista_Socialista": _opcion_rol("Fascista o Socialista"),
+    "Socialista_Hitler": _opcion_rol("Socialista o Hitler"),
 }
