@@ -1701,6 +1701,7 @@ def main():
 	dp.add_handler(CommandHandler("help", Commands.command_help))
 	dp.add_handler(CommandHandler("board", Commands.command_board))
 	dp.add_handler(CommandHandler("rules", Commands.command_rules))
+	dp.add_handler(CommandHandler("explainsocialista", Commands.command_explainsocialista))
 	dp.add_handler(CommandHandler("ping", Commands.command_ping))
 	dp.add_handler(CommandHandler("version", Commands.command_version))
 	dp.add_handler(CommandHandler("symbols", Commands.command_symbols))
@@ -1808,6 +1809,7 @@ def main():
 			BotCommand("help", "Informacion de los comandos disponibles"),
 			BotCommand("start", "Da un poco de informacion sobre Secret Hitler"),
 			BotCommand("rules", "Link al sitio oficial con las reglas"),
+			BotCommand("explainsocialista", "Explica el modo socialista y sus diferencias"),
 			BotCommand("symbols", "Muestra los simbolos posibles en el tablero"),
 			BotCommand("newgame", "Crea un nuevo juego o carga uno previo"),
 			BotCommand("nextgame", "Guarda que queres jugar la proxima partida y te avisa cuando se cree"),

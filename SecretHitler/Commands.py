@@ -62,6 +62,7 @@ commands = [  # command description used in the "help" command
     '/rules - Te da un link al sitio oficial con las reglas de Secret Hitler',
     '/newgame - Crea un nuevo juego o carga un juego previo',
     '/newgame socialista - Crea un juego con la Expansión Socialista: un tercer partido, con su propia pista y sus propios poderes (6 a 13 jugadores)',
+    '/explainsocialista - Explica cómo se juega el modo socialista y en qué se diferencia del clásico',
     '/nextgame - Guarda que querés jugar la próxima partida y te avisa por privado cuando se cree con /newgame',
     '/join - Te une a un juego existente',
     '/startgame - Comienza un juego existente cuando todos los jugadores se han unido',
@@ -177,6 +178,66 @@ def command_rules(update: Update, context: CallbackContext):
 	/symbols Da un resumen de que hace cada acción.
 	"""
 	bot.send_message(cid, msg, ParseMode.MARKDOWN)
+
+
+def command_explainsocialista(update: Update, context: CallbackContext):
+	# Explica el modo socialista y en que se diferencia del clasico. Se manda partido en
+	# varios mensajes porque no entra en el limite de 4096 caracteres de Telegram.
+	bot = context.bot
+	cid = update.message.chat_id
+	msg = """☭ *EXPANSIÓN SOCIALISTA* ☭
+
+Se juega con */newgame socialista* (en el modo clásico nada de esto cambia). Es para *{min} a {max} jugadores*.
+
+*EL TERCER PARTIDO*
+Además de liberales y fascistas hay *socialistas*. Los liberales dejan de ser mayoría: siguen siendo el grupo más numeroso, pero ya no les alcanza con votar juntos.
+Cada jugador tiene un *rol* (que no cambia nunca) y una *afiliación* (que sí puede cambiar). *Ganás con tu afiliación, no con tu rol*, salvo que seas Hitler: Hitler siempre gana con los fascistas.
+Quién sabe qué:
+- Los fascistas se conocen entre ellos y saben quién es Hitler.
+- *Hitler no conoce a nadie*, ni siquiera en partidas chicas (en el clásico, con 5 o 6 jugadores, sí conocía a su fascista).
+- Los socialistas se conocen entre ellos.
+- Los liberales, como siempre, no saben nada.
+
+*CÓMO SE GANA*
+- *Liberales*: promulgando sus actas liberales (5, o *6 en partidas de 8 jugadores*) o matando a Hitler.
+- *Fascistas*: promulgando 6 actas fascistas, o logrando que Hitler sea elegido canciller en Zona Hitler.
+- *Socialistas*: completando toda su pista socialista (5 actas con 6-8 jugadores, 6 actas de 9 en adelante).
+Los socialistas *pierden en cualquier final que involucre a Hitler*: si lo eligen canciller ganan los fascistas y si lo matan ganan los liberales.
+
+*EL MAZO*
+5 políticas liberales, 10 fascistas y 8 socialistas. En partidas de 8 jugadores se saca una fascista y se agrega una liberal (6/9/8).
+La *pista fascista es distinta a todas las clásicas* y es siempre la misma sin importar cuántos sean: vacío, investigar afiliación, ojear políticas, ejecución, ejecución (acá se habilita el veto) y victoria fascista.""".format(min=MIN_JUGADORES_SOCIALISTA, max=MAX_JUGADORES_SOCIALISTA)
+	send_chunked_message(bot, cid, msg, parse_mode=ParseMode.MARKDOWN)
+
+	msg2 = """*PRESIDENTE DE LA CÁMARA* 🏛
+Es un tercer cargo de gobierno que no existe en el clásico. Después de que la fórmula gana la votación, el *canciller elige un Presidente de la Cámara* (cualquiera menos él mismo y el presidente), y esa persona *espía en privado la primera política del mazo* antes de que el presidente robe las tres.
+Dura una sola ronda y *no queda inhabilitado*: al Presidente de la Cámara se lo puede nominar canciller en la ronda siguiente, a diferencia del presidente y el canciller salientes.
+
+*LOS PODERES SOCIALISTAS*
+Cuando se promulga un acta socialista, el poder lo usa *el partido socialista*, no el presidente. Dos consecuencias:
+- Se usan igual si el acta salió *por anarquía* (los poderes presidenciales, en cambio, se pierden).
+- Los botones les llegan a *todos los socialistas vivos* y decide el primero que contesta, así que pónganse de acuerdo antes de tocar.
+
+🐛 *Escucha Ilegal*: ven la afiliación de un jugador.
+✊ *Reclutamiento*: convierten a un jugador, que pasa a tener afiliación socialista y a ganar con ellos. Conserva su rol y todo lo que ya sabía.
+5️⃣ *Plan Quinquenal*: se agregan al mazo 2 políticas socialistas y 1 liberal, y se baraja.
+🏛 *Congreso*: el jugador reclutado se entera de quiénes eran los socialistas originales.
+📖 *Confesión*: el presidente le muestra su afiliación a quien elijan los socialistas. Se anuncia al grupo quién la vio.
+
+La Escucha, el Reclutamiento y el Congreso son *acciones secretas*: el grupo se entera de que el poder se usó, pero no sobre quién. El Plan Quinquenal y la Confesión son públicos. Todo lo secreto se revela en el historial oculto al terminar la partida.
+
+*Ojo: no todas las pistas socialistas traen los mismos poderes.* Con 6-8 jugadores no hay Confesión; con 11 o más no hay Escucha ni Congreso, la primera casilla no da nada y hay *dos* Reclutamientos. Mirá tu pista con */board*.
+
+*SI RECLUTAN A HITLER*
+No pasa nada: Hitler sigue siendo fascista y gana con los suyos. Los socialistas *no se enteran en el momento*; recién lo descubren en el Congreso, cuando no aparece ningún socialista nuevo. Hitler sí sabe que lo intentaron.
+
+*CENSURA* 🕶
+Al promulgarse la *tercera acta socialista* se activa la Censura, que funciona como la Zona Hitler: es para el resto de la partida y *elimina al Presidente de la Cámara*. De ahí en adelante el canciller ya no elige a nadie y se roban las políticas directamente.
+
+*QUÉ NO CAMBIA*
+Nominación, votación, contador de elecciones fallidas, anarquía, Zona Hitler (3 actas fascistas), el veto con la quinta fascista, los poderes presidenciales y los comandos de siempre (/board, /guess, /mvp, /info, etc.).
+Con */board* ves las tres pistas y con */symbols* qué significa cada símbolo. Si te reclutaron, */info* te lo dice."""
+	send_chunked_message(bot, cid, msg2, parse_mode=ParseMode.MARKDOWN)
 
 
 # pings the bot
