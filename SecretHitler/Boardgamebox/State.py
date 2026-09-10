@@ -19,3 +19,17 @@ class State(object):
         self.currentround = -1
         self.votes_anarquia = {}
         self.fase = None
+        # --- Solo modo socialista (ver Game.modo) ---
+        self.socialist_track = 0
+        # Presidente de la Camara: lo elige el canciller despues de una votacion exitosa
+        # y espia la primera politica del mazo. Deja de existir cuando se activa la Censura.
+        self.chairman = None
+        # uids elegidos por el poder de Reclutamiento, en orden (incluye el intento fallido
+        # sobre Hitler, que sigue siendo fascista: el Congreso lo usa para avisar que fallo).
+        # Es una lista y no un dict a proposito: jsonpickle convierte las claves de los dicts
+        # a string y habria que castearlas de nuevo al cargar la partida.
+        self.recruited_uids = []
+        # Poder socialista ofrecido y todavia sin resolver. Los botones se mandan a todos los
+        # socialistas vivos y decide el primero que responde, asi que hace falta esta guarda
+        # para ignorar los clicks que llegan despues.
+        self.pending_socialist_power = None

@@ -18,7 +18,7 @@ from collections import namedtuple
 import SecretHitler.MainController as MainController
 import SecretHitler.GamesController as GamesController
 from SecretHitler.Constants.Config import ADMIN, VERSION
-from SecretHitler.Constants.Cards import opciones_choose_posible_role, playerSets
+from SecretHitler.Constants.Cards import opciones_choose_posible_role, playerSets, socialistSets
 from SecretHitler.Boardgamebox.Board import Board
 from SecretHitler.Boardgamebox.Game import Game
 from SecretHitler.Boardgamebox.Player import Player
@@ -41,12 +41,27 @@ urllib.parse.uses_netloc.append("postgres")
 url = urllib.parse.urlparse(os.environ["DATABASE_URL"])
 
 
+# Cantidad de jugadores admitida por cada modo. La expansion socialista tiene su propia
+# tabla de roles, que va de 6 a 13 jugadores.
+MIN_JUGADORES_CLASICO = 5
+MAX_JUGADORES_CLASICO = 10
+MIN_JUGADORES_SOCIALISTA = 6
+MAX_JUGADORES_SOCIALISTA = 13
+
+
+def limites_jugadores(game):
+	if game is not None and game.es_socialista():
+		return MIN_JUGADORES_SOCIALISTA, MAX_JUGADORES_SOCIALISTA
+	return MIN_JUGADORES_CLASICO, MAX_JUGADORES_CLASICO
+
+
 commands = [  # command description used in the "help" command
     '/help - Te da informacion de los comandos disponibles',
     '/start - Da un poco de información sobre Secret Hitler',
     '/symbols - Te muestra todos los símbolos posibles en el tablero',
     '/rules - Te da un link al sitio oficial con las reglas de Secret Hitler',
     '/newgame - Crea un nuevo juego o carga un juego previo',
+    '/newgame socialista - Crea un juego con la Expansión Socialista: un tercer partido, con su propia pista y sus propios poderes (6 a 13 jugadores)',
     '/nextgame - Guarda que querés jugar la próxima partida y te avisa por privado cuando se cree con /newgame',
     '/join - Te une a un juego existente',
     '/startgame - Comienza un juego existente cuando todos los jugadores se han unido',
@@ -76,7 +91,13 @@ symbols = [
     u"\U0001F5E1" + ' Poder Presidencial: Ejecución',  # knife
     u"\U0001F454" + ' Poder Presidencial: Llamar a Elección Especial',  # tie
     u"\U0001F54A" + ' Liberales ganan',  # dove
-    u"\u2620" + ' Fascistas ganan'  # skull
+    u"\u2620" + ' Fascistas ganan',  # skull
+    u"\U0001F41B" + ' Poder Socialista: Escucha Ilegal (los socialistas ven una afiliación)',  # bug
+    u"\u270a" + ' Poder Socialista: Reclutamiento (convierten a un jugador)',  # raised fist
+    u"5\ufe0f\u20e3" + ' Poder Socialista: Plan Quinquenal (2 políticas socialistas y 1 liberal al mazo)',  # keycap 5
+    u"\U0001F3DB" + ' Poder Socialista: Congreso (los socialistas nuevos conocen a los originales)',  # classical building
+    u"\U0001F4D6" + ' Poder Socialista: Confesión (alguien ve la afiliación del Presidente)',  # open book
+    u"\u262d" + ' Socialistas ganan'  # hammer and sickle
 ]
 
 def get_game(cid):
@@ -282,14 +303,17 @@ def command_stats(update: Update, context: CallbackContext):
 			bot.send_message(cid, 'No se ejecuto el comando debido a: '+str(e))
 	else:
 		# Si el usuario no pone argumentos se muestran las estadisticas normales
-		stats = MainController.get_stats(bot, cid)		
+		stats = MainController.get_stats(bot, cid)
+		# La columna de victorias socialistas es nueva: puede no existir en bases viejas.
+		vict_socialista = stats[6] if len(stats) > 6 else 0
 		stattext = "+++ Estadísticas +++\n" + \
 				"Vict. Liberal (Politicas): *" + str(stats[3]) + "*\n" + \
 				"Vict. Liberal (Hitler ☠): *" + str(stats[4]) + "*\n" + \
 				"Vict. Fascista (Politicas): *" + str(stats[2]) + "*\n" + \
 				"Vict. Fascista (Hitler Canc): *" + str(stats[1]) + "*\n" + \
+				"Vict. Socialista (Politicas): *" + str(vict_socialista) + "*\n" + \
 				"Juegos cancelados: *" + str(stats[5]) + "*\n" + \
-				"Juegos totales: *" + str(stats[1] + stats[2] + stats[3] + stats[4]) + "*\n\n"		
+				"Juegos totales: *" + str(stats[1] + stats[2] + stats[3] + stats[4] + vict_socialista) + "*\n\n"
 		bot.send_message(cid, stattext, ParseMode.MARKDOWN)
 
 # estadisticas nuevas, vinculadas al uid de Telegram. Sin argumentos: las del que invoca.
@@ -540,8 +564,21 @@ def command_newgame(update: Update, context: CallbackContext):
 		elif game:
 			bot.send_message(cid, "Hay un juego comenzado en este chat. Si quieres terminarlo escribe /cancelgame!")
 		else:
-			GamesController.games[cid] = Game(cid, update.message.from_user.id, groupName)
-			bot.send_message(cid, "Nuevo juego creado! Cada jugador debe unirse al juego con el comando /join.\nEl iniciador del juego (o el administrador) pueden unirse tambien y escribir /startgame cuando todos se hayan unido al juego!")
+			nuevo = Game(cid, update.message.from_user.id, groupName)
+			# "/newgame socialista" arranca una partida con la Expansion Socialista.
+			modo_socialista = len(args) > 0 and args[0].lower() in ("socialista", "socialist")
+			if modo_socialista:
+				nuevo.modo = "socialista"
+			GamesController.games[cid] = nuevo
+			if modo_socialista:
+				bot.send_message(cid,
+					u"☭" + " Nuevo juego creado con la *Expansión Socialista* (%d a %d jugadores)!\n"
+					"Hay un tercer partido: los socialistas ganan promulgando toda su pista de políticas.\n"
+					"Cada jugador debe unirse al juego con el comando /join.\n"
+					"El iniciador del juego (o el administrador) pueden unirse tambien y escribir /startgame cuando todos se hayan unido al juego!" % (MIN_JUGADORES_SOCIALISTA, MAX_JUGADORES_SOCIALISTA),
+					parse_mode=ParseMode.MARKDOWN)
+			else:
+				bot.send_message(cid, "Nuevo juego creado! Cada jugador debe unirse al juego con el comando /join.\nEl iniciador del juego (o el administrador) pueden unirse tambien y escribir /startgame cuando todos se hayan unido al juego!")
 			# Aviso por privado a quienes pidieron con /nextgame que se les avise
 			# apenas se cree una partida nueva en este grupo.
 			interesados = NextGame.pop_waiting(cid)
@@ -606,7 +643,7 @@ def command_join(update: Update, context: CallbackContext):
 		bot.send_message(cid, "El juego ha comenzado. Por favor espera el proximo juego!")
 	elif uid in game.playerlist:
 		bot.send_message(game.cid, "Ya te has unido al juego, %s!" % fname)
-	elif len(game.playerlist) >= 10:
+	elif len(game.playerlist) >= limites_jugadores(game)[1]:
 		bot.send_message(game.cid, "Han llegado al maximo de jugadores. Por favor comiencen el juego con /startgame!")
 	else:
 		#uid = update.message.from_user.id
@@ -621,12 +658,13 @@ def command_join(update: Update, context: CallbackContext):
 			# Cubre a quienes ya estaban en el grupo antes de que el tracking de /all existiera:
 			# al unirse a una partida quedan registrados igual.
 			GroupMembers.upsert_member(cid, uid, fname, is_bot=False, active=True)
-			if len(game.playerlist) > 4:
+			min_jugadores, max_jugadores = limites_jugadores(game)
+			if len(game.playerlist) >= min_jugadores:
 				bot.send_message(game.cid, fname + " se ha unido al juego. Escribe /startgame si este es el último jugador y quieren comenzar con %d jugadores!" % len(game.playerlist))
 			elif len(game.playerlist) == 1:
-				bot.send_message(game.cid, "%s se ha unido al juego. Hay %d jugador en el juego y se necesita 5-10 jugadores." % (fname, len(game.playerlist)))
+				bot.send_message(game.cid, "%s se ha unido al juego. Hay %d jugador en el juego y se necesita %d-%d jugadores." % (fname, len(game.playerlist), min_jugadores, max_jugadores))
 			else:
-				bot.send_message(game.cid, "%s se ha unido al juego. Hay %d jugadores en el juego y se necesita 5-10 jugadores" % (fname, len(game.playerlist)))
+				bot.send_message(game.cid, "%s se ha unido al juego. Hay %d jugadores en el juego y se necesita %d-%d jugadores" % (fname, len(game.playerlist), min_jugadores, max_jugadores))
 			# Luego dicto los jugadores que se han unido
 			jugadoresActuales = "Los jugadores que se han unido al momento son:\n"
 			for uid in game.playerlist:
@@ -652,8 +690,8 @@ def command_startgame(update: Update, context: CallbackContext):
 		bot.send_message(cid, "El juego ya ha comenzado!")
 	elif update.message.from_user.id != game.initiator and bot.getChatMember(cid, update.message.from_user.id).status not in ("administrator", "creator"):
 		bot.send_message(game.cid, "Solo el creador del juego o un administrador del grupo pueden comenzar el juego con /startgame")
-	elif len(game.playerlist) < 5:
-		bot.send_message(game.cid, "No hay suficientes jugadores (min. 5, max. 10). Uneté al juego con /join")
+	elif len(game.playerlist) < limites_jugadores(game)[0]:
+		bot.send_message(game.cid, "No hay suficientes jugadores (min. %d, max. %d). Uneté al juego con /join" % limites_jugadores(game))
 	else:
 		player_number = len(game.playerlist)
 		MainController.inform_players(bot, game, game.cid, player_number)
@@ -1124,6 +1162,10 @@ def load_game(cid):
 
 		if not hasattr(game, "stats_game_id"):
 			game.stats_game_id = None
+
+		# Partidas guardadas antes de la expansion socialista no tienen este atributo.
+		if not hasattr(game, "modo"):
+			game.modo = "clasico"
 
 		if game.board is not None and game.board.state is not None:
 			temp_last_votes = {}	
@@ -1779,7 +1821,8 @@ def callback_info(update: Update, context: CallbackContext):
 
 
 def _guess_num_fascists(game):
-	roles = playerSets.get(len(game.playerlist), {}).get("roles", [])
+	sets = socialistSets if game.es_socialista() else playerSets
+	roles = sets.get(len(game.playerlist), {}).get("roles", [])
 	return sum(1 for r in roles if r == "Fascista")
 
 def command_guess(update: Update, context: CallbackContext):

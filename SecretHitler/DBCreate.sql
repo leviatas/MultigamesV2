@@ -20,6 +20,9 @@ CREATE TABLE IF NOT EXISTS stats_secret_hitler (
     liberalwinkillhitler INTEGER NOT NULL,
     cancelgame INTEGER NOT NULL
 );
+-- Victorias socialistas (expansion socialista). Se agrega al final para que los indices
+-- posicionales de get_stats() de las columnas viejas no se muevan.
+ALTER TABLE stats_secret_hitler ADD COLUMN IF NOT EXISTS socialistwinpolicies INTEGER NOT NULL DEFAULT 0;
 
 --DROP TABLE IF EXISTS stats_detail;
 

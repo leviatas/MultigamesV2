@@ -15,6 +15,8 @@ from telegram.ext import (Updater, CommandHandler, CallbackQueryHandler, Message
 
 import SecretHitler.Commands as Commands
 from SecretHitler.Constants.Cards import playerSets
+from SecretHitler.Constants.Cards import socialistSets
+from SecretHitler.Constants.Cards import CENSURA_DESDE
 from SecretHitler.Constants.Config import ADMIN, VERSION
 from SecretHitler.Boardgamebox.Game import Game
 from SecretHitler.Boardgamebox.Player import Player
@@ -76,6 +78,9 @@ def start_round(bot, game):
 	else:
 		game.board.state.nominated_president = game.board.state.chosen_president
 		game.board.state.chosen_president = None
+
+	# El Presidente de la Camara dura una sola sesion legislativa (modo socialista).
+	game.board.state.chairman = None
 
 	Commands.print_board(bot, game, game.cid)
 	msgtext =  "El próximo candidato a presidente es [%s](tg://user?id=%d).\n%s, por favor nomina a un canciller en nuestro chat privado!" % (game.board.state.nominated_president.name, game.board.state.nominated_president.uid, game.board.state.nominated_president.name)
@@ -296,10 +301,87 @@ def voting_aftermath(bot, game, voting_success):
 			if game.board.state.fascist_track >= 3 and game.board.state.chancellor.role != "Hitler" and game.board.state.chancellor not in game.board.state.not_hitlers:
 				game.board.state.not_hitlers.append(game.board.state.chancellor)
 			# voting was successful and Hitler was not nominated as chancellor after 3 fascist policies
-			draw_policies(bot, game)
+			start_legislative_session(bot, game)
 	else:
 		#Commands.print_board(bot, game, game.cid)
 		start_next_round(bot, game)
+
+
+def start_legislative_session(bot, game):
+	# En el modo socialista el canciller elige un Presidente de la Camara antes de la sesion
+	# legislativa; con la Censura activa ese paso desaparece y se roban las politicas directamente.
+	if game.board.es_socialista() and not game.board.hay_censura():
+		choose_chairman(bot, game)
+	else:
+		draw_policies(bot, game)
+
+
+def choose_chairman(bot, game):
+	log.info('choose_chairman called')
+	strcid = str(game.cid)
+	btns = []
+	for uid in game.playerlist:
+		if game.playerlist[uid].is_dead:
+			continue
+		if uid in (game.board.state.president.uid, game.board.state.chancellor.uid):
+			continue
+		btns.append([InlineKeyboardButton(game.playerlist[uid].name, callback_data=strcid + "_chair_" + str(uid))])
+
+	if not btns:
+		# Sin nadie fuera del gobierno no hay a quien darle la Camara.
+		bot.send_message(game.cid, "No hay ningún jugador disponible para ser Presidente de la Cámara, se pasa directo a la sesión legislativa.")
+		draw_policies(bot, game)
+		return
+
+	chairmanMarkup = InlineKeyboardMarkup(btns)
+	bot.send_message(game.cid,
+		"El Canciller %s tiene que elegir al Presidente de la Cámara " % game.board.state.chancellor.name + u"\U0001F3DB")
+	msg = 'Elegí al Presidente de la Cámara. Va a espiar la primera política del mazo!'
+	if game.is_debugging:
+		bot.send_message(ADMIN, msg, reply_markup=chairmanMarkup)
+	else:
+		bot.send_message(game.board.state.chancellor.uid, msg, reply_markup=chairmanMarkup)
+	game.board.state.fase = "choose_chairman"
+	Commands.save_game(game.cid, "choose_chairman Round %d" % (game.board.state.currentround), game)
+
+
+def choose_chosen_chairman(update: Update, context: CallbackContext):
+	bot = context.bot
+	log.info('choose_chosen_chairman called')
+	callback = update.callback_query
+	regex = re.search("(-[0-9]*)_chair_([0-9]*)", callback.data)
+	cid = int(regex.group(1))
+	chosen_uid = int(regex.group(2))
+	try:
+		game = Commands.get_game(cid)
+
+		if callback.from_user.id != game.board.state.chancellor.uid and not game.is_debugging:
+			bot.edit_message_text("No eres el canciller actual, no puedes elegir!", callback.from_user.id, callback.message.message_id)
+			return
+		if game.board.state.chairman is not None:
+			# Ya se eligio en esta ronda: ignoro el click repetido.
+			return
+
+		chosen = game.playerlist[chosen_uid]
+		game.board.state.chairman = chosen
+		bot.edit_message_text("Elegiste a %s como Presidente de la Cámara!" % chosen.name,
+			callback.from_user.id, callback.message.message_id)
+		bot.send_message(game.cid,
+			"El Canciller %s eligió a %s como Presidente de la Cámara." % (game.board.state.chancellor.name, chosen.name))
+		game.history.append("El Canciller %s eligió a %s como Presidente de la Cámara." % (game.board.state.chancellor.name, chosen.name))
+
+		# Mezclo antes de espiar para que la carta que ve sea la que realmente va a robar el presidente.
+		shuffle_policy_pile(bot, game)
+		top_policy = game.board.policies[0]
+		bot.send_message(ADMIN if game.is_debugging else chosen.uid,
+			"%s\nEspiaste la primera política del mazo: *%s*" % (game.groupName, top_policy), parse_mode=ParseMode.MARKDOWN)
+		game.hiddenhistory.append("El Presidente de la Cámara %s espió %s" % (chosen.name, top_policy))
+		draw_policies(bot, game)
+	except AttributeError as e:
+		log.error("choose_chosen_chairman: Game or board should not be None! Error: " + str(e))
+	except Exception as e:
+		log.error("Unknown error: " + repr(e))
+		log.exception(e)
 
 
 def draw_policies(bot, game):
@@ -439,6 +521,8 @@ def enact_policy(bot, game, policy, anarchy):
 		game.board.state.liberal_track += 1
 	elif policy == "fascista":
 		game.board.state.fascist_track += 1
+	elif policy == "socialista":
+		game.board.state.socialist_track += 1
 	game.board.state.failed_votes = 0  # reset counter
 	if not anarchy:
 		bot.send_message(game.cid, "El Presidente %s y el Canciller %s promulgaron una política %s!" % (game.board.state.president.name, game.board.state.chancellor.name, policy))
@@ -454,18 +538,27 @@ def enact_policy(bot, game, policy, anarchy):
 	else:
 		bot.send_message(game.cid, "La política en la cima del mazo ha sido promulgada y es %s" % policy)
 		game.history.append("La política en la cima del mazo ha sido promulgada y es %s" % policy)
-	#sleep(2)    
+	#sleep(2)
 	# end of round
-	if game.board.state.liberal_track == 5:
+	if game.board.state.liberal_track == getattr(game.board, "liberal_track_size", 5):
 		game.board.state.game_endcode = 1
 		end_game(bot, game, game.board.state.game_endcode)  # liberals win with 5 liberal policies
 	if game.board.state.fascist_track == 6:
 		game.board.state.game_endcode = -1
 		end_game(bot, game, game.board.state.game_endcode)  # fascists win with 6 fascist policies
+	if game.board.es_socialista() and game.board.state.socialist_track == game.board.socialist_track_size():
+		game.board.state.game_endcode = 3
+		end_game(bot, game, game.board.state.game_endcode)  # socialists win with their whole track
 	#sleep(3)
-	# End of legislative session, shuffle if necessary 
-	shuffle_policy_pile(bot, game)    
-	if not anarchy:
+	# End of legislative session, shuffle if necessary
+	shuffle_policy_pile(bot, game)
+	if game.board.state.game_endcode != 0:
+		return
+	if policy == "socialista":
+		# Los poderes socialistas los usa el partido y no el presidente, asi que tambien
+		# se ejecutan cuando la politica salio por anarquia.
+		socialist_action(bot, game)
+	elif not anarchy:
 		if policy == "fascista":
 			action = game.board.fascist_track_actions[game.board.state.fascist_track - 1]
 			if action is None and game.board.state.fascist_track == 6:
@@ -697,6 +790,266 @@ def choose_inspect(update: Update, context: CallbackContext):
         start_next_round(bot, game)
     except:
         log.error("choose_inspect: Game or board should not be None!")
+
+
+##
+#
+# Poderes socialistas (expansion socialista)
+#
+# A diferencia de los presidenciales, no los usa el presidente sino el partido socialista:
+# los botones se le mandan a todos los socialistas vivos y decide el primero que contesta.
+# Escucha, Reclutamiento y Congreso son acciones nocturnas y por lo tanto secretas: el grupo
+# se entera de que el poder se uso, pero no sobre quien (eso queda en el historial oculto).
+# La Confesion en cambio pasa a la vista de todos.
+#
+##
+
+def socialist_action(bot, game):
+	log.info('socialist_action called')
+	if game.board.state.socialist_track == CENSURA_DESDE:
+		bot.send_message(game.cid,
+			u"\U0001F576" + " Censura: de ahora en adelante el Canciller ya no elige Presidente de la Cámara.")
+		game.history.append("Se activó la Censura: ya no se elige Presidente de la Cámara.")
+
+	action = game.board.socialist_track_actions[game.board.state.socialist_track - 1]
+	if action == "escucha":
+		action_escucha(bot, game)
+	elif action == "reclutamiento":
+		action_reclutamiento(bot, game)
+	elif action == "plan_quinquenal":
+		action_plan_quinquenal(bot, game)
+	elif action == "congreso":
+		action_congreso(bot, game)
+	elif action == "confesion":
+		action_confesion(bot, game)
+	else:
+		start_next_round(bot, game)
+
+
+def _offer_socialist_power(bot, game, power, prefijo, mensaje, es_elegible):
+	# Le manda los mismos botones a todos los socialistas vivos. La guarda contra el doble
+	# click (que dos socialistas elijan a la vez) esta en _claim_socialist_power.
+	socialistas = game.get_socialist_team(only_alive=True)
+	btns = []
+	for uid in game.playerlist:
+		jugador = game.playerlist[uid]
+		if jugador.is_dead or not es_elegible(jugador):
+			continue
+		btns.append([InlineKeyboardButton(jugador.name, callback_data="%d_%s_%d" % (game.cid, prefijo, uid))])
+
+	if not socialistas or not btns:
+		bot.send_message(game.cid, "El poder socialista no se puede usar y se saltea.")
+		game.board.state.pending_socialist_power = None
+		start_next_round(bot, game)
+		return
+
+	game.board.state.pending_socialist_power = power
+	markup = InlineKeyboardMarkup(btns)
+	if game.is_debugging:
+		bot.send_message(ADMIN, mensaje, reply_markup=markup, parse_mode=ParseMode.MARKDOWN)
+	else:
+		for socialista in socialistas:
+			bot.send_message(socialista.uid, "%s\n%s" % (game.groupName, mensaje), reply_markup=markup, parse_mode=ParseMode.MARKDOWN)
+	game.board.state.fase = "legislating socialist power " + power
+	Commands.save_game(game.cid, "legislating socialist power %s Round %d" % (power, game.board.state.currentround), game)
+
+
+def _claim_socialist_power(game, uid, power):
+	# True solo para el primer socialista vivo que conteste; los clicks siguientes se ignoran.
+	if getattr(game.board.state, "pending_socialist_power", None) != power:
+		return False
+	if not game.is_debugging and uid not in [p.uid for p in game.get_socialist_team(only_alive=True)]:
+		return False
+	game.board.state.pending_socialist_power = None
+	return True
+
+
+def _avisar_socialistas(bot, game, texto, excepto_uid=None):
+	for socialista in game.get_socialist_team(only_alive=True):
+		if socialista.uid == excepto_uid:
+			continue
+		bot.send_message(ADMIN if game.is_debugging else socialista.uid, texto, parse_mode=ParseMode.MARKDOWN)
+		if game.is_debugging:
+			break
+
+
+def action_escucha(bot, game):
+	log.info('action_escucha called')
+	bot.send_message(game.cid,
+		"Poder Socialista habilitado: Escucha Ilegal " + u"\U0001F41B" + "\nLos socialistas van a ver la afiliación política de un jugador. Nadie más se entera de a quién eligieron.")
+	_offer_socialist_power(bot, game, "escucha", "socbug",
+		u"\U0001F41B" + " *Escucha Ilegal*: elegí a quién le van a ver la afiliación política.",
+		lambda jugador: jugador.party != "socialista")
+
+
+def choose_escucha(update: Update, context: CallbackContext):
+	bot = context.bot
+	callback = update.callback_query
+	regex = re.search("(-[0-9]*)_socbug_(.*)", callback.data)
+	cid = int(regex.group(1))
+	answer = int(regex.group(2))
+	try:
+		game = Commands.get_game(cid)
+		uid = callback.from_user.id
+		if not _claim_socialist_power(game, uid, "escucha"):
+			bot.edit_message_text("Ese poder ya fue usado.", uid, callback.message.message_id)
+			return
+		chosen = game.playerlist[answer]
+		log.info("Los socialistas escucharon a %s (%d): %s" % (chosen.name, chosen.uid, chosen.party))
+		texto = u"\U0001F41B" + " Escucha Ilegal: la afiliación política de %s es *%s*" % (chosen.name, chosen.party)
+		bot.edit_message_text(texto, uid, callback.message.message_id, parse_mode=ParseMode.MARKDOWN)
+		_avisar_socialistas(bot, game, texto, excepto_uid=uid)
+		bot.send_message(game.cid, "Los socialistas ya usaron su Escucha Ilegal.")
+		game.hiddenhistory.append("Los socialistas escucharon a %s (%s)" % (chosen.name, chosen.party))
+		start_next_round(bot, game)
+	except Exception as e:
+		log.error("choose_escucha: " + repr(e))
+		log.exception(e)
+
+
+def action_reclutamiento(bot, game):
+	log.info('action_reclutamiento called')
+	bot.send_message(game.cid,
+		"Poder Socialista habilitado: Reclutamiento " + u"\u270A" + "\nLos socialistas van a convertir a un jugador. Cuando terminen, revisá tu afiliación con /info: si te cambió, ahora ganás con los socialistas.")
+	_offer_socialist_power(bot, game, "reclutamiento", "socrec",
+		u"\u270A" + " *Reclutamiento*: elegí a quién van a convertir en socialista.",
+		lambda jugador: jugador.party != "socialista")
+
+
+def choose_reclutamiento(update: Update, context: CallbackContext):
+	bot = context.bot
+	callback = update.callback_query
+	regex = re.search("(-[0-9]*)_socrec_(.*)", callback.data)
+	cid = int(regex.group(1))
+	answer = int(regex.group(2))
+	try:
+		game = Commands.get_game(cid)
+		uid = callback.from_user.id
+		if not _claim_socialist_power(game, uid, "reclutamiento"):
+			bot.edit_message_text("Ese poder ya fue usado.", uid, callback.message.message_id)
+			return
+		chosen = game.playerlist[answer]
+		if not hasattr(game.board.state, "recruited_uids"):
+			game.board.state.recruited_uids = []
+		game.board.state.recruited_uids.append(chosen.uid)
+
+		if chosen.role == "Hitler":
+			# El reclutamiento no le hace efecto a Hitler: sigue siendo fascista y gana con ellos.
+			# Los socialistas no se enteran del fracaso ahora, sino recien en el Congreso.
+			log.info("Los socialistas intentaron reclutar a Hitler (%d)" % chosen.uid)
+			bot.send_message(ADMIN if game.is_debugging else chosen.uid,
+				u"\u270A" + " Los socialistas te reclutaron, pero sos *Hitler*: no te hace efecto. Seguí actuando como si nada, tu afiliación sigue siendo fascista y ganás con los fascistas.",
+				parse_mode=ParseMode.MARKDOWN)
+			game.hiddenhistory.append("Los socialistas intentaron reclutar a %s, que era Hitler: no tuvo efecto." % chosen.name)
+		else:
+			chosen.party = "socialista"
+			chosen.was_recruited = True
+			log.info("Los socialistas reclutaron a %s (%d)" % (chosen.name, chosen.uid))
+			bot.send_message(ADMIN if game.is_debugging else chosen.uid,
+				u"\u270A" + " *Fuiste reclutado por los socialistas!* A partir de ahora tu afiliación es socialista y ganás con ellos. Tu rol y lo que sabías no cambian.",
+				parse_mode=ParseMode.MARKDOWN)
+			game.hiddenhistory.append("Los socialistas reclutaron a %s" % chosen.name)
+
+		texto = u"\u270A" + " Reclutamiento: los socialistas eligieron a *%s*." % chosen.name
+		bot.edit_message_text(texto, uid, callback.message.message_id, parse_mode=ParseMode.MARKDOWN)
+		_avisar_socialistas(bot, game, texto, excepto_uid=uid)
+		bot.send_message(game.cid, "Los socialistas ya usaron su Reclutamiento. Revisen su afiliación con /info!")
+		start_next_round(bot, game)
+	except Exception as e:
+		log.error("choose_reclutamiento: " + repr(e))
+		log.exception(e)
+
+
+def action_plan_quinquenal(bot, game):
+	log.info('action_plan_quinquenal called')
+	# Si quedan menos de 3 politicas hay que mezclar ANTES de agregar las nuevas.
+	shuffle_policy_pile(bot, game)
+	game.board.policies += ["socialista", "socialista", "liberal"]
+	game.board.policies = random.sample(game.board.policies, len(game.board.policies))
+	msg = ("Poder Socialista habilitado: Plan Quinquenal " + u"\u0035\uFE0F\u20E3" +
+		"\nSe agregaron 2 políticas socialistas y 1 liberal al mazo y se barajó. Ahora quedan %d políticas." % len(game.board.policies))
+	bot.send_message(game.cid, msg)
+	game.history.append(msg)
+	game.hiddenhistory.append(msg)
+	start_next_round(bot, game)
+
+
+def action_congreso(bot, game):
+	log.info('action_congreso called')
+	bot.send_message(game.cid,
+		"Poder Socialista habilitado: Congreso " + u"\U0001F3DB" + "\nLos socialistas se reconocen entre ellos.")
+	originales = game.get_socialists()
+	reclutados_uids = getattr(game.board.state, "recruited_uids", [])
+	nuevos = [game.playerlist[u] for u in reclutados_uids
+		if u in game.playerlist and game.playerlist[u].party == "socialista"]
+
+	nombres_originales = ", ".join(s.name for s in originales) or "nadie"
+	for nuevo in nuevos:
+		bot.send_message(ADMIN if game.is_debugging else nuevo.uid,
+			u"\U0001F3DB" + " *Congreso*: los socialistas de origen son *%s*." % nombres_originales,
+			parse_mode=ParseMode.MARKDOWN)
+
+	if not reclutados_uids:
+		aviso = u"\U0001F3DB" + " *Congreso*: todavía no reclutaron a nadie, así que no hay socialistas nuevos."
+	elif not nuevos:
+		# El unico reclutado no se convirtio: era Hitler.
+		aviso = u"\U0001F3DB" + " *Congreso*: no hay ningún socialista nuevo, así que la persona que reclutaron era *Hitler*."
+	else:
+		aviso = u"\U0001F3DB" + " *Congreso*: el nuevo socialista es *%s*." % ", ".join(n.name for n in nuevos)
+	for original in originales:
+		if original.is_dead:
+			continue
+		bot.send_message(ADMIN if game.is_debugging else original.uid, aviso, parse_mode=ParseMode.MARKDOWN)
+		if game.is_debugging:
+			break
+	game.hiddenhistory.append("Congreso: socialistas de origen %s / nuevos %s" % (
+		nombres_originales, ", ".join(n.name for n in nuevos) or "ninguno"))
+	start_next_round(bot, game)
+
+
+def action_confesion(bot, game):
+	log.info('action_confesion called')
+	presidente = game.board.state.president
+	if presidente is None:
+		# Puede pasar si la politica salio por anarquia: no hay presidente que confiese.
+		bot.send_message(game.cid, "Poder Socialista: Confesión " + u"\U0001F4D6" + "\nNo hay presidente en esta ronda, así que el poder se saltea.")
+		start_next_round(bot, game)
+		return
+	bot.send_message(game.cid,
+		"Poder Socialista habilitado: Confesión " + u"\U0001F4D6" + "\nEl Presidente %s le tiene que mostrar su afiliación política a quien elijan los socialistas." % presidente.name)
+	_offer_socialist_power(bot, game, "confesion", "socconf",
+		u"\U0001F4D6" + " *Confesión*: elegí quién va a ver la afiliación política del Presidente %s." % presidente.name,
+		lambda jugador: jugador.uid != presidente.uid)
+
+
+def choose_confesion(update: Update, context: CallbackContext):
+	bot = context.bot
+	callback = update.callback_query
+	regex = re.search("(-[0-9]*)_socconf_(.*)", callback.data)
+	cid = int(regex.group(1))
+	answer = int(regex.group(2))
+	try:
+		game = Commands.get_game(cid)
+		uid = callback.from_user.id
+		if not _claim_socialist_power(game, uid, "confesion"):
+			bot.edit_message_text("Ese poder ya fue usado.", uid, callback.message.message_id)
+			return
+		chosen = game.playerlist[answer]
+		presidente = game.board.state.president
+		log.info("Confesion: %s (%d) ve la afiliacion del presidente %s" % (chosen.name, chosen.uid, presidente.name))
+		bot.edit_message_text(u"\U0001F4D6" + " Elegiste a %s para ver la afiliación del Presidente %s." % (chosen.name, presidente.name),
+			uid, callback.message.message_id)
+		bot.send_message(ADMIN if game.is_debugging else chosen.uid,
+			u"\U0001F4D6" + " *Confesión*: la afiliación política del Presidente %s es *%s*." % (presidente.name, presidente.party),
+			parse_mode=ParseMode.MARKDOWN)
+		# La confesion se hace a la vista de todos: el grupo si se entera de quien la recibio.
+		bot.send_message(game.cid,
+			"El Presidente %s le confesó su afiliación política a %s." % (presidente.name, chosen.name))
+		game.history.append("El Presidente %s le confesó su afiliación política a %s." % (presidente.name, chosen.name))
+		start_next_round(bot, game)
+	except Exception as e:
+		log.error("choose_confesion: " + repr(e))
+		log.exception(e)
 
 
 def start_next_round(bot, game):
@@ -937,8 +1290,9 @@ def load_player_stats(uid):
 #   0   not ended
 #   1   liberals win with 5 liberal policies
 #   2   liberals win by killing Hitler
+#   3   socialists win with their whole socialist track (solo modo socialista)
 #   99  game cancelled
-#		
+#
 def end_game(bot, game, game_endcode):
 	log.info('end_game called')
 	cid = game.cid
@@ -973,6 +1327,11 @@ def end_game(bot, game, game_endcode):
 		if game_endcode == 2:
 			bot.send_message(game.cid, "Juego finalizado! Los liberales ganaron matando a Hitler!\n\n%s" % game.print_roles())
 			set_stats("liberalwinkillhitler", stats[4] + 1, bot, cid)
+		if game_endcode == 3:
+			bot.send_message(game.cid, "Juego finalizado! Los socialistas ganaron promulgando toda su pista de políticas socialistas!\n\n%s" % game.print_roles())
+			# La columna es nueva (la agrega DBCreate.sql), asi que puede no existir en bases viejas.
+			if len(stats) > 6:
+				set_stats("socialistwinpolicies", stats[6] + 1, bot, cid)
 		try:
 			reveal = Commands.format_guesses_reveal(game)
 			if reveal is not None:
@@ -1018,8 +1377,8 @@ def inform_players(bot, game, cid, player_number):
 	log.info('inform_players called')
 	bot.send_message(cid,
 		"Vamos a comenzar el juego con %d jugadores!\n%s\nVe a nuestro chat privado y mira tu rol secreto!" % (
-		player_number, print_player_info(player_number)))
-	available_roles = list(playerSets[player_number]["roles"])  # copy not reference because we need it again later
+		player_number, print_player_info(game, player_number)))
+	available_roles = list(get_role_set(game, player_number))  # copy not reference because we need it again later
 	# Mezclo los roles asi si alguien elije Fascista o Hitler no le toca siempre Fascista
 	random.shuffle(available_roles)
 	# Creo una lista unica para poder repartir los roles a partir de las key de los player list
@@ -1067,7 +1426,19 @@ def inform_players(bot, game, cid, player_number):
 				game.playerlist[uid].name, game.playerlist[uid].role, game.playerlist[uid].party))
 
 
-def print_player_info(player_number):
+def get_role_set(game, player_number):
+    # El reparto de roles depende del modo: la expansion socialista tiene su propia tabla
+    # (6 a 13 jugadores) y agrega el rol Socialista.
+    if game.es_socialista():
+        return list(socialistSets[player_number]["roles"])
+    return list(playerSets[player_number]["roles"])
+
+
+def print_player_info(game, player_number):
+    if game.es_socialista():
+        roles = socialistSets[player_number]["roles"]
+        return ("Hay %d Liberales, %d Fascistas, Hitler y %d Socialistas. Hitler no conoce a nadie." % (
+            roles.count("Liberal"), roles.count("Fascista"), roles.count("Socialista")))
     if player_number == 5:
         return "Hay 3 Liberales, 1 Fascista y Hitler. Hitler conoce quien es el Fascista."
     elif player_number == 6:
@@ -1088,6 +1459,8 @@ def get_membership(role):
         return "fascista"
     elif role == "Liberal":
         return "liberal"
+    elif role == "Socialista":
+        return "socialista"
     else:
         return None
 
@@ -1396,11 +1769,15 @@ def main():
 	dp.add_handler(CommandHandler("nein", Commands.command_nein))
 
 	dp.add_handler(CallbackQueryHandler(pattern="(-[0-9]*)_chan_(.*)", callback=nominate_chosen_chancellor))
+	dp.add_handler(CallbackQueryHandler(pattern="(-[0-9]*)_chair_(.*)", callback=choose_chosen_chairman))
 	dp.add_handler(CallbackQueryHandler(pattern="(-[0-9]*)_insp_(.*)", callback=choose_inspect))
 	dp.add_handler(CallbackQueryHandler(pattern="(-[0-9]*)_choo_(.*)", callback=choose_choose))
 	dp.add_handler(CallbackQueryHandler(pattern="(-[0-9]*)_kill_(.*)", callback=choose_kill))
+	dp.add_handler(CallbackQueryHandler(pattern="(-[0-9]*)_socbug_(.*)", callback=choose_escucha))
+	dp.add_handler(CallbackQueryHandler(pattern="(-[0-9]*)_socrec_(.*)", callback=choose_reclutamiento))
+	dp.add_handler(CallbackQueryHandler(pattern="(-[0-9]*)_socconf_(.*)", callback=choose_confesion))
 	dp.add_handler(CallbackQueryHandler(pattern="(-[0-9]*)_(yesveto|noveto)", callback=choose_veto))
-	dp.add_handler(CallbackQueryHandler(pattern="(-[0-9]*)_(liberal|fascista|veto)", callback=choose_policy))
+	dp.add_handler(CallbackQueryHandler(pattern="(-[0-9]*)_(liberal|fascista|socialista|veto)", callback=choose_policy))
 	dp.add_handler(CallbackQueryHandler(pattern="(-[0-9]*)_(Ja|Nein)", callback=handle_voting))
 	dp.add_handler(CallbackQueryHandler(pattern="(-[0-9]*)_(SiAna|NoAna)", callback=handle_voting_anarquia))
 	
