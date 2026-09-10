@@ -118,6 +118,13 @@ def _check_imparable(ctx):
     return all(row[2] for row in hist[-5:])
 
 
+def _check_premio_consuelo(ctx):
+    hist = ctx.history()
+    if len(hist) < 5:
+        return False
+    return all(not row[2] for row in hist[-5:])  # row[2] = won
+
+
 def _check_piloto_automatico(ctx):
     return ctx["won"] and ctx["auto_ja"]
 
@@ -320,6 +327,8 @@ LOGROS = [
           "🔥", "hitos", False, _check_en_racha),
     Logro("imparable", "Imparable", "Ganaste 5 partidas seguidas.",
           "⚡", "hitos", False, _check_imparable),
+    Logro("premio_consuelo", "Premio consuelo", "Perdiste 5 partidas seguidas.",
+          "🍦", "hitos", True, _check_premio_consuelo),
 
     # Social / comportamiento
     Logro("piloto_automatico", "Piloto automático", "Ganaste una partida con el voto automático Ja activado.",

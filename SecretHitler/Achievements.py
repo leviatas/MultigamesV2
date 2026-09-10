@@ -71,10 +71,13 @@ class Ctx(dict):
 def build_context(cur, game, game_endcode, uid, player):
     won_liberal = game_endcode in (1, 2)
     won_fascist = game_endcode in (-1, -2)
+    won_socialist = game_endcode == 3
     if player.party == "liberal":
         won = won_liberal
     elif player.party == "fascista":
         won = won_fascist
+    elif player.party == "socialista":
+        won = won_socialist
     else:
         won = False
 

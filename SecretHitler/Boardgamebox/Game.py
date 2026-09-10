@@ -23,6 +23,9 @@ class Game(object):
 		self.is_debugging = False
 		self.groupName = groupName
 		self.tipo = 'SecretHitler'
+		# "clasico" o "socialista" (Expansion Socialista, ver /newgame socialista).
+		# Define el reparto de roles, el mazo y las pistas con las que se juega.
+		self.modo = 'clasico'
 		# {guesser_uid: [{"fascists": [uid, ...], "hitler": uid}, ...]} - historial de palpitos de /guess (maximo 2 intentos, el ultimo es definitivo)
 		self.guesses = {}
 		# {voter_uid: voted_uid} - voto de /mvp, uno por jugador, se puede cambiar hasta que todos hayan votado
@@ -53,6 +56,23 @@ class Game(object):
 			if self.playerlist[uid].role == "Fascista":
 				fascists.append(self.playerlist[uid])
 		return fascists
+
+	def es_socialista(self):
+		return getattr(self, "modo", "clasico") == "socialista"
+
+	def get_socialists(self):
+		# Los socialistas de origen (los que arrancaron la partida con ese rol).
+		# No incluye a los reclutados, que conservan su rol y solo cambian de afiliacion.
+		return [p for p in self.playerlist.values() if p.role == "Socialista"]
+
+	def get_socialist_team(self, only_alive=False):
+		# El equipo socialista tal como esta ahora: los de origen mas los reclutados.
+		# Es la afiliacion (party) la que define con quien gana cada jugador, salvo
+		# Hitler, que gana siempre con los fascistas aunque lo hayan reclutado.
+		return [
+			p for p in self.playerlist.values()
+			if p.party == "socialista" and (not only_alive or not p.is_dead)
+		]
 
 	def compute_mvp_tally(self):
 		# {uid votado: cantidad de votos}, ignorando votos a jugadores que ya no estan.
@@ -106,8 +126,9 @@ class Game(object):
 		return score
 
 	def compute_best_guessers(self):
-		# Devuelve el conjunto de uids de Liberales con mas puntaje en el /guess
-		# "completo" (fascistas comunes + Hitler). Vacio si ningun liberal adivino.
+		# Devuelve el conjunto de uids con mas puntaje en el /guess "completo"
+		# (fascistas comunes + Hitler): los liberales y, en el modo socialista, tambien
+		# los socialistas, que hacen ese mismo flujo. Vacio si nadie adivino.
 		guesses = getattr(self, "guesses", {})
 
 		scores = {}
@@ -115,7 +136,7 @@ class Game(object):
 			if not history:
 				continue
 			guesser = self.playerlist.get(guesser_uid)
-			if guesser is None or guesser.role != "Liberal":
+			if guesser is None or guesser.role in ("Hitler", "Fascista"):
 				continue
 			scores[guesser_uid] = self.compute_guess_score(history[-1])
 
@@ -145,8 +166,9 @@ class Game(object):
 					name = self.playerlist[p].name
 					role = self.playerlist[p].role
 					preference_rol = self.playerlist[p].preference_rol
-					muerto = self.playerlist[p].is_dead					
-					rtext += "El rol de %s %sera %s %s" % (name, "(muerto) " if muerto else "", role, ("" if preference_rol == "" else "queria ser " + preference_rol))										
+					muerto = self.playerlist[p].is_dead
+					reclutado = " (reclutado por los socialistas)" if getattr(self.playerlist[p], "was_recruited", False) else ""
+					rtext += "El rol de %s %sera %s%s %s" % (name, "(muerto) " if muerto else "", role, reclutado, ("" if preference_rol == "" else "queria ser " + preference_rol))
 					rtext +=  "\n"
 				return rtext
 		except Exception as e:

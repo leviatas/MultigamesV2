@@ -35,6 +35,7 @@ def save_extended_game_stats(game, game_endcode):
     try:
         won_liberal = game_endcode in (1, 2)
         won_fascist = game_endcode in (-1, -2)
+        won_socialist = game_endcode == 3
 
         conn = _connect()
         cur = conn.cursor()
@@ -45,10 +46,14 @@ def save_extended_game_stats(game, game_endcode):
         game_id = cur.fetchone()[0]
 
         for uid, player in game.playerlist.items():
+            # La afiliacion manda, no el rol: en el modo socialista un jugador reclutado
+            # gana con los socialistas aunque su rol siga siendo Liberal o Fascista.
             if player.party == "liberal":
                 won = won_liberal
             elif player.party == "fascista":
                 won = won_fascist
+            elif player.party == "socialista":
+                won = won_socialist
             else:
                 won = False
             cur.execute(

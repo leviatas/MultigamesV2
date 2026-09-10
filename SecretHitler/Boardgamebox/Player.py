@@ -13,15 +13,21 @@ class Player(object):
         self.preference_rol = ""
         # Si esta activo, el jugador vota Ja automaticamente apenas se propone una formula (fuera de Zona Hitler)
         self.auto_ja = False
+        # Solo modo socialista: lo convirtio el poder de Reclutamiento (su rol no cambia,
+        # solo su afiliacion). Hitler queda en False porque el reclutamiento no le hace efecto.
+        self.was_recruited = False
 
     def get_private_info(self, game):
         board = "--- *Info del Jugador {}* ---\n".format(self.name)
         board += "Eres *{}* y tu afiliacion es *{}*\n".format(self.role, self.party)
         board += "Voto automático Ja (/startautoja): *{}*\n".format("Activado" if getattr(self, 'auto_ja', False) else "Desactivado")
         player_number = len(game.playerlist)
+        es_socialista = game.es_socialista()
         if self.role == "Fascista":
             fascists = game.get_fascists()
-            if player_number > 6:
+            # En el modo socialista los fascistas siempre se conocen entre si, porque el
+            # reglamento de la expansion manda usar las instrucciones de una partida de 7.
+            if player_number > 6 or es_socialista:
                 fstring = ""
                 for f in fascists:
                     if f.uid != self.uid:
@@ -32,7 +38,16 @@ class Player(object):
             hitler = game.get_hitler()
             board += "Hitler es: *{}*".format(hitler.name)
         elif self.role == "Hitler":
-            if player_number <= 6:
+            # En el modo socialista Hitler nunca conoce a nadie, ni en partidas chicas.
+            if player_number <= 6 and not es_socialista:
                 fascists = game.get_fascists()
                 board +=  "Tu compañero fascista es: *{}*".format(fascists[0].name)
+        elif self.role == "Socialista":
+            companeros = [s.name for s in game.get_socialists() if s.uid != self.uid]
+            if not companeros:
+                board += "Sos el único socialista de origen de la partida."
+            elif not game.is_debugging:
+                board += "Tus compañeros socialistas son: *{}*".format(", ".join(companeros))
+        if getattr(self, "was_recruited", False):
+            board += "\n\n\u270A Fuiste *reclutado por los socialistas*: ahora ganás con ellos."
         return board
