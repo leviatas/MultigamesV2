@@ -81,6 +81,8 @@ def start_round(bot, game):
 
 	# El Presidente de la Camara dura una sola sesion legislativa (modo socialista).
 	game.board.state.chairman = None
+	# Ninguna propuesta socialista puede sobrevivir a la ronda en la que se hizo.
+	game.board.state.socialist_proposal = None
 
 	Commands.print_board(bot, game, game.cid)
 	msgtext =  "El próximo candidato a presidente es [%s](tg://user?id=%d).\n%s, por favor nomina a un canciller en nuestro chat privado!" % (game.board.state.nominated_president.name, game.board.state.nominated_president.uid, game.board.state.nominated_president.name)
@@ -855,12 +857,14 @@ def _offer_socialist_power(bot, game, power, prefijo, mensaje, es_elegible):
 
 
 def _claim_socialist_power(game, uid, power):
-	# True solo para el primer socialista vivo que conteste; los clicks siguientes se ignoran.
+	# True solo para el socialista vivo que llega primero a proponer. Mientras haya una
+	# propuesta en votacion nadie puede proponer otra.
 	if getattr(game.board.state, "pending_socialist_power", None) != power:
+		return False
+	if getattr(game.board.state, "socialist_proposal", None) is not None:
 		return False
 	if not game.is_debugging and uid not in [p.uid for p in game.get_socialist_team(only_alive=True)]:
 		return False
-	game.board.state.pending_socialist_power = None
 	return True
 
 
@@ -873,13 +877,122 @@ def _avisar_socialistas(bot, game, texto, excepto_uid=None):
 			break
 
 
+def _ofrecer_poder_socialista(bot, game, power):
+	# Manda (o vuelve a mandar, si una propuesta fue rechazada) la botonera del poder.
+	if power == "escucha":
+		_offer_socialist_power(bot, game, "escucha", "socbug",
+			u"\U0001F41B" + " *Escucha Ilegal*: proponé a quién le van a ver la afiliación política.",
+			lambda jugador: jugador.party != "socialista")
+	elif power == "reclutamiento":
+		_offer_socialist_power(bot, game, "reclutamiento", "socrec",
+			u"\u270A" + " *Reclutamiento*: proponé a quién van a convertir en socialista.",
+			lambda jugador: jugador.party != "socialista")
+	elif power == "confesion":
+		presidente = game.board.state.president
+		_offer_socialist_power(bot, game, "confesion", "socconf",
+			u"\U0001F4D6" + " *Confesión*: proponé quién va a ver la afiliación política del Presidente %s." % presidente.name,
+			lambda jugador: jugador.uid != presidente.uid)
+
+
+def _proponer_objetivo(bot, game, power, proposer_uid, chosen):
+	# Las decisiones socialistas son del partido entero: el que elige solo propone y el poder
+	# se aplica unicamente si TODOS los demas socialistas vivos estan de acuerdo. Con un solo
+	# socialista vivo no hay a quien consultarle y se aplica derecho.
+	votantes = [p for p in game.get_socialist_team(only_alive=True) if p.uid != proposer_uid]
+	if not votantes or game.is_debugging:
+		_aplicar_poder_socialista(bot, game, power, chosen)
+		return
+
+	game.board.state.socialist_proposal = {
+		"power": power,
+		"target": chosen.uid,
+		"proposer": proposer_uid,
+		"approvals": [],
+	}
+	strcid = str(game.cid)
+	btns = [[InlineKeyboardButton("Sí, de acuerdo", callback_data=strcid + "_socvoto_si"),
+		InlineKeyboardButton("No", callback_data=strcid + "_socvoto_no")]]
+	markup = InlineKeyboardMarkup(btns)
+	proponente = game.playerlist[proposer_uid].name
+	for votante in votantes:
+		bot.send_message(votante.uid,
+			"%s\n%s propone *%s* para el poder socialista. ¿Estás de acuerdo?\nHace falta que estén de acuerdo *todos* los socialistas." % (
+				game.groupName, proponente, chosen.name),
+			reply_markup=markup, parse_mode=ParseMode.MARKDOWN)
+	bot.send_message(proposer_uid,
+		"Propusiste a *%s*. Esperando que el resto del partido esté de acuerdo..." % chosen.name,
+		parse_mode=ParseMode.MARKDOWN)
+	game.board.state.fase = "legislating socialist proposal " + power
+	Commands.save_game(game.cid, "legislating socialist proposal %s Round %d" % (power, game.board.state.currentround), game)
+
+
+def handle_socialist_vote(update: Update, context: CallbackContext):
+	bot = context.bot
+	callback = update.callback_query
+	regex = re.search("(-[0-9]*)_socvoto_(si|no)", callback.data)
+	cid = int(regex.group(1))
+	voto = regex.group(2)
+	try:
+		game = Commands.get_game(cid)
+		uid = callback.from_user.id
+		propuesta = getattr(game.board.state, "socialist_proposal", None)
+		if propuesta is None:
+			bot.edit_message_text("Esa decisión ya está resuelta.", uid, callback.message.message_id)
+			return
+		votantes = [p.uid for p in game.get_socialist_team(only_alive=True) if p.uid != propuesta["proposer"]]
+		if uid not in votantes or uid in propuesta["approvals"]:
+			return
+
+		chosen = game.playerlist[propuesta["target"]]
+		power = propuesta["power"]
+		if voto == "no":
+			# Sin unanimidad la propuesta se cae y se vuelve a abrir la eleccion para todos.
+			log.info("Propuesta socialista de %s rechazada por %d" % (chosen.name, uid))
+			bot.edit_message_text("Rechazaste la propuesta de %s." % chosen.name, uid, callback.message.message_id)
+			game.board.state.socialist_proposal = None
+			_avisar_socialistas(bot, game,
+				"Un socialista *no estuvo de acuerdo* con %s. Vuelvan a elegir." % chosen.name,
+				excepto_uid=uid)
+			_ofrecer_poder_socialista(bot, game, power)
+			return
+
+		propuesta["approvals"].append(uid)
+		bot.edit_message_text("Aceptaste la propuesta de %s." % chosen.name, uid, callback.message.message_id)
+		if len(propuesta["approvals"]) < len(votantes):
+			faltan = len(votantes) - len(propuesta["approvals"])
+			bot.send_message(propuesta["proposer"],
+				"Falta%s %d socialista%s por responder sobre %s." % ("n" if faltan > 1 else "", faltan, "s" if faltan > 1 else "", chosen.name))
+			Commands.save_game(game.cid, "socialist proposal vote Round %d" % game.board.state.currentround, game)
+			return
+
+		# Unanimidad: se aplica el poder.
+		game.board.state.socialist_proposal = None
+		_avisar_socialistas(bot, game, "El partido se puso de acuerdo en *%s*." % chosen.name)
+		_aplicar_poder_socialista(bot, game, power, chosen)
+	except Exception as e:
+		log.error("handle_socialist_vote: " + repr(e))
+		log.exception(e)
+
+
+def _aplicar_poder_socialista(bot, game, power, chosen):
+	# Se llama solo cuando la decision ya esta tomada (unanimidad, o un unico socialista vivo).
+	game.board.state.pending_socialist_power = None
+	game.board.state.socialist_proposal = None
+	if power == "escucha":
+		_aplicar_escucha(bot, game, chosen)
+	elif power == "reclutamiento":
+		_aplicar_reclutamiento(bot, game, chosen)
+	elif power == "confesion":
+		_aplicar_confesion(bot, game, chosen)
+	else:
+		start_next_round(bot, game)
+
+
 def action_escucha(bot, game):
 	log.info('action_escucha called')
 	bot.send_message(game.cid,
 		"Poder Socialista habilitado: Escucha Ilegal " + u"\U0001F41B" + "\nLos socialistas van a ver la afiliación política de un jugador. Nadie más se entera de a quién eligieron.")
-	_offer_socialist_power(bot, game, "escucha", "socbug",
-		u"\U0001F41B" + " *Escucha Ilegal*: elegí a quién le van a ver la afiliación política.",
-		lambda jugador: jugador.party != "socialista")
+	_ofrecer_poder_socialista(bot, game, "escucha")
 
 
 def choose_escucha(update: Update, context: CallbackContext):
@@ -892,28 +1005,30 @@ def choose_escucha(update: Update, context: CallbackContext):
 		game = Commands.get_game(cid)
 		uid = callback.from_user.id
 		if not _claim_socialist_power(game, uid, "escucha"):
-			bot.edit_message_text("Ese poder ya fue usado.", uid, callback.message.message_id)
+			bot.edit_message_text("Ya hay una propuesta en curso o el poder ya fue usado.", uid, callback.message.message_id)
 			return
 		chosen = game.playerlist[answer]
-		log.info("Los socialistas escucharon a %s (%d): %s" % (chosen.name, chosen.uid, chosen.party))
-		texto = u"\U0001F41B" + " Escucha Ilegal: la afiliación política de %s es *%s*" % (chosen.name, chosen.party)
-		bot.edit_message_text(texto, uid, callback.message.message_id, parse_mode=ParseMode.MARKDOWN)
-		_avisar_socialistas(bot, game, texto, excepto_uid=uid)
-		bot.send_message(game.cid, "Los socialistas ya usaron su Escucha Ilegal.")
-		game.hiddenhistory.append("Los socialistas escucharon a %s (%s)" % (chosen.name, chosen.party))
-		start_next_round(bot, game)
+		bot.edit_message_text(u"\U0001F41B" + " Propusiste escuchar a %s." % chosen.name, uid, callback.message.message_id)
+		_proponer_objetivo(bot, game, "escucha", uid, chosen)
 	except Exception as e:
 		log.error("choose_escucha: " + repr(e))
 		log.exception(e)
+
+
+def _aplicar_escucha(bot, game, chosen):
+	log.info("Los socialistas escucharon a %s (%d): %s" % (chosen.name, chosen.uid, chosen.party))
+	texto = u"\U0001F41B" + " Escucha Ilegal: la afiliación política de %s es *%s*" % (chosen.name, chosen.party)
+	_avisar_socialistas(bot, game, texto)
+	bot.send_message(game.cid, "Los socialistas ya usaron su Escucha Ilegal.")
+	game.hiddenhistory.append("Los socialistas escucharon a %s (%s)" % (chosen.name, chosen.party))
+	start_next_round(bot, game)
 
 
 def action_reclutamiento(bot, game):
 	log.info('action_reclutamiento called')
 	bot.send_message(game.cid,
 		"Poder Socialista habilitado: Reclutamiento " + u"\u270A" + "\nLos socialistas van a convertir a un jugador. Cuando terminen, revisá tu afiliación con /info: si te cambió, ahora ganás con los socialistas.")
-	_offer_socialist_power(bot, game, "reclutamiento", "socrec",
-		u"\u270A" + " *Reclutamiento*: elegí a quién van a convertir en socialista.",
-		lambda jugador: jugador.party != "socialista")
+	_ofrecer_poder_socialista(bot, game, "reclutamiento")
 
 
 def choose_reclutamiento(update: Update, context: CallbackContext):
@@ -926,41 +1041,44 @@ def choose_reclutamiento(update: Update, context: CallbackContext):
 		game = Commands.get_game(cid)
 		uid = callback.from_user.id
 		if not _claim_socialist_power(game, uid, "reclutamiento"):
-			bot.edit_message_text("Ese poder ya fue usado.", uid, callback.message.message_id)
+			bot.edit_message_text("Ya hay una propuesta en curso o el poder ya fue usado.", uid, callback.message.message_id)
 			return
 		chosen = game.playerlist[answer]
-		if not hasattr(game.board.state, "recruited_uids"):
-			game.board.state.recruited_uids = []
-		game.board.state.recruited_uids.append(chosen.uid)
-
-		# El Reclutamiento cambia la carta de afiliacion, nunca el rol. A Hitler tambien le
-		# cambia la carta (por eso una investigacion pasa a verlo socialista), pero para todo
-		# lo demas sigue siendo fascista: no despierta con ellos ni gana con ellos. De eso se
-		# encarga Player.party_efectiva(), no una excepcion aca.
-		chosen.party = "socialista"
-		chosen.was_recruited = True
-		if chosen.role == "Hitler":
-			# Los socialistas no se enteran del fracaso ahora, sino recien en el Congreso.
-			log.info("Los socialistas intentaron reclutar a Hitler (%d)" % chosen.uid)
-			bot.send_message(ADMIN if game.is_debugging else chosen.uid,
-				u"\u270A" + " Los socialistas te reclutaron, pero sos *Hitler*: no te hace efecto. Seguí actuando como si nada, seguís ganando con los fascistas y no participás de sus decisiones. Eso sí, ahora tenés la carta socialista: quien te investigue va a ver *socialista*.",
-				parse_mode=ParseMode.MARKDOWN)
-			game.hiddenhistory.append("Los socialistas reclutaron a %s, que era Hitler: se queda con la carta socialista pero sigue siendo fascista." % chosen.name)
-		else:
-			log.info("Los socialistas reclutaron a %s (%d)" % (chosen.name, chosen.uid))
-			bot.send_message(ADMIN if game.is_debugging else chosen.uid,
-				u"\u270A" + " *Fuiste reclutado por los socialistas!* A partir de ahora tu afiliación es socialista y ganás con ellos. Tu rol y lo que sabías no cambian.",
-				parse_mode=ParseMode.MARKDOWN)
-			game.hiddenhistory.append("Los socialistas reclutaron a %s" % chosen.name)
-
-		texto = u"\u270A" + " Reclutamiento: los socialistas eligieron a *%s*." % chosen.name
-		bot.edit_message_text(texto, uid, callback.message.message_id, parse_mode=ParseMode.MARKDOWN)
-		_avisar_socialistas(bot, game, texto, excepto_uid=uid)
-		bot.send_message(game.cid, "Los socialistas ya usaron su Reclutamiento. Revisen su afiliación con /info!")
-		start_next_round(bot, game)
+		bot.edit_message_text(u"\u270A" + " Propusiste reclutar a %s." % chosen.name, uid, callback.message.message_id)
+		_proponer_objetivo(bot, game, "reclutamiento", uid, chosen)
 	except Exception as e:
 		log.error("choose_reclutamiento: " + repr(e))
 		log.exception(e)
+
+
+def _aplicar_reclutamiento(bot, game, chosen):
+	if not hasattr(game.board.state, "recruited_uids"):
+		game.board.state.recruited_uids = []
+	game.board.state.recruited_uids.append(chosen.uid)
+
+	# El Reclutamiento cambia la carta de afiliacion, nunca el rol. A Hitler tambien le
+	# cambia la carta (por eso una investigacion pasa a verlo socialista), pero para todo
+	# lo demas sigue siendo fascista: no despierta con ellos ni gana con ellos. De eso se
+	# encarga Player.party_efectiva(), no una excepcion aca.
+	chosen.party = "socialista"
+	chosen.was_recruited = True
+	if chosen.role == "Hitler":
+		# Los socialistas no se enteran del fracaso ahora, sino recien en el Congreso.
+		log.info("Los socialistas intentaron reclutar a Hitler (%d)" % chosen.uid)
+		bot.send_message(ADMIN if game.is_debugging else chosen.uid,
+			u"\u270A" + " Los socialistas te reclutaron, pero sos *Hitler*: no te hace efecto. Seguí actuando como si nada, seguís ganando con los fascistas y no participás de sus decisiones. Eso sí, ahora tenés la carta socialista: quien te investigue va a ver *socialista*.",
+			parse_mode=ParseMode.MARKDOWN)
+		game.hiddenhistory.append("Los socialistas reclutaron a %s, que era Hitler: se queda con la carta socialista pero sigue siendo fascista." % chosen.name)
+	else:
+		log.info("Los socialistas reclutaron a %s (%d)" % (chosen.name, chosen.uid))
+		bot.send_message(ADMIN if game.is_debugging else chosen.uid,
+			u"\u270A" + " *Fuiste reclutado por los socialistas!* A partir de ahora tu afiliación es socialista y ganás con ellos. Tu rol y lo que sabías no cambian.",
+			parse_mode=ParseMode.MARKDOWN)
+		game.hiddenhistory.append("Los socialistas reclutaron a %s" % chosen.name)
+
+	_avisar_socialistas(bot, game, u"\u270A" + " Reclutamiento: el partido eligió a *%s*." % chosen.name)
+	bot.send_message(game.cid, "Los socialistas ya usaron su Reclutamiento. Revisen su afiliación con /info!")
+	start_next_round(bot, game)
 
 
 def action_plan_quinquenal(bot, game):
@@ -1022,9 +1140,7 @@ def action_confesion(bot, game):
 		return
 	bot.send_message(game.cid,
 		"Poder Socialista habilitado: Confesión " + u"\U0001F4D6" + "\nEl Presidente %s le tiene que mostrar su afiliación política a quien elijan los socialistas." % presidente.name)
-	_offer_socialist_power(bot, game, "confesion", "socconf",
-		u"\U0001F4D6" + " *Confesión*: elegí quién va a ver la afiliación política del Presidente %s." % presidente.name,
-		lambda jugador: jugador.uid != presidente.uid)
+	_ofrecer_poder_socialista(bot, game, "confesion")
 
 
 def choose_confesion(update: Update, context: CallbackContext):
@@ -1037,24 +1153,28 @@ def choose_confesion(update: Update, context: CallbackContext):
 		game = Commands.get_game(cid)
 		uid = callback.from_user.id
 		if not _claim_socialist_power(game, uid, "confesion"):
-			bot.edit_message_text("Ese poder ya fue usado.", uid, callback.message.message_id)
+			bot.edit_message_text("Ya hay una propuesta en curso o el poder ya fue usado.", uid, callback.message.message_id)
 			return
 		chosen = game.playerlist[answer]
-		presidente = game.board.state.president
-		log.info("Confesion: %s (%d) ve la afiliacion del presidente %s" % (chosen.name, chosen.uid, presidente.name))
-		bot.edit_message_text(u"\U0001F4D6" + " Elegiste a %s para ver la afiliación del Presidente %s." % (chosen.name, presidente.name),
+		bot.edit_message_text(u"\U0001F4D6" + " Propusiste que %s vea la afiliación del Presidente." % chosen.name,
 			uid, callback.message.message_id)
-		bot.send_message(ADMIN if game.is_debugging else chosen.uid,
-			u"\U0001F4D6" + " *Confesión*: la afiliación política del Presidente %s es *%s*." % (presidente.name, presidente.party),
-			parse_mode=ParseMode.MARKDOWN)
-		# La confesion se hace a la vista de todos: el grupo si se entera de quien la recibio.
-		bot.send_message(game.cid,
-			"El Presidente %s le confesó su afiliación política a %s." % (presidente.name, chosen.name))
-		game.history.append("El Presidente %s le confesó su afiliación política a %s." % (presidente.name, chosen.name))
-		start_next_round(bot, game)
+		_proponer_objetivo(bot, game, "confesion", uid, chosen)
 	except Exception as e:
 		log.error("choose_confesion: " + repr(e))
 		log.exception(e)
+
+
+def _aplicar_confesion(bot, game, chosen):
+	presidente = game.board.state.president
+	log.info("Confesion: %s (%d) ve la afiliacion del presidente %s" % (chosen.name, chosen.uid, presidente.name))
+	bot.send_message(ADMIN if game.is_debugging else chosen.uid,
+		u"\U0001F4D6" + " *Confesión*: la afiliación política del Presidente %s es *%s*." % (presidente.name, presidente.party),
+		parse_mode=ParseMode.MARKDOWN)
+	# La confesion se hace a la vista de todos: el grupo si se entera de quien la recibio.
+	bot.send_message(game.cid,
+		"El Presidente %s le confesó su afiliación política a %s." % (presidente.name, chosen.name))
+	game.history.append("El Presidente %s le confesó su afiliación política a %s." % (presidente.name, chosen.name))
+	start_next_round(bot, game)
 
 
 def start_next_round(bot, game):
@@ -1782,6 +1902,7 @@ def main():
 	dp.add_handler(CallbackQueryHandler(pattern="(-[0-9]*)_socbug_(.*)", callback=choose_escucha))
 	dp.add_handler(CallbackQueryHandler(pattern="(-[0-9]*)_socrec_(.*)", callback=choose_reclutamiento))
 	dp.add_handler(CallbackQueryHandler(pattern="(-[0-9]*)_socconf_(.*)", callback=choose_confesion))
+	dp.add_handler(CallbackQueryHandler(pattern="(-[0-9]*)_socvoto_(si|no)", callback=handle_socialist_vote))
 	dp.add_handler(CallbackQueryHandler(pattern="(-[0-9]*)_(yesveto|noveto)", callback=choose_veto))
 	dp.add_handler(CallbackQueryHandler(pattern="(-[0-9]*)_(liberal|fascista|socialista|veto)", callback=choose_policy))
 	dp.add_handler(CallbackQueryHandler(pattern="(-[0-9]*)_(Ja|Nein)", callback=handle_voting))

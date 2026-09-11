@@ -29,7 +29,11 @@ class State(object):
         # Es una lista y no un dict a proposito: jsonpickle convierte las claves de los dicts
         # a string y habria que castearlas de nuevo al cargar la partida.
         self.recruited_uids = []
-        # Poder socialista ofrecido y todavia sin resolver. Los botones se mandan a todos los
-        # socialistas vivos y decide el primero que responde, asi que hace falta esta guarda
-        # para ignorar los clicks que llegan despues.
+        # Poder socialista ofrecido y todavia sin resolver.
         self.pending_socialist_power = None
+        # Propuesta socialista en votacion: cualquier socialista vivo propone un objetivo y
+        # el resto vota; se aplica solo por unanimidad. None cuando no hay ninguna en curso
+        # (ahi es cuando se puede proponer). Las claves son strings y los uids van en una
+        # lista, asi jsonpickle no los convierte a string al guardar la partida.
+        # {"power": str, "target": uid, "proposer": uid, "approvals": [uid, ...]}
+        self.socialist_proposal = None

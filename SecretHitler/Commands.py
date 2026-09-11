@@ -217,7 +217,7 @@ Dura una sola ronda y *no queda inhabilitado*: al Presidente de la Cámara se lo
 *LOS PODERES SOCIALISTAS*
 Cuando se promulga un acta socialista, el poder lo usa *el partido socialista*, no el presidente. Dos consecuencias:
 - Se usan igual si el acta salió *por anarquía* (los poderes presidenciales, en cambio, se pierden).
-- Los botones les llegan a *todos los socialistas vivos* y decide el primero que contesta, así que pónganse de acuerdo antes de tocar.
+- Las decisiones son *del partido entero*: cualquier socialista propone a alguien y el poder se aplica sólo si *todos* los demás socialistas vivos están de acuerdo. Si alguno dice que no, la propuesta se cae y se vuelve a elegir. Con un solo socialista vivo no hay a quién consultarle y se aplica directo.
 
 🐛 *Escucha Ilegal*: ven la afiliación de un jugador.
 ✊ *Reclutamiento*: convierten a un jugador, que pasa a tener afiliación socialista y a ganar con ellos. Conserva su rol y todo lo que ya sabía.
