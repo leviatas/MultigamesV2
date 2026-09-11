@@ -217,7 +217,7 @@ Dura una sola ronda y *no queda inhabilitado*: al Presidente de la Cámara se lo
 *LOS PODERES SOCIALISTAS*
 Cuando se promulga un acta socialista, el poder lo usa *el partido socialista*, no el presidente. Dos consecuencias:
 - Se usan igual si el acta salió *por anarquía* (los poderes presidenciales, en cambio, se pierden).
-- Los botones les llegan a *todos los socialistas vivos* y decide el primero que contesta, así que pónganse de acuerdo antes de tocar.
+- Las decisiones son *del partido entero*: cualquier socialista propone a alguien y el poder se aplica sólo si *todos* los demás socialistas vivos están de acuerdo. Si alguno dice que no, la propuesta se cae y se vuelve a elegir. Con un solo socialista vivo no hay a quién consultarle y se aplica directo.
 
 🐛 *Escucha Ilegal*: ven la afiliación de un jugador.
 ✊ *Reclutamiento*: convierten a un jugador, que pasa a tener afiliación socialista y a ganar con ellos. Conserva su rol y todo lo que ya sabía.
@@ -230,7 +230,8 @@ La Escucha, el Reclutamiento y el Congreso son *acciones secretas*: el grupo se 
 *Ojo: no todas las pistas socialistas traen los mismos poderes.* Con 6-8 jugadores no hay Confesión; con 11 o más no hay Escucha ni Congreso, la primera casilla no da nada y hay *dos* Reclutamientos. Mirá tu pista con */board*.
 
 *SI RECLUTAN A HITLER*
-No pasa nada: Hitler sigue siendo fascista y gana con los suyos. Los socialistas *no se enteran en el momento*; recién lo descubren en el Congreso, cuando no aparece ningún socialista nuevo. Hitler sí sabe que lo intentaron.
+A Hitler le cambian la carta como a cualquiera, así que *el que lo investigue (o lo escuche, o reciba su Confesión) va a ver socialista*. Pero para todo lo demás sigue siendo fascista: no participa de las decisiones socialistas, no despierta en el Congreso y *gana con los fascistas*.
+Los socialistas *no se enteran en el momento* de que falló; recién lo descubren en el Congreso, cuando no aparece ningún socialista nuevo. Hitler sí sabe lo que pasó, y sabe que ahora lo ven socialista.
 
 *CENSURA* 🕶
 Al promulgarse la *tercera acta socialista* se activa la Censura, que funciona como la Zona Hitler: es para el resto de la partida y *elimina al Presidente de la Cámara*. De ahí en adelante el canciller ya no elige a nadie y se roban las políticas directamente.

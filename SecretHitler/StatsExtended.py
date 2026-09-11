@@ -47,12 +47,16 @@ def save_extended_game_stats(game, game_endcode):
 
         for uid, player in game.playerlist.items():
             # La afiliacion manda, no el rol: en el modo socialista un jugador reclutado
-            # gana con los socialistas aunque su rol siga siendo Liberal o Fascista.
-            if player.party == "liberal":
+            # gana con los socialistas aunque su rol siga siendo Liberal o Fascista. La
+            # excepcion es Hitler, que gana con los fascistas aunque lo recluten: de eso se
+            # encarga party_efectiva(), que es tambien lo que se guarda en la columna party
+            # para que "con quien gano" y "de que equipo era" no puedan contradecirse.
+            party = player.party_efectiva()
+            if party == "liberal":
                 won = won_liberal
-            elif player.party == "fascista":
+            elif party == "fascista":
                 won = won_fascist
-            elif player.party == "socialista":
+            elif party == "socialista":
                 won = won_socialist
             else:
                 won = False
@@ -61,7 +65,7 @@ def save_extended_game_stats(game, game_endcode):
                 "(game_id, uid, name, role, party, won, died, killed_by_uid, mvp) "
                 "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s) "
                 "ON CONFLICT (game_id, uid) DO NOTHING;",
-                (game_id, uid, player.name, player.role, player.party, won,
+                (game_id, uid, player.name, player.role, party, won,
                  player.is_dead, getattr(player, "killed_by_uid", None), False)
             )
 
