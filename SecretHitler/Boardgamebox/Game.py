@@ -66,12 +66,13 @@ class Game(object):
 		return [p for p in self.playerlist.values() if p.role == "Socialista"]
 
 	def get_socialist_team(self, only_alive=False):
-		# El equipo socialista tal como esta ahora: los de origen mas los reclutados.
-		# Es la afiliacion (party) la que define con quien gana cada jugador, salvo
-		# Hitler, que gana siempre con los fascistas aunque lo hayan reclutado.
+		# El equipo socialista que decide y despierta: los de origen mas los reclutados.
+		# Hitler queda afuera aunque el Reclutamiento le haya dado la carta socialista: no
+		# participa de los poderes ni del Congreso y sigue ganando con los fascistas
+		# (por eso se filtra por party_efectiva() y no por party).
 		return [
 			p for p in self.playerlist.values()
-			if p.party == "socialista" and (not only_alive or not p.is_dead)
+			if p.party_efectiva() == "socialista" and (not only_alive or not p.is_dead)
 		]
 
 	def compute_mvp_tally(self):

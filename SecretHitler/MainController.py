@@ -933,17 +933,20 @@ def choose_reclutamiento(update: Update, context: CallbackContext):
 			game.board.state.recruited_uids = []
 		game.board.state.recruited_uids.append(chosen.uid)
 
+		# El Reclutamiento cambia la carta de afiliacion, nunca el rol. A Hitler tambien le
+		# cambia la carta (por eso una investigacion pasa a verlo socialista), pero para todo
+		# lo demas sigue siendo fascista: no despierta con ellos ni gana con ellos. De eso se
+		# encarga Player.party_efectiva(), no una excepcion aca.
+		chosen.party = "socialista"
+		chosen.was_recruited = True
 		if chosen.role == "Hitler":
-			# El reclutamiento no le hace efecto a Hitler: sigue siendo fascista y gana con ellos.
 			# Los socialistas no se enteran del fracaso ahora, sino recien en el Congreso.
 			log.info("Los socialistas intentaron reclutar a Hitler (%d)" % chosen.uid)
 			bot.send_message(ADMIN if game.is_debugging else chosen.uid,
-				u"\u270A" + " Los socialistas te reclutaron, pero sos *Hitler*: no te hace efecto. Seguí actuando como si nada, tu afiliación sigue siendo fascista y ganás con los fascistas.",
+				u"\u270A" + " Los socialistas te reclutaron, pero sos *Hitler*: no te hace efecto. Seguí actuando como si nada, seguís ganando con los fascistas y no participás de sus decisiones. Eso sí, ahora tenés la carta socialista: quien te investigue va a ver *socialista*.",
 				parse_mode=ParseMode.MARKDOWN)
-			game.hiddenhistory.append("Los socialistas intentaron reclutar a %s, que era Hitler: no tuvo efecto." % chosen.name)
+			game.hiddenhistory.append("Los socialistas reclutaron a %s, que era Hitler: se queda con la carta socialista pero sigue siendo fascista." % chosen.name)
 		else:
-			chosen.party = "socialista"
-			chosen.was_recruited = True
 			log.info("Los socialistas reclutaron a %s (%d)" % (chosen.name, chosen.uid))
 			bot.send_message(ADMIN if game.is_debugging else chosen.uid,
 				u"\u270A" + " *Fuiste reclutado por los socialistas!* A partir de ahora tu afiliación es socialista y ganás con ellos. Tu rol y lo que sabías no cambian.",
@@ -980,8 +983,10 @@ def action_congreso(bot, game):
 		"Poder Socialista habilitado: Congreso " + u"\U0001F3DB" + "\nLos socialistas se reconocen entre ellos.")
 	originales = game.get_socialists()
 	reclutados_uids = getattr(game.board.state, "recruited_uids", [])
+	# Hitler no cuenta como socialista nuevo aunque tenga la carta: justamente por eso el
+	# Congreso delata que el reclutado era el.
 	nuevos = [game.playerlist[u] for u in reclutados_uids
-		if u in game.playerlist and game.playerlist[u].party == "socialista"]
+		if u in game.playerlist and game.playerlist[u].party_efectiva() == "socialista"]
 
 	nombres_originales = ", ".join(s.name for s in originales) or "nadie"
 	for nuevo in nuevos:

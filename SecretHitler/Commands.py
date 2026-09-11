@@ -230,7 +230,8 @@ La Escucha, el Reclutamiento y el Congreso son *acciones secretas*: el grupo se 
 *Ojo: no todas las pistas socialistas traen los mismos poderes.* Con 6-8 jugadores no hay Confesión; con 11 o más no hay Escucha ni Congreso, la primera casilla no da nada y hay *dos* Reclutamientos. Mirá tu pista con */board*.
 
 *SI RECLUTAN A HITLER*
-No pasa nada: Hitler sigue siendo fascista y gana con los suyos. Los socialistas *no se enteran en el momento*; recién lo descubren en el Congreso, cuando no aparece ningún socialista nuevo. Hitler sí sabe que lo intentaron.
+A Hitler le cambian la carta como a cualquiera, así que *el que lo investigue (o lo escuche, o reciba su Confesión) va a ver socialista*. Pero para todo lo demás sigue siendo fascista: no participa de las decisiones socialistas, no despierta en el Congreso y *gana con los fascistas*.
+Los socialistas *no se enteran en el momento* de que falló; recién lo descubren en el Congreso, cuando no aparece ningún socialista nuevo. Hitler sí sabe lo que pasó, y sabe que ahora lo ven socialista.
 
 *CENSURA* 🕶
 Al promulgarse la *tercera acta socialista* se activa la Censura, que funciona como la Zona Hitler: es para el resto de la partida y *elimina al Presidente de la Cámara*. De ahí en adelante el canciller ya no elige a nadie y se roban las políticas directamente.

@@ -72,11 +72,14 @@ def build_context(cur, game, game_endcode, uid, player):
     won_liberal = game_endcode in (1, 2)
     won_fascist = game_endcode in (-1, -2)
     won_socialist = game_endcode == 3
-    if player.party == "liberal":
+    # party_efectiva() y no party: un Hitler reclutado tiene carta socialista pero sigue
+    # ganando con los fascistas, y los logros tienen que verlo como fascista.
+    party = player.party_efectiva()
+    if party == "liberal":
         won = won_liberal
-    elif player.party == "fascista":
+    elif party == "fascista":
         won = won_fascist
-    elif player.party == "socialista":
+    elif party == "socialista":
         won = won_socialist
     else:
         won = False
@@ -95,7 +98,7 @@ def build_context(cur, game, game_endcode, uid, player):
     # None si MISION_IMPOSIBLE_UID no jugo esta partida o es este mismo uid
     # (jugar "con" alguien implica ser otro jugador en su mismo equipo).
     mision_imposible_party = (
-        mision_imposible_player.party
+        mision_imposible_player.party_efectiva()
         if mision_imposible_player is not None and mision_imposible_player.uid != uid
         else None
     )
@@ -103,7 +106,7 @@ def build_context(cur, game, game_endcode, uid, player):
     return Ctx(
         cur, uid,
         role=player.role,
-        party=player.party,
+        party=party,
         won=won,
         died=player.is_dead,
         killed_by_uid=getattr(player, "killed_by_uid", None),

@@ -13,9 +13,18 @@ class Player(object):
         self.preference_rol = ""
         # Si esta activo, el jugador vota Ja automaticamente apenas se propone una formula (fuera de Zona Hitler)
         self.auto_ja = False
-        # Solo modo socialista: lo convirtio el poder de Reclutamiento (su rol no cambia,
-        # solo su afiliacion). Hitler queda en False porque el reclutamiento no le hace efecto.
+        # Solo modo socialista: lo convirtio el poder de Reclutamiento. Cambia la afiliacion,
+        # nunca el rol.
         self.was_recruited = False
+
+    def party_efectiva(self):
+        # Con quien gana este jugador. Normalmente es su afiliacion, pero Hitler gana siempre
+        # con los fascistas "regardless of your Party Membership card": aunque lo recluten y
+        # pase a tener carta socialista, sigue siendo fascista para ganar, para los despertares
+        # socialistas y para las estadisticas. Lo unico que cambia es lo que ve quien lo investiga.
+        if self.role == "Hitler":
+            return "fascista"
+        return self.party
 
     def get_private_info(self, game):
         board = "--- *Info del Jugador {}* ---\n".format(self.name)
@@ -49,5 +58,10 @@ class Player(object):
             elif not game.is_debugging:
                 board += "Tus compañeros socialistas son: *{}*".format(", ".join(companeros))
         if getattr(self, "was_recruited", False):
-            board += "\n\n\u270A Fuiste *reclutado por los socialistas*: ahora ganás con ellos."
+            if self.role == "Hitler":
+                board += ("\n\n\u270A Los socialistas te *reclutaron*, pero sos Hitler: no te hace efecto. "
+                          "Seguís ganando con los fascistas y no participás de sus decisiones. "
+                          "Eso sí, ahora tenés la carta socialista, así que quien te investigue va a ver *socialista*.")
+            else:
+                board += "\n\n\u270A Fuiste *reclutado por los socialistas*: ahora ganás con ellos."
         return board
