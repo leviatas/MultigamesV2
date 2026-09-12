@@ -94,6 +94,10 @@ def build_context(cur, game, game_endcode, uid, player):
     # El ultimo intento de /guess (maximo 2) es el definitivo, el que cuenta para logros.
     guess_history = getattr(game, "guesses", {}).get(uid) or []
 
+    # Expansion Socialista: getattr en todo lo del State porque las partidas guardadas
+    # antes de la expansion no tienen esos campos.
+    recruited_uids = list(getattr(game.board.state, "recruited_uids", None) or [])
+
     mision_imposible_player = game.playerlist.get(MISION_IMPOSIBLE_UID)
     # None si MISION_IMPOSIBLE_UID no jugo esta partida o es este mismo uid
     # (jugar "con" alguien implica ser otro jugador en su mismo equipo).
@@ -117,6 +121,10 @@ def build_context(cur, game, game_endcode, uid, player):
         fascist_track=game.board.state.fascist_track,
         dead_count=game.board.state.dead,
         was_investigated=getattr(player, "was_investigated", False),
+        es_modo_socialista=game.es_socialista(),
+        was_recruited=getattr(player, "was_recruited", False),
+        recruited_uids=recruited_uids,
+        hitler_reclutado=bool(hitler_player is not None and getattr(hitler_player, "was_recruited", False)),
         auto_ja=getattr(player, "auto_ja", False),
         preference_rol=getattr(player, "preference_rol", ""),
         guess=guess_history[-1] if guess_history else None,

@@ -26,6 +26,10 @@ class Game(object):
 		# "clasico" o "socialista" (Expansion Socialista, ver /newgame socialista).
 		# Define el reparto de roles, el mazo y las pistas con las que se juega.
 		self.modo = 'clasico'
+		# Partida de prueba (/prueba): se juega igual, pero al terminar no se guarda
+		# ninguna estadistica, no se evaluan logros y no hay votacion de MVP. Se puede
+		# prender y apagar con /prueba hasta que la partida termine.
+		self.es_partida_de_prueba = False
 		# {guesser_uid: [{"fascists": [uid, ...], "hitler": uid}, ...]} - historial de palpitos de /guess (maximo 2 intentos, el ultimo es definitivo)
 		self.guesses = {}
 		# {voter_uid: voted_uid} - voto de /mvp, uno por jugador, se puede cambiar hasta que todos hayan votado
@@ -59,6 +63,10 @@ class Game(object):
 
 	def es_socialista(self):
 		return getattr(self, "modo", "clasico") == "socialista"
+
+	def es_prueba(self):
+		# getattr: las partidas guardadas antes de que existiera /prueba no tienen el campo.
+		return getattr(self, "es_partida_de_prueba", False)
 
 	def get_socialists(self):
 		# Los socialistas de origen (los que arrancaron la partida con ese rol).

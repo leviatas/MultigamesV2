@@ -55,6 +55,17 @@ def limites_jugadores(game):
 	return MIN_JUGADORES_CLASICO, MAX_JUGADORES_CLASICO
 
 
+# Textos de /prueba. Una partida de prueba se juega igual que cualquier otra, pero al
+# terminar no toca ninguna estadistica, no otorga logros y no tiene votacion de MVP.
+AVISO_PRUEBA = (u"\U0001F9EA" + " Esta partida es de *prueba*: cuando termine no se va a guardar ninguna "
+	"estadística, no se otorgan logros y no hay votación de MVP.\n"
+	"Usá /prueba de nuevo si quieren que la partida valga.")
+AVISO_PARTIDA_VALE = (u"\u2705" + " Esta partida *vale*: cuando termine se guardan las estadísticas, se otorgan "
+	"los logros y se vota el MVP.\n"
+	"Usá /prueba de nuevo si quieren que sea solo una prueba.")
+AVISO_PRUEBA_TABLERO = u"\U0001F9EA" + " *Partida de prueba* (no cuenta para estadísticas, logros ni MVP)"
+
+
 commands = [  # command description used in the "help" command
     '/help - Te da informacion de los comandos disponibles',
     '/start - Da un poco de información sobre Secret Hitler',
@@ -77,6 +88,7 @@ commands = [  # command description used in the "help" command
     '/logros - Muestra tus logros desbloqueados',
     '/guess - Adivina en privado quiénes son los fascistas y Hitler',
     '/mvp - Vota en privado al mejor jugador de la partida',
+    '/prueba - Marca la partida como de prueba (no cuenta para estadísticas, logros ni MVP) o la vuelve a hacer valer',
     '/end - Cierra la votación de MVP sin esperar a que voten todos',
     '/guessresults - Reimprime los resultados de las adivinanzas de la partida que terminó',
     '/miguess - Muestra en privado solo tu propio resultado de /guess',
@@ -138,7 +150,11 @@ def command_board(update: Update, context: CallbackContext):
 		bot.send_message(cid, "No hay juego en este chat. Crea un nuevo juego con /newgame")
 
 def print_board(bot, game, target):
-	bot.send_message(target, game.board.print_board(game.player_sequence), ParseMode.MARKDOWN)
+	texto = game.board.print_board(game.player_sequence)
+	if game.es_prueba():
+		# Recordatorio visible: es facil olvidarse de que la partida en curso no cuenta.
+		texto = AVISO_PRUEBA_TABLERO + "\n" + texto
+	bot.send_message(target, texto, ParseMode.MARKDOWN)
 		
 def command_start(update: Update, context: CallbackContext):
 	bot = context.bot
@@ -489,7 +505,9 @@ def command_logros(update: Update, context: CallbackContext):
 		bot.send_message(cid, 'No se ejecuto el comando debido a: ' + str(e))
 		return
 
-	bot.send_message(cid, texto, ParseMode.MARKDOWN)
+	# Chunked: con el catalogo completo el listado ya roza el limite de 4096 caracteres
+	# de Telegram, y cada logro nuevo lo acerca mas.
+	send_chunked_message(bot, cid, texto, parse_mode=ParseMode.MARKDOWN)
 
 # vincula partidas viejas (buscadas por nombre) a un uid de Telegram, solo ADMIN
 def command_vincularstats(update: Update, context: CallbackContext):
@@ -2602,6 +2620,39 @@ def _game_has_ended(game):
 	_repair_game_endcode_if_needed(game)
 	return game.board.state.game_endcode != 0
 
+def command_prueba(update: Update, context: CallbackContext):
+	# Alterna si la partida de este grupo es "de prueba" (no se guardan estadisticas,
+	# no se otorgan logros y no hay MVP) o vale. Siempre avisa en que modo quedo.
+	bot = context.bot
+	cid = update.message.chat_id
+	uid = update.message.from_user.id
+	groupType = update.message.chat.type
+
+	if groupType not in ['group', 'supergroup']:
+		bot.send_message(cid, "Este comando se usa en el chat del grupo.")
+		return
+
+	game = get_game(cid)
+	if game is None:
+		bot.send_message(cid, "No hay juego en este chat. Crea un nuevo juego con /newgame")
+		return
+	if game.board is not None and _game_has_ended(game):
+		# La partida ya se cerro: sus estadisticas ya se guardaron (o ya se descartaron),
+		# asi que cambiar el modo a esta altura no haria nada.
+		bot.send_message(cid,
+			"La partida ya terminó, ya no se puede cambiar si vale o es de prueba. "
+			"Podés marcar la próxima con /prueba.")
+		return
+	if game.playerlist and uid not in game.playerlist and uid != game.initiator and uid != ADMIN:
+		bot.send_message(cid, "Solo un jugador de la partida puede marcarla como de prueba.")
+		return
+
+	game.es_partida_de_prueba = not game.es_prueba()
+	save_game(cid, game.groupName, game)
+	bot.send_message(cid,
+		AVISO_PRUEBA if game.es_prueba() else AVISO_PARTIDA_VALE,
+		parse_mode=ParseMode.MARKDOWN)
+
 def command_mvp(update: Update, context: CallbackContext):
 	bot = context.bot
 	uid = update.message.from_user.id
@@ -2616,6 +2667,9 @@ def command_mvp(update: Update, context: CallbackContext):
 		if uid not in game.playerlist:
 			bot.send_message(cid, "Debes ser un jugador de la partida para usar /mvp.")
 			return
+		if game.es_prueba():
+			bot.send_message(cid, AVISO_PRUEBA, parse_mode=ParseMode.MARKDOWN)
+			return
 		if not _game_has_ended(game):
 			bot.send_message(cid, "Todavía no terminó la partida. Esperá a que termine para votar al MVP.")
 			return
@@ -2627,6 +2681,7 @@ def command_mvp(update: Update, context: CallbackContext):
 			key: "{}: {}".format(game.groupName, game.tipo)
 			for key, game in all_games_unfiltered.items()
 			if uid in game.playerlist and game.board is not None and _game_has_ended(game)
+			and not game.es_prueba()
 		}
 		if not all_games:
 			bot.send_message(cid, "No tenés partidas recién terminadas donde votar al MVP.")
@@ -2653,6 +2708,9 @@ def callback_mvp_game(update: Update, context: CallbackContext):
 	_send_mvp_buttons(bot, game, uid)
 
 def _send_mvp_buttons(bot, game, uid):
+	if game.es_prueba():
+		bot.send_message(uid, AVISO_PRUEBA, parse_mode=ParseMode.MARKDOWN)
+		return
 	if not _game_has_ended(game):
 		bot.send_message(uid, "Todavía no terminó la partida. Esperá a que termine para votar al MVP.")
 		return
@@ -2690,6 +2748,9 @@ def callback_mvp_vote(update: Update, context: CallbackContext):
 		return
 	if uid not in game.playerlist:
 		bot.send_message(uid, "Debes ser un jugador de la partida para votar.")
+		return
+	if game.es_prueba():
+		bot.send_message(uid, AVISO_PRUEBA, parse_mode=ParseMode.MARKDOWN)
 		return
 	if not _game_has_ended(game):
 		bot.send_message(uid, "Todavía no terminó la partida. Esperá a que termine para votar al MVP.")
@@ -2766,6 +2827,9 @@ def command_end(update: Update, context: CallbackContext):
 		return
 	if uid not in game.playerlist:
 		bot.send_message(cid, "Debes ser un jugador de la partida para usar /end.")
+		return
+	if game.es_prueba():
+		bot.send_message(cid, AVISO_PRUEBA, parse_mode=ParseMode.MARKDOWN)
 		return
 	if not _game_has_ended(game):
 		bot.send_message(cid, "La partida todavía no terminó, no hay nada que cerrar.")
