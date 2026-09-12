@@ -1421,11 +1421,14 @@ def load_player_stats(uid):
 def end_game(bot, game, game_endcode):
 	log.info('end_game called')
 	cid = game.cid
+	# Partida de prueba (/prueba): termina y se revela igual que cualquier otra, pero sin
+	# guardar ninguna estadistica, sin evaluar logros y sin votacion de MVP.
+	es_prueba = game.es_prueba()
 	
 	# Grabo detalles de la partida
 	nuevos_logros = {}
 	game.stats_game_id = None
-	if game_endcode != 99:
+	if game_endcode != 99 and not es_prueba:
 		save_game_details(bot, game.print_roles(), game_endcode, game.board.state.liberal_track, game.board.state.fascist_track, game.board.num_players)
 		nuevos_logros, game.stats_game_id = StatsExtended.save_extended_game_stats(game, game_endcode)
 
@@ -1433,30 +1436,36 @@ def end_game(bot, game, game_endcode):
 	#bot.send_message(cid, "Datos a guardar %s %s %s %s %s" % (game.print_roles(), str(game_endcode), str(game.board.state.liberal_track), str(game.board.state.fascist_track), str(game.board.num_players)))
 		
 	stats = get_stats(bot, cid)	
+
+	def contar_stat(column_name, value):
+		# En una partida de prueba no se suma nada a las estadisticas del grupo.
+		if not es_prueba:
+			set_stats(column_name, value, bot, cid)
+
 	if game_endcode == 99:
 		if GamesController.games[cid].board is not None:
 			bot.send_message(cid, "Juego cancelado!\n\n%s" % game.print_roles())
 		else:
 			bot.send_message(cid, "Juego cancelado!")
-		set_stats("cancelgame", stats[5] + 1, bot, cid)
+		contar_stat("cancelgame", stats[5] + 1)
 	else:
 		if game_endcode == -2:
 			bot.send_message(game.cid, "Juego finalizado! Los fascistas ganaron eligiendo a Hitler como Canciller!\n\n%s" % game.print_roles())
-			set_stats("fascistwinhitler", stats[1] + 1, bot, cid)
+			contar_stat("fascistwinhitler", stats[1] + 1)
 		if game_endcode == -1:
 			bot.send_message(game.cid, "Juego finalizado! Los fascistas ganaron promulgando 6 políticas fascistas!\n\n%s" % game.print_roles())
-			set_stats("fascistwinpolicies", stats[2] + 1, bot, cid)
+			contar_stat("fascistwinpolicies", stats[2] + 1)
 		if game_endcode == 1:
 			bot.send_message(game.cid, "Juego finalizado! Los liberales ganaron promulgando 5 políticas liberales!\n\n%s" % game.print_roles())
-			set_stats("liberalwinpolicies", stats[3] + 1, bot, cid)
+			contar_stat("liberalwinpolicies", stats[3] + 1)
 		if game_endcode == 2:
 			bot.send_message(game.cid, "Juego finalizado! Los liberales ganaron matando a Hitler!\n\n%s" % game.print_roles())
-			set_stats("liberalwinkillhitler", stats[4] + 1, bot, cid)
+			contar_stat("liberalwinkillhitler", stats[4] + 1)
 		if game_endcode == 3:
 			bot.send_message(game.cid, "Juego finalizado! Los socialistas ganaron promulgando toda su pista de políticas socialistas!\n\n%s" % game.print_roles())
 			# La columna es nueva (la agrega DBCreate.sql), asi que puede no existir en bases viejas.
 			if len(stats) > 6:
-				set_stats("socialistwinpolicies", stats[6] + 1, bot, cid)
+				contar_stat("socialistwinpolicies", stats[6] + 1)
 		try:
 			reveal = Commands.format_guesses_reveal(game)
 			if reveal is not None:
@@ -1470,12 +1479,21 @@ def end_game(bot, game, game_endcode):
 				bot.send_message(cid, anuncio, ParseMode.MARKDOWN)
 		except Exception as e:
 			log.error("No se pudo anunciar los logros nuevos: %s" % str(e))
-		bot.send_message(cid,
-			"🏅 ¡Ahora podés usar /mvp para votar en privado quién fue el MVP de esta partida! "
-			"Cuando todos los jugadores hayan votado se revela el resultado.")
+		if es_prueba:
+			bot.send_message(cid,
+				"🧪 *Partida de prueba*: no se guardó ninguna estadística, no se otorgaron logros "
+				"y no hay votación de MVP.\n"
+				"La próxima partida vale de nuevo (o usá /prueba para que tampoco cuente).",
+				ParseMode.MARKDOWN)
+		else:
+			bot.send_message(cid,
+				"🏅 ¡Ahora podés usar /mvp para votar en privado quién fue el MVP de esta partida! "
+				"Cuando todos los jugadores hayan votado se revela el resultado.")
 
-	if game_endcode == 99:
-		del GamesController.games[cid]
+	if game_endcode == 99 or es_prueba:
+		# Nada que esperar: sin estadisticas ni votacion de MVP, la partida se borra ya.
+		if cid in GamesController.games:
+			del GamesController.games[cid]
 		Commands.delete_game(cid)
 	else:
 		# La partida sigue viva (en memoria y en BD) hasta que todos voten su /mvp;
@@ -1845,6 +1863,7 @@ def main():
 	dp.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)\*chooseGameMvp\*(.*)\*(-?[0-9]*)", callback=Commands.callback_mvp_game))
 	dp.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)_mvpvote_(-?[0-9]*)", callback=Commands.callback_mvp_vote))
 	dp.add_handler(CommandHandler("end", Commands.command_end))
+	dp.add_handler(CommandHandler("prueba", Commands.command_prueba))
 	dp.add_handler(CommandHandler("guessresults", Commands.command_guessresults))
 	dp.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)\*chooseGameGuessResults\*(.*)\*(-?[0-9]*)", callback=Commands.callback_guessresults_game))
 	dp.add_handler(CommandHandler("miguess", Commands.command_miguess))
@@ -1957,6 +1976,7 @@ def main():
 			BotCommand("guess", "Adivina en privado quienes son los fascistas y Hitler"),
 			BotCommand("mvp", "Vota en privado al mejor jugador de la partida"),
 			BotCommand("end", "Cierra la votacion de MVP sin esperar a que voten todos"),
+			BotCommand("prueba", "Marca la partida como de prueba (sin stats, logros ni MVP) o la hace valer"),
 			BotCommand("guessresults", "Reimprime los resultados de las adivinanzas"),
 			BotCommand("miguess", "Muestra en privado tu propio resultado de /guess"),
 			BotCommand("version", "Muestra la version actual del bot"),

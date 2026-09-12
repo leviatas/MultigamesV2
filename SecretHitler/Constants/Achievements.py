@@ -8,15 +8,29 @@ from collections import namedtuple
 # `check(ctx)` recibe un Achievements.Ctx y devuelve True/False.
 Logro = namedtuple("Logro", "code name description emoji categoria secreto check")
 
-CATEGORIAS = ["roles", "muerte", "hitos", "social"]
+CATEGORIAS = ["roles", "socialista", "muerte", "hitos", "social"]
 CATEGORIA_TITULOS = {
     "roles": "Roles y victorias",
+    "socialista": "Expansión Socialista",
     "muerte": "Muerte y ejecuciones",
     "hitos": "Hitos",
     "social": "Social",
 }
 
 MISION_IMPOSIBLE_UID = 863684947
+
+
+def _roles_ganados(ctx):
+    # row = (role, party, won, died, killed_by_uid, game_id)
+    return {row[0] for row in ctx.history() if row[2]}
+
+
+def _hace_guess_completo(ctx):
+    # Quienes juegan el flujo "completo" de /guess (fascistas comunes + Hitler): los
+    # liberales y, en el modo socialista, tambien los socialistas, que responden lo mismo.
+    # Hitler y los fascistas ya conocen la respuesta por su rol y tienen otro flujo.
+    # Mismo criterio que Game.compute_best_guessers(), que excluye por rol Hitler/Fascista.
+    return ctx["role"] in ("Liberal", "Socialista")
 
 
 def _check_hitler_ganador(ctx):
@@ -36,8 +50,7 @@ def _check_regimen_consolidado(ctx):
 
 
 def _check_actor_completo(ctx):
-    roles_ganados = {row[0] for row in ctx.history() if row[2]}  # row = (role, party, won, died, killed_by_uid, game_id)
-    return {"Liberal", "Fascista", "Hitler"}.issubset(roles_ganados)
+    return {"Liberal", "Fascista", "Hitler"}.issubset(_roles_ganados(ctx))
 
 
 def _check_bala_certera(ctx):
@@ -134,16 +147,14 @@ def _check_me_toco_lo_que_pedi(ctx):
 
 
 def _check_lo_sabia(ctx):
-    # Solo Liberal: Hitler y Fascista ya conocen la respuesta de antemano por su rol,
-    # asi que su /guess ni siquiera les pide adivinar quien es Hitler.
-    if ctx["role"] != "Liberal":
+    if not _hace_guess_completo(ctx):
         return False
     guess = ctx["guess"]
     return guess is not None and ctx["hitler_uid"] is not None and guess.get("hitler") == ctx["hitler_uid"]
 
 
 def _check_detective(ctx):
-    if ctx["role"] != "Liberal":
+    if not _hace_guess_completo(ctx):
         return False
     guess = ctx["guess"]
     if guess is None:
@@ -152,7 +163,7 @@ def _check_detective(ctx):
 
 
 def _check_no_debi_dudar(ctx):
-    if ctx["role"] != "Liberal":
+    if not _hace_guess_completo(ctx):
         return False
     history = ctx["guess_history"]
     hitler_uid = ctx["hitler_uid"]
@@ -205,7 +216,7 @@ DEADLINE_PRESIDENCIA = 7  # currentround es 0-indexed: 7 == arranco la 8va presi
 def _check_detective_precoz(ctx):
     # Como detective, pero el /guess definitivo tiene que haber quedado
     # registrado antes de que arranque la 8va presidencia (currentround < 7).
-    if ctx["role"] != "Liberal":
+    if not _hace_guess_completo(ctx):
         return False
     guess = ctx["guess"]
     if guess is None:
@@ -247,6 +258,62 @@ def _check_mision_imposible(ctx):
     # ctx["mision_imposible_party"] es None si MISION_IMPOSIBLE_UID no jugo
     # esta partida, o si el jugador evaluado es el mismo MISION_IMPOSIBLE_UID.
     return ctx["won"] and ctx["mision_imposible_party"] is not None and ctx["mision_imposible_party"] == ctx["party"]
+
+
+# --- Expansion Socialista (ver Game.modo) ---
+
+PARTIDAS_CAMARADA = 5  # partidas como Socialista que pide "Camarada de hierro"
+
+
+def _check_jugo_socialista(ctx):
+    return ctx["es_modo_socialista"]
+
+
+def _check_socialista_ganador(ctx):
+    # party es party_efectiva(): incluye a los reclutados y deja afuera a Hitler,
+    # que gana con los fascistas aunque tenga la carta socialista.
+    return ctx["party"] == "socialista" and ctx["won"]
+
+
+def _check_converso_ganador(ctx):
+    return ctx["was_recruited"] and ctx["party"] == "socialista" and ctx["won"]
+
+
+def _check_revolucion_pura(ctx):
+    # Ganaron sin usar el Reclutamiento sobre nadie (ni siquiera fallido sobre Hitler),
+    # asi que solo lo pueden conseguir los socialistas de origen.
+    return ctx["party"] == "socialista" and ctx["won"] and not ctx["recruited_uids"]
+
+
+def _check_socialista_martir(ctx):
+    return ctx["died"] and ctx["party"] == "socialista" and ctx["won"]
+
+
+def _check_reclutamos_a_hitler(ctx):
+    # Para el equipo socialista de esa partida: gastaron un Reclutamiento en Hitler, que
+    # sigue siendo fascista. Hitler mismo queda afuera (su party efectiva es fascista).
+    return ctx["party"] == "socialista" and ctx["hitler_reclutado"]
+
+
+def _check_hitler_reclutado_ganador(ctx):
+    return ctx["role"] == "Hitler" and ctx["was_recruited"] and ctx["won"]
+
+
+def _check_tres_frentes(ctx):
+    return ctx["es_modo_socialista"] and ctx["won"] and ctx["party"] != "socialista"
+
+
+def _check_ideologo_completo(ctx):
+    return {"Liberal", "Fascista", "Hitler", "Socialista"}.issubset(_roles_ganados(ctx))
+
+
+def _check_camarada_de_hierro(ctx):
+    # row[0] = role: cuenta los socialistas de origen, no los reclutados (que conservan su rol).
+    return sum(1 for row in ctx.history() if row[0] == "Socialista") >= PARTIDAS_CAMARADA
+
+
+def _check_purga_roja(ctx):
+    return "Socialista" in ctx["killed_roles"]
 
 
 def _check_mvp_una_vez(ctx):
@@ -291,6 +358,30 @@ LOGROS = [
           "⏱️", "roles", False, _check_companeros_de_ideologia_precoz),
     Logro("prediccion_certera_precoz", "Vidente fascista", "Como fascista, predijiste correctamente quién sería el mejor adivinando con /guess antes de la 8va presidencia.",
           "⏱️", "roles", False, _check_prediccion_certera_precoz),
+
+    # Expansion Socialista
+    Logro("jugo_socialista", "Hay un tercer partido", "Jugaste una partida con la Expansión Socialista.",
+          "☭", "socialista", False, _check_jugo_socialista),
+    Logro("socialista_ganador", "Revolución triunfante", "Ganaste una partida con los socialistas.",
+          "🚩", "socialista", False, _check_socialista_ganador),
+    Logro("converso_ganador", "Militante converso", "Te reclutaron los socialistas y ganaste con ellos.",
+          "✊", "socialista", False, _check_converso_ganador),
+    Logro("revolucion_pura", "Revolución pura", "Ganaste con los socialistas sin reclutar a nadie.",
+          "🌹", "socialista", False, _check_revolucion_pura),
+    Logro("socialista_martir", "Mártir de la revolución", "Te ejecutaron siendo del equipo socialista y tu equipo ganó igual.",
+          "⚒", "socialista", False, _check_socialista_martir),
+    Logro("tres_frentes", "Tres frentes", "Ganaste una partida del modo socialista sin ser del equipo socialista.",
+          "🔺", "socialista", False, _check_tres_frentes),
+    Logro("ideologo_completo", "Ideólogo completo", "Ganaste al menos una vez como Liberal, Fascista, Hitler y Socialista.",
+          "📚", "socialista", False, _check_ideologo_completo),
+    Logro("camarada_de_hierro", "Camarada de hierro", "Jugaste %d partidas como Socialista." % PARTIDAS_CAMARADA,
+          "⭐", "socialista", False, _check_camarada_de_hierro),
+    Logro("purga_roja", "Purga", "Ejecutaste a un Socialista.",
+          "🧹", "socialista", False, _check_purga_roja),
+    Logro("reclutamos_a_hitler", "Camarada Hitler", "Los socialistas gastaron su Reclutamiento en Hitler.",
+          "🤝", "socialista", True, _check_reclutamos_a_hitler),
+    Logro("hitler_reclutado_ganador", "Topo en la revolución", "Como Hitler te reclutaron los socialistas y ganaste igual con los fascistas.",
+          "🕳", "socialista", True, _check_hitler_reclutado_ganador),
 
     # Muerte y ejecuciones
     Logro("bala_certera", "Bala certera", "Ejecutaste a Hitler y los liberales ganaron.",
