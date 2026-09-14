@@ -9,7 +9,8 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE TABLE IF NOT EXISTS games_secret_hitler (
     id bigint PRIMARY KEY,
     name TEXT NOT NULL,
-    data text NOT NULL
+    data text NOT NULL,
+    state TEXT NOT NULL DEFAULT ''
 );
 
 -- Bases viejas todavia tienen la columna con el nombre original. La renombramos una
@@ -21,6 +22,11 @@ BEGIN
         ALTER TABLE games_secret_hitler RENAME COLUMN groupName TO name;
     END IF;
 END $$;
+
+-- Estado actual de la partida (ver Game.estado_actual()), para poder ver de un vistazo
+-- en que fase esta cada una sin decodificar el jsonpickle de "data". Se agrega al final
+-- para que los indices posicionales de save_game()/load_game() (que usan "select *") no se muevan.
+ALTER TABLE games_secret_hitler ADD COLUMN IF NOT EXISTS state TEXT NOT NULL DEFAULT '';
 
 CREATE TABLE IF NOT EXISTS stats_secret_hitler (
     id bigint PRIMARY KEY,

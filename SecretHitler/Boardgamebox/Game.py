@@ -68,6 +68,18 @@ class Game(object):
 		# getattr: las partidas guardadas antes de que existiera /prueba no tienen el campo.
 		return getattr(self, "es_partida_de_prueba", False)
 
+	def estado_actual(self):
+		# Estado legible que se persiste en games_secret_hitler.state (ver Commands.save_game),
+		# calculado a partir del propio estado del juego en vez de depender de un texto que
+		# cada call site le pase (por eso no se usa board.state.fase directo como unica fuente:
+		# no existe todavia antes de la primera nominacion de canciller).
+		if self.board is None:
+			return "esperando_jugadores"
+		if getattr(self.board.state, "game_endcode", 0) != 0:
+			return "terminado"
+		fase = getattr(self.board.state, "fase", None)
+		return fase if fase else "esperando_inicio"
+
 	def get_socialists(self):
 		# Los socialistas de origen (los que arrancaron la partida con ese rol).
 		# No incluye a los reclutados, que conservan su rol y solo cambian de afiliacion.

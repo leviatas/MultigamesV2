@@ -1194,6 +1194,11 @@ def command_claim_oculto(update: Update, context: CallbackContext):
 		log.error("Unknown error: " + str(e))
 		
 def save_game(cid, groupName, game):
+	# El "groupName" que llega por parametro en la mayoria de los call sites en realidad
+	# describe la accion que disparo el guardado (ej. "vote Round 3"), no el nombre del
+	# grupo, asi que se ignora para la columna "name": esa siempre sale de game.groupName
+	# (mantenido al dia por change_groupname() en MainController). El estado se calcula
+	# aparte con Game.estado_actual() para no depender de lo que cada call site pase.
 	#Check if game is in DB first
 	conn = psycopg2.connect(
 		database=url.path[1:],
@@ -1202,22 +1207,23 @@ def save_game(cid, groupName, game):
 		host=url.hostname,
 		port=url.port
 	)
-	cur = conn.cursor()			
+	cur = conn.cursor()
 	log.info("Searching Game in DB")
 	query = "select * from games_secret_hitler where id = %s;"
 	cur.execute(query, [cid])
 	dbdata = cur.fetchone()
+	estado = game.estado_actual()
 	if cur.rowcount > 0:
 		log.info('Updating Game')
 		gamejson = jsonpickle.encode(game)
-		query = "UPDATE games_secret_hitler SET name = %s, data = %s WHERE id = %s;"
-		cur.execute(query, (groupName, gamejson, cid))
+		query = "UPDATE games_secret_hitler SET name = %s, data = %s, state = %s WHERE id = %s;"
+		cur.execute(query, (game.groupName, gamejson, estado, cid))
 		conn.commit()
 	else:
 		log.info('Saving Game in DB')
 		gamejson = jsonpickle.encode(game)
-		query = "INSERT INTO games_secret_hitler(id , name , data) VALUES (%s, %s, %s);"
-		cur.execute(query, (cid, groupName, gamejson))
+		query = "INSERT INTO games_secret_hitler(id , name , data, state) VALUES (%s, %s, %s, %s);"
+		cur.execute(query, (cid, game.groupName, gamejson, estado))
 		#log.info(cur.fetchone()[0])
 		conn.commit()
 	conn.close()
