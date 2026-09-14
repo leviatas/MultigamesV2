@@ -2,7 +2,7 @@ ADMIN = 387393551 #your telegram ID
 
 # Version hardcodeada, mostrada por /version. Bumpear en cada cambio que se
 # despliegue (ver convencion en CLAUDE.md).
-VERSION = "1.27.1"
+VERSION = "1.28.0"
 
 # --- Voto automatico Ja (/startautoja) ---
 # A partir de cuantas politicas promulgadas (de cualquier color) se corta el voto automatico

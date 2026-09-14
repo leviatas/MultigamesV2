@@ -1041,6 +1041,7 @@ def _aplicar_escucha(bot, game, chosen):
 	texto = u"\U0001F41B" + " Escucha Ilegal: la afiliación política de %s es *%s*" % (chosen.name, chosen.party)
 	_avisar_socialistas(bot, game, texto)
 	bot.send_message(game.cid, "Los socialistas ya usaron su Escucha Ilegal.")
+	game.history.append("Los socialistas usaron su Escucha Ilegal.")
 	game.hiddenhistory.append("Los socialistas escucharon a %s (%s)" % (chosen.name, chosen.party))
 	start_next_round(bot, game)
 
@@ -1099,6 +1100,7 @@ def _aplicar_reclutamiento(bot, game, chosen):
 
 	_avisar_socialistas(bot, game, u"\u270A" + " Reclutamiento: el partido eligió a *%s*." % chosen.name)
 	bot.send_message(game.cid, "Los socialistas ya usaron su Reclutamiento. Revisen su afiliación con /info!")
+	game.history.append("Los socialistas usaron su Reclutamiento.")
 	start_next_round(bot, game)
 
 
@@ -1146,6 +1148,7 @@ def action_congreso(bot, game):
 		bot.send_message(ADMIN if game.is_debugging else original.uid, aviso, parse_mode=ParseMode.MARKDOWN)
 		if game.is_debugging:
 			break
+	game.history.append("El partido socialista usó el Congreso.")
 	game.hiddenhistory.append("Congreso: socialistas de origen %s / nuevos %s" % (
 		nombres_originales, ", ".join(n.name for n in nuevos) or "ninguno"))
 	start_next_round(bot, game)
