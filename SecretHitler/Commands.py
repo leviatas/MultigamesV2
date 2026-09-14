@@ -884,8 +884,15 @@ def command_calltovote(update: Update, context: CallbackContext):
 					bot.send_message(cid, texto, parse_mode=ParseMode.MARKDOWN)
 				return
 			if not game.dateinitvote:
-				# If date of init vote is null, then the voting didnt start
-				bot.send_message(cid, "La votación no ha comenzado todavia!")
+				# If date of init vote is null, then the voting didnt start. If it's because
+				# the President still hasn't nominated a Chancellor, call him out instead of
+				# just saying there's no vote yet, and resend the nomination buttons.
+				presidente = game.board.state.nominated_president if game.board is not None else None
+				if game.board is not None and getattr(game.board.state, "fase", None) == "choose_chancellor" and presidente is not None:
+					bot.send_message(cid, "Todavía no se puede votar porque el Presidente [%s](tg://user?id=%d) no ha elegido canciller. ¡Es hora de nominar!" % (presidente.name, presidente.uid), parse_mode=ParseMode.MARKDOWN)
+					MainController.choose_chancellor(bot, game)
+				else:
+					bot.send_message(cid, "La votación no ha comenzado todavia!")
 			else:
 				#If there is a time, compare it and send history of votes.
 				strcid = str(game.cid)
