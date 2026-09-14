@@ -123,6 +123,8 @@ Key helpers used everywhere:
 
 `Constants/Config.py` has a hardcoded `VERSION` string (starting at `1.0.0`), shown by `/version`. Bump it (semver) on every change committed to this bot — patch for fixes, minor for new commands/features, major for breaking changes.
 
+`Commands.save_game(cid, groupName, game)` ignores its `groupName` parameter for the DB `name` column — most call sites actually pass a descriptive string like `"vote Round 3"` (what triggered the save), not the group's name, so `name` always comes from `game.groupName` instead (kept current by `MainController.change_groupname()`). It also writes a `state` column with `Game.estado_actual()` — `"esperando_jugadores"` (no board yet), `"esperando_inicio"` (board exists, no phase set), `"terminado"` (`game_endcode != 0`), or the raw `board.state.fase` string otherwise — so a game's rough status is visible in `games_secret_hitler` without decoding the `data` jsonpickle blob. `state` is appended at the end of the table in `DBCreate.sql` on purpose, so the positional `select *` in `load_game()` (`dbdata[2]` for `data`) doesn't shift.
+
 #### Expansión Socialista (`Game.modo`)
 
 A game is either `modo = "clasico"` (the default, unchanged) or `modo = "socialista"`, chosen once at creation with `/newgame socialista` and never switched afterwards. The mode is the single switch every other rule branches off: `Game.es_socialista()` / `Board.es_socialista()` (both `getattr`-based, so games saved before the expansion load as classic), and `Commands.limites_jugadores(game)` for the player range (5-10 classic, **6-13** socialist).
