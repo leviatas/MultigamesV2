@@ -178,7 +178,8 @@ def is_zona_hitler(game):
 
 def politicas_promulgadas(game):
 	# Todas las politicas que ya estan en la mesa, sin importar el color (en modo socialista
-	# la pista socialista tambien cuenta).
+	# la pista socialista tambien cuenta). Es tambien el numero de ronda: sumar solo liberales
+	# y fascistas repetia el numero cada vez que se promulgaba una politica socialista.
 	state = game.board.state
 	return state.liberal_track + state.fascist_track + getattr(state, "socialist_track", 0)
 
@@ -292,7 +293,7 @@ def count_votes(bot, game):
 		
 		bot.send_message(game.cid, voting_text, ParseMode.MARKDOWN)
 		bot.send_message(game.cid, "\nNo se puede hablar ahora.")
-		game.history.append(("Ronda %d.%d\n\n" % (game.board.state.liberal_track + game.board.state.fascist_track + 1, game.board.state.failed_votes + 1) ) + voting_text)
+		game.history.append(("Ronda %d.%d\n\n" % (politicas_promulgadas(game) + 1, game.board.state.failed_votes + 1) ) + voting_text)
 		#log.info(game.history[game.board.state.currentround])
 		voting_aftermath(bot, game, voting_success)
 	else:
@@ -303,7 +304,7 @@ def count_votes(bot, game):
 		game.board.state.nominated_chancellor = None
 		game.board.state.failed_votes += 1
 		bot.send_message(game.cid, voting_text)
-		game.history.append(("Ronda %d.%d\n\n" % (game.board.state.liberal_track + game.board.state.fascist_track + 1, game.board.state.failed_votes) ) + voting_text)
+		game.history.append(("Ronda %d.%d\n\n" % (politicas_promulgadas(game) + 1, game.board.state.failed_votes) ) + voting_text)
 		#log.info(game.history[game.board.state.currentround])
 		if game.board.state.failed_votes == 3:
 			do_anarchy(bot, game)
@@ -421,7 +422,7 @@ def draw_policies(bot, game):
 		hiddenhistory_text += policy.title() + " "
 	hiddenhistory_text[:-1]
 	# Guardo Historial secreto
-	game.hiddenhistory.append(("*Ronda %d.%d*\nEl presidente %s recibió " % (game.board.state.liberal_track + game.board.state.fascist_track + 1, game.board.state.failed_votes + 1, game.board.state.president.name) ) + hiddenhistory_text)
+	game.hiddenhistory.append(("*Ronda %d.%d*\nEl presidente %s recibió " % (politicas_promulgadas(game) + 1, game.board.state.failed_votes + 1, game.board.state.president.name) ) + hiddenhistory_text)
 	choosePolicyMarkup = InlineKeyboardMarkup(btns)
 	if not game.is_debugging:
 		bot.send_message(game.board.state.president.uid, f"{game.groupName}\nHas robado las siguientes 3 politicas. Cual quieres descartar?",
@@ -1285,7 +1286,7 @@ def count_votes_anarquia(bot, game):
 		game.board.state.nominated_chancellor = None
 		bot.send_message(game.cid, voting_text, ParseMode.MARKDOWN)
 		bot.send_message(game.cid, "\nNo se puede hablar ahora.")
-		game.history.append(("Ronda %d.%d\n\n" % (game.board.state.liberal_track + game.board.state.fascist_track + 1, game.board.state.failed_votes + 1) ) + voting_text)
+		game.history.append(("Ronda %d.%d\n\n" % (politicas_promulgadas(game) + 1, game.board.state.failed_votes + 1) ) + voting_text)
 		# Avanzo la cantidad del lider asi el lider queda correctamente asignado
 		# Se incrementa como mucho 2 ya que el ultimo incremento lo hace la anarquia
 		for i in range(2 - game.board.state.failed_votes):
@@ -1297,7 +1298,7 @@ def count_votes_anarquia(bot, game):
 		game.board.state.nominated_president = None
 		game.board.state.nominated_chancellor = None
 		bot.send_message(game.cid, voting_text, ParseMode.MARKDOWN)
-		game.history.append(("Ronda %d.%d\n\n" % (game.board.state.liberal_track + game.board.state.fascist_track + 1, game.board.state.failed_votes + 1) ) + voting_text)
+		game.history.append(("Ronda %d.%d\n\n" % (politicas_promulgadas(game) + 1, game.board.state.failed_votes + 1) ) + voting_text)
 		#game.board.state.failed_votes == 3
 		
 			
