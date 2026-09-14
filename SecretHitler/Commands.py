@@ -17,7 +17,7 @@ from collections import namedtuple
 
 import SecretHitler.MainController as MainController
 import SecretHitler.GamesController as GamesController
-from SecretHitler.Constants.Config import ADMIN, VERSION
+from SecretHitler.Constants.Config import ADMIN, VERSION, CORTES_AUTOJA, CORTES_AUTOJA_BOTONES
 from SecretHitler.Constants.Cards import opciones_choose_posible_role, opciones_choose_posible_role_socialista, playerSets, socialistSets
 from SecretHitler.Boardgamebox.Board import Board
 from SecretHitler.Boardgamebox.Game import Game
@@ -83,7 +83,7 @@ commands = [  # command description used in the "help" command
     '/votes - Imprime quien ha votado',
     '/calltovote - Avisa a los jugadores que se tiene que votar (o que falten votar el MVP si la partida ya terminó)',
     '/retirar - Retira tu voto de Ja o Nein para poder votar de nuevo',
-    '/startautoja - Activa tu voto automático Ja apenas se proponga una fórmula (fuera de Zona Hitler)',
+    '/startautoja - Activa tu voto automático Ja apenas se proponga una fórmula, y te deja elegir cuándo se corta: con 3 políticas fascistas, con 5 políticas promulgadas, o con cualquiera de las dos',
     '/stopautoja - Desactiva tu voto automático Ja',
     '/logros - Muestra tus logros desbloqueados',
     '/guess - Adivina en privado quiénes son los fascistas y Hitler',
@@ -983,16 +983,25 @@ def callback_retract(update: Update, context: CallbackContext):
 	else:
 		retract_player_vote(bot, game, uid)
 
+def _mostrar_opciones_corte_autoja(bot, game, uid):
+	# Botonera para elegir cuando se corta el voto automatico. El cid que viaja en el
+	# callback es el del juego, para poder encontrarlo despues.
+	opciones = {clave: CORTES_AUTOJA_BOTONES[clave] for clave in ("ambas", "fascistas", "politicas")}
+	msg = "¿Cuándo querés que se corte tu voto automático en *{}*?".format(game.groupName)
+	simple_choose_buttons(bot, game.cid, uid, uid, "autojacorte", msg, opciones)
+
 def set_auto_ja(bot, game, uid, enabled):
 	# Activa o desactiva el voto Ja automático del jugador para este juego
 	game.playerlist[uid].auto_ja = enabled
 	save_game(game.cid, "auto_ja %s Round %d" % ("on" if enabled else "off", game.board.state.currentround), game)
 	if enabled:
 		bot.send_message(uid,
-			"Voto automático *Ja* activado en *{}*. Mientras no estemos en Zona Hitler (menos de 3 políticas fascistas promulgadas), tu voto Ja se registrará solo apenas se proponga una fórmula. Usa /stopautoja para desactivarlo.".format(game.groupName),
+			"Voto automático *Ja* activado en *{}*: tu voto Ja se registrará solo apenas se proponga una fórmula, y se corta {}. Usa /stopautoja para desactivarlo.".format(
+				game.groupName, CORTES_AUTOJA[game.playerlist[uid].corte_autoja()]),
 			parse_mode=ParseMode.MARKDOWN)
+		_mostrar_opciones_corte_autoja(bot, game, uid)
 		# Si hay una votación en curso y el jugador todavia no voto, le registro el Ja ahora mismo
-		if game.dateinitvote and uid not in game.board.state.last_votes and not MainController.is_zona_hitler(game):
+		if game.dateinitvote and uid not in game.board.state.last_votes and not MainController.autoja_cortado(game, game.playerlist[uid]):
 			game.board.state.last_votes[uid] = "Ja"
 			save_game(game.cid, "auto_ja vote Round %d" % (game.board.state.currentround), game)
 			bot.send_message(uid, "Tu voto *Ja* para la votación en curso ya quedó registrado.", parse_mode=ParseMode.MARKDOWN)
@@ -1058,6 +1067,25 @@ def callback_stopautoja(update: Update, context: CallbackContext):
 		bot.send_message(uid, "No estás en ese juego.")
 	else:
 		set_auto_ja(bot, game, uid, False)
+
+def callback_autoja_corte(update: Update, context: CallbackContext):
+	# Guarda el criterio de corte elegido por el jugador para ese juego.
+	bot = context.bot
+	log.info('callback_autoja_corte called')
+	callback = update.callback_query
+	regex = re.search(r"(-?[0-9]*)\*autojacorte\*(.*)\*(-?[0-9]*)", callback.data)
+	cid, corte, uid = int(regex.group(1)), regex.group(2), int(regex.group(3))
+	game = get_game(cid)
+	if not game or uid not in game.playerlist:
+		bot.send_message(uid, "No estás en ese juego.")
+		return
+	if corte not in CORTES_AUTOJA:
+		return
+	game.playerlist[uid].auto_ja_corte = corte
+	save_game(cid, game.groupName, game)
+	bot.edit_message_text(
+		"Listo: tu voto automático *Ja* en *{}* se corta {}.".format(game.groupName, CORTES_AUTOJA[corte]),
+		uid, callback.message.message_id, parse_mode=ParseMode.MARKDOWN)
 
 def command_showhistory(update: Update, context: CallbackContext):
 	bot = context.bot
