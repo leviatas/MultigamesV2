@@ -8,9 +8,19 @@ CREATE TABLE IF NOT EXISTS users (
 
 CREATE TABLE IF NOT EXISTS games_secret_hitler (
     id bigint PRIMARY KEY,
-    groupName TEXT NOT NULL,
+    name TEXT NOT NULL,
     data text NOT NULL
 );
+
+-- Bases viejas todavia tienen la columna con el nombre original. La renombramos una
+-- sola vez (el bloque es idempotente: si ya se llama "name" no hace nada).
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'games_secret_hitler' AND column_name = 'groupname')
+       AND NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'games_secret_hitler' AND column_name = 'name') THEN
+        ALTER TABLE games_secret_hitler RENAME COLUMN groupName TO name;
+    END IF;
+END $$;
 
 CREATE TABLE IF NOT EXISTS stats_secret_hitler (
     id bigint PRIMARY KEY,

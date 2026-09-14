@@ -1714,12 +1714,15 @@ def error_callback(update, context):
 	# we raise the error again, so the logger module catches it. If you don't use the logger module, use it.
 	logger.warning("User: {}.\n\nError {}.\n\nTrace: {}".format(update.effective_user.first_name, context.error, trace))
 	
-def change_groupname(bot, update):
+def change_groupname(update: Update, context: CallbackContext):
+	bot = context.bot
 	cid = update.message.chat.id
 	groupname = update.message.chat.title
 	game = Commands.get_game(cid)
-	game.groupName = groupname
-	bot.send_message(ADMIN, text="El group en {cid} ha cambiado de nombre a {groupname}".format(groupname=groupname, cid=cid))
+	if game is not None:
+		game.groupName = groupname
+		Commands.save_game(cid, game.groupName, game)
+	bot.send_message(ADMIN, text="El grupo en {cid} ha cambiado de nombre a {groupname}".format(groupname=groupname, cid=cid))
 
 def track_new_members(update: Update, context: CallbackContext):
 	cid = update.message.chat.id
