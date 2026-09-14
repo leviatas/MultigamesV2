@@ -1,3 +1,6 @@
+from SecretHitler.Constants.Config import CORTES_AUTOJA, CORTE_AUTOJA_DEFAULT
+
+
 class Player(object):
     def __init__(self, name, uid):
         self.name = name
@@ -11,11 +14,21 @@ class Player(object):
         self.was_investigated = False
         #"Liberal","Fascista","Hitler"
         self.preference_rol = ""
-        # Si esta activo, el jugador vota Ja automaticamente apenas se propone una formula (fuera de Zona Hitler)
+        # Si esta activo, el jugador vota Ja automaticamente apenas se propone una formula
         self.auto_ja = False
+        # Cuando deja de aplicarse ese voto automatico: "fascistas" (Zona Hitler), "politicas"
+        # (cierta cantidad de politicas promulgadas) o "ambas" (cualquiera de las dos, default).
+        # Ver MainController.CORTES_AUTOJA.
+        self.auto_ja_corte = "ambas"
         # Solo modo socialista: lo convirtio el poder de Reclutamiento. Cambia la afiliacion,
         # nunca el rol.
         self.was_recruited = False
+
+    def corte_autoja(self):
+        # Cuando se corta el voto automatico Ja de este jugador. getattr + validacion porque
+        # las partidas guardadas antes de que el criterio fuera configurable no tienen el campo.
+        corte = getattr(self, "auto_ja_corte", CORTE_AUTOJA_DEFAULT)
+        return corte if corte in CORTES_AUTOJA else CORTE_AUTOJA_DEFAULT
 
     def party_efectiva(self):
         # Con quien gana este jugador. Normalmente es su afiliacion, pero Hitler gana siempre
@@ -29,7 +42,10 @@ class Player(object):
     def get_private_info(self, game):
         board = "--- *Info del Jugador {}* ---\n".format(self.name)
         board += "Eres *{}* y tu afiliacion es *{}*\n".format(self.role, self.party)
-        board += "Voto automático Ja (/startautoja): *{}*\n".format("Activado" if getattr(self, 'auto_ja', False) else "Desactivado")
+        if getattr(self, 'auto_ja', False):
+            board += "Voto automático Ja (/startautoja): *Activado*, se corta {}\n".format(CORTES_AUTOJA[self.corte_autoja()])
+        else:
+            board += "Voto automático Ja (/startautoja): *Desactivado*\n"
         player_number = len(game.playerlist)
         es_socialista = game.es_socialista()
         if self.role == "Fascista":

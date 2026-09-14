@@ -17,7 +17,7 @@ import SecretHitler.Commands as Commands
 from SecretHitler.Constants.Cards import playerSets
 from SecretHitler.Constants.Cards import socialistSets
 from SecretHitler.Constants.Cards import CENSURA_DESDE
-from SecretHitler.Constants.Config import ADMIN, VERSION
+from SecretHitler.Constants.Config import ADMIN, VERSION, POLITICAS_PARA_CORTAR_AUTOJA
 from SecretHitler.Boardgamebox.Game import Game
 from SecretHitler.Boardgamebox.Player import Player
 from SecretHitler.PlayerStats import PlayerStats
@@ -175,6 +175,27 @@ def is_zona_hitler(game):
 	# Zona Hitler: ya se promulgaron 3 politicas fascistas
 	return game.board.state.fascist_track >= 3
 
+
+def politicas_promulgadas(game):
+	# Todas las politicas que ya estan en la mesa, sin importar el color (en modo socialista
+	# la pista socialista tambien cuenta).
+	state = game.board.state
+	return state.liberal_track + state.fascist_track + getattr(state, "socialist_track", 0)
+
+
+def autoja_cortado(game, player):
+	# Si el voto automatico Ja de este jugador ya no corresponde. El criterio lo elige cada
+	# jugador en /startautoja: cortar por Zona Hitler, por cantidad de politicas promulgadas,
+	# o por cualquiera de las dos (el default).
+	corte = player.corte_autoja()
+	por_fascistas = is_zona_hitler(game)
+	por_politicas = politicas_promulgadas(game) >= POLITICAS_PARA_CORTAR_AUTOJA
+	if corte == "fascistas":
+		return por_fascistas
+	if corte == "politicas":
+		return por_politicas
+	return por_fascistas or por_politicas
+
 def vote(bot, game):
 	log.info('vote called')
 	#When voting starts we start the counter to see later with the vote command if we can see you voted.
@@ -184,7 +205,6 @@ def vote(bot, game):
 	btns = [[InlineKeyboardButton("Ja", callback_data=strcid + "_Ja"),
 	InlineKeyboardButton("Nein", callback_data=strcid + "_Nein")]]
 	voteMarkup = InlineKeyboardMarkup(btns)
-	zona_hitler = is_zona_hitler(game)
 	for uid in game.playerlist:
 		if not game.playerlist[uid].is_dead and not game.is_debugging:
 			if game.playerlist[uid] is not game.board.state.nominated_president:
@@ -194,7 +214,7 @@ def vote(bot, game):
 			if hasattr(game, 'groupName'):
 				groupName += "*En el grupo {}*\n".format(game.groupName)
 			msg = "{}Quieres elegir al Presidente *{}* y al canciller *{}*?".format(groupName, game.board.state.nominated_president.name, game.board.state.nominated_chancellor.name)
-			if getattr(game.playerlist[uid], 'auto_ja', False) and not zona_hitler:
+			if getattr(game.playerlist[uid], 'auto_ja', False) and not autoja_cortado(game, game.playerlist[uid]):
 				game.board.state.last_votes[uid] = "Ja"
 				msg += "\n\nTienes */startautoja* activado: tu voto *Ja* ya fue registrado automáticamente. Usa /retirar si querés votar distinto."
 			bot.send_message(uid, msg,	reply_markup=voteMarkup, parse_mode=ParseMode.MARKDOWN)
@@ -1887,6 +1907,7 @@ def main():
 	dp.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)\*chooseGameStartAutoJa\*(.*)\*(-?[0-9]*)", callback=Commands.callback_startautoja))
 	dp.add_handler(CommandHandler("stopautoja", Commands.command_stopautoja))
 	dp.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)\*chooseGameStopAutoJa\*(.*)\*(-?[0-9]*)", callback=Commands.callback_stopautoja))
+	dp.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)\*autojacorte\*(.*)\*(-?[0-9]*)", callback=Commands.callback_autoja_corte))
 	dp.add_handler(CommandHandler("claim", Commands.command_claim))
 	dp.add_handler(CommandHandler("reload", Commands.command_reloadgame))
 	dp.add_handler(CommandHandler("debug", Commands.command_toggle_debugging))
@@ -1965,7 +1986,7 @@ def main():
 			BotCommand("votes", "Imprime quien ha votado"),
 			BotCommand("calltovote", "Avisa a los jugadores que hay que votar (o el MVP si ya termino)"),
 			BotCommand("retirar", "Retira tu voto de Ja o Nein para volver a votar"),
-			BotCommand("startautoja", "Activa tu voto automático Ja fuera de Zona Hitler"),
+			BotCommand("startautoja", "Activa tu voto automático Ja y elegí cuándo se corta"),
 			BotCommand("stopautoja", "Desactiva tu voto automático Ja"),
 			BotCommand("info", "Muestra tu informacion privada del juego"),
 			BotCommand("jugadores", "Muestra los jugadores del juego"),
