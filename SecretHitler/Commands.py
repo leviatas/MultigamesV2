@@ -1210,16 +1210,13 @@ def save_game(cid, groupName, game):
 	if cur.rowcount > 0:
 		log.info('Updating Game')
 		gamejson = jsonpickle.encode(game)
-		#query = "UPDATE games_secret_hitler SET groupName = %s, data = %s WHERE id = %s RETURNING data;"
-		query = "UPDATE games_secret_hitler SET groupName = %s, data = %s WHERE id = %s;"
+		query = "UPDATE games_secret_hitler SET name = %s, data = %s WHERE id = %s;"
 		cur.execute(query, (groupName, gamejson, cid))
-		#log.info(cur.fetchone()[0])
-		conn.commit()		
+		conn.commit()
 	else:
 		log.info('Saving Game in DB')
 		gamejson = jsonpickle.encode(game)
-		query = "INSERT INTO games_secret_hitler(id , groupName  , data) VALUES (%s, %s, %s);"
-		#query = "INSERT INTO games(id , groupName  , data) VALUES (%s, %s, %s) RETURNING data;"
+		query = "INSERT INTO games_secret_hitler(id , name , data) VALUES (%s, %s, %s);"
 		cur.execute(query, (cid, groupName, gamejson))
 		#log.info(cur.fetchone()[0])
 		conn.commit()
