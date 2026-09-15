@@ -7,7 +7,7 @@ Composición por color: 8×valor1, 6×valor2, 4×valor3, 2×valor4, 1×valor5 (2
 
 Cada carta: {color, valor, nombre, texto}. El nombre/efecto depende del color y
 de un umbral de valor:
-  Política       → Consolidate Power (todos los valores)
+  Política   1-2 → Consolidate Power    | 3-5 → Investigative Committee
   Liderazgo  1-2 → Executive Order      | 3-5 → Declare Emergency
   Táctica    1-2 → Launch Scout         | 3-5 → Strategic Planning
   Pilotaje   1-2 → Evasive Maneuvers    | 3-5 → Maximum Firepower
@@ -15,7 +15,11 @@ de un umbral de valor:
 
 Efectos implementados automáticamente al aportarse a un chequeo:
   - Declare Emergency: reduce la dificultad del chequeo en 2 (máx. 1 por chequeo).
+Efectos jugados en la pausa previa al aporte de cartas de un chequeo (ver
+BSGController._preguntar_precheck / TEXTOS abajo):
   - Scientific Research: todas las cartas de Ingeniería del chequeo cuentan en positivo.
+  - Investigative Committee: los aportes de los jugadores a ese chequeo se revelan boca
+    arriba (con autoría); el mazo de Destino sigue boca abajo.
 Las demás (acción/intervención) se muestran por su texto (juego interactivo futuro).
 """
 
@@ -53,12 +57,14 @@ TEXTOS = {
     "Maximum Firepower": "Acción: estando pilotando un Viper, ataca hasta 4 veces.",
     "Repair": "Acción: repara tu ubicación; en la Cubierta de Hangar, repara hasta 2 Vipers dañados.",
     "Scientific Research": "Se juega antes de añadir cartas a un chequeo: todas las de Ingeniería cuentan en positivo.",
+    "Investigative Committee": "Se juega antes de añadir cartas a un chequeo: los aportes de los jugadores "
+                               "se revelan boca arriba (con autoría); el mazo de Destino sigue boca abajo.",
 }
 
 
 def nombre_carta(color, valor):
     if color == POLITICA:
-        return "Consolidate Power"
+        return "Consolidate Power" if valor <= 2 else "Investigative Committee"
     if color == LIDERAZGO:
         return "Executive Order" if valor <= 2 else "Declare Emergency"
     if color == TACTICA:

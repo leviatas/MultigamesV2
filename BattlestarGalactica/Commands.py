@@ -314,7 +314,9 @@ async def command_jugar(update: Update, context: CallbackContext):
                 if c.get("nombre") in BSGController.CARTAS_JUGABLES]
     if not jugables:
         await bot.send_message(uid, "No tienes cartas jugables ahora. "
-                                    "(Declare Emergency / Scientific Research se aportan a un chequeo con `/aportar`.)",
+                                    "(Declare Emergency se aporta a un chequeo con `/aportar`. "
+                                    "Scientific Research / Investigative Committee se preguntan solas "
+                                    "antes de aportar a un chequeo.)",
                                parse_mode=ParseMode.MARKDOWN)
         return
     btns = [[InlineKeyboardButton(f"{Skills.EMOJI_COLOR[c['color']]} {c.get('nombre')} ({c['valor']})",
@@ -1220,6 +1222,108 @@ async def command_resolver(update: Update, context: CallbackContext):
         await bot.send_message(cid, "Solo el Almirante, el jugador activo o un admin pueden resolver.")
         return
     await BSGController.resolver_chequeo(bot, game)
+
+
+@relay_comando
+async def command_saltar_pausa(update: Update, context: CallbackContext):
+    """Corta la pausa previa al aporte de cartas del chequeo (donde se
+    pregunta por Scientific Research / Investigative Committee) y pasa
+    directo a la fase de aporte, sin esperar más respuestas. Solo el
+    Almirante, el jugador activo o un admin pueden hacerlo."""
+    bot = context.bot
+    cid = update.message.chat_id
+    uid = update.message.from_user.id
+    game = get_game(cid)
+    if not _validar(game):
+        await bot.send_message(cid, "No hay partida de Battlestar Galactica activa aquí.")
+        return
+    st = game.board.state
+    if not st.skill_check or not st.skill_check.get("precheck"):
+        await bot.send_message(cid, "No hay ninguna pausa previa a un chequeo esperando respuestas.")
+        return
+    permitido = (uid in ADMIN or uid == st.almirante_uid or
+                 (st.active_player and uid == st.active_player.uid))
+    if not permitido:
+        await bot.send_message(cid, "Solo el Almirante, el jugador activo o un admin pueden saltar la pausa.")
+        return
+    await BSGController.saltar_precheck(bot, game)
+
+
+async def callback_bsg_precheck_usar(update: Update, context: CallbackContext):
+    """El jugador en turno de la pausa previa elige jugar Scientific Research
+    o Investigative Committee."""
+    bot = context.bot
+    callback = update.callback_query
+    presser = callback.from_user.id
+    try:
+        regex = re.search(r"(-?[0-9]*)\*bsgPrecheckUsar\*(sci|inv)\*(-?[0-9]*)", callback.data)
+        cid = int(regex.group(1))
+        tipo = regex.group(2)
+        ordenante = int(regex.group(3))
+        if presser != ordenante:
+            await callback.answer("Esto no es para vos.")
+            return
+        game = get_game(cid)
+        if not _validar(game) or presser not in game.playerlist:
+            await callback.answer("Partida no encontrada.")
+            return
+        st = game.board.state
+        sc = st.skill_check
+        pre = sc.get("precheck") if sc else None
+        if not pre or pre["idx"] >= len(pre["orden"]) or pre["orden"][pre["idx"]] != presser:
+            await callback.answer("Ya no te toca decidir esto.")
+            return
+        await callback.answer()
+        try:
+            await bot.edit_message_reply_markup(presser, callback.message.message_id, reply_markup=None)
+        except Exception:
+            pass
+        await BSGController.usar_precheck(bot, game, presser, tipo)
+    except Exception as e:
+        logger.error(f"callback_bsg_precheck_usar error: {e}")
+        try:
+            await callback.answer("Error.")
+        except Exception:
+            pass
+        await bot.send_message(ADMIN[0], f"BSG precheck usar error: {e}")
+
+
+async def callback_bsg_precheck_pasar(update: Update, context: CallbackContext):
+    """El jugador en turno de la pausa previa pasa (no juega ninguna de las
+    dos cartas)."""
+    bot = context.bot
+    callback = update.callback_query
+    presser = callback.from_user.id
+    try:
+        regex = re.search(r"(-?[0-9]*)\*bsgPrecheckPasar\*[0-9]*\*(-?[0-9]*)", callback.data)
+        cid = int(regex.group(1))
+        ordenante = int(regex.group(2))
+        if presser != ordenante:
+            await callback.answer("Esto no es para vos.")
+            return
+        game = get_game(cid)
+        if not _validar(game) or presser not in game.playerlist:
+            await callback.answer("Partida no encontrada.")
+            return
+        st = game.board.state
+        sc = st.skill_check
+        pre = sc.get("precheck") if sc else None
+        if not pre or pre["idx"] >= len(pre["orden"]) or pre["orden"][pre["idx"]] != presser:
+            await callback.answer("Ya no te toca decidir esto.")
+            return
+        await callback.answer()
+        try:
+            await bot.edit_message_reply_markup(presser, callback.message.message_id, reply_markup=None)
+        except Exception:
+            pass
+        await BSGController.pasar_precheck(bot, game, presser)
+    except Exception as e:
+        logger.error(f"callback_bsg_precheck_pasar error: {e}")
+        try:
+            await callback.answer("Error.")
+        except Exception:
+            pass
+        await bot.send_message(ADMIN[0], f"BSG precheck pasar error: {e}")
 
 
 def _bsg_chequeo_turno_valido(game, presser):

@@ -22,6 +22,10 @@ Implementado en esta capa:
 - Cartas de habilidad jugables con /jugar: de acción (Consolidate Power,
   Repair, Maximum Firepower, Launch Scout, Executive Order) y reactivas que se
   arman (Strategic Planning +2 al ataque, Evasive Maneuvers reroll defensivo).
+- Antes de aportar cartas a un chequeo hay una pausa: se pregunta, en orden
+  (el más cercano al jugador activo primero), a quien tenga Scientific
+  Research o Investigative Committee si quiere jugarla (ver
+  _preguntar_precheck/usar_precheck/saltar_precheck).
 - Habilidades 1/juego de cada personaje y pasivas de los 9 personajes: Adama
   (fuerza 1 positiva), Tyrol (mano 8), Apollo (descartes al azar), Baltar (roba
   carta tras la Crisis), Roslin (roba 2 Crisis y elige 1), Boomer (mira la
@@ -1302,19 +1306,33 @@ async def abrir_chequeo_ubicacion(bot, game, actor_uid, accion, objetivo_uid):
         "dificultad": dificultad,
         "aportes": {},
     }
-    emojis = " ".join(Skills.EMOJI_COLOR[c] for c in check["colores"])
+    await save(bot, game.cid)
+    await _abrir_precheck_o_aportes(bot, game, _orden_aporte(game))
+    return True
+
+
+async def _iniciar_fase_aportes_ubicacion(bot, game):
+    """Mensaje de apertura de la fase de aporte de un chequeo de acción de
+    ubicación (aporte libre, sin orden de turno) y oferta del modificador de
+    dificultad de Tigh/Zarek/Árbitro. Se llama al abrir el chequeo
+    directamente, o tras cerrarse la pausa previa de Scientific Research /
+    Investigative Committee (ver _abrir_precheck_o_aportes)."""
+    st = game.board.state
+    sc = st.skill_check
+    emojis = " ".join(Skills.EMOJI_COLOR[c] for c in sc["colores"])
+    actor_uid = sc.get("actor_uid")
+    objetivo_uid = sc.get("objetivo_uid")
     obj = game.playerlist.get(objetivo_uid)
     obj_txt = f" sobre *{obj.name}*" if obj and objetivo_uid != actor_uid else ""
     await bot.send_message(
         game.cid,
-        f"🎲 *Chequeo de acción*{obj_txt} — dificultad *{dificultad}*.\n"
+        f"🎲 *Chequeo de acción*{obj_txt} — dificultad *{sc['dificultad']}*.\n"
         f"Colores positivos: {emojis}.\n"
         f"Aporten con `/aportar N` y resuelvan con `/resolver`.",
         parse_mode=ParseMode.MARKDOWN,
     )
     await save(bot, game.cid)
     await _ofrecer_modificador_dificultad(bot, game)
-    return True
 
 
 def _buscar_personaje(game, pj):
@@ -3077,10 +3095,189 @@ def _turno_aporte_actual(sc):
     return orden[idx]
 
 
+# ===================== PAUSA PREVIA AL APORTE (Scientific Research / =========
+# ===================== Investigative Committee) ==============================
+# Antes de que arranque el aporte de cartas de cualquier chequeo, se pregunta
+# -en el mismo orden que se aporta, el más cercano al jugador activo primero-
+# a quien tenga alguna de estas dos cartas nombradas si quiere jugarla (o
+# pasar). En cuanto alguien la juega (o todos pasan) arranca el aporte normal.
+PRECHECK_CARTAS = {"sci": "Scientific Research", "inv": "Investigative Committee"}
+PRECHECK_FLAGS = {"sci": "cientifica", "inv": "comite"}
+
+
+def _candidatos_precheck(game, orden):
+    """De la lista `orden` de uids (mismo orden que el aporte de cartas), los
+    que tienen en la mano Scientific Research y/o Investigative Committee."""
+    candidatos = []
+    for uid in orden or []:
+        player = game.playerlist.get(uid)
+        if not player:
+            continue
+        nombres = {c.get("nombre") for c in player.skill_hand}
+        if nombres & CARTAS_PRECHECK:
+            candidatos.append(uid)
+    return candidatos
+
+
+async def _abrir_precheck_o_aportes(bot, game, orden):
+    """Tras crear st.skill_check, arranca la pausa previa si algún jugador
+    del orden de aporte tiene Scientific Research o Investigative Committee;
+    si nadie tiene ninguna, pasa directo a la fase de aporte normal."""
+    st = game.board.state
+    sc = st.skill_check
+    candidatos = _candidatos_precheck(game, orden)
+    if not candidatos:
+        await _iniciar_fase_aportes(bot, game)
+        return
+    sc["precheck"] = {"orden": candidatos, "idx": 0}
+    await bot.send_message(
+        game.cid,
+        "⏸️ *Pausa antes del chequeo*: antes de aportar cartas se pregunta, en orden (el "
+        "más cercano al jugador activo primero), a quien tenga *Scientific Research* o "
+        "*Investigative Committee* si quiere jugarla. El Almirante, el jugador activo o un "
+        "admin pueden usar `/saltarpausa` para pasar directo al aporte.",
+        parse_mode=ParseMode.MARKDOWN,
+    )
+    await _preguntar_precheck(bot, game)
+    await save(bot, game.cid)
+
+
+async def _preguntar_precheck(bot, game):
+    """Le manda por privado al siguiente candidato de la pausa previa la
+    pregunta de si quiere jugar Scientific Research y/o Investigative
+    Committee, o pasar."""
+    st = game.board.state
+    sc = st.skill_check
+    if not sc:
+        return
+    pre = sc.get("precheck")
+    if not pre:
+        return
+    orden = pre["orden"]
+    idx = pre["idx"]
+    if idx >= len(orden):
+        await _terminar_precheck(bot, game)
+        return
+    uid = orden[idx]
+    player = game.playerlist.get(uid)
+    if not player:
+        pre["idx"] += 1
+        await _preguntar_precheck(bot, game)
+        return
+    nombres = {c.get("nombre") for c in player.skill_hand}
+    btns = []
+    for tipo, nombre in PRECHECK_CARTAS.items():
+        if nombre in nombres:
+            btns.append([InlineKeyboardButton(f"🃏 Usar {nombre}",
+                                              callback_data=f"{game.cid}*bsgPrecheckUsar*{tipo}*{uid}")])
+    btns.append([InlineKeyboardButton("⏭️ Pasar", callback_data=f"{game.cid}*bsgPrecheckPasar*0*{uid}")])
+    await bot.send_message(
+        uid,
+        "⏸️ Antes de que empiece el aporte de cartas al chequeo: ¿querés jugar "
+        "*Scientific Research* o *Investigative Committee*, o pasar?",
+        reply_markup=InlineKeyboardMarkup(btns),
+        parse_mode=ParseMode.MARKDOWN,
+    )
+    await bot.send_message(
+        game.cid,
+        f"⏸️ Esperando la decisión de *{player.name}* (Scientific Research / Investigative "
+        f"Committee) antes de empezar a aportar.",
+        parse_mode=ParseMode.MARKDOWN,
+    )
+
+
+async def usar_precheck(bot, game, uid, tipo):
+    """El candidato en turno de la pausa previa juega Scientific Research o
+    Investigative Committee: la carta sale de su mano y arma el efecto para
+    todo el chequeo; la pausa termina ahí mismo (no se sigue preguntando al
+    resto: solo se puede jugar una)."""
+    st = game.board.state
+    sc = st.skill_check
+    if not sc:
+        return
+    pre = sc.get("precheck")
+    if not pre or pre["idx"] >= len(pre["orden"]) or pre["orden"][pre["idx"]] != uid:
+        return
+    nombre = PRECHECK_CARTAS.get(tipo)
+    player = game.playerlist.get(uid)
+    if not nombre or not player:
+        return
+    carta = None
+    for i, c in enumerate(player.skill_hand):
+        if c.get("nombre") == nombre:
+            carta = player.skill_hand.pop(i)
+            break
+    if not carta:
+        await bot.send_message(uid, "Ya no tenés esa carta.")
+        return
+    st.skill_discards.setdefault(carta["color"], []).append(carta)
+    sc[PRECHECK_FLAGS[tipo]] = True
+    sc["precheck"] = None
+    await bot.send_message(
+        game.cid,
+        f"🃏 *{player.name}* juega *{nombre}* antes del chequeo "
+        f"({Skills.EMOJI_COLOR[carta['color']]} {carta['color']} {carta['valor']}).",
+        parse_mode=ParseMode.MARKDOWN,
+    )
+    await _dm_mano(bot, player)
+    await _terminar_precheck(bot, game)
+
+
+async def pasar_precheck(bot, game, uid):
+    """El candidato en turno de la pausa previa pasa: le toca al siguiente, o
+    si era el último, se termina la pausa sin que nadie jugara nada."""
+    st = game.board.state
+    sc = st.skill_check
+    if not sc:
+        return
+    pre = sc.get("precheck")
+    if not pre or pre["idx"] >= len(pre["orden"]) or pre["orden"][pre["idx"]] != uid:
+        return
+    pre["idx"] += 1
+    await _preguntar_precheck(bot, game)
+    await save(bot, game.cid)
+
+
+async def saltar_precheck(bot, game):
+    """Corta la pausa previa (Scientific Research / Investigative Committee)
+    y pasa directo a la fase de aporte, sin esperar más respuestas."""
+    st = game.board.state
+    sc = st.skill_check
+    if not sc or not sc.get("precheck"):
+        return False
+    sc["precheck"] = None
+    await bot.send_message(game.cid, "⏭️ Se pasa directo al aporte de cartas del chequeo.")
+    await _terminar_precheck(bot, game)
+    return True
+
+
+async def _terminar_precheck(bot, game):
+    """Cierra la pausa previa (con o sin carta jugada) y arranca la fase
+    normal de aporte de cartas del chequeo."""
+    st = game.board.state
+    sc = st.skill_check
+    if sc:
+        sc["precheck"] = None
+    await _iniciar_fase_aportes(bot, game)
+    await save(bot, game.cid)
+
+
+async def _iniciar_fase_aportes(bot, game):
+    """Arranca la fase de aporte de cartas del chequeo abierto, sea de Crisis
+    (con orden de turno) o de acción de ubicación (aporte libre)."""
+    st = game.board.state
+    sc = st.skill_check
+    if not sc:
+        return
+    if sc.get("ubicacion_accion"):
+        await _iniciar_fase_aportes_ubicacion(bot, game)
+    else:
+        await _iniciar_fase_aportes_crisis(bot, game)
+
+
 async def abrir_chequeo(bot, game, crisis):
     st = game.board.state
     colores = crisis["colores"]
-    emojis = " ".join(Skills.EMOJI_COLOR[c] for c in colores)
     orden = _orden_aporte(game)
     st.skill_check = {
         "crisis_id": crisis.get("id", crisis.get("titulo")),
@@ -3091,11 +3288,26 @@ async def abrir_chequeo(bot, game, crisis):
         "turno_idx": 0,
     }
     st.aporte_pendiente = None
+    await save(bot, game.cid)
+    await _abrir_precheck_o_aportes(bot, game, orden)
+
+
+async def _iniciar_fase_aportes_crisis(bot, game):
+    """Mensaje de apertura de la fase de aporte de cartas de un chequeo de
+    Crisis y botonera para el primer jugador del orden de turno. Se llama al
+    abrir el chequeo directamente, o tras cerrarse la pausa previa de
+    Scientific Research / Investigative Committee (ver _abrir_precheck_o_aportes)."""
+    st = game.board.state
+    sc = st.skill_check
+    colores = sc["colores"]
+    dificultad = sc["dificultad"]
+    orden = sc.get("orden") or []
+    emojis = " ".join(Skills.EMOJI_COLOR[c] for c in colores)
     primero = game.playerlist.get(orden[0]) if orden else None
     turno_txt = f"\n\n▶️ Turno de *{primero.name}* para aportar." if primero else ""
     await bot.send_message(
         game.cid,
-        f"🎲 *Chequeo de habilidad* — dificultad *{crisis['dificultad']}*.\n"
+        f"🎲 *Chequeo de habilidad* — dificultad *{dificultad}*.\n"
         f"Colores positivos: {emojis} ({', '.join(colores)}).\n\n"
         f"Se aporta *en orden de turno*, empezando por el siguiente jugador al jugador "
         f"activo y terminando por el jugador activo. A cada jugador le va a llegar por "
@@ -3125,8 +3337,15 @@ CARTAS_JUGABLES = CARTAS_ACCION | CARTAS_ARMABLES
 # Cuándo se usan las cartas que no se juegan con /jugar (mensaje informativo).
 CUANDO_SE_JUEGAN = {
     "Declare Emergency": "se aporta a un chequeo (reduce su dificultad en 2).",
-    "Scientific Research": "se aporta a un chequeo (Ingeniería cuenta en positivo).",
+    "Scientific Research": "se pregunta automáticamente antes de aportar a un chequeo "
+                           "(Ingeniería cuenta en positivo).",
+    "Investigative Committee": "se pregunta automáticamente antes de aportar a un chequeo "
+                               "(revela boca arriba lo que aporten los jugadores).",
 }
+
+# Cartas de habilidad nombradas que se preguntan en la pausa previa al aporte
+# de cartas de un chequeo (ver abrir_chequeo / _preguntar_precheck).
+CARTAS_PRECHECK = {"Scientific Research", "Investigative Committee"}
 
 
 async def carta_repair(bot, game, player):
@@ -3463,13 +3682,15 @@ async def aportar_carta(bot, game, uid, indice):
         st.aporte_pendiente = None
     pista = _pista_aporte(st.skill_check, st.skill_check["aportes"][uid])
     pista_txt = f"\n{pista}" if pista else ""
+    boca = "boca arriba" if st.skill_check.get("comite") else "boca abajo"
     await bot.send_message(
         uid,
         f"Aportaste {Skills.EMOJI_COLOR[carta['color']]} {carta['color']} {carta['valor']} "
-        f"(boca abajo). Podés aportar otra carta o usar `/pasarchequeo` para ceder el turno."
+        f"({boca}). Podés aportar otra carta o usar `/pasarchequeo` para ceder el turno."
         f"{pista_txt}",
         parse_mode=ParseMode.MARKDOWN,
     )
+    await _anunciar_aporte_comite(bot, game, player, [carta])
     await _dm_mano(bot, player)
     await save(bot, game.cid)
 
@@ -3543,10 +3764,27 @@ async def confirmar_aporte(bot, game, uid):
         cartas.reverse()  # volver al orden en que se eligieron
         sc["aportes"].setdefault(uid, []).extend(cartas)
         resumen = ", ".join(_texto_carta_corto(c) for c in cartas)
-        await bot.send_message(uid, f"✅ Aportaste {len(cartas)} carta(s) (boca abajo): {resumen}.",
+        boca = "boca arriba" if sc.get("comite") else "boca abajo"
+        await bot.send_message(uid, f"✅ Aportaste {len(cartas)} carta(s) ({boca}): {resumen}.",
                                parse_mode=ParseMode.MARKDOWN)
+        await _anunciar_aporte_comite(bot, game, player, cartas)
         await _dm_mano(bot, player)
     await pasar_aporte(bot, game, uid)
+
+
+async def _anunciar_aporte_comite(bot, game, player, cartas):
+    """Con Investigative Committee jugada en la pausa previa del chequeo, los
+    aportes de los jugadores van boca arriba: se anuncian en el grupo con
+    autoría (el mazo de Destino sigue boca abajo, eso no cambia)."""
+    sc = game.board.state.skill_check
+    if not sc or not sc.get("comite") or not cartas:
+        return
+    resumen = ", ".join(_texto_carta_corto(c) for c in cartas)
+    await bot.send_message(
+        game.cid,
+        f"👁️ *Investigative Committee*: {player.name} aporta boca arriba {resumen}.",
+        parse_mode=ParseMode.MARKDOWN,
+    )
 
 
 async def resolver_chequeo(bot, game):
@@ -3565,9 +3803,12 @@ async def resolver_chequeo(bot, game):
     for uid, cartas in sc["aportes"].items():
         for c in cartas:
             todas.append(c)
-    # Habilidades de cartas jugadas en el chequeo (solo aportes de jugadores)
+    # Habilidades de cartas jugadas en el chequeo (solo aportes de jugadores).
+    # Scientific Research / Investigative Committee ya no se aportan: se juegan
+    # en la pausa previa (ver _preguntar_precheck/usar_precheck) y quedan como
+    # flags en el propio chequeo.
     nombres = [c.get("nombre") for c in todas]
-    scientific = "Scientific Research" in nombres   # Ingeniería cuenta en positivo
+    scientific = bool(sc.get("cientifica"))   # Ingeniería cuenta en positivo
     declare_emergency = nombres.count("Declare Emergency")
     # Adama 'Líder Inspirador': las cartas de fuerza 1 cuentan en positivo.
     adama_activo = any(getattr(p, "personaje", None) == "adama" and not p.revealed
@@ -3621,6 +3862,8 @@ async def resolver_chequeo(bot, game):
         notas.append("Declare Emergency −2 dif.")
     if scientific:
         notas.append("Scientific Research: Ingeniería positiva")
+    if sc.get("comite"):
+        notas.append("Investigative Committee: aportes revelados boca arriba")
     if adama_activo:
         notas.append("Adama: fuerza 1 positiva")
     if devocion:
