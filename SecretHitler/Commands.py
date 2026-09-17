@@ -85,6 +85,7 @@ commands = [  # command description used in the "help" command
     '/retirar - Retira tu voto de Ja o Nein para poder votar de nuevo',
     '/startautoja - Activa tu voto automático Ja apenas se proponga una fórmula, y te deja elegir cuándo se corta: con 3 políticas fascistas, con 5 políticas promulgadas, o con cualquiera de las dos',
     '/stopautoja - Desactiva tu voto automático Ja',
+    '/conflicto - Desactiva el voto automático Ja de todos los jugadores de la partida',
     '/logros - Muestra tus logros desbloqueados',
     '/guess - Adivina en privado quiénes son los fascistas y Hitler',
     '/mvp - Vota en privado al mejor jugador de la partida',
@@ -1093,6 +1094,35 @@ def callback_autoja_corte(update: Update, context: CallbackContext):
 	bot.edit_message_text(
 		"Listo: tu voto automático *Ja* en *{}* se corta {}.".format(game.groupName, CORTES_AUTOJA[corte]),
 		uid, callback.message.message_id, parse_mode=ParseMode.MARKDOWN)
+
+def command_conflicto(update: Update, context: CallbackContext):
+	# Ante un conflicto en el grupo (acusaciones de que el auto-Ja tapó una votación, etc.)
+	# apaga de un saque el voto automático de todos los jugadores, sin depender de que cada
+	# uno se acuerde de hacer /stopautoja.
+	bot = context.bot
+	cid = update.message.chat_id
+	try:
+		game = get_game(cid)
+		if not game or game.board is None:
+			bot.send_message(cid, "No hay juego en este chat. Crea un nuevo juego con /newgame")
+			return
+		afectados = [p for p in game.playerlist.values() if getattr(p, 'auto_ja', False)]
+		if not afectados:
+			bot.send_message(cid, "Ningún jugador tenía el voto automático *Ja* activado.", parse_mode=ParseMode.MARKDOWN)
+			return
+		for p in afectados:
+			p.auto_ja = False
+		save_game(cid, "conflicto Round %d" % (game.board.state.currentround), game)
+		bot.send_message(cid,
+			"⚠️ Se desactivó el voto automático *Ja* de todos los jugadores en este juego. "
+			"Quien quiera volver a activarlo tiene que usar /startautoja de nuevo.",
+			parse_mode=ParseMode.MARKDOWN)
+		for p in afectados:
+			bot.send_message(p.uid,
+				"Se desactivó tu voto automático *Ja* en *{}* con /conflicto. Usa /startautoja si querés volver a activarlo.".format(game.groupName),
+				parse_mode=ParseMode.MARKDOWN)
+	except Exception as e:
+		bot.send_message(cid, str(e))
 
 def command_showhistory(update: Update, context: CallbackContext):
 	bot = context.bot

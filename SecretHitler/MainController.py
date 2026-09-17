@@ -1940,6 +1940,7 @@ def main():
 	dp.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)\*chooseGameStartAutoJa\*(.*)\*(-?[0-9]*)", callback=Commands.callback_startautoja))
 	dp.add_handler(CommandHandler("stopautoja", Commands.command_stopautoja))
 	dp.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)\*chooseGameStopAutoJa\*(.*)\*(-?[0-9]*)", callback=Commands.callback_stopautoja))
+	dp.add_handler(CommandHandler("conflicto", Commands.command_conflicto))
 	dp.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)\*autojacorte\*(.*)\*(-?[0-9]*)", callback=Commands.callback_autoja_corte))
 	dp.add_handler(CommandHandler("claim", Commands.command_claim))
 	dp.add_handler(CommandHandler("reload", Commands.command_reloadgame))
@@ -2021,6 +2022,7 @@ def main():
 			BotCommand("retirar", "Retira tu voto de Ja o Nein para volver a votar"),
 			BotCommand("startautoja", "Activa tu voto automático Ja y elegí cuándo se corta"),
 			BotCommand("stopautoja", "Desactiva tu voto automático Ja"),
+			BotCommand("conflicto", "Desactiva el voto automático Ja de todos los jugadores"),
 			BotCommand("info", "Muestra tu informacion privada del juego"),
 			BotCommand("jugadores", "Muestra los jugadores del juego"),
 			BotCommand("leave", "Te saca de un juego existente"),
