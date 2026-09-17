@@ -265,6 +265,26 @@ def handle_voting(update: Update, context: CallbackContext):
 	except Exception as e:
 		log.error(str(e))
 
+def resumen_de_votos(game, votos, valor_ja, valor_nein):
+	# Version compacta de la votacion, para el historial: una linea por resultado
+	# con la cantidad y los nombres de quienes votaron asi.
+	ja = []
+	nein = []
+	for player in game.player_sequence:
+		nombre_jugador = game.playerlist[player.uid].name.replace("_", " ")
+		if votos.get(player.uid) == valor_ja:
+			ja.append(nombre_jugador)
+		elif votos.get(player.uid) == valor_nein:
+			nein.append(nombre_jugador)
+	texto = "%d Votos Ja" % len(ja)
+	if ja:
+		texto += ": " + ", ".join(ja)
+	texto += "\n%d Votos Nein" % len(nein)
+	if nein:
+		texto += ": " + ", ".join(nein)
+	return texto + "\n"
+
+
 def count_votes(bot, game):
 	# La votacion ha finalizado.
 	game.dateinitvote = None
@@ -272,6 +292,7 @@ def count_votes(bot, game):
 	log.info('count_votes called')
 	voting_text = ""
 	voting_success = False
+	resumen_text = resumen_de_votos(game, game.board.state.last_votes, "Ja", "Nein")
 	for player in game.player_sequence:
 		nombre_jugador = game.playerlist[player.uid].name.replace("_", " ")
 		if game.board.state.last_votes[player.uid] == "Ja":
@@ -282,9 +303,10 @@ def count_votes(bot, game):
 		len(game.player_sequence) / 2):  # because player_sequence doesnt include dead
 		# VOTING WAS SUCCESSFUL
 		log.info("Voting successful")
-		voting_text += "Hail Presidente [%s](tg://user?id=%d)! Hail Canciller [%s](tg://user?id=%d)!" % (
+		resultado_text = "Hail Presidente [%s](tg://user?id=%d)! Hail Canciller [%s](tg://user?id=%d)!" % (
 			game.board.state.nominated_president.name, game.board.state.nominated_president.uid, 
 				game.board.state.nominated_chancellor.name, game.board.state.nominated_chancellor.uid)
+		voting_text += resultado_text
 		game.board.state.chancellor = game.board.state.nominated_chancellor
 		game.board.state.president = game.board.state.nominated_president
 		game.board.state.nominated_president = None
@@ -293,18 +315,19 @@ def count_votes(bot, game):
 		
 		bot.send_message(game.cid, voting_text, ParseMode.MARKDOWN)
 		bot.send_message(game.cid, "\nNo se puede hablar ahora.")
-		game.history.append(("Ronda %d.%d\n\n" % (politicas_promulgadas(game) + 1, game.board.state.failed_votes + 1) ) + voting_text)
+		game.history.append(("Ronda %d.%d\n\n" % (politicas_promulgadas(game) + 1, game.board.state.failed_votes + 1) ) + resumen_text + resultado_text)
 		#log.info(game.history[game.board.state.currentround])
 		voting_aftermath(bot, game, voting_success)
 	else:
 		log.info("Voting failed")
-		voting_text += "Al pueblo no le gusto el Presidente %s y el canciller %s!" % (
+		resultado_text = "Al pueblo no le gusto el Presidente %s y el canciller %s!" % (
 			game.board.state.nominated_president.name, game.board.state.nominated_chancellor.name)
+		voting_text += resultado_text
 		game.board.state.nominated_president = None
 		game.board.state.nominated_chancellor = None
 		game.board.state.failed_votes += 1
 		bot.send_message(game.cid, voting_text)
-		game.history.append(("Ronda %d.%d\n\n" % (politicas_promulgadas(game) + 1, game.board.state.failed_votes) ) + voting_text)
+		game.history.append(("Ronda %d.%d\n\n" % (politicas_promulgadas(game) + 1, game.board.state.failed_votes) ) + resumen_text + resultado_text)
 		#log.info(game.history[game.board.state.currentround])
 		if game.board.state.failed_votes == 3:
 			do_anarchy(bot, game)
@@ -1275,6 +1298,7 @@ def count_votes_anarquia(bot, game):
 	log.info('count_votes_anarquia called')
 	voting_text = ""
 	voting_success = False
+	resumen_text = resumen_de_votos(game, game.board.state.votes_anarquia, "Si", "No")
 	for player in game.player_sequence:
 		nombre_jugador = game.playerlist[player.uid].name
 		if game.board.state.votes_anarquia[player.uid] == "Si":
@@ -1284,12 +1308,13 @@ def count_votes_anarquia(bot, game):
 	if list(game.board.state.votes_anarquia.values()).count("Si") >= (len(game.player_sequence) / 2):  # because player_sequence doesnt include dead
 		# VOTING WAS SUCCESSFUL
 		log.info("Vamos a anarquia!")
-		voting_text += "Debido a que la mayoria de los jugador ha decidido ir a anarquia se ejecuta la anarquia."		
+		resultado_text = "Debido a que la mayoria de los jugador ha decidido ir a anarquia se ejecuta la anarquia."
+		voting_text += resultado_text
 		game.board.state.nominated_president = None
 		game.board.state.nominated_chancellor = None
 		bot.send_message(game.cid, voting_text, ParseMode.MARKDOWN)
 		bot.send_message(game.cid, "\nNo se puede hablar ahora.")
-		game.history.append(("Ronda %d.%d\n\n" % (politicas_promulgadas(game) + 1, game.board.state.failed_votes + 1) ) + voting_text)
+		game.history.append(("Ronda %d.%d\n\n" % (politicas_promulgadas(game) + 1, game.board.state.failed_votes + 1) ) + resumen_text + resultado_text)
 		# Avanzo la cantidad del lider asi el lider queda correctamente asignado
 		# Se incrementa como mucho 2 ya que el ultimo incremento lo hace la anarquia
 		for i in range(2 - game.board.state.failed_votes):
@@ -1297,11 +1322,12 @@ def count_votes_anarquia(bot, game):
 		do_anarchy(bot, game)
 	else:
 		log.info("La gente no quiere anarquia")
-		voting_text += "Al no quiso ir a anarquia"
+		resultado_text = "Al no quiso ir a anarquia"
+		voting_text += resultado_text
 		game.board.state.nominated_president = None
 		game.board.state.nominated_chancellor = None
 		bot.send_message(game.cid, voting_text, ParseMode.MARKDOWN)
-		game.history.append(("Ronda %d.%d\n\n" % (politicas_promulgadas(game) + 1, game.board.state.failed_votes + 1) ) + voting_text)
+		game.history.append(("Ronda %d.%d\n\n" % (politicas_promulgadas(game) + 1, game.board.state.failed_votes + 1) ) + resumen_text + resultado_text)
 		#game.board.state.failed_votes == 3
 		
 			
