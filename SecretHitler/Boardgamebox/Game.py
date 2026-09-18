@@ -5,6 +5,7 @@ from random import shuffle
 from SecretHitler.Boardgamebox.Player import Player
 from SecretHitler.Boardgamebox.Board import Board
 from SecretHitler.Boardgamebox.State import State
+from SecretHitler.i18n import t, role_name, preference_label
 
 # Cantidad minima de votos de /mvp para que un empate se reparta: si los jugadores
 # mas votados empatan con este numero de votos o mas, todos ellos son MVP de la partida.
@@ -176,7 +177,10 @@ class Game(object):
 			if p.uid == Player.uid:
 				p.remove(Player)
 
-	def print_roles(self):
+	def print_roles(self, ctx=None):
+		# ctx: idioma en que se arma el listado. Ojo: la copia que se guarda en
+		# stats_detail_secret_hitler tiene que quedar SIEMPRE en espanol ("es"), porque
+		# las consultas de /stats la buscan con LIKE '%El rol de X era Fasc%'.
 		try:
 			rtext = ""
 			if self.board is None:
@@ -188,8 +192,13 @@ class Game(object):
 					role = self.playerlist[p].role
 					preference_rol = self.playerlist[p].preference_rol
 					muerto = self.playerlist[p].is_dead
-					reclutado = " (reclutado por los socialistas)" if getattr(self.playerlist[p], "was_recruited", False) else ""
-					rtext += "El rol de %s %sera %s%s %s" % (name, "(muerto) " if muerto else "", role, reclutado, ("" if preference_rol == "" else "queria ser " + preference_rol))
+					reclutado = t("roles.recruited_mark", ctx) if getattr(self.playerlist[p], "was_recruited", False) else ""
+					rtext += t("roles.line", ctx,
+						nombre=name,
+						muerto=t("roles.dead_mark", ctx) if muerto else "",
+						rol=role_name(role, ctx),
+						reclutado=reclutado,
+						preferencia=("" if preference_rol == "" else t("roles.wanted", ctx, preferencia=preference_label(preference_rol, ctx))))
 					rtext +=  "\n"
 				return rtext
 		except Exception as e:

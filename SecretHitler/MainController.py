@@ -20,6 +20,8 @@ from SecretHitler.Constants.Cards import CENSURA_DESDE
 from SecretHitler.Constants.Config import ADMIN, VERSION, POLITICAS_PARA_CORTAR_AUTOJA
 from SecretHitler.Boardgamebox.Game import Game
 from SecretHitler.Boardgamebox.Player import Player
+from SecretHitler.i18n import t, role_name, party_name, policy_name
+import SecretHitler.i18n as i18n
 from SecretHitler.PlayerStats import PlayerStats
 import SecretHitler.GamesController as GamesController
 import SecretHitler.StatsExtended as StatsExtended
@@ -85,7 +87,7 @@ def start_round(bot, game):
 	game.board.state.socialist_proposal = None
 
 	Commands.print_board(bot, game, game.cid)
-	msgtext =  "El próximo candidato a presidente es [%s](tg://user?id=%d).\n%s, por favor nomina a un canciller en nuestro chat privado!" % (game.board.state.nominated_president.name, game.board.state.nominated_president.uid, game.board.state.nominated_president.name)
+	msgtext =  t("round.next_president", game) % (game.board.state.nominated_president.name, game.board.state.nominated_president.uid, game.board.state.nominated_president.name)
 	bot.send_message(game.cid, msgtext, ParseMode.MARKDOWN)
 	choose_chancellor(bot, game)
 	# --> nominate_chosen_chancellor --> vote --> handle_voting --> count_votes --> voting_aftermath --> draw_policies
@@ -121,13 +123,13 @@ def choose_chancellor(bot, game):
 
 	if game.is_debugging:
 		Commands.print_board(bot, game, ADMIN)
-		bot.send_message(ADMIN, 'Por favor nomina a tu canciller!', parse_mode=ParseMode.MARKDOWN, reply_markup=chancellorMarkup)      
+		bot.send_message(ADMIN, t("chancellor.nominate_prompt", game), parse_mode=ParseMode.MARKDOWN, reply_markup=chancellorMarkup)      
 	else:
 		Commands.print_board(bot, game, game.board.state.nominated_president.uid)
 		groupName = ""
 		if hasattr(game, 'groupName'):
-			groupName += "*En el grupo {}*\n".format(game.groupName)
-		msg = '{}Por favor nomina a tu canciller!'.format(groupName)
+			groupName += t("common.in_group", game).format(game.groupName)
+		msg = t("chancellor.nominate_prompt_group", game).format(groupName)
 		bot.send_message(game.board.state.nominated_president.uid, msg, parse_mode=ParseMode.MARKDOWN, reply_markup=chancellorMarkup)
 
 	game.board.state.fase = "choose_chancellor"
@@ -147,17 +149,17 @@ def nominate_chosen_chancellor(update: Update, context: CallbackContext):
 		game = Commands.get_game(cid)
 
 		if callback.from_user.id != game.board.state.nominated_president.uid:
-			bot.edit_message_text("No eres el presidente actual, no puedes nominar!", callback.from_user.id, callback.message.message_id)
+			bot.edit_message_text(t("chancellor.not_president", game), callback.from_user.id, callback.message.message_id)
 			return
 
 		game.board.state.nominated_chancellor = game.playerlist[chosen_uid]
 		log.info("El Presidente %s (%d) nominó a %s (%d)" % (
 					game.board.state.nominated_president.name, game.board.state.nominated_president.uid,
 					game.board.state.nominated_chancellor.name, game.board.state.nominated_chancellor.uid))
-		bot.edit_message_text("Tú nominaste a %s como canciller!" % game.board.state.nominated_chancellor.name,
+		bot.edit_message_text(t("chancellor.you_nominated", game) % game.board.state.nominated_chancellor.name,
 					callback.from_user.id, callback.message.message_id)
 		bot.send_message(game.cid,
-					"El presidente %s nominó a %s como canciller. Por favor, vota ahora!" % (
+					t("chancellor.nominated_announce", game) % (
 					game.board.state.nominated_president.name, game.board.state.nominated_chancellor.name))
 		# Se setea la fase y se guarda antes de votar, porque vote() puede
 		# terminar la votación en el momento si todos los votos ya estan
@@ -213,11 +215,11 @@ def vote(bot, game):
 				Commands.print_board(bot, game, uid)
 			groupName = ""
 			if hasattr(game, 'groupName'):
-				groupName += "*En el grupo {}*\n".format(game.groupName)
-			msg = "{}Quieres elegir al Presidente *{}* y al canciller *{}*?".format(groupName, game.board.state.nominated_president.name, game.board.state.nominated_chancellor.name)
+				groupName += t("common.in_group", game).format(game.groupName)
+			msg = t("vote.ask_group", game).format(groupName, game.board.state.nominated_president.name, game.board.state.nominated_chancellor.name)
 			if getattr(game.playerlist[uid], 'auto_ja', False) and not autoja_cortado(game, game.playerlist[uid]):
 				game.board.state.last_votes[uid] = "Ja"
-				msg += "\n\nTienes */startautoja* activado: tu voto *Ja* ya fue registrado automáticamente. Usa /retirar si querés votar distinto."
+				msg += t("vote.autoja_registered", game)
 			bot.send_message(uid, msg,	reply_markup=voteMarkup, parse_mode=ParseMode.MARKDOWN)
 
 	if len(game.board.state.last_votes) == len(game.player_sequence):
@@ -236,10 +238,10 @@ def handle_voting(update: Update, context: CallbackContext):
 		uid = callback.from_user.id
 		#
 		if game.dateinitvote is None:
-			bot.edit_message_text("No es el momento de votar!", uid, callback.message.message_id)
+			bot.edit_message_text(t("vote.not_voting_time", game), uid, callback.message.message_id)
 			return
 
-		bot.edit_message_text("Gracias por tu voto: %s para el Presidente %s y el canciller %s" % (
+		bot.edit_message_text(t("vote.thanks", game) % (
 			answer, game.board.state.nominated_president.name, game.board.state.nominated_chancellor.name), uid,
 			callback.message.message_id)
 		log.info("Player %s (%d) voted %s" % (callback.from_user.first_name, uid, answer))
@@ -255,9 +257,9 @@ def handle_voting(update: Update, context: CallbackContext):
 		groupName = ""
 		
 		if hasattr(game, 'groupName'):
-			groupName += "*En el grupo {}*\n".format(game.groupName)
+			groupName += t("common.in_group", game).format(game.groupName)
 
-		msg = "{}\nPuedes cambiar tu voto aquí.\nQuieres elegir al Presidente *{}* y al canciller *{}*?".format(groupName, game.board.state.nominated_president.name, game.board.state.nominated_chancellor.name)
+		msg = t("vote.change_ask_group", game).format(groupName, game.board.state.nominated_president.name, game.board.state.nominated_chancellor.name)
 		bot.send_message(uid, msg, reply_markup=voteMarkup, parse_mode=ParseMode.MARKDOWN)
 		Commands.save_game(game.cid, "vote Round %d" % (game.board.state.currentround), game)
 		if len(game.board.state.last_votes) == len(game.player_sequence):
@@ -276,10 +278,10 @@ def resumen_de_votos(game, votos, valor_ja, valor_nein):
 			ja.append(nombre_jugador)
 		elif votos.get(player.uid) == valor_nein:
 			nein.append(nombre_jugador)
-	texto = "%d Votos Ja" % len(ja)
+	texto = t("vote.summary_ja", game) % len(ja)
 	if ja:
 		texto += ": " + ", ".join(ja)
-	texto += "\n%d Votos Nein" % len(nein)
+	texto += t("vote.summary_nein", game) % len(nein)
 	if nein:
 		texto += ": " + ", ".join(nein)
 	return texto + "\n"
@@ -296,14 +298,14 @@ def count_votes(bot, game):
 	for player in game.player_sequence:
 		nombre_jugador = game.playerlist[player.uid].name.replace("_", " ")
 		if game.board.state.last_votes[player.uid] == "Ja":
-			voting_text += nombre_jugador + " votó Ja!\n"
+			voting_text += nombre_jugador + t("vote.voted_ja_suffix", game)
 		elif game.board.state.last_votes[player.uid] == "Nein":
-			voting_text += nombre_jugador + " votó Nein!\n"
+			voting_text += nombre_jugador + t("vote.voted_nein_suffix", game)
 	if list(game.board.state.last_votes.values()).count("Ja") > (
 		len(game.player_sequence) / 2):  # because player_sequence doesnt include dead
 		# VOTING WAS SUCCESSFUL
 		log.info("Voting successful")
-		resultado_text = "Hail Presidente [%s](tg://user?id=%d)! Hail Canciller [%s](tg://user?id=%d)!" % (
+		resultado_text = t("vote.hail", game) % (
 			game.board.state.nominated_president.name, game.board.state.nominated_president.uid, 
 				game.board.state.nominated_chancellor.name, game.board.state.nominated_chancellor.uid)
 		voting_text += resultado_text
@@ -314,20 +316,20 @@ def count_votes(bot, game):
 		voting_success = True
 		
 		bot.send_message(game.cid, voting_text, ParseMode.MARKDOWN)
-		bot.send_message(game.cid, "\nNo se puede hablar ahora.")
-		game.history.append(("Ronda %d.%d\n\n" % (politicas_promulgadas(game) + 1, game.board.state.failed_votes + 1) ) + resumen_text + resultado_text)
+		bot.send_message(game.cid, t("vote.no_talking", game))
+		game.history.append((t("history.round_header", game) % (politicas_promulgadas(game) + 1, game.board.state.failed_votes + 1) ) + resumen_text + resultado_text)
 		#log.info(game.history[game.board.state.currentround])
 		voting_aftermath(bot, game, voting_success)
 	else:
 		log.info("Voting failed")
-		resultado_text = "Al pueblo no le gusto el Presidente %s y el canciller %s!" % (
+		resultado_text = t("vote.rejected", game) % (
 			game.board.state.nominated_president.name, game.board.state.nominated_chancellor.name)
 		voting_text += resultado_text
 		game.board.state.nominated_president = None
 		game.board.state.nominated_chancellor = None
 		game.board.state.failed_votes += 1
 		bot.send_message(game.cid, voting_text)
-		game.history.append(("Ronda %d.%d\n\n" % (politicas_promulgadas(game) + 1, game.board.state.failed_votes) ) + resumen_text + resultado_text)
+		game.history.append((t("history.round_header", game) % (politicas_promulgadas(game) + 1, game.board.state.failed_votes) ) + resumen_text + resultado_text)
 		#log.info(game.history[game.board.state.currentround])
 		if game.board.state.failed_votes == 3:
 			do_anarchy(bot, game)
@@ -375,14 +377,14 @@ def choose_chairman(bot, game):
 
 	if not btns:
 		# Sin nadie fuera del gobierno no hay a quien darle la Camara.
-		bot.send_message(game.cid, "No hay ningún jugador disponible para ser Presidente de la Cámara, se pasa directo a la sesión legislativa.")
+		bot.send_message(game.cid, t("chairman.nobody_available", game))
 		draw_policies(bot, game)
 		return
 
 	chairmanMarkup = InlineKeyboardMarkup(btns)
 	bot.send_message(game.cid,
-		"El Canciller %s tiene que elegir al Presidente de la Cámara " % game.board.state.chancellor.name + u"\U0001F3DB")
-	msg = 'Elegí al Presidente de la Cámara. Va a espiar la primera política del mazo!'
+		t("chairman.must_choose", game) % game.board.state.chancellor.name + u"\U0001F3DB")
+	msg = t("chairman.choose_prompt", game)
 	if game.is_debugging:
 		bot.send_message(ADMIN, msg, reply_markup=chairmanMarkup)
 	else:
@@ -402,7 +404,7 @@ def choose_chosen_chairman(update: Update, context: CallbackContext):
 		game = Commands.get_game(cid)
 
 		if callback.from_user.id != game.board.state.chancellor.uid and not game.is_debugging:
-			bot.edit_message_text("No eres el canciller actual, no puedes elegir!", callback.from_user.id, callback.message.message_id)
+			bot.edit_message_text(t("chairman.not_chancellor", game), callback.from_user.id, callback.message.message_id)
 			return
 		if game.board.state.chairman is not None:
 			# Ya se eligio en esta ronda: ignoro el click repetido.
@@ -410,18 +412,18 @@ def choose_chosen_chairman(update: Update, context: CallbackContext):
 
 		chosen = game.playerlist[chosen_uid]
 		game.board.state.chairman = chosen
-		bot.edit_message_text("Elegiste a %s como Presidente de la Cámara!" % chosen.name,
+		bot.edit_message_text(t("chairman.you_chose", game) % chosen.name,
 			callback.from_user.id, callback.message.message_id)
 		bot.send_message(game.cid,
-			"El Canciller %s eligió a %s como Presidente de la Cámara." % (game.board.state.chancellor.name, chosen.name))
-		game.history.append("El Canciller %s eligió a %s como Presidente de la Cámara." % (game.board.state.chancellor.name, chosen.name))
+			t("chairman.chosen_announce", game) % (game.board.state.chancellor.name, chosen.name))
+		game.history.append(t("chairman.chosen_announce", game) % (game.board.state.chancellor.name, chosen.name))
 
 		# Mezclo antes de espiar para que la carta que ve sea la que realmente va a robar el presidente.
 		shuffle_policy_pile(bot, game)
 		top_policy = game.board.policies[0]
 		bot.send_message(ADMIN if game.is_debugging else chosen.uid,
-			"%s\nEspiaste la primera política del mazo: *%s*" % (game.groupName, top_policy), parse_mode=ParseMode.MARKDOWN)
-		game.hiddenhistory.append("El Presidente de la Cámara %s espió %s" % (chosen.name, top_policy))
+			t("chairman.peek", game) % (game.groupName, top_policy), parse_mode=ParseMode.MARKDOWN)
+		game.hiddenhistory.append(t("chairman.peek_hidden", game) % (chosen.name, top_policy))
 		draw_policies(bot, game)
 	except AttributeError as e:
 		log.error("choose_chosen_chairman: Game or board should not be None! Error: " + str(e))
@@ -441,17 +443,17 @@ def draw_policies(bot, game):
 	for i in range(3):
 		game.board.state.drawn_policies.append(game.board.policies.pop(0))
 	for policy in game.board.state.drawn_policies:
-		btns.append([InlineKeyboardButton(policy, callback_data=strcid + "_" + policy)])
-		hiddenhistory_text += policy.title() + " "
+		btns.append([InlineKeyboardButton(policy_name(policy, game).title(), callback_data=strcid + "_" + policy)])
+		hiddenhistory_text += policy_name(policy, game).title() + " "
 	hiddenhistory_text[:-1]
 	# Guardo Historial secreto
-	game.hiddenhistory.append(("*Ronda %d.%d*\nEl presidente %s recibió " % (politicas_promulgadas(game) + 1, game.board.state.failed_votes + 1, game.board.state.president.name) ) + hiddenhistory_text)
+	game.hiddenhistory.append((t("hidden.president_drew", game) % (politicas_promulgadas(game) + 1, game.board.state.failed_votes + 1, game.board.state.president.name) ) + hiddenhistory_text)
 	choosePolicyMarkup = InlineKeyboardMarkup(btns)
 	if not game.is_debugging:
-		bot.send_message(game.board.state.president.uid, f"{game.groupName}\nHas robado las siguientes 3 politicas. Cual quieres descartar?",
+		bot.send_message(game.board.state.president.uid, f"{game.groupName}" + t("legis.draw_prompt", game),
 			reply_markup=choosePolicyMarkup)
 	else:
-		bot.send_message(ADMIN, f"{game.groupName} Has robado las siguientes 3 politicas. Cual quieres descartar?",
+		bot.send_message(ADMIN, f"{game.groupName}" + t("legis.draw_prompt", game),
 			reply_markup=choosePolicyMarkup)
 	game.board.state.fase = "legislating president discard"
 	Commands.save_game(game.cid, "legislating president discard Round %d" % (game.board.state.currentround), game)
@@ -470,19 +472,19 @@ def choose_policy(update: Update, context: CallbackContext):
 
 		# Solo el presidente y el canciller pueden elegir politica.
 		if uid not in [game.board.state.chancellor.uid, game.board.state.president.uid]:
-			msg = "No eres ni el presidente ni el canciller actual!"
+			msg = t("legis.not_president_nor_chancellor", game)
 			bot.edit_message_text(msg, uid,	callback.message.message_id)
 			return
 
 		# Si hay 3 politicas veo que sea el presidente el que descarte.
 		if len(game.board.state.drawn_policies) == 3 and uid == game.board.state.president.uid:
 			log.info("Player %s (%d) discarded %s" % (callback.from_user.first_name, uid, answer))
-			politics = ','.join(game.board.state.drawn_policies)
-			bot.edit_message_text("Robaste %s. La política %s va a ser descartada!" % (politics , answer), uid,
+			politics = ','.join(policy_name(p, game) for p in game.board.state.drawn_policies)
+			bot.edit_message_text(t("legis.you_drew_discard", game) % (politics , policy_name(answer, game)), uid,
 			callback.message.message_id)
 			# remove policy from drawn cards and add to discard pile, pass the other two policies
 			# Grabo en Hidden History que descarta el presidente.
-			game.hiddenhistory.append("El presidente descartó " + answer)
+			game.hiddenhistory.append(t("hidden.president_discarded", game) + policy_name(answer, game))
 			for i in range(3):
 				if game.board.state.drawn_policies[i] == answer:
 					game.board.discards.append(game.board.state.drawn_policies.pop(i))                                
@@ -492,23 +494,23 @@ def choose_policy(update: Update, context: CallbackContext):
 			# Si el canciller elije el boton de veto
 			if answer == "veto" :
 				log.info("Player %s (%d) suggested a veto" % (callback.from_user.first_name, uid))
-				bot.edit_message_text("Has sugerido vetar al Presidente %s" % game.board.state.president.name, uid,
+				bot.edit_message_text(t("veto.you_suggested", game) % game.board.state.president.name, uid,
 					callback.message.message_id)
 				bot.send_message(game.cid,
-					"El canciller %s sugirío Vetar al Presidente %s." % (
+					t("veto.suggested_announce", game) % (
 					game.board.state.chancellor.name, game.board.state.president.name))
 
-				btns = [[InlineKeyboardButton("Veto! (aceptar sugerencia)", callback_data=strcid + "_yesveto")],
-				[InlineKeyboardButton("No Veto! (rechazar sugerencia)", callback_data=strcid + "_noveto")]]
+				btns = [[InlineKeyboardButton(t("veto.btn_yes", game), callback_data=strcid + "_yesveto")],
+				[InlineKeyboardButton(t("veto.btn_no", game), callback_data=strcid + "_noveto")]]
 
 				vetoMarkup = InlineKeyboardMarkup(btns)
 				bot.send_message(game.board.state.president.uid,
-					"El canciller %s te sugirío Vetar. Quieres vetar (descartar) estas cartas?" % game.board.state.chancellor.name,
+					t("veto.ask_president", game) % game.board.state.chancellor.name,
 					reply_markup=vetoMarkup)
 			else:
 				# Si el canciller promulga...
 				log.info("Player %s (%d) chose a %s policy" % (callback.from_user.first_name, uid, answer))
-				bot.edit_message_text("La politica %s será promulgada!" % answer, uid,
+				bot.edit_message_text(t("legis.policy_will_be_enacted", game) % policy_name(answer, game), uid,
 				callback.message.message_id)
 				# remove policy from drawn cards and enact, discard the other card
 				for i in range(2):
@@ -529,33 +531,33 @@ def pass_two_policies(bot, game):
 	strcid = str(game.cid)
 	btns = []
 	for policy in game.board.state.drawn_policies:
-		btns.append([InlineKeyboardButton(policy, callback_data=strcid + "_" + policy)])
+		btns.append([InlineKeyboardButton(policy_name(policy, game).title(), callback_data=strcid + "_" + policy)])
 	if game.board.state.fascist_track == 5 and not game.board.state.veto_refused:
-		btns.append([InlineKeyboardButton("Veto", callback_data=strcid + "_veto")])
+		btns.append([InlineKeyboardButton(t("veto.btn_veto", game), callback_data=strcid + "_veto")])
 		choosePolicyMarkup = InlineKeyboardMarkup(btns)
 		bot.send_message(game.cid,
-			"El presidente %s entregó dos políticas al Canciller %s." % (
+			t("legis.passed_two", game) % (
 			game.board.state.president.name, game.board.state.chancellor.name))
 		bot.send_message(game.board.state.chancellor.uid,
-			"El Presidente %s te entregó las siguientes 2 políticas. Cuál quieres promulgar? También puedes usar el poder de Veto." % game.board.state.president.name,
+			t("legis.choose_enact_with_veto", game) % game.board.state.president.name,
 		reply_markup=choosePolicyMarkup)
 	elif game.board.state.veto_refused:
 		choosePolicyMarkup = InlineKeyboardMarkup(btns)
 		bot.send_message(game.board.state.chancellor.uid,
-			"El presidente %s ha rechazado tu Veto. Ahora tienes que elegir. Cuál quieres promulgar?" % game.board.state.president.name,
+			t("legis.veto_refused_choose", game) % game.board.state.president.name,
 			reply_markup=choosePolicyMarkup)
 	elif game.board.state.fascist_track < 5:
 		bot.send_message(game.cid,
-			"El presidente %s entregó dos políticas al Canciller %s." % (
+			t("legis.passed_two", game) % (
 			game.board.state.president.name, game.board.state.chancellor.name))
 		choosePolicyMarkup = InlineKeyboardMarkup(btns)
 		if not game.is_debugging:
 			bot.send_message(game.board.state.chancellor.uid,
-				"El Presidente %s te entregó las siguientes 2 políticas. Cuál quieres promulgar?" % game.board.state.president.name,
+				t("legis.choose_enact", game) % game.board.state.president.name,
 				reply_markup=choosePolicyMarkup)
 		else:
 			bot.send_message(ADMIN,
-				"El Presidente %s te entregó las siguientes 2 políticas. Cuál quieres promulgar?" % game.board.state.president.name,
+				t("legis.choose_enact", game) % game.board.state.president.name,
 				reply_markup=choosePolicyMarkup)	
 	
 	game.board.state.fase = "legislating choose chancellor"
@@ -571,8 +573,9 @@ def enact_policy(bot, game, policy, anarchy):
 		game.board.state.socialist_track += 1
 	game.board.state.failed_votes = 0  # reset counter
 	if not anarchy:
-		bot.send_message(game.cid, "El Presidente %s y el Canciller %s promulgaron una política %s!" % (game.board.state.president.name, game.board.state.chancellor.name, policy))
-		game.history.append("El Presidente %s y el Canciller %s promulgaron una política %s!" % (game.board.state.president.name, game.board.state.chancellor.name, policy))
+		texto_promulgada = t("legis.enacted_announce", game) % (game.board.state.president.name, game.board.state.chancellor.name, policy_name(policy, game))
+		bot.send_message(game.cid, texto_promulgada)
+		game.history.append(texto_promulgada)
 		if not hasattr(game, "formula_history"):
 			game.formula_history = []
 		game.formula_history.append({
@@ -582,8 +585,9 @@ def enact_policy(bot, game, policy, anarchy):
 			"policy": policy,
 		})
 	else:
-		bot.send_message(game.cid, "La política en la cima del mazo ha sido promulgada y es %s" % policy)
-		game.history.append("La política en la cima del mazo ha sido promulgada y es %s" % policy)
+		texto_anarquia = t("anarchy.top_enacted", game) % policy_name(policy, game)
+		bot.send_message(game.cid, texto_anarquia)
+		game.history.append(texto_anarquia)
 	#sleep(2)
 	# end of round
 	if game.board.state.liberal_track == getattr(game.board, "liberal_track_size", 5):
@@ -613,32 +617,24 @@ def enact_policy(bot, game, policy, anarchy):
 				start_next_round(bot, game)
 			elif action == "policy":
 				bot.send_message(game.cid,
-					"Poder Presidencial habilitado: Investigar Políticas " + u"\U0001F52E" + "\nEl Presidente %s ahora conoce las proximas tres políticas "
-					"en el mazo. El Presidente puede compartir "
-					"(o mentir al respecto!) los resultados de su "
-					"investigación a su propia discreción." % game.board.state.president.name)
-				game.history.append("El presidente %s ahora conoce las proximas 3 políticas en el mazo." % game.board.state.president.name)
+					t("power.policy_title", game) + u"\U0001F52E" + t("power.policy_body", game) % game.board.state.president.name)
+				game.history.append(t("power.policy_history", game) % game.board.state.president.name)
 				action_policy(bot, game)                
 			elif action == "kill":
-				msg = "Poder Presidencial habilitado: Ejecución " + u"\U0001F5E1" + "\nEl Presidente %s tiene que matar a una persona. Pueden discutir la decisión ahora pero el Presidente tiene la última palabra." % game.board.state.president.name
+				msg = t("power.kill_title", game) + u"\U0001F5E1" + t("power.kill_body", game) % game.board.state.president.name
 				bot.send_message(game.cid, msg)
 				game.board.state.fase = "legislating power kill"
 				Commands.save_game(game.cid, "legislating power kill Round %d" % (game.board.state.currentround), game)
 				action_kill(bot, game)				
 			elif action == "inspect":
 				bot.send_message(game.cid,
-					"Poder Presidencial habilitado: Investigar Afiliación Política " + u"\U0001F50E" + "\nEl Presidente %s puede ver la afiliación política de un "
-					"jugador. El Presidente puede compartir "
-					"(o mentir al respecto!) los resultados de su "
-					"investigación a su propia discreción." % game.board.state.president.name)
+					t("power.inspect_title", game) + u"\U0001F50E" + t("power.inspect_body", game) % game.board.state.president.name)
 				game.board.state.fase = "legislating power inspect"
 				Commands.save_game(game.cid, "legislating power inspect Round %d" % (game.board.state.currentround), game)				
 				action_inspect(bot, game)
 			elif action == "choose":
 				bot.send_message(game.cid,
-					"Poder Presidencial habilitado: Llamar a Elección Especial " + u"\U0001F454" + "\nEl Presidente %s puede elegir al próximo candidato presidencial. "
-					"Despúes el orden continua "
-					"normalmente." % game.board.state.president.name)
+					t("power.choose_title", game) + u"\U0001F454" + t("power.choose_body", game) % game.board.state.president.name)
 				game.board.state.fase = "legislating power choose"
 				Commands.save_game(game.cid, "legislating power choose Round %d" % (game.board.state.currentround), game)
 				action_choose(bot, game)
@@ -658,9 +654,9 @@ def choose_veto(update: Update, context: CallbackContext):
 	uid = callback.from_user.id
 	if answer == "yesveto":
 		log.info("Player %s (%d) accepted the veto" % (callback.from_user.first_name, uid))
-		bot.edit_message_text("Has aceptado el Veto!", uid, callback.message.message_id)
+		bot.edit_message_text(t("veto.you_accepted", game), uid, callback.message.message_id)
 		bot.send_message(game.cid,
-							"El Presidente %s ha aceptado el Veto del Canciller %s. No se ha promulgado una politíca pero esto cuenta como una elección fallida." % (
+							t("veto.accepted_announce", game) % (
 								game.board.state.president.name, game.board.state.chancellor.name))
 		game.board.discards += game.board.state.drawn_policies
 		game.board.state.drawn_policies = []
@@ -673,9 +669,9 @@ def choose_veto(update: Update, context: CallbackContext):
 	elif answer == "noveto":
 		log.info("Player %s (%d) declined the veto" % (callback.from_user.first_name, uid))
 		game.board.state.veto_refused = True
-		bot.edit_message_text("Has rechazado el Veto!", uid, callback.message.message_id)
+		bot.edit_message_text(t("veto.you_rejected", game), uid, callback.message.message_id)
 		bot.send_message(game.cid,
-							"El Presidente %s ha rechazado el Veto del Canciller %s. El Canciller debe ahora elegir una política!" % (
+							t("veto.rejected_announce", game) % (
 								game.board.state.president.name, game.board.state.chancellor.name))
 		pass_two_policies(bot, game)
 	else:
@@ -685,7 +681,7 @@ def choose_veto(update: Update, context: CallbackContext):
 
 def do_anarchy(bot, game):
 	#log.info('do_anarchy called')	
-	bot.send_message(game.cid, "ANARCHY!!")
+	bot.send_message(game.cid, t("anarchy.announce", game))
 	game.board.state.president = None
 	game.board.state.chancellor = None
 	top_policy = game.board.policies.pop(0)
@@ -699,9 +695,9 @@ def action_policy(bot, game):
     # shuffle discard pile with rest if rest < 3
     shuffle_policy_pile(bot, game)
     for i in range(3):
-        topPolicies += game.board.policies[i] + "\n"
+        topPolicies += policy_name(game.board.policies[i], game) + "\n"
     bot.send_message(game.board.state.president.uid,
-                     "Las próximas 3 politicas son (La de arriba es la primera):\n%s\nPuedes mentir al respectosi quieres." % topPolicies)
+                     t("power.policy_peek_result", game) % topPolicies)
     start_next_round(bot, game)
 
 
@@ -717,7 +713,7 @@ def action_kill(bot, game):
 	killMarkup = InlineKeyboardMarkup(btns)
 	Commands.print_board(bot, game, game.board.state.president.uid)
 	bot.send_message(game.board.state.president.uid,
-		'Tienes que matar a una persona. Puedes discutir tu decisión con los otros. Elige sabiamente!',
+		t("power.kill_prompt", game),
 		reply_markup=killMarkup)
 
 
@@ -739,17 +735,17 @@ def choose_kill(update: Update, context: CallbackContext):
         game.board.state.dead += 1
         log.info("El jugador %s (%d) mató a %s (%d)" % (
             callback.from_user.first_name, callback.from_user.id, chosen.name, chosen.uid))
-        bot.edit_message_text("Has matado a %s!" % chosen.name, callback.from_user.id, callback.message.message_id)
+        bot.edit_message_text(t("kill.you_killed", game) % chosen.name, callback.from_user.id, callback.message.message_id)
         if chosen.role == "Hitler":
-            bot.send_message(game.cid, "El Presidente " + game.board.state.president.name + " ha matado a " + chosen.name + ". ")
+            bot.send_message(game.cid, t("kill.hitler_announce", game) % (game.board.state.president.name, chosen.name))
             game.board.state.game_endcode = 2
             end_game(bot, game, 2)
         else:
             bot.send_message(game.cid,
-                             "El Presidente %s ha matado a %s que no era Hitler. %s, ahora estás muerto y no puedes hablar más!" % (
+                             t("kill.not_hitler_announce", game) % (
                                  game.board.state.president.name, chosen.name, chosen.name))
-            bot.send_message(chosen.uid, "ESTAS MUERTO " + game.board.state.president.name + " TE HA MATADO")
-            game.history.append("El Presidente %s ha matado a %s que no era Hitler!" % (game.board.state.president.name, chosen.name))
+            bot.send_message(chosen.uid, t("kill.you_are_dead", game) % game.board.state.president.name)
+            game.history.append(t("kill.not_hitler_history", game) % (game.board.state.president.name, chosen.name))
             start_next_round(bot, game)
     except:
         log.error("choose_kill: Game or board should not be None!")
@@ -768,7 +764,7 @@ def action_choose(bot, game):
     inspectMarkup = InlineKeyboardMarkup(btns)
     Commands.print_board(bot, game, game.board.state.president.uid)
     bot.send_message(game.board.state.president.uid,
-                     'Puedes elegir al próximo candidato a presidente. Después el orden vuelve a la normalidad. Elige sabiamente!',
+                     t("power.choose_prompt", game),
                      reply_markup=inspectMarkup)
 
 
@@ -786,12 +782,12 @@ def choose_choose(update: Update, context: CallbackContext):
         log.info(
             "El jugador %s (%d) ha elegido a %s (%d) como próximo Presidente" % (
                 callback.from_user.first_name, callback.from_user.id, chosen.name, chosen.uid))
-        bot.edit_message_text("Has elegido a %s como el próximo presidente!" % chosen.name, callback.from_user.id,
+        bot.edit_message_text(t("choose.you_chose", game) % chosen.name, callback.from_user.id,
                               callback.message.message_id)
         bot.send_message(game.cid,
-                         "El Presidente %s ha elegido a %s como próximo presidente." % (
+                         t("choose.announce", game) % (
                              game.board.state.president.name, chosen.name))
-        game.history.append("El Presidente %s ha elegido a %s como próximo presidente." % (game.board.state.president.name, chosen.name))
+        game.history.append(t("choose.announce", game) % (game.board.state.president.name, chosen.name))
         start_next_round(bot, game)
     except:
         log.error("choose_choose: Game or board should not be None!")
@@ -809,7 +805,7 @@ def action_inspect(bot, game):
     inspectMarkup = InlineKeyboardMarkup(btns)
     Commands.print_board(bot, game, game.board.state.president.uid)
     bot.send_message(game.board.state.president.uid,
-                     'Puedes ver la afiliación política de un jugador. A quien quieres elegir? Elige sabiamente!',
+                     t("power.inspect_prompt", game),
                      reply_markup=inspectMarkup)
 
 
@@ -827,12 +823,12 @@ def choose_inspect(update: Update, context: CallbackContext):
             "Player %s (%d) inspects %s (%d)'s party membership (%s)" % (
                 callback.from_user.first_name, callback.from_user.id, chosen.name, chosen.uid,
                 chosen.party))
-        bot.edit_message_text("La afiliación política de %s es %s" % (chosen.name, chosen.party),
+        bot.edit_message_text(t("inspect.result", game) % (chosen.name, party_name(chosen.party, game)),
                               callback.from_user.id,
                               callback.message.message_id)
         chosen.was_investigated = True
-        bot.send_message(game.cid, "El Presidente %s ha inspeccionado a %s." % (game.board.state.president.name, chosen.name))
-        game.history.append("El Presidente %s ha inspeccionado a %s." % (game.board.state.president.name, chosen.name))
+        bot.send_message(game.cid, t("inspect.announce", game) % (game.board.state.president.name, chosen.name))
+        game.history.append(t("inspect.announce", game) % (game.board.state.president.name, chosen.name))
         start_next_round(bot, game)
     except:
         log.error("choose_inspect: Game or board should not be None!")
@@ -854,8 +850,8 @@ def socialist_action(bot, game):
 	log.info('socialist_action called')
 	if game.board.state.socialist_track == CENSURA_DESDE:
 		bot.send_message(game.cid,
-			u"\U0001F576" + " Censura: de ahora en adelante el Canciller ya no elige Presidente de la Cámara.")
-		game.history.append("Se activó la Censura: ya no se elige Presidente de la Cámara.")
+			u"\U0001F576" + t("soc.censorship_announce", game))
+		game.history.append(t("soc.censorship_history", game))
 
 	action = game.board.socialist_track_actions[game.board.state.socialist_track - 1]
 	if action == "escucha":
@@ -884,7 +880,7 @@ def _offer_socialist_power(bot, game, power, prefijo, mensaje, es_elegible):
 		btns.append([InlineKeyboardButton(jugador.name, callback_data="%d_%s_%d" % (game.cid, prefijo, uid))])
 
 	if not socialistas or not btns:
-		bot.send_message(game.cid, "El poder socialista no se puede usar y se saltea.")
+		bot.send_message(game.cid, t("soc.power_skipped", game))
 		game.board.state.pending_socialist_power = None
 		start_next_round(bot, game)
 		return
@@ -925,16 +921,16 @@ def _ofrecer_poder_socialista(bot, game, power):
 	# Manda (o vuelve a mandar, si una propuesta fue rechazada) la botonera del poder.
 	if power == "escucha":
 		_offer_socialist_power(bot, game, "escucha", "socbug",
-			u"\U0001F41B" + " *Escucha Ilegal*: proponé a quién le van a ver la afiliación política.",
+			u"\U0001F41B" + t("soc.escucha_pick", game),
 			lambda jugador: jugador.party != "socialista")
 	elif power == "reclutamiento":
 		_offer_socialist_power(bot, game, "reclutamiento", "socrec",
-			u"\u270A" + " *Reclutamiento*: proponé a quién van a convertir en socialista.",
+			u"\u270A" + t("soc.reclutamiento_pick", game),
 			lambda jugador: jugador.party != "socialista")
 	elif power == "confesion":
 		presidente = game.board.state.president
 		_offer_socialist_power(bot, game, "confesion", "socconf",
-			u"\U0001F4D6" + " *Confesión*: proponé quién va a ver la afiliación política del Presidente %s." % presidente.name,
+			u"\U0001F4D6" + t("soc.confesion_pick", game) % presidente.name,
 			lambda jugador: jugador.uid != presidente.uid)
 
 
@@ -954,17 +950,17 @@ def _proponer_objetivo(bot, game, power, proposer_uid, chosen):
 		"approvals": [],
 	}
 	strcid = str(game.cid)
-	btns = [[InlineKeyboardButton("Sí, de acuerdo", callback_data=strcid + "_socvoto_si"),
+	btns = [[InlineKeyboardButton(t("soc.btn_agree", game), callback_data=strcid + "_socvoto_si"),
 		InlineKeyboardButton("No", callback_data=strcid + "_socvoto_no")]]
 	markup = InlineKeyboardMarkup(btns)
 	proponente = game.playerlist[proposer_uid].name
 	for votante in votantes:
 		bot.send_message(votante.uid,
-			"%s\n%s propone *%s* para el poder socialista. ¿Estás de acuerdo?\nHace falta que estén de acuerdo *todos* los socialistas." % (
+			t("soc.proposal_ask", game) % (
 				game.groupName, proponente, chosen.name),
 			reply_markup=markup, parse_mode=ParseMode.MARKDOWN)
 	bot.send_message(proposer_uid,
-		"Propusiste a *%s*. Esperando que el resto del partido esté de acuerdo..." % chosen.name,
+		t("soc.proposal_waiting", game) % chosen.name,
 		parse_mode=ParseMode.MARKDOWN)
 	game.board.state.fase = "legislating socialist proposal " + power
 	Commands.save_game(game.cid, "legislating socialist proposal %s Round %d" % (power, game.board.state.currentround), game)
@@ -981,7 +977,7 @@ def handle_socialist_vote(update: Update, context: CallbackContext):
 		uid = callback.from_user.id
 		propuesta = getattr(game.board.state, "socialist_proposal", None)
 		if propuesta is None:
-			bot.edit_message_text("Esa decisión ya está resuelta.", uid, callback.message.message_id)
+			bot.edit_message_text(t("soc.decision_resolved", game), uid, callback.message.message_id)
 			return
 		votantes = [p.uid for p in game.get_socialist_team(only_alive=True) if p.uid != propuesta["proposer"]]
 		if uid not in votantes or uid in propuesta["approvals"]:
@@ -992,26 +988,26 @@ def handle_socialist_vote(update: Update, context: CallbackContext):
 		if voto == "no":
 			# Sin unanimidad la propuesta se cae y se vuelve a abrir la eleccion para todos.
 			log.info("Propuesta socialista de %s rechazada por %d" % (chosen.name, uid))
-			bot.edit_message_text("Rechazaste la propuesta de %s." % chosen.name, uid, callback.message.message_id)
+			bot.edit_message_text(t("soc.you_rejected", game) % chosen.name, uid, callback.message.message_id)
 			game.board.state.socialist_proposal = None
 			_avisar_socialistas(bot, game,
-				"Un socialista *no estuvo de acuerdo* con %s. Vuelvan a elegir." % chosen.name,
+				t("soc.someone_rejected", game) % chosen.name,
 				excepto_uid=uid)
 			_ofrecer_poder_socialista(bot, game, power)
 			return
 
 		propuesta["approvals"].append(uid)
-		bot.edit_message_text("Aceptaste la propuesta de %s." % chosen.name, uid, callback.message.message_id)
+		bot.edit_message_text(t("soc.you_accepted", game) % chosen.name, uid, callback.message.message_id)
 		if len(propuesta["approvals"]) < len(votantes):
 			faltan = len(votantes) - len(propuesta["approvals"])
-			bot.send_message(propuesta["proposer"],
-				"Falta%s %d socialista%s por responder sobre %s." % ("n" if faltan > 1 else "", faltan, "s" if faltan > 1 else "", chosen.name))
+			plantilla = t("soc.waiting_plural", game) if faltan > 1 else t("soc.waiting_singular", game)
+			bot.send_message(propuesta["proposer"], plantilla % (faltan, chosen.name))
 			Commands.save_game(game.cid, "socialist proposal vote Round %d" % game.board.state.currentround, game)
 			return
 
 		# Unanimidad: se aplica el poder.
 		game.board.state.socialist_proposal = None
-		_avisar_socialistas(bot, game, "El partido se puso de acuerdo en *%s*." % chosen.name)
+		_avisar_socialistas(bot, game, t("soc.party_agreed", game) % chosen.name)
 		_aplicar_poder_socialista(bot, game, power, chosen)
 	except Exception as e:
 		log.error("handle_socialist_vote: " + repr(e))
@@ -1035,7 +1031,7 @@ def _aplicar_poder_socialista(bot, game, power, chosen):
 def action_escucha(bot, game):
 	log.info('action_escucha called')
 	bot.send_message(game.cid,
-		"Poder Socialista habilitado: Escucha Ilegal " + u"\U0001F41B" + "\nLos socialistas van a ver la afiliación política de un jugador. Nadie más se entera de a quién eligieron.")
+		t("soc.escucha_title", game) + u"\U0001F41B" + t("soc.escucha_body", game))
 	_ofrecer_poder_socialista(bot, game, "escucha")
 
 
@@ -1049,10 +1045,10 @@ def choose_escucha(update: Update, context: CallbackContext):
 		game = Commands.get_game(cid)
 		uid = callback.from_user.id
 		if not _claim_socialist_power(game, uid, "escucha"):
-			bot.edit_message_text("Ya hay una propuesta en curso o el poder ya fue usado.", uid, callback.message.message_id)
+			bot.edit_message_text(t("soc.proposal_in_progress", game), uid, callback.message.message_id)
 			return
 		chosen = game.playerlist[answer]
-		bot.edit_message_text(u"\U0001F41B" + " Propusiste escuchar a %s." % chosen.name, uid, callback.message.message_id)
+		bot.edit_message_text(u"\U0001F41B" + t("soc.you_proposed_escucha", game) % chosen.name, uid, callback.message.message_id)
 		_proponer_objetivo(bot, game, "escucha", uid, chosen)
 	except Exception as e:
 		log.error("choose_escucha: " + repr(e))
@@ -1061,18 +1057,18 @@ def choose_escucha(update: Update, context: CallbackContext):
 
 def _aplicar_escucha(bot, game, chosen):
 	log.info("Los socialistas escucharon a %s (%d): %s" % (chosen.name, chosen.uid, chosen.party))
-	texto = u"\U0001F41B" + " Escucha Ilegal: la afiliación política de %s es *%s*" % (chosen.name, chosen.party)
+	texto = u"\U0001F41B" + t("soc.escucha_result", game) % (chosen.name, party_name(chosen.party, game))
 	_avisar_socialistas(bot, game, texto)
-	bot.send_message(game.cid, "Los socialistas ya usaron su Escucha Ilegal.")
-	game.history.append("Los socialistas usaron su Escucha Ilegal.")
-	game.hiddenhistory.append("Los socialistas escucharon a %s (%s)" % (chosen.name, chosen.party))
+	bot.send_message(game.cid, t("soc.escucha_used_group", game))
+	game.history.append(t("soc.escucha_used_history", game))
+	game.hiddenhistory.append(t("soc.escucha_hidden", game) % (chosen.name, party_name(chosen.party, game)))
 	start_next_round(bot, game)
 
 
 def action_reclutamiento(bot, game):
 	log.info('action_reclutamiento called')
 	bot.send_message(game.cid,
-		"Poder Socialista habilitado: Reclutamiento " + u"\u270A" + "\nLos socialistas van a convertir a un jugador. Cuando terminen, revisá tu afiliación con /info: si te cambió, ahora ganás con los socialistas.")
+		t("soc.reclutamiento_title", game) + u"\u270A" + t("soc.reclutamiento_body", game))
 	_ofrecer_poder_socialista(bot, game, "reclutamiento")
 
 
@@ -1086,10 +1082,10 @@ def choose_reclutamiento(update: Update, context: CallbackContext):
 		game = Commands.get_game(cid)
 		uid = callback.from_user.id
 		if not _claim_socialist_power(game, uid, "reclutamiento"):
-			bot.edit_message_text("Ya hay una propuesta en curso o el poder ya fue usado.", uid, callback.message.message_id)
+			bot.edit_message_text(t("soc.proposal_in_progress", game), uid, callback.message.message_id)
 			return
 		chosen = game.playerlist[answer]
-		bot.edit_message_text(u"\u270A" + " Propusiste reclutar a %s." % chosen.name, uid, callback.message.message_id)
+		bot.edit_message_text(u"\u270A" + t("soc.you_proposed_reclutamiento", game) % chosen.name, uid, callback.message.message_id)
 		_proponer_objetivo(bot, game, "reclutamiento", uid, chosen)
 	except Exception as e:
 		log.error("choose_reclutamiento: " + repr(e))
@@ -1111,19 +1107,19 @@ def _aplicar_reclutamiento(bot, game, chosen):
 		# Los socialistas no se enteran del fracaso ahora, sino recien en el Congreso.
 		log.info("Los socialistas intentaron reclutar a Hitler (%d)" % chosen.uid)
 		bot.send_message(ADMIN if game.is_debugging else chosen.uid,
-			u"\u270A" + " Los socialistas te reclutaron, pero sos *Hitler*: no te hace efecto. Seguí actuando como si nada, seguís ganando con los fascistas y no participás de sus decisiones. Eso sí, ahora tenés la carta socialista: quien te investigue va a ver *socialista*.",
+			u"\u270A" + t("soc.recruited_hitler_dm", game),
 			parse_mode=ParseMode.MARKDOWN)
-		game.hiddenhistory.append("Los socialistas reclutaron a %s, que era Hitler: se queda con la carta socialista pero sigue siendo fascista." % chosen.name)
+		game.hiddenhistory.append(t("soc.recruited_hitler_hidden", game) % chosen.name)
 	else:
 		log.info("Los socialistas reclutaron a %s (%d)" % (chosen.name, chosen.uid))
 		bot.send_message(ADMIN if game.is_debugging else chosen.uid,
-			u"\u270A" + " *Fuiste reclutado por los socialistas!* A partir de ahora tu afiliación es socialista y ganás con ellos. Tu rol y lo que sabías no cambian.",
+			u"\u270A" + t("soc.recruited_dm", game),
 			parse_mode=ParseMode.MARKDOWN)
-		game.hiddenhistory.append("Los socialistas reclutaron a %s" % chosen.name)
+		game.hiddenhistory.append(t("soc.recruited_hidden", game) % chosen.name)
 
-	_avisar_socialistas(bot, game, u"\u270A" + " Reclutamiento: el partido eligió a *%s*." % chosen.name)
-	bot.send_message(game.cid, "Los socialistas ya usaron su Reclutamiento. Revisen su afiliación con /info!")
-	game.history.append("Los socialistas usaron su Reclutamiento.")
+	_avisar_socialistas(bot, game, u"\u270A" + t("soc.recruitment_chosen", game) % chosen.name)
+	bot.send_message(game.cid, t("soc.recruitment_used_group", game))
+	game.history.append(t("soc.recruitment_used_history", game))
 	start_next_round(bot, game)
 
 
@@ -1133,8 +1129,8 @@ def action_plan_quinquenal(bot, game):
 	shuffle_policy_pile(bot, game)
 	game.board.policies += ["socialista", "socialista", "liberal"]
 	game.board.policies = random.sample(game.board.policies, len(game.board.policies))
-	msg = ("Poder Socialista habilitado: Plan Quinquenal " + u"\u0035\uFE0F\u20E3" +
-		"\nSe agregaron 2 políticas socialistas y 1 liberal al mazo y se barajó. Ahora quedan %d políticas." % len(game.board.policies))
+	msg = (t("soc.plan_title", game) + u"\u0035\uFE0F\u20E3" +
+		t("soc.plan_body", game) % len(game.board.policies))
 	bot.send_message(game.cid, msg)
 	game.history.append(msg)
 	game.hiddenhistory.append(msg)
@@ -1144,7 +1140,7 @@ def action_plan_quinquenal(bot, game):
 def action_congreso(bot, game):
 	log.info('action_congreso called')
 	bot.send_message(game.cid,
-		"Poder Socialista habilitado: Congreso " + u"\U0001F3DB" + "\nLos socialistas se reconocen entre ellos.")
+		t("soc.congreso_title", game) + u"\U0001F3DB" + t("soc.congreso_body", game))
 	originales = game.get_socialists()
 	reclutados_uids = getattr(game.board.state, "recruited_uids", [])
 	# Hitler no cuenta como socialista nuevo aunque tenga la carta: justamente por eso el
@@ -1152,28 +1148,28 @@ def action_congreso(bot, game):
 	nuevos = [game.playerlist[u] for u in reclutados_uids
 		if u in game.playerlist and game.playerlist[u].party_efectiva() == "socialista"]
 
-	nombres_originales = ", ".join(s.name for s in originales) or "nadie"
+	nombres_originales = ", ".join(s.name for s in originales) or t("soc.nobody", game)
 	for nuevo in nuevos:
 		bot.send_message(ADMIN if game.is_debugging else nuevo.uid,
-			u"\U0001F3DB" + " *Congreso*: los socialistas de origen son *%s*." % nombres_originales,
+			u"\U0001F3DB" + t("soc.congreso_originals", game) % nombres_originales,
 			parse_mode=ParseMode.MARKDOWN)
 
 	if not reclutados_uids:
-		aviso = u"\U0001F3DB" + " *Congreso*: todavía no reclutaron a nadie, así que no hay socialistas nuevos."
+		aviso = u"\U0001F3DB" + t("soc.congreso_none_recruited", game)
 	elif not nuevos:
 		# El unico reclutado no se convirtio: era Hitler.
-		aviso = u"\U0001F3DB" + " *Congreso*: no hay ningún socialista nuevo, así que la persona que reclutaron era *Hitler*."
+		aviso = u"\U0001F3DB" + t("soc.congreso_was_hitler", game)
 	else:
-		aviso = u"\U0001F3DB" + " *Congreso*: el nuevo socialista es *%s*." % ", ".join(n.name for n in nuevos)
+		aviso = u"\U0001F3DB" + t("soc.congreso_new", game) % ", ".join(n.name for n in nuevos)
 	for original in originales:
 		if original.is_dead:
 			continue
 		bot.send_message(ADMIN if game.is_debugging else original.uid, aviso, parse_mode=ParseMode.MARKDOWN)
 		if game.is_debugging:
 			break
-	game.history.append("El partido socialista usó el Congreso.")
-	game.hiddenhistory.append("Congreso: socialistas de origen %s / nuevos %s" % (
-		nombres_originales, ", ".join(n.name for n in nuevos) or "ninguno"))
+	game.history.append(t("soc.congreso_history", game))
+	game.hiddenhistory.append(t("soc.congreso_hidden", game) % (
+		nombres_originales, ", ".join(n.name for n in nuevos) or t("soc.none", game)))
 	start_next_round(bot, game)
 
 
@@ -1182,11 +1178,11 @@ def action_confesion(bot, game):
 	presidente = game.board.state.president
 	if presidente is None:
 		# Puede pasar si la politica salio por anarquia: no hay presidente que confiese.
-		bot.send_message(game.cid, "Poder Socialista: Confesión " + u"\U0001F4D6" + "\nNo hay presidente en esta ronda, así que el poder se saltea.")
+		bot.send_message(game.cid, t("soc.confesion_skip_title", game) + u"\U0001F4D6" + t("soc.confesion_skip_body", game))
 		start_next_round(bot, game)
 		return
 	bot.send_message(game.cid,
-		"Poder Socialista habilitado: Confesión " + u"\U0001F4D6" + "\nEl Presidente %s le tiene que mostrar su afiliación política a quien elijan los socialistas." % presidente.name)
+		t("soc.confesion_title", game) + u"\U0001F4D6" + t("soc.confesion_body", game) % presidente.name)
 	_ofrecer_poder_socialista(bot, game, "confesion")
 
 
@@ -1200,10 +1196,10 @@ def choose_confesion(update: Update, context: CallbackContext):
 		game = Commands.get_game(cid)
 		uid = callback.from_user.id
 		if not _claim_socialist_power(game, uid, "confesion"):
-			bot.edit_message_text("Ya hay una propuesta en curso o el poder ya fue usado.", uid, callback.message.message_id)
+			bot.edit_message_text(t("soc.proposal_in_progress", game), uid, callback.message.message_id)
 			return
 		chosen = game.playerlist[answer]
-		bot.edit_message_text(u"\U0001F4D6" + " Propusiste que %s vea la afiliación del Presidente." % chosen.name,
+		bot.edit_message_text(u"\U0001F4D6" + t("soc.you_proposed_confesion", game) % chosen.name,
 			uid, callback.message.message_id)
 		_proponer_objetivo(bot, game, "confesion", uid, chosen)
 	except Exception as e:
@@ -1215,12 +1211,12 @@ def _aplicar_confesion(bot, game, chosen):
 	presidente = game.board.state.president
 	log.info("Confesion: %s (%d) ve la afiliacion del presidente %s" % (chosen.name, chosen.uid, presidente.name))
 	bot.send_message(ADMIN if game.is_debugging else chosen.uid,
-		u"\U0001F4D6" + " *Confesión*: la afiliación política del Presidente %s es *%s*." % (presidente.name, presidente.party),
+		u"\U0001F4D6" + t("soc.confesion_result", game) % (presidente.name, party_name(presidente.party, game)),
 		parse_mode=ParseMode.MARKDOWN)
 	# La confesion se hace a la vista de todos: el grupo si se entera de quien la recibio.
 	bot.send_message(game.cid,
-		"El Presidente %s le confesó su afiliación política a %s." % (presidente.name, chosen.name))
-	game.history.append("El Presidente %s le confesó su afiliación política a %s." % (presidente.name, chosen.name))
+		t("soc.confesion_announce", game) % (presidente.name, chosen.name))
+	game.history.append(t("soc.confesion_announce", game) % (presidente.name, chosen.name))
 	start_next_round(bot, game)
 
 
@@ -1248,10 +1244,10 @@ def decide_anarquia(bot, game):
 		if not game.is_debugging:
 			if not game.playerlist[uid].is_dead:                      
 				Commands.print_board(bot, game, uid)				
-				bot.send_message(uid, "¿Quieres ir a anarquia? (CUIDADO si la mitad de los jugadores elige SI no se espera)", reply_markup=voteMarkup)
+				bot.send_message(uid, t("anarchy.ask", game), reply_markup=voteMarkup)
 		else:
-			bot.send_message(ADMIN, game.board.print_board(game.player_sequence))
-			bot.send_message(ADMIN, "¿Quieres ir a anarquia? (CUIDADO si la mitad de los jugadores elige SI no se espera)", reply_markup=voteMarkup)
+			bot.send_message(ADMIN, game.board.print_board(game.player_sequence, game))
+			bot.send_message(ADMIN, t("anarchy.ask", game), reply_markup=voteMarkup)
 			
 def handle_voting_anarquia(update: Update, context: CallbackContext):
 	bot = context.bot
@@ -1265,7 +1261,7 @@ def handle_voting_anarquia(update: Update, context: CallbackContext):
 		game = Commands.get_game(cid)
 		uid = callback.from_user.id
 		answer = answer.replace("Ana", "")
-		bot.edit_message_text("Gracias por tu voto: %s para la anarquia" % (answer), uid, callback.message.message_id)
+		bot.edit_message_text(t("anarchy.vote_thanks", game) % (answer), uid, callback.message.message_id)
 		log.info("Player %s (%d) voted %s" % (callback.from_user.first_name, uid, answer))
 
 		#if uid not in game.board.state.last_votes:
@@ -1280,7 +1276,7 @@ def handle_voting_anarquia(update: Update, context: CallbackContext):
 		btns = [[InlineKeyboardButton("Ja", callback_data=strcid + "_JaAna"),
 		InlineKeyboardButton("Nein", callback_data=strcid + "_NeinAna")]]
 		voteMarkup = InlineKeyboardMarkup(btns)
-		bot.send_message(uid, "Puedes cambiar tu voto aquí.\n¿Quieres ir a anarquia? (CUIDADO si la mitad de los jugadores elige SI no se espera)", reply_markup=voteMarkup)
+		bot.send_message(uid, t("anarchy.change_ask", game), reply_markup=voteMarkup)
 		
 		if len(game.board.state.votes_anarquia) == len(game.player_sequence):
 			count_votes_anarquia(bot, game)
@@ -1302,19 +1298,19 @@ def count_votes_anarquia(bot, game):
 	for player in game.player_sequence:
 		nombre_jugador = game.playerlist[player.uid].name
 		if game.board.state.votes_anarquia[player.uid] == "Si":
-			voting_text += nombre_jugador + " votó Ja!\n"
+			voting_text += nombre_jugador + t("vote.voted_ja_suffix", game)
 		elif game.board.state.votes_anarquia[player.uid] == "No":
-			voting_text += nombre_jugador + " votó Nein!\n"
+			voting_text += nombre_jugador + t("vote.voted_nein_suffix", game)
 	if list(game.board.state.votes_anarquia.values()).count("Si") >= (len(game.player_sequence) / 2):  # because player_sequence doesnt include dead
 		# VOTING WAS SUCCESSFUL
 		log.info("Vamos a anarquia!")
-		resultado_text = "Debido a que la mayoria de los jugador ha decidido ir a anarquia se ejecuta la anarquia."
+		resultado_text = t("anarchy.approved", game)
 		voting_text += resultado_text
 		game.board.state.nominated_president = None
 		game.board.state.nominated_chancellor = None
 		bot.send_message(game.cid, voting_text, ParseMode.MARKDOWN)
-		bot.send_message(game.cid, "\nNo se puede hablar ahora.")
-		game.history.append(("Ronda %d.%d\n\n" % (politicas_promulgadas(game) + 1, game.board.state.failed_votes + 1) ) + resumen_text + resultado_text)
+		bot.send_message(game.cid, t("vote.no_talking", game))
+		game.history.append((t("history.round_header", game) % (politicas_promulgadas(game) + 1, game.board.state.failed_votes + 1) ) + resumen_text + resultado_text)
 		# Avanzo la cantidad del lider asi el lider queda correctamente asignado
 		# Se incrementa como mucho 2 ya que el ultimo incremento lo hace la anarquia
 		for i in range(2 - game.board.state.failed_votes):
@@ -1322,12 +1318,12 @@ def count_votes_anarquia(bot, game):
 		do_anarchy(bot, game)
 	else:
 		log.info("La gente no quiere anarquia")
-		resultado_text = "Al no quiso ir a anarquia"
+		resultado_text = t("anarchy.rejected", game)
 		voting_text += resultado_text
 		game.board.state.nominated_president = None
 		game.board.state.nominated_chancellor = None
 		bot.send_message(game.cid, voting_text, ParseMode.MARKDOWN)
-		game.history.append(("Ronda %d.%d\n\n" % (politicas_promulgadas(game) + 1, game.board.state.failed_votes + 1) ) + resumen_text + resultado_text)
+		game.history.append((t("history.round_header", game) % (politicas_promulgadas(game) + 1, game.board.state.failed_votes + 1) ) + resumen_text + resultado_text)
 		#game.board.state.failed_votes == 3
 		
 			
@@ -1368,7 +1364,7 @@ def set_stats(column_name, value, bot, cid):
 		
 		conn.commit()
 	except Exception as e:
-		bot.send_message(cid, 'No se ejecuto el comandoset_stats debido a: '+str(e))
+		bot.send_message(cid, t("error.set_stats_failed", cid)+str(e))
 		conn.rollback()
 	conn.close()
 		
@@ -1479,7 +1475,8 @@ def end_game(bot, game, game_endcode):
 	nuevos_logros = {}
 	game.stats_game_id = None
 	if game_endcode != 99 and not es_prueba:
-		save_game_details(bot, game.print_roles(), game_endcode, game.board.state.liberal_track, game.board.state.fascist_track, game.board.num_players)
+		# "es" a proposito: las consultas de /stats buscan este texto con LIKE en espanol.
+		save_game_details(bot, game.print_roles("es"), game_endcode, game.board.state.liberal_track, game.board.state.fascist_track, game.board.num_players)
 		nuevos_logros, game.stats_game_id = StatsExtended.save_extended_game_stats(game, game_endcode)
 
 
@@ -1494,25 +1491,25 @@ def end_game(bot, game, game_endcode):
 
 	if game_endcode == 99:
 		if GamesController.games[cid].board is not None:
-			bot.send_message(cid, "Juego cancelado!\n\n%s" % game.print_roles())
+			bot.send_message(cid, t("end.cancelled_with_roles", game) % game.print_roles(game))
 		else:
-			bot.send_message(cid, "Juego cancelado!")
+			bot.send_message(cid, t("end.cancelled", game))
 		contar_stat("cancelgame", stats[5] + 1)
 	else:
 		if game_endcode == -2:
-			bot.send_message(game.cid, "Juego finalizado! Los fascistas ganaron eligiendo a Hitler como Canciller!\n\n%s" % game.print_roles())
+			bot.send_message(game.cid, t("end.fascists_win_hitler", game) % game.print_roles(game))
 			contar_stat("fascistwinhitler", stats[1] + 1)
 		if game_endcode == -1:
-			bot.send_message(game.cid, "Juego finalizado! Los fascistas ganaron promulgando 6 políticas fascistas!\n\n%s" % game.print_roles())
+			bot.send_message(game.cid, t("end.fascists_win_policies", game) % game.print_roles(game))
 			contar_stat("fascistwinpolicies", stats[2] + 1)
 		if game_endcode == 1:
-			bot.send_message(game.cid, "Juego finalizado! Los liberales ganaron promulgando 5 políticas liberales!\n\n%s" % game.print_roles())
+			bot.send_message(game.cid, t("end.liberals_win_policies", game) % game.print_roles(game))
 			contar_stat("liberalwinpolicies", stats[3] + 1)
 		if game_endcode == 2:
-			bot.send_message(game.cid, "Juego finalizado! Los liberales ganaron matando a Hitler!\n\n%s" % game.print_roles())
+			bot.send_message(game.cid, t("end.liberals_win_kill", game) % game.print_roles(game))
 			contar_stat("liberalwinkillhitler", stats[4] + 1)
 		if game_endcode == 3:
-			bot.send_message(game.cid, "Juego finalizado! Los socialistas ganaron promulgando toda su pista de políticas socialistas!\n\n%s" % game.print_roles())
+			bot.send_message(game.cid, t("end.socialists_win", game) % game.print_roles(game))
 			# La columna es nueva (la agrega DBCreate.sql), asi que puede no existir en bases viejas.
 			if len(stats) > 6:
 				contar_stat("socialistwinpolicies", stats[6] + 1)
@@ -1531,14 +1528,11 @@ def end_game(bot, game, game_endcode):
 			log.error("No se pudo anunciar los logros nuevos: %s" % str(e))
 		if es_prueba:
 			bot.send_message(cid,
-				"🧪 *Partida de prueba*: no se guardó ninguna estadística, no se otorgaron logros "
-				"y no hay votación de MVP.\n"
-				"La próxima partida vale de nuevo (o usá /prueba para que tampoco cuente).",
+				t("end.prueba_notice", game),
 				ParseMode.MARKDOWN)
 		else:
 			bot.send_message(cid,
-				"🏅 ¡Ahora podés usar /mvp para votar en privado quién fue el MVP de esta partida! "
-				"Cuando todos los jugadores hayan votado se revela el resultado.")
+				t("end.mvp_invite", game))
 
 	if game_endcode == 99 or es_prueba:
 		# Nada que esperar: sin estadisticas ni votacion de MVP, la partida se borra ya.
@@ -1554,11 +1548,11 @@ def showHiddenhistory(bot, game):
 	#game.pedrote = 3
 	try:
 		# Obtengo las politicas que quedaron en el mazo	
-		remaining_policies = "\nPoliticas restantes en el mazo:\n"		
+		remaining_policies = t("hidden.remaining_policies", game)		
 		for i in range(len(game.board.policies)):
-			remaining_policies += game.board.policies[i] + "\n"
+			remaining_policies += policy_name(game.board.policies[i], game) + "\n"
 		# Se comienza a obtener el historial oculto
-		history_text = "Historial Oculto:\n\n" 
+		history_text = t("hidden.title", game) 
 		for x in game.hiddenhistory:				
 			history_text += x + "\n"
 		bot.send_message(game.cid, history_text + remaining_policies, ParseMode.MARKDOWN)
@@ -1569,7 +1563,7 @@ def showHiddenhistory(bot, game):
 def inform_players(bot, game, cid, player_number):
 	log.info('inform_players called')
 	bot.send_message(cid,
-		"Vamos a comenzar el juego con %d jugadores!\n%s\nVe a nuestro chat privado y mira tu rol secreto!" % (
+		t("start.begin_game", game) % (
 		player_number, print_player_info(game, player_number)))
 	available_roles = list(get_role_set(game, player_number))  # copy not reference because we need it again later
 	# Mezclo los roles asi si alguien elije Fascista o Hitler no le toca siempre Fascista
@@ -1616,7 +1610,7 @@ def inform_players(bot, game, cid, player_number):
 				log.error("No se pudo pinnear el mensaje de rol de %s: %s" % (game.playerlist[uid].name, str(e)))
 		else:
 			bot.send_message(ADMIN, "El jugador %s es %s y su afiliación política es: %s" % (
-				game.playerlist[uid].name, game.playerlist[uid].role, game.playerlist[uid].party))
+				game.playerlist[uid].name, role_name(game.playerlist[uid].role, game), party_name(game.playerlist[uid].party, game)))
 
 
 def get_role_set(game, player_number):
@@ -1630,20 +1624,20 @@ def get_role_set(game, player_number):
 def print_player_info(game, player_number):
     if game.es_socialista():
         roles = socialistSets[player_number]["roles"]
-        return ("Hay %d Liberales, %d Fascistas, Hitler y %d Socialistas. Hitler no conoce a nadie." % (
+        return (t("setup.roles_socialista", game) % (
             roles.count("Liberal"), roles.count("Fascista"), roles.count("Socialista")))
     if player_number == 5:
-        return "Hay 3 Liberales, 1 Fascista y Hitler. Hitler conoce quien es el Fascista."
+        return t("setup.roles_5", game)
     elif player_number == 6:
-        return "Hay  4 Liberales, 1 Fascista y Hitler. Hitler conocer quienes quien es el Fascista."
+        return t("setup.roles_6", game)
     elif player_number == 7:
-        return "Hay  4 Liberales, 2 Fascistas y Hitler. Hitler no conoce quienes son los Fascistas."
+        return t("setup.roles_7", game)
     elif player_number == 8:
-        return "Hay  5 Liberales, 2 Fascistas y Hitler. Hitler no conoce quienes son los Fascistas."
+        return t("setup.roles_8", game)
     elif player_number == 9:
-        return "Hay  5 Liberales, 3 Fascistas y Hitler. Hitler no conoce quienes son los Fascistas."
+        return t("setup.roles_9", game)
     elif player_number == 10:
-        return "Hay  6 Liberales, 3 Fascistas y Hitler. Hitler no conoce quienes son los Fascistas."
+        return t("setup.roles_10", game)
 
 
 def get_membership(role):
@@ -1669,13 +1663,13 @@ def increment_player_counter(game):
 def shuffle_policy_pile(bot, game):
 	log.info('shuffle_policy_pile called')
 	if len(game.board.policies) < 3:
-		game.history.append("*No habia cartas suficientes en el mazo de políticas asi que he mezclado el resto con el mazo de descarte!*")
-		game.hiddenhistory.append("*No habia cartas suficientes en el mazo de políticas asi que he mezclado el resto con el mazo de descarte!*")
+		game.history.append(t("shuffle.history", game))
+		game.hiddenhistory.append(t("shuffle.history", game))
 		game.board.discards += game.board.policies
 		game.board.policies = random.sample(game.board.discards, len(game.board.discards))
 		game.board.discards = []		
 		bot.send_message(game.cid,
-			"No habia cartas suficientes en el mazo de políticas asi que he mezclado el resto con el mazo de descarte!")
+			t("shuffle.announce", game))
 
 def getGamesByTipo(opcion):
 	conn = psycopg2.connect(
@@ -1765,14 +1759,14 @@ def command_all(update: Update, context: CallbackContext):
 	cid = update.message.chat_id
 	groupType = update.message.chat.type
 	if groupType not in ['group', 'supergroup']:
-		bot.send_message(cid, "Este comando solo funciona en un grupo.")
+		bot.send_message(cid, t("cmd.all.group_only", cid))
 		return
 	miembros = GroupMembers.get_active_members(cid)
 	if not miembros:
-		bot.send_message(cid, "Todavia no tengo miembros registrados de este grupo. Se van registrando a medida que entran/salen del grupo o se unen a una partida con /join.")
+		bot.send_message(cid, t("cmd.all.no_members", cid))
 		return
 	menciones = ["[{}](tg://user?id={})".format(name, uid) for uid, name in miembros]
-	texto = "📢 *Atención a todos!*\n" + "\n".join(menciones)
+	texto = t("cmd.all.header", cid) + "\n".join(menciones)
 	Commands.send_chunked_message(bot, cid, texto, parse_mode=ParseMode.MARKDOWN)
 
 def get_TOKEN():
@@ -1803,6 +1797,7 @@ SECRET_HITLER_TABLES = [
 	"stats_secret_hitler_games",
 	"stats_secret_hitler_players",
 	"achievements_secret_hitler_players",
+	"language_secret_hitler",
 ]
 
 def _existing_tables(cur, table_names):
@@ -1855,9 +1850,27 @@ def init_db():
 		return "Se crearon las tablas faltantes: %s" % ", ".join(created_now)
 	return "Todas las tablas de la base de datos ya existian."
 
+# Comandos que aparecen en el menu "/" de Telegram, en orden. La descripcion de cada
+# uno sale del catalogo de idioma (clave menu.<comando>), asi que agregar o sacar un
+# comando de aca implica agregar o sacar esa clave en todos los idiomas.
+MENU_COMANDOS = [
+	"help", "start", "rules", "explainsocialista", "symbols", "language",
+	"newgame", "nextgame", "join", "startgame", "board", "history", "votes",
+	"calltovote", "retirar", "startautoja", "stopautoja", "conflicto", "info",
+	"jugadores", "leave", "stats", "stats2", "logros", "guess", "mvp", "end",
+	"prueba", "guessresults", "miguess", "version", "all",
+]
+
+
+def _menu_comandos(lang):
+	return [BotCommand(comando, t("menu.%s" % comando, lang)) for comando in MENU_COMANDOS]
+
+
 def main():
 	GamesController.init() #Call only once
 	db_status_text = init_db()
+	# Precarga el idioma de cada chat para no consultar la base en cada mensaje.
+	i18n.init()
 
 	'''
 	log.info('Insertando')
@@ -1900,6 +1913,9 @@ def main():
 	dp.add_handler(CommandHandler("explainsocialista", Commands.command_explainsocialista))
 	dp.add_handler(CommandHandler("ping", Commands.command_ping))
 	dp.add_handler(CommandHandler("version", Commands.command_version))
+	dp.add_handler(CommandHandler("language", Commands.command_language))
+	dp.add_handler(CommandHandler("idioma", Commands.command_language))
+	dp.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)\*chooseLanguage\*(.*)\*(-?[0-9]*)", callback=Commands.callback_language))
 	dp.add_handler(CommandHandler("symbols", Commands.command_symbols))
 	dp.add_handler(CommandHandler("stats", Commands.command_stats))
 	dp.add_handler(CommandHandler("stats2", Commands.command_stats2))
@@ -2003,43 +2019,20 @@ def main():
 	# log all errors
 	dp.add_error_handler(error_callback)
 
-	# Registrar el menú de comandos que Telegram muestra al escribir "/"
+	# Registrar el menu de comandos que Telegram muestra al escribir "/". Se registra uno
+	# por idioma: Telegram le muestra a cada usuario el que coincide con el idioma de su
+	# cliente, y el español queda como default para todos los demás.
 	try:
-		updater.bot.set_my_commands([
-			BotCommand("help", "Informacion de los comandos disponibles"),
-			BotCommand("start", "Da un poco de informacion sobre Secret Hitler"),
-			BotCommand("rules", "Link al sitio oficial con las reglas"),
-			BotCommand("explainsocialista", "Explica el modo socialista y sus diferencias"),
-			BotCommand("symbols", "Muestra los simbolos posibles en el tablero"),
-			BotCommand("newgame", "Crea un nuevo juego o carga uno previo"),
-			BotCommand("nextgame", "Guarda que queres jugar la proxima partida y te avisa cuando se cree"),
-			BotCommand("join", "Te une a un juego existente"),
-			BotCommand("startgame", "Comienza un juego cuando todos se unieron"),
-			BotCommand("board", "Imprime el tablero actual"),
-			BotCommand("history", "Imprime el historial del juego actual"),
-			BotCommand("votes", "Imprime quien ha votado"),
-			BotCommand("calltovote", "Avisa a los jugadores que hay que votar (o el MVP si ya termino)"),
-			BotCommand("retirar", "Retira tu voto de Ja o Nein para volver a votar"),
-			BotCommand("startautoja", "Activa tu voto automático Ja y elegí cuándo se corta"),
-			BotCommand("stopautoja", "Desactiva tu voto automático Ja"),
-			BotCommand("conflicto", "Desactiva el voto automático Ja de todos los jugadores"),
-			BotCommand("info", "Muestra tu informacion privada del juego"),
-			BotCommand("jugadores", "Muestra los jugadores del juego"),
-			BotCommand("leave", "Te saca de un juego existente"),
-			BotCommand("stats", "Muestra las estadisticas"),
-			BotCommand("stats2", "Muestra tus estadisticas nuevas vinculadas a tu ID"),
-			BotCommand("logros", "Muestra tus logros desbloqueados"),
-			BotCommand("guess", "Adivina en privado quienes son los fascistas y Hitler"),
-			BotCommand("mvp", "Vota en privado al mejor jugador de la partida"),
-			BotCommand("end", "Cierra la votacion de MVP sin esperar a que voten todos"),
-			BotCommand("prueba", "Marca la partida como de prueba (sin stats, logros ni MVP) o la hace valer"),
-			BotCommand("guessresults", "Reimprime los resultados de las adivinanzas"),
-			BotCommand("miguess", "Muestra en privado tu propio resultado de /guess"),
-			BotCommand("version", "Muestra la version actual del bot"),
-			BotCommand("all", "Menciona a todos los miembros conocidos del grupo"),
-		])
+		updater.bot.set_my_commands(_menu_comandos(i18n.IDIOMA_DEFAULT))
 	except Exception as e:
 		log.error(str(e))
+	for codigo in i18n.CATALOGOS:
+		if codigo == i18n.IDIOMA_DEFAULT:
+			continue
+		try:
+			updater.bot.set_my_commands(_menu_comandos(codigo), language_code=codigo)
+		except Exception as e:
+			log.error("set_my_commands(%s): %s" % (codigo, str(e)))
 
 	updater.bot.send_message(ADMIN, "Nueva version en linea: v%s\n%s" % (VERSION, db_status_text))
 

@@ -1,5 +1,7 @@
 from scipy.special import comb
 
+from SecretHitler.i18n import t
+
 def hypergeom_pmf(N, A, n, x):
     
     '''
@@ -43,7 +45,7 @@ def calculate_multiple_estadistics(N, A, n, x):
         mayorA += hypergeom_pmf(N, A, n, i)
     return exactamente, menorA, menorIgualA, mayorA, mayorIgualA
 
-def PrintEstadisticas(N, A, n, x):
+def PrintEstadisticas(N, A, n, x, ctx=None):
     '''
     Prints the PMF and the CDF of the hypergeometric distribution
     :param N: population size
@@ -53,8 +55,9 @@ def PrintEstadisticas(N, A, n, x):
     :returns: PMF and CDF of the hypergeometric distribution
     '''
     exactamente, menorA, menorIgualA, mayorA, mayorIgualA = calculate_multiple_estadistics(N, A, n, x)
-    return f'''Exactamente:    {format(exactamente*100, ".2f"):0>5}%
-Mayor Igual A:   {format(mayorIgualA*100, ".2f"):0>5}%'''
+    return t("stad.result", ctx).format(
+        format(exactamente * 100, ".2f").zfill(5),
+        format(mayorIgualA * 100, ".2f").zfill(5))
 
 #     return f'''Exactamente:    {format(exactamente*100, ".2f"):0>5}%
 # Menor A:        {format(menorA*100, ".2f"):0>5}%
@@ -63,4 +66,4 @@ Mayor Igual A:   {format(mayorIgualA*100, ".2f"):0>5}%'''
 # Mayor Igual A   {format(mayorIgualA*100, ".2f"):0>5}%'''
 
 if __name__ == '__main__':
-    print(PrintEstadisticas(52,13,5,3))
+    print(PrintEstadisticas(52, 13, 5, 3))

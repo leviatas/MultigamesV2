@@ -417,56 +417,29 @@ socialistSets = {
     13: _set_socialista(6, 3, 3, PISTA_SOCIALISTA_DOBLE_RECLUTAMIENTO, 5, 10, 5),
 }
 
-opciones_choose_posible_role = {
-    "Liberal" : {
-        "comandos" : {
-            1 : "Liberal"
-        }
-    },
-    "Fascista" : {        
-        "comandos" : {
-            1 : "Fascista"
-        }
-    },
-    "Hitler" : {        
-        "comandos" : {
-            1 : "Hitler"
-        }
-    },
-    "Liberal_Fascista" : {
-        "comandos" : {
-            1 : "Liberal o Fascista"
-        }
-    },
-    "Liberal_Hitler" : {
-        "comandos" : {
-            1 : "Liberal o Hitler"
-        }
-    },
-    "Fascista_Hitler" : {
-        "comandos" : {
-            1 : "Fascista o Hitler"
-        }
-    }
-}
-
-
-def _opcion_rol(etiqueta):
-    return {"comandos": {1: etiqueta}}
-
+# Roles que se pueden pedir con /role, en el orden en que se muestran los botones.
+# La clave es lo que se guarda en Player.preference_rol y MainController.inform_players
+# la parte por "_", asi que cada segmento tiene que ser un nombre de rol tal cual.
+# La etiqueta del boton se arma al vuelo en el idioma del grupo (i18n.preference_label).
+opciones_choose_posible_role = [
+    "Liberal",
+    "Fascista",
+    "Hitler",
+    "Liberal_Fascista",
+    "Liberal_Hitler",
+    "Fascista_Hitler",
+]
 
 # Mismas opciones para el modo socialista, mas el rol Socialista y sus combinaciones.
-# La clave es lo que se guarda en Player.preference_rol y MainController.inform_players
-# la parte por "_", asi que cada parte tiene que ser un nombre de rol tal cual.
-opciones_choose_posible_role_socialista = {
-    "Liberal": _opcion_rol("Liberal"),
-    "Fascista": _opcion_rol("Fascista"),
-    "Hitler": _opcion_rol("Hitler"),
-    "Socialista": _opcion_rol("Socialista"),
-    "Liberal_Fascista": _opcion_rol("Liberal o Fascista"),
-    "Liberal_Hitler": _opcion_rol("Liberal o Hitler"),
-    "Liberal_Socialista": _opcion_rol("Liberal o Socialista"),
-    "Fascista_Hitler": _opcion_rol("Fascista o Hitler"),
-    "Fascista_Socialista": _opcion_rol("Fascista o Socialista"),
-    "Socialista_Hitler": _opcion_rol("Socialista o Hitler"),
-}
+opciones_choose_posible_role_socialista = [
+    "Liberal",
+    "Fascista",
+    "Hitler",
+    "Socialista",
+    "Liberal_Fascista",
+    "Liberal_Hitler",
+    "Liberal_Socialista",
+    "Fascista_Hitler",
+    "Fascista_Socialista",
+    "Socialista_Hitler",
+]

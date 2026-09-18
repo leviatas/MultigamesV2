@@ -4,7 +4,9 @@ import urllib.parse
 
 import psycopg2
 
-from SecretHitler.Constants.Achievements import LOGROS, LOGROS_BY_CODE, CATEGORIAS, CATEGORIA_TITULOS, MISION_IMPOSIBLE_UID
+from SecretHitler.Constants.Achievements import (LOGROS, LOGROS_BY_CODE, CATEGORIAS,
+                                                 MISION_IMPOSIBLE_UID, PARTIDAS_CAMARADA)
+from SecretHitler.i18n import t
 
 # DB Connection (mismo patron que StatsExtended.py / MainController.py)
 urllib.parse.uses_netloc.append("postgres")
@@ -239,6 +241,17 @@ def get_unlocked_codes(uid):
         conn.close()
 
 
+def nombre_logro(logro, ctx=None):
+    # El nombre y la descripcion de cada logro viven en los catalogos de idioma.
+    # `cantidad` se pasa siempre porque alguna descripcion lo usa (ej. "Camarada de
+    # hierro"); str.format ignora los kwargs que la plantilla no nombra.
+    return t("logro.%s.name" % logro.code, ctx, cantidad=PARTIDAS_CAMARADA)
+
+
+def descripcion_logro(logro, ctx=None):
+    return t("logro.%s.desc" % logro.code, ctx, cantidad=PARTIDAS_CAMARADA)
+
+
 def format_unlock_announcement(nuevos_por_uid, game, max_lineas=6):
     if not nuevos_por_uid:
         return None
@@ -251,29 +264,31 @@ def format_unlock_announcement(nuevos_por_uid, game, max_lineas=6):
         for logro in logros:
             total += 1
             if len(lineas) < max_lineas:
-                lineas.append("%s desbloqueó %s *%s*" % (name, logro.emoji, logro.name))
+                lineas.append(t("logro.unlocked_line", game) % (name, logro.emoji, nombre_logro(logro, game)))
 
-    texto = "🏆 *¡Nuevos logros!*\n\n" + "\n".join(lineas)
+    texto = t("logro.unlocked_title", game) + "\n".join(lineas)
     if total > len(lineas):
-        texto += "\n...y %d logro%s más (/logros)" % (total - len(lineas), "" if total - len(lineas) == 1 else "s")
-    texto += "\n\nMirá todos los tuyos con /logros"
+        faltan = total - len(lineas)
+        clave = "logro.and_more_one" if faltan == 1 else "logro.and_more"
+        texto += t(clave, game) % faltan
+    texto += t("logro.see_all", game)
     return texto
 
 
-def format_logros_message(uid, name):
+def format_logros_message(uid, name, ctx=None):
     unlocked = get_unlocked_codes(uid)
 
-    texto = "🏆 *Logros de %s* (%d/%d)\n" % (name.replace("_", " "), len(unlocked), len(LOGROS))
+    texto = t("logro.list_title", ctx) % (name.replace("_", " "), len(unlocked), len(LOGROS))
     for categoria in CATEGORIAS:
         logros_categoria = [l for l in LOGROS if l.categoria == categoria]
         if not logros_categoria:
             continue
-        texto += "\n*%s*\n" % CATEGORIA_TITULOS[categoria]
+        texto += "\n*%s*\n" % t("logro.cat.%s" % categoria, ctx)
         for logro in logros_categoria:
             if logro.code in unlocked:
-                texto += "✅ %s *%s* — %s\n" % (logro.emoji, logro.name, logro.description)
+                texto += "✅ %s *%s* — %s\n" % (logro.emoji, nombre_logro(logro, ctx), descripcion_logro(logro, ctx))
             elif logro.secreto:
-                texto += "🔒 ❓ ??? — Logro secreto\n"
+                texto += "\U0001F512 ❓ ??? — %s\n" % t("logro.secret", ctx)
             else:
-                texto += "🔒 %s %s — %s\n" % (logro.emoji, logro.name, logro.description)
+                texto += "\U0001F512 %s %s — %s\n" % (logro.emoji, nombre_logro(logro, ctx), descripcion_logro(logro, ctx))
     return texto

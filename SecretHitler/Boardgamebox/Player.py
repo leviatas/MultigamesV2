@@ -1,4 +1,10 @@
-from SecretHitler.Constants.Config import CORTES_AUTOJA, CORTE_AUTOJA_DEFAULT
+from SecretHitler.Constants.Config import CORTES_AUTOJA, CORTE_AUTOJA_DEFAULT, POLITICAS_PARA_CORTAR_AUTOJA
+from SecretHitler.i18n import t, role_name, party_name
+
+
+def texto_corte_autoja(corte, ctx=None):
+    # Como se le explica a un jugador cuando deja de aplicarse su voto automatico Ja.
+    return t("autoja.corte.%s" % corte, ctx, cantidad=POLITICAS_PARA_CORTAR_AUTOJA)
 
 
 class Player(object):
@@ -40,12 +46,13 @@ class Player(object):
         return self.party
 
     def get_private_info(self, game):
-        board = "--- *Info del Jugador {}* ---\n".format(self.name)
-        board += "Eres *{}* y tu afiliacion es *{}*\n".format(self.role, self.party)
+        board = t("info.header", game, nombre=self.name) + "\n"
+        board += t("info.role_and_party", game,
+                   rol=role_name(self.role, game), afiliacion=party_name(self.party, game)) + "\n"
         if getattr(self, 'auto_ja', False):
-            board += "Voto automático Ja (/startautoja): *Activado*, se corta {}\n".format(CORTES_AUTOJA[self.corte_autoja()])
+            board += t("info.autoja_on", game, corte=texto_corte_autoja(self.corte_autoja(), game)) + "\n"
         else:
-            board += "Voto automático Ja (/startautoja): *Desactivado*\n"
+            board += t("info.autoja_off", game) + "\n"
         player_number = len(game.playerlist)
         es_socialista = game.es_socialista()
         if self.role == "Fascista":
@@ -59,25 +66,23 @@ class Player(object):
                         fstring += f.name + ", "
                 fstring = fstring[:-2]
                 if not game.is_debugging:
-                    board += "Tus compañeros fascistas son: *{}*\n".format(fstring)
+                    board += t("info.fascist_teammates", game, nombres=fstring) + "\n"
             hitler = game.get_hitler()
-            board += "Hitler es: *{}*".format(hitler.name)
+            board += t("info.hitler_is", game, nombre=hitler.name)
         elif self.role == "Hitler":
             # En el modo socialista Hitler nunca conoce a nadie, ni en partidas chicas.
             if player_number <= 6 and not es_socialista:
                 fascists = game.get_fascists()
-                board +=  "Tu compañero fascista es: *{}*".format(fascists[0].name)
+                board += t("info.your_fascist_partner", game, nombre=fascists[0].name)
         elif self.role == "Socialista":
             companeros = [s.name for s in game.get_socialists() if s.uid != self.uid]
             if not companeros:
-                board += "Sos el único socialista de origen de la partida."
+                board += t("info.only_socialist", game)
             elif not game.is_debugging:
-                board += "Tus compañeros socialistas son: *{}*".format(", ".join(companeros))
+                board += t("info.socialist_teammates", game, nombres=", ".join(companeros))
         if getattr(self, "was_recruited", False):
             if self.role == "Hitler":
-                board += ("\n\n\u270A Los socialistas te *reclutaron*, pero sos Hitler: no te hace efecto. "
-                          "Seguís ganando con los fascistas y no participás de sus decisiones. "
-                          "Eso sí, ahora tenés la carta socialista, así que quien te investigue va a ver *socialista*.")
+                board += "\n\n" + t("info.recruited_hitler", game)
             else:
-                board += "\n\n\u270A Fuiste *reclutado por los socialistas*: ahora ganás con ellos."
+                board += "\n\n" + t("info.recruited", game)
         return board

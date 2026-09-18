@@ -146,6 +146,16 @@ CREATE TABLE IF NOT EXISTS nextgame_secret_hitler_waitlist (
     PRIMARY KEY (cid, uid)
 );
 
+-- Idioma elegido por cada chat con /language. Es una propiedad del grupo (no del
+-- jugador ni de la partida), asi que sobrevive a los reinicios y a cada /newgame:
+-- todos los mensajes de una partida, incluidos los privados, salen en el idioma
+-- del grupo donde se juega.
+CREATE TABLE IF NOT EXISTS language_secret_hitler (
+    cid BIGINT PRIMARY KEY,
+    lang TEXT NOT NULL DEFAULT 'es',
+    updated_at TIMESTAMP DEFAULT now()
+);
+
 -- If there are no stats in the stats table I initiate it.
 DO $$
 BEGIN 
