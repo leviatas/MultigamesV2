@@ -609,9 +609,15 @@ def command_join(update: Update, context: CallbackContext):
 	groupType = update.message.chat.type
 	game = get_game(cid)
 	if len(args) <= 0:
-		# if not args, use normal behaviour
-		fname = update.message.from_user.first_name.replace("_", " ")
-		uid = update.message.from_user.id
+		# Si el comando es un reply al mensaje de otro jugador, se une a ESE jugador en vez
+		# de a quien escribe /join (util cuando alguien le pide a otro que lo sume por el).
+		reply = update.message.reply_to_message
+		if reply is not None and reply.from_user is not None and not reply.from_user.is_bot:
+			fname = reply.from_user.first_name.replace("_", " ")
+			uid = reply.from_user.id
+		else:
+			fname = update.message.from_user.first_name.replace("_", " ")
+			uid = update.message.from_user.id
 	else:
 		uid = update.message.from_user.id
 		if uid == ADMIN:
