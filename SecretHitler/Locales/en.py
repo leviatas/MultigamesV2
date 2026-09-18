@@ -633,7 +633,7 @@ TEXTS.update({
 /newgame socialista - Creates a game with the Socialist Expansion: a third party, with its own track and its own powers (6 to 13 players)
 /explainsocialista - Explains how the socialist mode is played and how it differs from the classic one
 /nextgame - Notes that you want to play the next game and pings you privately when one is created with /newgame
-/join - Joins you to an existing game
+/join - Joins you to an existing game. If used as a reply to another player's message, joins that player instead
 /startgame - Starts an existing game once every player has joined
 /cancelgame - Cancels an existing game, all of its data is deleted.
 /board - Prints the current board with the liberal and fascist tracks, presidential order and election tracker
@@ -714,7 +714,7 @@ TEXTS.update({
     'menu.language': 'Changes the bot language in this group',
     'menu.newgame': 'Creates a new game or loads a previous one',
     'menu.nextgame': 'Notes that you want to play the next game and pings you when it is created',
-    'menu.join': 'Joins you to an existing game',
+    'menu.join': 'Joins you to an existing game (in reply, joins that player)',
     'menu.startgame': 'Starts a game once everybody has joined',
     'menu.board': 'Prints the current board',
     'menu.history': 'Prints the history of the current game',
