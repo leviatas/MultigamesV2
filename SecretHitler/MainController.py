@@ -744,7 +744,12 @@ def choose_kill(update: Update, context: CallbackContext):
             bot.send_message(game.cid,
                              t("kill.not_hitler_announce", game) % (
                                  game.board.state.president.name, chosen.name, chosen.name))
-            bot.send_message(chosen.uid, t("kill.you_are_dead", game) % game.board.state.president.name)
+            groupName = ""
+            if hasattr(game, 'groupName'):
+                groupName += t("common.in_group", game).format(game.groupName)
+            bot.send_message(chosen.uid,
+                t("kill.you_are_dead", game).format(groupName) % game.board.state.president.name,
+                parse_mode=ParseMode.MARKDOWN)
             game.history.append(t("kill.not_hitler_history", game) % (game.board.state.president.name, chosen.name))
             start_next_round(bot, game)
     except:

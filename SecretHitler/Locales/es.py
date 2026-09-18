@@ -60,7 +60,7 @@ TEXTS.update({
     'kill.hitler_announce': 'El Presidente %s ha matado a %s. ',
     'kill.not_hitler_announce': 'El Presidente %s ha matado a %s que no era Hitler. %s, ahora estás muerto y no puedes hablar más!',
     'kill.not_hitler_history': 'El Presidente %s ha matado a %s que no era Hitler!',
-    'kill.you_are_dead': 'ESTAS MUERTO, %s TE HA MATADO',
+    'kill.you_are_dead': '{}ESTAS MUERTO, %s TE HA MATADO',
     'kill.you_killed': 'Has matado a %s!',
     'legis.choose_enact': 'El Presidente %s te entregó las siguientes 2 políticas. Cuál quieres promulgar?',
     'legis.choose_enact_with_veto': 'El Presidente %s te entregó las siguientes 2 políticas. Cuál quieres promulgar? También puedes usar el poder de Veto.',
