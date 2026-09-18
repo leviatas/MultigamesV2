@@ -58,7 +58,7 @@ TEXTS.update({
     'kill.hitler_announce': 'President %s has killed %s. ',
     'kill.not_hitler_announce': 'President %s has killed %s, who was not Hitler. %s, you are dead now and cannot talk any more!',
     'kill.not_hitler_history': 'President %s has killed %s, who was not Hitler!',
-    'kill.you_are_dead': 'YOU ARE DEAD, %s HAS KILLED YOU',
+    'kill.you_are_dead': '{}YOU ARE DEAD, %s HAS KILLED YOU',
     'kill.you_killed': 'You have killed %s!',
     'legis.choose_enact': 'President %s handed you the following 2 policies. Which one do you want to enact?',
     'legis.choose_enact_with_veto': 'President %s handed you the following 2 policies. Which one do you want to enact? You can also use the Veto power.',
