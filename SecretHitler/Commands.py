@@ -1687,6 +1687,70 @@ def _apply_fix5(bot, game, notify_cid):
 	MainController.action_inspect(bot, game)
 	bot.send_message(notify_cid, "Se reenvió el menú de investigación al Presidente {}.".format(game.board.state.president.name))
 
+def command_fix6(update: Update, context: CallbackContext):
+	# Cuando un grupo se migra a supergrupo, Telegram le cambia el chat_id. Si ya
+	# actualizaste a mano el id de la fila en games_secret_hitler, esto arregla lo que
+	# queda: el JSON de la partida (columna data) todavia tiene adentro el Game.cid viejo,
+	# y la cache en memoria (GamesController.games) puede tener la partida guardada bajo
+	# el id viejo. Uso: /fix6 <cid_viejo> [cid_nuevo]. Si se corre en el grupo ya migrado
+	# alcanza con pasar el cid_viejo, el nuevo se toma del chat actual.
+	bot = context.bot
+	args = context.args
+	uid = update.message.from_user.id
+	cid = update.message.chat_id
+	groupType = update.message.chat.type
+	log.info("Ingreso en FIX6")
+	if uid != ADMIN:
+		return
+
+	if not args:
+		bot.send_message(cid, "Uso: /fix6 <cid_viejo> [cid_nuevo]\nSi lo corres en el grupo ya migrado alcanza con el cid_viejo, el nuevo se toma del chat actual.")
+		return
+
+	try:
+		cid_viejo = int(args[0])
+	except ValueError:
+		bot.send_message(cid, "El cid_viejo tiene que ser un número.")
+		return
+
+	if len(args) >= 2:
+		try:
+			cid_nuevo = int(args[1])
+		except ValueError:
+			bot.send_message(cid, "El cid_nuevo tiene que ser un número.")
+			return
+	elif groupType in ['group', 'supergroup']:
+		cid_nuevo = cid
+	else:
+		bot.send_message(cid, "Falta el cid_nuevo: corre el comando en el grupo ya migrado, o pasalo como segundo argumento.")
+		return
+
+	# Cargo siempre desde la BD (no get_game) porque la fila puede no estar cacheada
+	# todavía bajo el id nuevo, y load_game no exige que el ADMIN sea jugador de la partida.
+	game = load_game(cid_nuevo)
+	if game is None:
+		bot.send_message(cid, "No encontré ninguna partida en la BD con id {}. Verificá que ya hayas actualizado la fila en games_secret_hitler.".format(cid_nuevo))
+		return
+
+	cid_en_json = game.cid
+	if cid_en_json == cid_nuevo:
+		bot.send_message(cid, "El JSON de *{}* ya tenía el cid {} adentro, no había nada que arreglar.".format(game.groupName, cid_nuevo), parse_mode=ParseMode.MARKDOWN)
+		return
+	if cid_en_json != cid_viejo:
+		bot.send_message(cid, "⚠️ Ojo: el JSON tenía adentro el cid {}, no el {} que pasaste como viejo. Igual lo actualizo a {}.".format(cid_en_json, cid_viejo, cid_nuevo))
+
+	game.cid = cid_nuevo
+	save_game(cid_nuevo, game.groupName, game)
+	# Saco cualquier copia cacheada en memoria bajo el id viejo o bajo el nuevo (si se
+	# había llegado a cachear con el cid desactualizado adentro), para que el próximo
+	# get_game() relea la versión ya arreglada desde la BD.
+	GamesController.games.pop(cid_viejo, None)
+	GamesController.games.pop(cid_nuevo, None)
+
+	bot.send_message(cid,
+		"✅ Listo. El JSON de *{}* tenía el cid {} adentro, lo actualicé a {}.".format(game.groupName, cid_en_json, cid_nuevo),
+		parse_mode=ParseMode.MARKDOWN)
+
 def command_player_counter(update: Update, context: CallbackContext):
 	bot = context.bot
 	args = context.args
