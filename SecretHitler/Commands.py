@@ -1050,17 +1050,17 @@ def command_showhistory(update: Update, context: CallbackContext):
 			#bot.send_message(cid, "Current round: " + str(game.board.state.currentround + 1))
 			uid = update.message.from_user.id
 			game.groupName = groupName
+			MAX_LENGTH = 4050
 			history_text = t("history.group_header", game).format(groupName)
-			history_textContinue = "" 
 			for x in game.history:
-				if len(history_text) < 3500:
-					history_text += x + "\n\n"
+				entry = x + "\n\n"
+				if len(history_text) + len(entry) > MAX_LENGTH:
+					bot.send_message(uid, history_text, ParseMode.MARKDOWN)
+					history_text = entry
 				else:
-					history_textContinue += x + "\n\n"
-
-			bot.send_message(uid, history_text, ParseMode.MARKDOWN)
-			if len(history_textContinue) > 0:
-				bot.send_message(uid, history_textContinue, ParseMode.MARKDOWN)
+					history_text += entry
+			if history_text:
+				bot.send_message(uid, history_text, ParseMode.MARKDOWN)
 			#bot.send_message(cid, "I sent you the history to our private chat")			
 		else:
 			bot.send_message(cid, t("common.no_game", cid))
