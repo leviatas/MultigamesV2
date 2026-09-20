@@ -32,14 +32,18 @@ class Game(object):
                 return team
 
     def getHistory(self, uid):
+        MAX_LENGTH = 4050
         history_list = []
         history_text = f"History del grupo *{self.groupName}*:\n\n"
         for x in self.history:
-            if len(history_text) < 3500:
-                history_text += x + "\n\n"
-            else:
+            entry = x + "\n\n"
+            if len(history_text) + len(entry) > MAX_LENGTH:
                 history_list.append(history_text)
-                history_text = ""
+                history_text = entry
+            else:
+                history_text += entry
+        if history_text:
+            history_list.append(history_text)
         return history_list
     
     def add_player(self, uid, name):
