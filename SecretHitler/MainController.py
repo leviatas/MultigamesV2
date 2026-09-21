@@ -267,23 +267,43 @@ def handle_voting(update: Update, context: CallbackContext):
 	except Exception as e:
 		log.error(str(e))
 
-def resumen_de_votos(game, votos, valor_ja, valor_nein):
+def resumen_de_votos(game, votos, valor_ja, valor_nein, empate_pierde_ja=True):
 	# Version compacta de la votacion, para el historial: una linea por resultado
 	# con la cantidad y los nombres de quienes votaron asi.
+	# Los votantes de la minoria van en `codigo` para que se note quienes fueron.
+	# En un empate se destaca a los que perdieron: en la votacion de formula el
+	# empate la rechaza (perdio el Ja); en la de anarquia el empate la aprueba
+	# (perdio el No), por eso empate_pierde_ja=False ahi.
+	# Si todos votaron lo mismo solo se muestra "Votos X: Todos".
 	ja = []
 	nein = []
 	for player in game.player_sequence:
-		nombre_jugador = game.playerlist[player.uid].name.replace("_", " ")
+		# Se sacan "_" (Markdown) y "`" (cerraria el bloque de codigo).
+		nombre_jugador = game.playerlist[player.uid].name.replace("_", " ").replace("`", "'")
 		if votos.get(player.uid) == valor_ja:
 			ja.append(nombre_jugador)
 		elif votos.get(player.uid) == valor_nein:
 			nein.append(nombre_jugador)
+	if ja and not nein:
+		return t("vote.summary_all_ja", game) + "\n"
+	if nein and not ja:
+		return t("vote.summary_all_nein", game) + "\n"
+	if len(ja) == len(nein):
+		destacar_ja = empate_pierde_ja
+	else:
+		destacar_ja = len(ja) < len(nein)
+
+	def nombres(lista, destacar):
+		if destacar:
+			return ", ".join("`%s`" % nombre for nombre in lista)
+		return ", ".join(lista)
+
 	texto = t("vote.summary_ja", game) % len(ja)
 	if ja:
-		texto += ": " + ", ".join(ja)
+		texto += ": " + nombres(ja, destacar_ja)
 	texto += t("vote.summary_nein", game) % len(nein)
 	if nein:
-		texto += ": " + ", ".join(nein)
+		texto += ": " + nombres(nein, not destacar_ja)
 	return texto + "\n"
 
 
@@ -1299,7 +1319,7 @@ def count_votes_anarquia(bot, game):
 	log.info('count_votes_anarquia called')
 	voting_text = ""
 	voting_success = False
-	resumen_text = resumen_de_votos(game, game.board.state.votes_anarquia, "Si", "No")
+	resumen_text = resumen_de_votos(game, game.board.state.votes_anarquia, "Si", "No", empate_pierde_ja=False)
 	for player in game.player_sequence:
 		nombre_jugador = game.playerlist[player.uid].name
 		if game.board.state.votes_anarquia[player.uid] == "Si":

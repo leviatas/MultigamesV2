@@ -165,6 +165,8 @@ TEXTS.update({
     'vote.no_talking': '\nNo se puede hablar ahora.',
     'vote.not_voting_time': 'No es el momento de votar!',
     'vote.rejected': 'Al pueblo no le gusto el Presidente %s y el canciller %s!',
+    'vote.summary_all_ja': 'Votos Ja: Todos',
+    'vote.summary_all_nein': 'Votos Nein: Todos',
     'vote.summary_ja': '%d Votos Ja',
     'vote.summary_nein': '\n%d Votos Nein',
     'vote.thanks': 'Gracias por tu voto: %s para el Presidente %s y el canciller %s',
