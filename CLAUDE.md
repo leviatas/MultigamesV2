@@ -165,7 +165,15 @@ preloads the whole table into a `cid -> lang` dict, so `t()` never hits the data
   `stats_detail_secret_hitler.playerlist` is built with `print_roles("es")` on purpose, because `/stats` finds old
   games with `LIKE '%El rol de X era Fasc%'`. Translating that write would silently orphan every player's history.
 - **`game.history` / `hiddenhistory` store rendered text**, so a line is frozen in the language the group had when it
-  happened; changing `/language` mid-game doesn't rewrite what's already there.
+  happened; changing `/language` mid-game doesn't rewrite what's already there. The one exception is **votes** in
+  `game.history`: `MainController.entrada_votacion()` stores them as a dict (`tipo: "votacion"`, the rendered
+  `encabezado`/`resultado`, and `votos` as `[[name, "ja"|"nein"], ...]` in turn order), so `/history` can show them
+  compact (default) or one-vote-per-line. That mode is a **per-player** preference, not per chat or game:
+  `/history compacto|extendido` saves it in `history_mode_secret_hitler (uid, modo)` via `SecretHitler/HistoryPrefs.py`
+  (preloaded into a `uid -> modo` dict by `HistoryPrefs.init()` at startup, like `i18n.init()`), it works even with no
+  game in the chat, and every `/history` DM ends with a footer naming the current mode. Anything reading `game.history` must go through
+  `MainController.render_entrada_historial(game, entry, extendido)`; plain-string entries (including votes saved before
+  this) render as-is.
 - **Admin-only tooling stays in Spanish on purpose** (`/fix`–`/fix5`, `/admin`, `/comando`, `/vincularstats*`, the
   startup report to `ADMIN`, `error_callback`): no player ever sees it. The two messages those commands send to the
   *group* or to the *president* (`fix.chancellor_announce`, `fix.president_choose_discard`) are translated.

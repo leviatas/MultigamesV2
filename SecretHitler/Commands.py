@@ -31,6 +31,7 @@ import SecretHitler.StatsExtended as StatsExtended
 import SecretHitler.Achievements as Achievements
 import SecretHitler.GroupMembers as GroupMembers
 import SecretHitler.NextGame as NextGame
+import SecretHitler.HistoryPrefs as HistoryPrefs
 # Enable logging
 
 log.basicConfig(
@@ -1039,21 +1040,45 @@ def command_showhistory(update: Update, context: CallbackContext):
 	bot = context.bot
 	#game.pedrote = 3
 	try:
-		#Send message of executing command   
+		#Send message of executing command
 		cid = update.message.chat_id
-		#Check if there is a current game 
-		
+		uid = update.message.from_user.id
+		#Check if there is a current game
+
 		groupName = update.message.chat.title
 
 		game = get_game(cid)
-		if game:			
+		# /history compacto|extendido cambia el modo del jugador y queda guardado para
+		# sus proximas partidas (HistoryPrefs); se guarda aunque no haya partida en curso.
+		args = context.args
+		if args:
+			ctx = game if game else cid
+			modo_elegido = HistoryPrefs.normalizar(args[0])
+			if modo_elegido is None:
+				bot.send_message(cid, t("history.mode_unknown", ctx))
+				return
+			if HistoryPrefs.set_modo(uid, modo_elegido):
+				bot.send_message(cid, t("history.mode_saved", ctx).format(
+					update.message.from_user.first_name, t("history.mode." + modo_elegido, ctx)))
+			else:
+				bot.send_message(cid, t("history.mode_save_failed", ctx))
+			if not game:
+				# Solo queria cambiar el modo: no hace falta avisarle que no hay partida.
+				return
+		if game:
 			#bot.send_message(cid, "Current round: " + str(game.board.state.currentround + 1))
-			uid = update.message.from_user.id
 			game.groupName = groupName
+			modo = HistoryPrefs.get_modo(uid)
+			extendido = modo == HistoryPrefs.MODO_EXTENDIDO
+			otro_modo = HistoryPrefs.MODO_COMPACTO if extendido else HistoryPrefs.MODO_EXTENDIDO
 			MAX_LENGTH = 4050
 			history_text = t("history.group_header", game).format(groupName)
-			for x in game.history:
-				entry = x + "\n\n"
+			# Al final va un pie con el modo actual y como cambiarlo.
+			entradas = [MainController.render_entrada_historial(game, x, extendido) for x in game.history]
+			entradas.append(t("history.mode_footer", game).format(
+				t("history.mode." + modo, game), t("history.mode_arg." + otro_modo, game)))
+			for texto_entrada in entradas:
+				entry = texto_entrada + "\n\n"
 				if len(history_text) + len(entry) > MAX_LENGTH:
 					bot.send_message(uid, history_text, ParseMode.MARKDOWN)
 					history_text = entry

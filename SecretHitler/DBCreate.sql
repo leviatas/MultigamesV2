@@ -156,6 +156,15 @@ CREATE TABLE IF NOT EXISTS language_secret_hitler (
     updated_at TIMESTAMP DEFAULT now()
 );
 
+-- Modo en que cada jugador ve /history ('compacto' o 'extendido'). Es una
+-- preferencia del jugador (no del grupo ni de la partida), asi que vale para todas
+-- sus partidas. Se elige con /history compacto o /history extendido.
+CREATE TABLE IF NOT EXISTS history_mode_secret_hitler (
+    uid BIGINT PRIMARY KEY,
+    modo TEXT NOT NULL DEFAULT 'compacto',
+    updated_at TIMESTAMP DEFAULT now()
+);
+
 -- If there are no stats in the stats table I initiate it.
 DO $$
 BEGIN 

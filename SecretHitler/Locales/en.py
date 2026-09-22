@@ -284,6 +284,14 @@ With */board* you see the three tracks and with */symbols* what each symbol mean
     'guessresults.choose_game': 'Choose the game to see the guess results',
     'guessresults.nobody_guessed': 'Nobody used /guess in that game.',
     'history.group_header': 'History of the group *{}*:\n\n',
+    'history.mode.compacto': 'compact',
+    'history.mode.extendido': 'extended',
+    'history.mode_arg.compacto': 'compact',
+    'history.mode_arg.extendido': 'extended',
+    'history.mode_footer': '_History mode: {}. To change it: /history {}_',
+    'history.mode_saved': '{}: your history mode is now {}. It will be used in all your games.',
+    'history.mode_save_failed': 'I could not save your history mode, please try again later.',
+    'history.mode_unknown': 'Unknown mode. Use /history compact or /history extended.',
     'info.choose_game': 'Choose the game to get /info in private',
     'info.group_header': '--- *Info for the group {}* ---\n',
     'info.must_be_player': 'You have to be a player in the game to get information.',
@@ -639,7 +647,7 @@ TEXTS.update({
 /startgame - Starts an existing game once every player has joined
 /cancelgame - Cancels an existing game, all of its data is deleted.
 /board - Prints the current board with the liberal and fascist tracks, presidential order and election tracker
-/history - Prints the history of the current game
+/history - Prints the history of the current game. /history extended shows each player's vote, one per line, and /history compact summarizes it again; your choice is saved for your future games
 /votes - Prints who has voted
 /calltovote - Tells the players it is time to vote (or who still has to vote for the MVP if the game already ended)
 /retirar - Withdraws your Ja or Nein vote so you can vote again
@@ -719,7 +727,7 @@ TEXTS.update({
     'menu.join': 'Joins you to an existing game (in reply, joins that player)',
     'menu.startgame': 'Starts a game once everybody has joined',
     'menu.board': 'Prints the current board',
-    'menu.history': 'Prints the history of the current game',
+    'menu.history': 'Prints the game history (compact or extended, remembered)',
     'menu.votes': 'Prints who has voted',
     'menu.calltovote': 'Tells the players it is time to vote (or the MVP if it already ended)',
     'menu.retirar': 'Withdraws your Ja or Nein vote so you can vote again',

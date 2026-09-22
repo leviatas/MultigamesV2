@@ -27,6 +27,7 @@ import SecretHitler.GamesController as GamesController
 import SecretHitler.StatsExtended as StatsExtended
 import SecretHitler.Achievements as Achievements
 import SecretHitler.GroupMembers as GroupMembers
+import SecretHitler.HistoryPrefs as HistoryPrefs
 
 import datetime
 import jsonpickle
@@ -267,23 +268,46 @@ def handle_voting(update: Update, context: CallbackContext):
 	except Exception as e:
 		log.error(str(e))
 
-def resumen_de_votos(game, votos, valor_ja, valor_nein, empate_pierde_ja=True):
-	# Version compacta de la votacion, para el historial: una linea por resultado
+def entrada_votacion(game, votos, valor_ja, valor_nein, encabezado, resultado, empate_pierde_ja=True):
+	# Las votaciones se guardan en game.history como un dict estructurado, no como
+	# texto ya armado, para que /history pueda mostrarlas compactas o extendidas
+	# (ver render_entrada_historial). Los votos van en orden de turno, normalizados
+	# a "ja"/"nein" asi la de formula (Ja/Nein) y la de anarquia (Si/No) se
+	# renderizan igual. Es una lista de listas (no un dict por uid) para que
+	# jsonpickle no tenga nada que stringificar.
+	# encabezado y resultado ya van renderizados: quedan en el idioma que tenia el
+	# grupo cuando paso, igual que el resto de las lineas del historial.
+	lista_votos = []
+	for player in game.player_sequence:
+		voto = votos.get(player.uid)
+		if voto == valor_ja:
+			lista_votos.append([game.playerlist[player.uid].name, "ja"])
+		elif voto == valor_nein:
+			lista_votos.append([game.playerlist[player.uid].name, "nein"])
+	return {
+		"tipo": "votacion",
+		"encabezado": encabezado,
+		"votos": lista_votos,
+		"empate_pierde_ja": empate_pierde_ja,
+		"resultado": resultado,
+	}
+
+
+def _nombre_para_historial(nombre):
+	# Se sacan "_" (Markdown) y "`" (cerraria el bloque de codigo).
+	return nombre.replace("_", " ").replace("`", "'")
+
+
+def resumen_de_votos(game, lista_votos, empate_pierde_ja=True):
+	# Version compacta de la votacion: una linea por resultado
 	# con la cantidad y los nombres de quienes votaron asi.
 	# Los votantes de la minoria van en `codigo` para que se note quienes fueron.
 	# En un empate se destaca a los que perdieron: en la votacion de formula el
 	# empate la rechaza (perdio el Ja); en la de anarquia el empate la aprueba
 	# (perdio el No), por eso empate_pierde_ja=False ahi.
 	# Si todos votaron lo mismo solo se muestra "Votos X: Todos".
-	ja = []
-	nein = []
-	for player in game.player_sequence:
-		# Se sacan "_" (Markdown) y "`" (cerraria el bloque de codigo).
-		nombre_jugador = game.playerlist[player.uid].name.replace("_", " ").replace("`", "'")
-		if votos.get(player.uid) == valor_ja:
-			ja.append(nombre_jugador)
-		elif votos.get(player.uid) == valor_nein:
-			nein.append(nombre_jugador)
+	ja = [_nombre_para_historial(nombre) for nombre, voto in lista_votos if voto == "ja"]
+	nein = [_nombre_para_historial(nombre) for nombre, voto in lista_votos if voto == "nein"]
 	if ja and not nein:
 		return t("vote.summary_all_ja", game) + "\n"
 	if nein and not ja:
@@ -307,6 +331,28 @@ def resumen_de_votos(game, votos, valor_ja, valor_nein, empate_pierde_ja=True):
 	return texto + "\n"
 
 
+def detalle_de_votos(game, lista_votos):
+	# Version extendida: cada jugador con su voto, uno abajo del otro, en orden de turno.
+	texto = ""
+	for nombre, voto in lista_votos:
+		sufijo = "vote.voted_ja_suffix" if voto == "ja" else "vote.voted_nein_suffix"
+		texto += _nombre_para_historial(nombre) + t(sufijo, game)
+	return texto
+
+
+def render_entrada_historial(game, entrada, extendido=False):
+	# Las entradas de game.history son texto, salvo las votaciones (ver
+	# entrada_votacion). Las votaciones guardadas antes de este cambio son texto
+	# con el resumen compacto ya armado, asi que salen igual en ambos modos.
+	if isinstance(entrada, dict) and entrada.get("tipo") == "votacion":
+		if extendido:
+			votos_text = detalle_de_votos(game, entrada["votos"])
+		else:
+			votos_text = resumen_de_votos(game, entrada["votos"], entrada.get("empate_pierde_ja", True))
+		return entrada["encabezado"] + votos_text + entrada["resultado"]
+	return str(entrada)
+
+
 def count_votes(bot, game):
 	# La votacion ha finalizado.
 	game.dateinitvote = None
@@ -314,7 +360,6 @@ def count_votes(bot, game):
 	log.info('count_votes called')
 	voting_text = ""
 	voting_success = False
-	resumen_text = resumen_de_votos(game, game.board.state.last_votes, "Ja", "Nein")
 	for player in game.player_sequence:
 		nombre_jugador = game.playerlist[player.uid].name.replace("_", " ")
 		if game.board.state.last_votes[player.uid] == "Ja":
@@ -337,7 +382,9 @@ def count_votes(bot, game):
 		
 		bot.send_message(game.cid, voting_text, ParseMode.MARKDOWN)
 		bot.send_message(game.cid, t("vote.no_talking", game))
-		game.history.append((t("history.round_header", game) % (politicas_promulgadas(game) + 1, game.board.state.failed_votes + 1) ) + resumen_text + resultado_text)
+		game.history.append(entrada_votacion(game, game.board.state.last_votes, "Ja", "Nein",
+			t("history.round_header", game) % (politicas_promulgadas(game) + 1, game.board.state.failed_votes + 1),
+			resultado_text))
 		#log.info(game.history[game.board.state.currentround])
 		voting_aftermath(bot, game, voting_success)
 	else:
@@ -349,7 +396,9 @@ def count_votes(bot, game):
 		game.board.state.nominated_chancellor = None
 		game.board.state.failed_votes += 1
 		bot.send_message(game.cid, voting_text)
-		game.history.append((t("history.round_header", game) % (politicas_promulgadas(game) + 1, game.board.state.failed_votes) ) + resumen_text + resultado_text)
+		game.history.append(entrada_votacion(game, game.board.state.last_votes, "Ja", "Nein",
+			t("history.round_header", game) % (politicas_promulgadas(game) + 1, game.board.state.failed_votes),
+			resultado_text))
 		#log.info(game.history[game.board.state.currentround])
 		if game.board.state.failed_votes == 3:
 			do_anarchy(bot, game)
@@ -1319,7 +1368,6 @@ def count_votes_anarquia(bot, game):
 	log.info('count_votes_anarquia called')
 	voting_text = ""
 	voting_success = False
-	resumen_text = resumen_de_votos(game, game.board.state.votes_anarquia, "Si", "No", empate_pierde_ja=False)
 	for player in game.player_sequence:
 		nombre_jugador = game.playerlist[player.uid].name
 		if game.board.state.votes_anarquia[player.uid] == "Si":
@@ -1335,7 +1383,9 @@ def count_votes_anarquia(bot, game):
 		game.board.state.nominated_chancellor = None
 		bot.send_message(game.cid, voting_text, ParseMode.MARKDOWN)
 		bot.send_message(game.cid, t("vote.no_talking", game))
-		game.history.append((t("history.round_header", game) % (politicas_promulgadas(game) + 1, game.board.state.failed_votes + 1) ) + resumen_text + resultado_text)
+		game.history.append(entrada_votacion(game, game.board.state.votes_anarquia, "Si", "No",
+			t("history.round_header", game) % (politicas_promulgadas(game) + 1, game.board.state.failed_votes + 1),
+			resultado_text, empate_pierde_ja=False))
 		# Avanzo la cantidad del lider asi el lider queda correctamente asignado
 		# Se incrementa como mucho 2 ya que el ultimo incremento lo hace la anarquia
 		for i in range(2 - game.board.state.failed_votes):
@@ -1348,7 +1398,9 @@ def count_votes_anarquia(bot, game):
 		game.board.state.nominated_president = None
 		game.board.state.nominated_chancellor = None
 		bot.send_message(game.cid, voting_text, ParseMode.MARKDOWN)
-		game.history.append((t("history.round_header", game) % (politicas_promulgadas(game) + 1, game.board.state.failed_votes + 1) ) + resumen_text + resultado_text)
+		game.history.append(entrada_votacion(game, game.board.state.votes_anarquia, "Si", "No",
+			t("history.round_header", game) % (politicas_promulgadas(game) + 1, game.board.state.failed_votes + 1),
+			resultado_text, empate_pierde_ja=False))
 		#game.board.state.failed_votes == 3
 		
 			
@@ -1823,6 +1875,7 @@ SECRET_HITLER_TABLES = [
 	"stats_secret_hitler_players",
 	"achievements_secret_hitler_players",
 	"language_secret_hitler",
+	"history_mode_secret_hitler",
 ]
 
 def _existing_tables(cur, table_names):
@@ -1896,6 +1949,8 @@ def main():
 	db_status_text = init_db()
 	# Precarga el idioma de cada chat para no consultar la base en cada mensaje.
 	i18n.init()
+	# Igual con el modo de /history de cada jugador (despues de init_db, que crea la tabla).
+	HistoryPrefs.init()
 
 	'''
 	log.info('Insertando')
