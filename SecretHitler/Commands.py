@@ -1230,6 +1230,8 @@ def load_game(cid):
 			for entry in history:
 				if "fascists" in entry:
 					entry["fascists"] = [int(u) for u in entry.get("fascists", [])]
+				if "socialists" in entry:
+					entry["socialists"] = [int(u) for u in entry.get("socialists", [])]
 				if entry.get("hitler") is not None:
 					entry["hitler"] = int(entry["hitler"])
 				if entry.get("predicted") is not None:
@@ -1959,6 +1961,19 @@ def _guess_num_fascists(game):
 	roles = sets.get(len(game.playerlist), {}).get("roles", [])
 	return sum(1 for r in roles if r == "Fascista")
 
+def _guess_num_socialists(game):
+	# Cuantos socialistas "de origen" (rol Socialista) hay para adivinar. Solo existen en
+	# el modo socialista; un reclutado conserva su rol, asi que no cuenta.
+	if not game.es_socialista():
+		return 0
+	roles = socialistSets.get(len(game.playerlist), {}).get("roles", [])
+	return sum(1 for r in roles if r == "Socialista")
+
+def _guess_socialist_uids(game):
+	# Los socialistas a adivinar se juzgan por rol (de origen), no por afiliacion: si no,
+	# a quien haya reclutado a Hitler le contaria como acierto marcarlo socialista.
+	return {p.uid for p in game.playerlist.values() if p.role == "Socialista"}
+
 def command_guess(update: Update, context: CallbackContext):
 	bot = context.bot
 	uid = update.message.from_user.id
@@ -2012,14 +2027,26 @@ def _init_guess_progress(game, uid):
 	# - Hitler: ya sabe que es Hitler, solo adivina a sus compañeros fascistas ("hitler").
 	# - Fascista: ya sabe todo, en vez de adivinar predice quien sera el jugador que
 	#   mas acierte en el modo "full" ("fascist_prediction").
+	# En el modo socialista, todo el que no conoce a los socialistas los tiene que adivinar
+	# tambien (paso extra "socialists"): el Liberal y Hitler ademas de lo suyo, y el Fascista
+	# en lugar de la prediccion ("socialists", que no sabe quienes son). El Socialista hace
+	# el "full" de siempre: no conoce ni a los fascistas ni a Hitler.
+	# Todo se decide por el rol ORIGINAL (player.role), nunca por la afiliacion: un reclutado
+	# conserva el /guess de su rol de origen, y solo los socialistas de origen hacen el suyo.
 	player = game.playerlist.get(uid)
 	role = player.role if player else None
+	socialista = game.es_socialista()
 	if role == "Hitler":
 		progress = {"mode": "hitler", "fascists": [], "num_fascists": _guess_num_fascists(game)}
+	elif role == "Fascista" and socialista:
+		progress = {"mode": "socialists"}
 	elif role == "Fascista":
 		progress = {"mode": "fascist_prediction", "predicted": None}
 	else:
 		progress = {"mode": "full", "fascists": [], "hitler": None, "num_fascists": _guess_num_fascists(game)}
+	if socialista and role != "Socialista":
+		progress["socialists"] = []
+		progress["num_socialists"] = _guess_num_socialists(game)
 	GamesController.guess_progress[(game.cid, uid)] = progress
 	return progress
 
@@ -2027,7 +2054,20 @@ def _build_first_guess_prompt(game, uid):
 	progress = GamesController.guess_progress[(game.cid, uid)]
 	if progress["mode"] == "fascist_prediction":
 		return _build_guess_prediction_prompt(game, uid)
+	if progress["mode"] == "socialists":
+		return _build_guess_socialist_prompt(game, uid)
 	return _build_guess_fascist_prompt(game, uid)
+
+def _build_next_guess_prompt(game, uid, etapa):
+	# Paso que sigue a la etapa terminada (elegida completa o salteada con "No sé"):
+	# fascistas ("f") -> Hitler ("h", solo "full") -> socialistas ("s", solo si el
+	# progress los pide) -> confirmar. La prediccion ("p") va directo a confirmar.
+	progress = GamesController.guess_progress[(game.cid, uid)]
+	if etapa == "f" and progress["mode"] == "full":
+		return _build_guess_hitler_prompt(game, uid)
+	if etapa in ("f", "h") and "socialists" in progress:
+		return _build_guess_socialist_prompt(game, uid)
+	return _build_guess_confirm_prompt(game, uid)
 
 def _start_guess_flow(bot, game, uid):
 	history = getattr(game, "guesses", {}).get(uid, [])
@@ -2043,12 +2083,14 @@ def _start_guess_flow(bot, game, uid):
 		return
 
 	if attempts_done == 0:
+		# En el modo socialista cambian las intros de los que tienen que adivinar socialistas.
+		sufijo = "_soc" if game.es_socialista() and role != "Socialista" else ""
 		if role == "Hitler":
-			intro = (t("guess.intro_hitler", game))
+			intro = (t("guess.intro_hitler" + sufijo, game))
 		elif role == "Fascista":
-			intro = (t("guess.intro_fascist", game))
+			intro = (t("guess.intro_fascist" + sufijo, game))
 		else:
-			intro = (t("guess.intro_liberal", game))
+			intro = (t("guess.intro_liberal" + sufijo, game))
 		bot.send_message(uid, intro, parse_mode=ParseMode.MARKDOWN)
 	else:
 		bot.send_message(uid,
@@ -2104,10 +2146,7 @@ def callback_guess_fascist(update: Update, context: CallbackContext):
 		progress["fascists"].append(candidate_uid)
 
 	if len(progress["fascists"]) >= progress["num_fascists"]:
-		if progress["mode"] == "full":
-			texto, markup = _build_guess_hitler_prompt(game, uid)
-		else:
-			texto, markup = _build_guess_confirm_prompt(game, uid)
+		texto, markup = _build_next_guess_prompt(game, uid, "f")
 	else:
 		texto, markup = _build_guess_fascist_prompt(game, uid)
 
@@ -2148,16 +2187,68 @@ def callback_guess_hitler(update: Update, context: CallbackContext):
 	if candidate_uid in game.playerlist:
 		progress["hitler"] = candidate_uid
 
-	texto, markup = _build_guess_confirm_prompt(game, uid)
+	texto, markup = _build_next_guess_prompt(game, uid, "h")
+	bot.edit_message_text(texto, chat_id=callback.message.chat_id, message_id=callback.message.message_id,
+		reply_markup=markup, parse_mode=ParseMode.MARKDOWN)
+
+def _build_guess_socialist_prompt(game, uid):
+	progress = GamesController.guess_progress[(game.cid, uid)]
+	selected = progress["socialists"]
+	texto = t("guess.pick_header", game).format(t("guess.title_socialists", game), len(selected), progress["num_socialists"])
+	if selected:
+		nombres_elegidos = ", ".join(game.playerlist[u].name for u in selected if u in game.playerlist)
+		texto += t("guess.already_picked", game).format(nombres_elegidos)
+	texto += t("guess.pick_another", game)
+	strcid = str(game.cid)
+	btns = []
+	for player_uid, player in game.playerlist.items():
+		# Quien adivina socialistas nunca es socialista de origen: no tiene sentido ofrecerse a si mismo.
+		if player_uid in selected or player_uid == uid:
+			continue
+		btns.append([InlineKeyboardButton(player.name, callback_data=strcid + "_guesssoc_" + str(player_uid))])
+	btns.append([InlineKeyboardButton(t("guess.btn_dont_know", game), callback_data=strcid + "_guessskip_s")])
+	markup = InlineKeyboardMarkup(btns)
+	return texto, markup
+
+def callback_guess_socialist(update: Update, context: CallbackContext):
+	bot = context.bot
+	log.info('callback_guess_socialist called')
+	callback = update.callback_query
+	regex = re.search(r"(-?[0-9]*)_guesssoc_(-?[0-9]*)", callback.data)
+	cid = int(regex.group(1))
+	candidate_uid = int(regex.group(2))
+	uid = callback.from_user.id
+
+	game = get_game(cid)
+	if game is None or game.board is None:
+		bot.send_message(uid, t("guess.game_inactive", game))
+		return
+	if uid not in game.playerlist:
+		bot.send_message(uid, t("guess.must_be_player_guess", game))
+		return
+
+	progress = GamesController.guess_progress.get((cid, uid))
+	if progress is None or "socialists" not in progress:
+		bot.send_message(uid, t("guess.session_expired", game))
+		return
+	if candidate_uid in game.playerlist and candidate_uid not in progress["socialists"]:
+		progress["socialists"].append(candidate_uid)
+
+	if len(progress["socialists"]) >= progress["num_socialists"]:
+		texto, markup = _build_next_guess_prompt(game, uid, "s")
+	else:
+		texto, markup = _build_guess_socialist_prompt(game, uid)
+
 	bot.edit_message_text(texto, chat_id=callback.message.chat_id, message_id=callback.message.message_id,
 		reply_markup=markup, parse_mode=ParseMode.MARKDOWN)
 
 def callback_guess_skip(update: Update, context: CallbackContext):
 	# "No sé": permite palpitos parciales dejando en blanco una parte del palpito.
 	# Etapa "f": corta la eleccion de fascistas con los que ya haya elegido (puede ser
-	# ninguno); etapa "h": no arriesga quien es Hitler; etapa "p": el fascista no
-	# arriesga quien va a adivinar mejor. El campo simplemente queda como estaba en el
-	# progress (lista incompleta / None) y se avanza al siguiente paso.
+	# ninguno); etapa "h": no arriesga quien es Hitler; etapa "s": corta la eleccion de
+	# socialistas (modo socialista); etapa "p": el fascista no arriesga quien va a
+	# adivinar mejor. El campo simplemente queda como estaba en el progress (lista
+	# incompleta / None) y se avanza al siguiente paso.
 	bot = context.bot
 	log.info('callback_guess_skip called')
 	callback = update.callback_query
@@ -2179,11 +2270,9 @@ def callback_guess_skip(update: Update, context: CallbackContext):
 		bot.send_message(uid, t("guess.session_expired", game))
 		return
 
-	if etapa == "f" and progress["mode"] == "full":
-		# Dejo de pedirle fascistas, pero todavia puede arriesgar quien es Hitler.
-		texto, markup = _build_guess_hitler_prompt(game, uid)
-	else:
-		texto, markup = _build_guess_confirm_prompt(game, uid)
+	# Dejar en blanco una etapa no saltea las siguientes (ej: sin fascistas todavia puede
+	# arriesgar quien es Hitler y quienes son los socialistas).
+	texto, markup = _build_next_guess_prompt(game, uid, etapa)
 
 	bot.edit_message_text(texto, chat_id=callback.message.chat_id, message_id=callback.message.message_id,
 		reply_markup=markup, parse_mode=ParseMode.MARKDOWN)
@@ -2244,17 +2333,29 @@ def _build_guess_confirm_prompt(game, uid):
 	# "No sé" es una respuesta valida en si misma en cualquiera de los tres flujos:
 	# queda registrado que el jugador no arriesgo esa parte (o ninguna). Nada se rechaza
 	# por quedar en blanco; simplemente suma menos puntos en la revelacion final.
-	if progress["mode"] == "hitler":
-		nombres_fascistas = ", ".join(game.playerlist[u].name for u in progress["fascists"] if u in game.playerlist) or t("guess.dont_know_short", game)
-		texto = t("guess.confirm_hitler", game).format(nombres_fascistas)
+	no_se = t("guess.dont_know_short", game)
+	# En el modo socialista los confirm llevan tambien la linea de socialistas (sufijo _soc).
+	nombres_socialistas = ", ".join(
+		game.playerlist[u].name for u in progress.get("socialists", []) if u in game.playerlist) or no_se
+	if progress["mode"] == "socialists":
+		texto = t("guess.confirm_socialists", game).format(nombres_socialistas)
+	elif progress["mode"] == "hitler":
+		nombres_fascistas = ", ".join(game.playerlist[u].name for u in progress["fascists"] if u in game.playerlist) or no_se
+		if "socialists" in progress:
+			texto = t("guess.confirm_hitler_soc", game).format(nombres_fascistas, nombres_socialistas)
+		else:
+			texto = t("guess.confirm_hitler", game).format(nombres_fascistas)
 	elif progress["mode"] == "fascist_prediction":
 		predicted = progress.get("predicted")
-		nombre = game.playerlist[predicted].name if predicted in game.playerlist else t("guess.dont_know_short", game)
+		nombre = game.playerlist[predicted].name if predicted in game.playerlist else no_se
 		texto = t("guess.confirm_prediction", game).format(nombre)
 	else:
-		nombres_fascistas = ", ".join(game.playerlist[u].name for u in progress["fascists"] if u in game.playerlist) or t("guess.dont_know_short", game)
-		nombre_hitler = game.playerlist[progress["hitler"]].name if progress["hitler"] in game.playerlist else t("guess.dont_know_short", game)
-		texto = t("guess.confirm_full", game).format(nombres_fascistas, nombre_hitler)
+		nombres_fascistas = ", ".join(game.playerlist[u].name for u in progress["fascists"] if u in game.playerlist) or no_se
+		nombre_hitler = game.playerlist[progress["hitler"]].name if progress["hitler"] in game.playerlist else no_se
+		if "socialists" in progress:
+			texto = t("guess.confirm_full_soc", game).format(nombres_fascistas, nombre_hitler, nombres_socialistas)
+		else:
+			texto = t("guess.confirm_full", game).format(nombres_fascistas, nombre_hitler)
 
 	btns = [
 		[InlineKeyboardButton(t("guess.btn_confirm", game), callback_data=strcid + "_guessconfirm")],
@@ -2286,8 +2387,14 @@ def callback_guess_confirm(update: Update, context: CallbackContext):
 		entry = {"fascists": list(progress["fascists"])}
 	elif progress["mode"] == "fascist_prediction":
 		entry = {"predicted": progress.get("predicted")}
+	elif progress["mode"] == "socialists":
+		entry = {}
 	else:
 		entry = {"fascists": list(progress["fascists"]), "hitler": progress["hitler"]}
+	# La presencia de la clave "socialists" es lo que marca un palpito del modo socialista
+	# (asi la revelacion no depende del modo con el que se lea la partida).
+	if "socialists" in progress:
+		entry["socialists"] = list(progress["socialists"])
 
 	entry["timestamp"] = datetime.datetime.now()
 	entry["round"] = game.board.state.currentround
@@ -2358,10 +2465,26 @@ def format_guesses_reveal(game, only_uid=None):
 	hitler_uid = hitler.uid if hitler else None
 	fascist_uids = {f.uid for f in game.get_fascists()}
 	total_fascists = len(fascist_uids)
+	socialist_uids = _guess_socialist_uids(game)
+
+	def linea_socialistas(guess):
+		# Sub-linea del paso de socialistas (modo socialista). Sus aciertos se informan
+		# aparte y no suman al puntaje del ranking: el Socialista no tiene este paso y
+		# competiria en desventaja.
+		if "socialists" not in guess:
+			return ""
+		elegidos = [u for u in guess["socialists"] if u in game.playerlist]
+		aciertos = [u for u in elegidos if u in socialist_uids]
+		if not elegidos:
+			# Sin arriesgar no hay "acertó 0/N": se distingue de haber errado.
+			return "\n   ↳ " + t("guess.no_socialist_guess", game)
+		frase = t("guess.socialists_suspected", game).format(", ".join(game.playerlist[u].name for u in elegidos))
+		return "\n   ↳ " + t("guess.socialists_result", game).format(frase, len(aciertos), len(socialist_uids))
 
 	liberal_resultados = []  # (score, name, texto, uid) - flujo completo, arma el ranking "mas cerca de la verdad"
 	hitler_lineas = []       # (texto, uid)
 	fascista_entries = []    # (predicted_uid, texto, uid)
+	fascista_soc_lineas = [] # (texto, uid) - fascistas del modo socialista, que adivinan socialistas
 
 	for guesser_uid, history in guesses.items():
 		if not history:
@@ -2385,7 +2508,13 @@ def format_guesses_reveal(game, only_uid=None):
 				frase = t("guess.hitler_no_guess", game)
 			hitler_lineas.append((
 				t("guess.hitler_line", game).format(
-					guesser.name, frase, nota_cambio, len(aciertos), total_fascists),
+					guesser.name, frase, nota_cambio, len(aciertos), total_fascists) + linea_socialistas(guess),
+				guesser_uid))
+			continue
+
+		if guesser.role == "Fascista" and "socialists" in guess:
+			fascista_soc_lineas.append((
+				t("guess.fascist_socialists_line", game).format(guesser.name, nota_cambio) + linea_socialistas(guess),
 				guesser_uid))
 			continue
 
@@ -2427,17 +2556,18 @@ def format_guesses_reveal(game, only_uid=None):
 			len(aciertos_fascistas), total_fascists,
 			detalle_hitler,
 			score
-		)
+		) + linea_socialistas(guess)
 		liberal_resultados.append((score, guesser.name, texto, guesser_uid))
 
-	if not liberal_resultados and not hitler_lineas and not fascista_entries:
+	if not liberal_resultados and not hitler_lineas and not fascista_entries and not fascista_soc_lineas:
 		return None
 
 	if only_uid is not None:
 		participo = (
 			any(uid == only_uid for _, _, _, uid in liberal_resultados) or
 			any(uid == only_uid for _, uid in hitler_lineas) or
-			any(uid == only_uid for _, _, uid in fascista_entries)
+			any(uid == only_uid for _, _, uid in fascista_entries) or
+			any(uid == only_uid for _, uid in fascista_soc_lineas)
 		)
 		if not participo:
 			return None
@@ -2462,6 +2592,11 @@ def format_guesses_reveal(game, only_uid=None):
 	if hitler_mostrar:
 		lineas.append("")
 		lineas.extend(hitler_mostrar)
+
+	fascista_soc_mostrar = [texto for texto, uid in fascista_soc_lineas if only_uid is None or uid == only_uid]
+	if fascista_soc_mostrar:
+		lineas.append("")
+		lineas.extend(fascista_soc_mostrar)
 
 	fascista_mostrar = [(p, texto) for p, texto, uid in fascista_entries if only_uid is None or uid == only_uid]
 	if fascista_mostrar:
@@ -2611,6 +2746,9 @@ def format_my_guesses(game, uid):
 				texto = t("myguess.hitler_line", game).format(etiqueta, nota_fecha, nombres)
 			else:
 				texto = t("myguess.hitler_none", game).format(etiqueta, nota_fecha)
+		elif player.role == "Fascista" and "socialists" in entry:
+			# Fascista del modo socialista: su palpito es solo la linea de socialistas de abajo.
+			texto = t("myguess.fascist_socialists", game).format(etiqueta, nota_fecha)
 		elif player.role == "Fascista":
 			predicted_uid = entry.get("predicted")
 			if predicted_uid in game.playerlist:
@@ -2626,6 +2764,13 @@ def format_my_guesses(game, uid):
 			else:
 				frase_hitler = t("myguess.no_hitler", game)
 			texto = t("myguess.line", game).format(etiqueta, nota_fecha, frase_fascistas, frase_hitler)
+
+		if "socialists" in entry:
+			nombres_soc = ", ".join(game.playerlist[u].name for u in entry["socialists"] if u in game.playerlist)
+			if nombres_soc:
+				texto += "\n   ↳ " + t("myguess.socialists", game).format(nombres_soc)
+			else:
+				texto += "\n   ↳ " + t("myguess.no_socialists", game)
 
 		lineas.append(texto)
 

@@ -278,7 +278,10 @@ The socialists *do not find out at the time* that it failed; they only discover 
 When the *third socialist policy* is enacted, Censorship kicks in. It works like the Hitler Zone: it lasts for the rest of the game and *removes the Chairman*. From then on the chancellor no longer picks anyone and the policies are drawn directly.
 
 *WHAT DOES NOT CHANGE*
-Nomination, voting, the election tracker, anarchy, the Hitler Zone (3 fascist policies), the veto with the fifth fascist policy, the presidential powers and the usual commands (/board, /guess, /mvp, /info, etc.).
+Nomination, voting, the election tracker, anarchy, the Hitler Zone (3 fascist policies), the veto with the fifth fascist policy, the presidential powers and the usual commands (/board, /mvp, /info, etc.).
+
+*/GUESS*
+Since nobody knows the socialists at the start (except themselves), they are added to the guess: liberals guess fascists, Hitler *and original socialists*; Hitler guesses his teammates *and the original socialists*; and the fascists, who already know each other, guess *only the original socialists*. Recruited players do not count: everyone plays the /guess of their original role. The socialists guess fascists and Hitler, like a liberal in the classic game.
 With */board* you see the three tracks and with */symbols* what each symbol means. If you were recruited, */info* tells you so.""",
     'fix.chancellor_announce': '*{}* was nominated as chancellor. Please vote now!',
     'fix.president_choose_discard': 'Cards fixed. Please choose which one to discard:',
@@ -440,6 +443,17 @@ TEXTS.update({
     'guess.title_fascists': 'the regular fascists',
     'guess.title_hitler_teammates': 'your fascist teammates',
     'guess.who_is_hitler': '\U0001F52E *Who do you think is Hitler?*',
+    'guess.confirm_full_soc': '\U0001F52E *Confirm your guess*\nSuspected fascists: {}\nHitler: {}\nSuspected original socialists: {}\n\nConfirm?',
+    'guess.confirm_hitler_soc': '\U0001F52E *Confirm your guess*\nSuspected fascist teammates: {}\nSuspected original socialists: {}\n\nConfirm?',
+    'guess.confirm_socialists': '\U0001F52E *Confirm your guess*\nSuspected original socialists: {}\n\nConfirm?',
+    'guess.fascist_socialists_line': '*{}* (fascist){}',
+    'guess.intro_fascist_soc': '\U0001F52E You are a *fascist*: you already know your teammates and Hitler, but not who the *original socialists* are (those who started the game as socialists: recruited players do not count), so your guess is to find them. If you have no idea about one of them you can tap "\U0001F937 No idea" and leave it blank. You can redo this pick one more time after confirming; both attempts are saved, but the *second* one is the final one.',
+    'guess.intro_hitler_soc': '\U0001F52E You are *Hitler* and you know nobody, so you are going to try to identify your fascist teammates and also the *original socialists* (those who started the game as socialists: recruited players do not count). Tap "\U0001F937 No idea" for whatever you have no clue about and leave it blank. You can redo this pick one more time after confirming; both attempts are saved, but the *second* one is the final one.',
+    'guess.intro_liberal_soc': '\U0001F52E You are going to pick who you think the regular fascists are, who Hitler is and who the *original socialists* are (those who started the game as socialists: recruited players do not count). You do not have to fill it all in: tap "\U0001F937 No idea" for whatever you have no clue about and leave it blank. You can redo this pick one more time after confirming; both attempts are saved, but the *second* one is the final one.',
+    'guess.no_socialist_guess': 'did not risk a guess on who the original socialists were \U0001F937',
+    'guess.socialists_result': '{} — got {}/{} original socialists right',
+    'guess.socialists_suspected': 'suspected the original socialists were: {}',
+    'guess.title_socialists': 'the original socialists',
     'mvp.ask': '\U0001F3C5 *Who was the MVP of the game?*\n(You cannot vote for yourself)',
     'mvp.can_change': ' You can change your vote at any time with /mvp while votes are still missing.',
     'mvp.choose_game': 'Choose the game where you want to vote for the MVP',
@@ -476,6 +490,9 @@ TEXTS.update({
     'myguess.said_hitler': 'you said Hitler was *{}*',
     'myguess.suspected': 'you suspected {}',
     'myguess.title': '\U0001F52E *Your /guess picks*',
+    'myguess.fascist_socialists': '*{}*{}:',
+    'myguess.no_socialists': 'you did not risk a guess on who the original socialists were \U0001F937',
+    'myguess.socialists': 'you suspected the original socialists were {}',
 })
 
 # --- Achievement names and descriptions (Constants/Achievements) -------------------
