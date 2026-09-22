@@ -91,6 +91,7 @@ TEXTS.update({
     'setup.roles_9': 'There are 5 Liberals, 3 Fascists and Hitler. Hitler does not know who the Fascists are.',
     'setup.roles_socialista': 'There are %d Liberals, %d Fascists, Hitler and %d Socialists. Hitler does not know anyone.',
     'shuffle.announce': 'There were not enough cards left in the policy deck, so I shuffled the rest together with the discard pile!',
+    'shuffle.guess_reminder': '🔮 Remember you can use /guess to try to figure out what each player is! It happens in private and is revealed at the end of the game.',
     'shuffle.history': '*There were not enough cards left in the policy deck, so I shuffled the rest together with the discard pile!*',
     'soc.btn_agree': 'Yes, I agree',
     'soc.censorship_announce': ' Censorship: from now on the Chancellor no longer picks a Chairman.',

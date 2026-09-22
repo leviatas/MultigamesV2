@@ -1747,6 +1747,8 @@ def shuffle_policy_pile(bot, game):
 		game.board.discards = []		
 		bot.send_message(game.cid,
 			t("shuffle.announce", game))
+		# Buen momento para recordar /guess: ya hubo varias rondas para formarse una idea.
+		bot.send_message(game.cid, t("shuffle.guess_reminder", game))
 
 def getGamesByTipo(opcion):
 	conn = psycopg2.connect(

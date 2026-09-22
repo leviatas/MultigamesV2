@@ -93,6 +93,7 @@ TEXTS.update({
     'setup.roles_9': 'Hay  5 Liberales, 3 Fascistas y Hitler. Hitler no conoce quienes son los Fascistas.',
     'setup.roles_socialista': 'Hay %d Liberales, %d Fascistas, Hitler y %d Socialistas. Hitler no conoce a nadie.',
     'shuffle.announce': 'No habia cartas suficientes en el mazo de políticas asi que he mezclado el resto con el mazo de descarte!',
+    'shuffle.guess_reminder': '🔮 ¡Recuerden que pueden usar /guess para intentar adivinar qué es cada jugador! Se hace por privado y se revela al final de la partida.',
     'shuffle.history': '*No habia cartas suficientes en el mazo de políticas asi que he mezclado el resto con el mazo de descarte!*',
     'soc.btn_agree': 'Sí, de acuerdo',
     'soc.censorship_announce': ' Censura: de ahora en adelante el Canciller ya no elige Presidente de la Cámara.',
