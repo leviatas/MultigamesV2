@@ -138,6 +138,10 @@ A game is either `modo = "clasico"` (the default, unchanged) or `modo = "sociali
 - **`/explainsocialista`** (`Commands.command_explainsocialista`) is the in-chat explanation of the mode and everything it changes vs. the classic game. It's static text (the `explain.socialista_1` / `explain.socialista_2` keys in each locale) sent in two `send_chunked_message` calls, because it doesn't fit in Telegram's 4096-char limit, and it's the one place that describes the tracks in prose — if you ever change `socialistSets`, the powers, or `CENSURA_DESDE`, update that text too or it starts lying.
 - **Gotcha**: any code reading `playerSets[len(playerlist)]` must pick the set by mode instead — see `MainController.get_role_set()` and `Commands._guess_num_fascists()`. In `/guess`, a Socialista plays the same "full" flow as a liberal (the other roles gain a guess-the-socialists step, see the `/guess` section below), which is why `Game.compute_best_guessers()` excludes by role `Hitler`/`Fascista` rather than requiring `Liberal`.
 
+#### `/roles` — tabla de reparto
+
+`Commands.command_roles` prints, per player count, how many of each role there are, how many policies of each type the deck starts with, and how many policies each track needs to win. Both tables are **derived from `playerSets` / `socialistSets` at render time** (`_celdas_roles()`), never hardcoded, so they can't drift from what a game actually deals. Column widths are computed from the content (`_tabla_roles()`), so translating a column title can't misalign the monospace block. With no argument it shows the mode of the chat's current game (classic when there is none); `/roles socialista|clasico` (also `socialist|classic`) forces one. It goes out as a single `send_message` rather than `send_chunked_message`, since chunking would split the ``` block.
+
 #### Idiomas (`/language`)
 
 Every player-facing string goes through `SecretHitler/i18n.py`: `t("clave", ctx, **kwargs)` looks the key up in the

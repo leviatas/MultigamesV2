@@ -84,6 +84,71 @@ def command_symbols(update: Update, context: CallbackContext):
 	send_chunked_message(bot, cid, t("symbols.header", cid) + "\n" + t("symbols.list", cid))
 
 
+def _celdas_roles(sets, n, socialista):
+	# Las celdas de una fila de /roles, leyendo el set real de esa cantidad de jugadores
+	# para que la tabla no se pueda desincronizar de lo que reparte la partida.
+	datos = sets[n]
+	roles = datos["roles"]
+	policies = datos.get("policies", [])
+	celdas = [str(n), str(roles.count("Liberal")), str(roles.count("Fascista")), str(roles.count("Hitler"))]
+	mazo = [policies.count("liberal"), policies.count("fascista")]
+	# Las actas para ganar son el largo de cada pista; la liberal puede ser 5 o 6.
+	ganar = [datos.get("liberal_track", 5), len(datos["track"])]
+	if socialista:
+		celdas.append(str(roles.count("Socialista")))
+		mazo.append(policies.count("socialista"))
+		ganar.append(len(datos["socialist_track"]))
+	celdas.append("/".join(str(x) for x in mazo))
+	celdas.append("/".join(str(x) for x in ganar))
+	return celdas
+
+
+def _tabla_roles(ctx, socialista):
+	sets = socialistSets if socialista else playerSets
+	minimo, maximo = (MIN_JUGADORES_SOCIALISTA, MAX_JUGADORES_SOCIALISTA) if socialista else (MIN_JUGADORES_CLASICO, MAX_JUGADORES_CLASICO)
+	cantidades = [n for n in sorted(sets) if minimo <= n <= maximo]
+	titulos = [t("roles.col_jugadores", ctx), t("roles.col_liberal", ctx), t("roles.col_fascista", ctx), t("roles.col_hitler", ctx)]
+	if socialista:
+		titulos.append(t("roles.col_socialista", ctx))
+	titulos += [t("roles.col_mazo", ctx), t("roles.col_ganar", ctx)]
+	filas = [_celdas_roles(sets, n, socialista) for n in cantidades]
+	# El ancho de cada columna sale del contenido, asi que los titulos traducidos nunca
+	# desalinean la tabla.
+	anchos = [max(len(fila[i]) for fila in [titulos] + filas) for i in range(len(titulos))]
+	def render(celdas):
+		return "  ".join(celda.rjust(anchos[i]) for i, celda in enumerate(celdas))
+	# Bloque monoespaciado para que las columnas queden alineadas en Telegram.
+	tabla = "```\n" + render(titulos) + "\n" + "\n".join(render(f) for f in filas) + "\n```"
+	titulo = t("roles.title_socialista" if socialista else "roles.title_clasico", ctx)
+	return titulo + "\n" + tabla + "\n" + t("roles.legend", ctx)
+
+
+def command_roles(update: Update, context: CallbackContext):
+	# Tabla de reparto de roles y mazo de politicas por cantidad de jugadores. Sin
+	# argumento muestra el modo de la partida de este chat (clasico si no hay ninguna);
+	# con "socialista"/"clasico" muestra el que se pida.
+	bot = context.bot
+	cid = update.message.chat_id
+	game = get_game(cid)
+	args = context.args
+	if args:
+		pedido = args[0].strip().lower()
+		if pedido.startswith("soc"):
+			socialista = True
+		elif pedido.startswith("clas") or pedido.startswith("class"):
+			socialista = False
+		else:
+			bot.send_message(cid, t("roles.unknown_mode", game if game else cid))
+			return
+	else:
+		socialista = game is not None and game.es_socialista()
+	ctx = game if game else cid
+	texto = _tabla_roles(ctx, socialista)
+	texto += "\n" + t("roles.other_mode_clasico" if socialista else "roles.other_mode_socialista", ctx)
+	# Va entero (no chunked): es corto y cortarlo partiria el bloque monoespaciado.
+	bot.send_message(cid, texto, parse_mode=ParseMode.MARKDOWN)
+
+
 def command_board(update: Update, context: CallbackContext):
 	bot = context.bot
 	cid = update.message.chat_id

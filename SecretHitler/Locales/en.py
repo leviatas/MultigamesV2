@@ -328,6 +328,19 @@ With */board* you see the three tracks and with */symbols* what each symbol mean
     'retract.no_active_vote_there': 'You have no active vote to withdraw in that group.',
     'retract.nothing_to_retract': 'You have not voted yet, there is no vote to withdraw!',
     'retract.vote_closed': 'The vote is no longer active, there is no vote to withdraw.',
+    'roles.col_fascista': 'Fas',
+    'roles.col_ganar': 'Win',
+    'roles.col_hitler': 'Hit',
+    'roles.col_jugadores': 'Ply',
+    'roles.col_liberal': 'Lib',
+    'roles.col_mazo': 'Deck',
+    'roles.col_socialista': 'Soc',
+    'roles.legend': '*Deck* = liberal/fascist(/socialist) policies the deck starts with.\n*Win* = policies each track needs to win, in the same order.',
+    'roles.other_mode_clasico': 'Use */roles classic* to see the classic table.',
+    'roles.other_mode_socialista': 'Use */roles socialist* to see the Socialist Expansion table.',
+    'roles.title_clasico': '\U0001F465 *Roles and deck by player count* (classic mode)',
+    'roles.title_socialista': '\U0001F465 *Roles and deck by player count* (Socialist Expansion)',
+    'roles.unknown_mode': 'I do not know that mode. Use /roles, /roles classic or /roles socialist.',
     'role.ask': 'Which role would you like to be?',
     'role.ask_socialist': 'Which role would you like to be? (game with the Socialist Expansion)',
     'role.chosen': 'Message edited: you chose the role: %s',
@@ -656,7 +669,7 @@ TEXTS.update({
 /start - Gives you some information about Secret Hitler
 /symbols - Shows you every symbol that can appear on the board
 /rules - Gives you a link to the official site with the Secret Hitler rules
-/language - Changes the bot language in this group (Spanish or English)
+/roles - Shows how many liberals, fascists, socialists and policies there are per player count (/roles socialist for the expansion)\n/language - Changes the bot language in this group (Spanish or English)
 /newgame - Creates a new game or loads a previous one
 /newgame socialista - Creates a game with the Socialist Expansion: a third party, with its own track and its own powers (6 to 13 players)
 /explainsocialista - Explains how the socialist mode is played and how it differs from the classic one
@@ -749,6 +762,7 @@ TEXTS.update({
     'menu.votes': 'Prints who has voted',
     'menu.calltovote': 'Tells the players it is time to vote (or the MVP if it already ended)',
     'menu.retirar': 'Withdraws your Ja or Nein vote so you can vote again',
+    'menu.roles': 'How many roles and policies there are per player count',
     'menu.startautoja': 'Turns on your automatic Ja vote and lets you choose when it stops',
     'menu.stopautoja': 'Turns off your automatic Ja vote',
     'menu.conflicto': 'Turns off the automatic Ja vote for every player',

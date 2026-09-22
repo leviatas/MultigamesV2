@@ -1934,7 +1934,7 @@ def init_db():
 # uno sale del catalogo de idioma (clave menu.<comando>), asi que agregar o sacar un
 # comando de aca implica agregar o sacar esa clave en todos los idiomas.
 MENU_COMANDOS = [
-	"help", "start", "rules", "explainsocialista", "symbols", "language",
+	"help", "start", "rules", "explainsocialista", "symbols", "roles", "language",
 	"newgame", "nextgame", "join", "startgame", "board", "history", "votes",
 	"calltovote", "retirar", "startautoja", "stopautoja", "conflicto", "info",
 	"jugadores", "leave", "stats", "stats2", "logros", "guess", "mvp", "end",
@@ -1999,6 +1999,7 @@ def main():
 	dp.add_handler(CommandHandler("idioma", Commands.command_language))
 	dp.add_handler(CallbackQueryHandler(pattern=r"(-?[0-9]*)\*chooseLanguage\*(.*)\*(-?[0-9]*)", callback=Commands.callback_language))
 	dp.add_handler(CommandHandler("symbols", Commands.command_symbols))
+	dp.add_handler(CommandHandler("roles", Commands.command_roles))
 	dp.add_handler(CommandHandler("stats", Commands.command_stats))
 	dp.add_handler(CommandHandler("stats2", Commands.command_stats2))
 	dp.add_handler(CommandHandler("logros", Commands.command_logros))
