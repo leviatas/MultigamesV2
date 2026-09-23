@@ -553,12 +553,118 @@ def command_admin(update: Update, context: CallbackContext):
 	uid = update.message.from_user.id
 	if uid != ADMIN:
 		return
+	if update.message.chat.type != "private":
+		return
 	btns = [
+		[InlineKeyboardButton("📋 Partidas guardadas", callback_data="admin_games")],
 		[InlineKeyboardButton("first", callback_data="admin_first")],
 		[InlineKeyboardButton("cleanup mision imposible", callback_data="admin_cleanup_mision")],
 	]
 	markup = InlineKeyboardMarkup(btns)
 	bot.send_message(cid, "🛠 *Panel de administración*", reply_markup=markup, parse_mode=ParseMode.MARKDOWN)
+
+def _admin_db_connect():
+	return psycopg2.connect(
+		database=url.path[1:],
+		user=url.username,
+		password=url.password,
+		host=url.hostname,
+		port=url.port
+	)
+
+def _admin_edit(callback, texto, btns):
+	callback.edit_message_text(texto, reply_markup=InlineKeyboardMarkup(btns))
+
+def _hace_cuanto(delta):
+	# Antiguedad legible de un timedelta: "5 min", "3 h", "2 d".
+	segundos = max(int(delta.total_seconds()), 0)
+	if segundos < 3600:
+		return "{} min".format(segundos // 60)
+	if segundos < 86400:
+		return "{} h".format(segundos // 3600)
+	return "{} d".format(segundos // 86400)
+
+def callback_admin_games(update: Update, context: CallbackContext):
+	log.info('callback_admin_games called')
+	callback = update.callback_query
+	if callback.from_user.id != ADMIN:
+		return
+	conn = _admin_db_connect()
+	try:
+		cur = conn.cursor()
+		cur.execute("SELECT id, name, state, updated_at, now() FROM games_secret_hitler ORDER BY updated_at DESC;")
+		filas = cur.fetchall()
+	finally:
+		conn.close()
+	callback.answer()
+	if not filas:
+		_admin_edit(callback, "No hay partidas guardadas.", [[InlineKeyboardButton("⬅️ Volver", callback_data="admin_menu")]])
+		return
+	btns = []
+	for gid, nombre, estado, actualizado, ahora in filas[:50]:
+		etiqueta = "{} · {} · hace {}".format((nombre or str(gid))[:25], estado or "?", _hace_cuanto(ahora - actualizado))
+		btns.append([InlineKeyboardButton(etiqueta, callback_data="admin_game_{}".format(gid))])
+	btns.append([InlineKeyboardButton("⬅️ Volver", callback_data="admin_menu")])
+	texto = "📋 Partidas guardadas: {}\nOrdenadas por último cambio. Tocá una para ver el detalle o borrarla.".format(len(filas))
+	if len(filas) > 50:
+		texto += "\n(Se muestran las 50 más recientes.)"
+	_admin_edit(callback, texto, btns)
+
+def callback_admin_menu(update: Update, context: CallbackContext):
+	callback = update.callback_query
+	if callback.from_user.id != ADMIN:
+		return
+	callback.answer()
+	btns = [
+		[InlineKeyboardButton("📋 Partidas guardadas", callback_data="admin_games")],
+		[InlineKeyboardButton("first", callback_data="admin_first")],
+		[InlineKeyboardButton("cleanup mision imposible", callback_data="admin_cleanup_mision")],
+	]
+	callback.edit_message_text("🛠 Panel de administración", reply_markup=InlineKeyboardMarkup(btns))
+
+def callback_admin_game(update: Update, context: CallbackContext):
+	log.info('callback_admin_game called')
+	callback = update.callback_query
+	if callback.from_user.id != ADMIN:
+		return
+	gid = int(re.search(r"^admin_game_(-?[0-9]+)$", callback.data).group(1))
+	conn = _admin_db_connect()
+	try:
+		cur = conn.cursor()
+		cur.execute("SELECT name, state, updated_at, now() FROM games_secret_hitler WHERE id = %s;", [gid])
+		fila = cur.fetchone()
+	finally:
+		conn.close()
+	callback.answer()
+	if not fila:
+		_admin_edit(callback, "Esa partida ya no existe.", [[InlineKeyboardButton("⬅️ Volver", callback_data="admin_games")]])
+		return
+	nombre, estado, actualizado, ahora = fila
+	texto = "Grupo: {}\nID: {}\nEstado: {}\nÚltimo cambio: {} (hace {})".format(
+		nombre, gid, estado or "?", actualizado.strftime("%Y-%m-%d %H:%M:%S %Z"), _hace_cuanto(ahora - actualizado))
+	btns = [
+		[InlineKeyboardButton("🗑 Borrar", callback_data="admin_delask_{}".format(gid))],
+		[InlineKeyboardButton("⬅️ Volver", callback_data="admin_games")],
+	]
+	_admin_edit(callback, texto, btns)
+
+def callback_admin_delete(update: Update, context: CallbackContext):
+	log.info('callback_admin_delete called')
+	callback = update.callback_query
+	if callback.from_user.id != ADMIN:
+		return
+	regex = re.search(r"^admin_del(ask|yes)_(-?[0-9]+)$", callback.data)
+	paso, gid = regex.group(1), int(regex.group(2))
+	callback.answer()
+	if paso == "ask":
+		btns = [[InlineKeyboardButton("Sí, borrar", callback_data="admin_delyes_{}".format(gid)),
+				InlineKeyboardButton("No", callback_data="admin_game_{}".format(gid))]]
+		_admin_edit(callback, "⚠️ ¿Borrar la partida {} de la base y de la memoria? No se puede deshacer.".format(gid), btns)
+		return
+	# Sacarla tambien de memoria: si no, get_game() la seguiria devolviendo y el proximo save_game() la recrearia.
+	GamesController.games.pop(gid, None)
+	delete_game(gid)
+	_admin_edit(callback, "🗑 Partida {} borrada.".format(gid), [[InlineKeyboardButton("⬅️ Volver", callback_data="admin_games")]])
 
 def callback_admin_first(update: Update, context: CallbackContext):
 	bot = context.bot
@@ -1247,7 +1353,7 @@ def save_game(cid, groupName, game):
 	if cur.rowcount > 0:
 		log.info('Updating Game')
 		gamejson = jsonpickle.encode(game)
-		query = "UPDATE games_secret_hitler SET name = %s, data = %s, state = %s WHERE id = %s;"
+		query = "UPDATE games_secret_hitler SET name = %s, data = %s, state = %s, updated_at = now() WHERE id = %s;"
 		cur.execute(query, (game.groupName, gamejson, estado, cid))
 		conn.commit()
 	else:

@@ -28,6 +28,11 @@ END $$;
 -- para que los indices posicionales de save_game()/load_game() (que usan "select *") no se muevan.
 ALTER TABLE games_secret_hitler ADD COLUMN IF NOT EXISTS state TEXT NOT NULL DEFAULT '';
 
+-- Ultima vez que se guardo la partida (lo actualiza Commands.save_game), para saber cuales
+-- siguen activas. Tambien al final, por la misma razon que "state". Las filas que ya existian
+-- quedan con la fecha en que corrio esta migracion.
+ALTER TABLE games_secret_hitler ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT now();
+
 CREATE TABLE IF NOT EXISTS stats_secret_hitler (
     id bigint PRIMARY KEY,
     fascistwinhitler INTEGER NOT NULL,
