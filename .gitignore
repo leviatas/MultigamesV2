@@ -129,4 +129,4 @@ dmypy.json
 .pyre/
 .envDB
 
-Test.py
+Test.pyTextoToAudio/tts_data.json

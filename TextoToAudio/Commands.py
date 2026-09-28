@@ -1,0 +1,207 @@
+import asyncio
+import io
+import logging as log
+
+import av
+import speech_recognition as sr
+from gtts import gTTS
+from telegram import Update
+from telegram.ext import ContextTypes
+
+from Constants.Config import ADMIN
+import TextoToAudio.Storage as Storage
+
+MAX_CARACTERES = 3000
+IDIOMA = "es"
+# Acento de gTTS: "com.ar" (Argentina), "es" (España), "com.mx" (México)
+TLD = "com.ar"
+
+# Audio a texto
+IDIOMA_STT = "es-AR"
+SAMPLE_RATE = 16000
+SEGUNDOS_POR_PARTE = 50
+MAX_SEGUNDOS_AUDIO = 10 * 60
+
+
+def _es_admin(uid):
+    return uid == ADMIN[0]
+
+
+def _esta_autorizado(uid):
+    return _es_admin(uid) or Storage.is_autorizado(uid)
+
+
+async def _intentar_codigo(update: Update, context: ContextTypes.DEFAULT_TYPE, codigo):
+    user = update.effective_user
+    if codigo.strip() == Storage.get_codigo():
+        Storage.autorizar(user.id, user.full_name)
+        context.user_data.pop("esperando_codigo", None)
+        await update.message.reply_text(
+            "✅ Código correcto. ¡Bot activado!\n"
+            "Mandame un texto y te lo devuelvo como audio, "
+            "o mandame un audio y te lo paso a texto.")
+        log.info("TextoToAudio: usuario %s (%s) activado", user.id, user.full_name)
+    else:
+        context.user_data["esperando_codigo"] = True
+        await update.message.reply_text("❌ Código incorrecto. Probá de nuevo.")
+
+
+async def command_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    uid = update.effective_user.id
+    if _esta_autorizado(uid):
+        await update.message.reply_text(
+            "¡Hola! Ya tenés el bot activado. Mandame un texto y te lo convierto en audio, "
+            "o un audio y te lo paso a texto.")
+        return
+    # Permite "/start CODIGO" directamente
+    if context.args:
+        await _intentar_codigo(update, context, " ".join(context.args))
+        return
+    context.user_data["esperando_codigo"] = True
+    await update.message.reply_text("🔒 Para activar el bot, enviame el código secreto.")
+
+
+async def command_help(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    texto = (
+        "🗣️ *Texto a Audio / Audio a Texto*\n"
+        "/start — activar el bot (pide el código secreto)\n"
+        f"• Mandá un texto y te llega como audio (máx. {MAX_CARACTERES} caracteres).\n"
+        f"• Mandá una nota de voz, audio o videomensaje y te llega el texto (máx. {MAX_SEGUNDOS_AUDIO // 60} minutos)."
+    )
+    if _es_admin(update.effective_user.id):
+        texto += (
+            "\n\n*Admin*\n"
+            "/codigo — ver el código actual\n"
+            "/codigo NUEVO — cambiar el código secreto\n"
+            "/usuarios — listar usuarios activados\n"
+            "/revocar UID — quitar acceso a un usuario"
+        )
+    await update.message.reply_text(texto, parse_mode="Markdown")
+
+
+async def command_codigo(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not _es_admin(update.effective_user.id):
+        return
+    if not context.args:
+        await update.message.reply_text(f"Código actual: `{Storage.get_codigo()}`", parse_mode="Markdown")
+        return
+    nuevo = " ".join(context.args).strip()
+    Storage.set_codigo(nuevo)
+    await update.message.reply_text(f"✅ Nuevo código secreto: `{nuevo}`", parse_mode="Markdown")
+
+
+async def command_usuarios(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not _es_admin(update.effective_user.id):
+        return
+    usuarios = Storage.listar_usuarios()
+    if not usuarios:
+        await update.message.reply_text("No hay usuarios activados.")
+        return
+    lineas = [f"• {name} — {uid}" for uid, name in usuarios]
+    await update.message.reply_text("Usuarios activados:\n" + "\n".join(lineas))
+
+
+async def command_revocar(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not _es_admin(update.effective_user.id):
+        return
+    if not context.args or not context.args[0].lstrip("-").isdigit():
+        await update.message.reply_text("Uso: /revocar UID")
+        return
+    uid = int(context.args[0])
+    if Storage.revocar(uid):
+        await update.message.reply_text(f"🚫 Acceso revocado para {uid}.")
+    else:
+        await update.message.reply_text(f"El usuario {uid} no estaba activado.")
+
+
+def _generar_audio(texto):
+    buffer = io.BytesIO()
+    gTTS(text=texto, lang=IDIOMA, tld=TLD).write_to_fp(buffer)
+    buffer.seek(0)
+    return buffer
+
+
+async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    uid = update.effective_user.id
+    texto = update.message.text
+
+    if not _esta_autorizado(uid):
+        if context.user_data.get("esperando_codigo"):
+            await _intentar_codigo(update, context, texto)
+        else:
+            await update.message.reply_text("🔒 Bot no activado. Usá /start y enviá el código secreto.")
+        return
+
+    if len(texto) > MAX_CARACTERES:
+        await update.message.reply_text(
+            f"El texto es muy largo ({len(texto)} caracteres). Máximo: {MAX_CARACTERES}.")
+        return
+
+    await context.bot.send_chat_action(update.effective_chat.id, "record_voice")
+    try:
+        audio = await asyncio.to_thread(_generar_audio, texto)
+    except Exception:
+        log.exception("TextoToAudio: error generando audio")
+        await update.message.reply_text("⚠️ No pude generar el audio. Probá de nuevo en un rato.")
+        return
+    await update.message.reply_voice(voice=audio, filename="audio.mp3")
+
+
+def _decodificar_pcm(data):
+    """Decodifica cualquier audio/video a PCM 16-bit mono a SAMPLE_RATE."""
+    pcm = bytearray()
+    with av.open(io.BytesIO(data)) as container:
+        resampler = av.AudioResampler(format="s16", layout="mono", rate=SAMPLE_RATE)
+        for frame in container.decode(audio=0):
+            for f in resampler.resample(frame):
+                pcm += f.to_ndarray().tobytes()
+        for f in resampler.resample(None):
+            pcm += f.to_ndarray().tobytes()
+    return bytes(pcm)
+
+
+def _transcribir(data):
+    pcm = _decodificar_pcm(data)
+    recognizer = sr.Recognizer()
+    # Google corta los audios largos, así que se transcribe por partes
+    bytes_por_parte = SEGUNDOS_POR_PARTE * SAMPLE_RATE * 2
+    partes = []
+    for i in range(0, len(pcm), bytes_por_parte):
+        audio = sr.AudioData(pcm[i:i + bytes_por_parte], SAMPLE_RATE, 2)
+        try:
+            partes.append(recognizer.recognize_google(audio, language=IDIOMA_STT))
+        except sr.UnknownValueError:
+            continue
+    return " ".join(partes).strip()
+
+
+async def handle_audio(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    uid = update.effective_user.id
+    if not _esta_autorizado(uid):
+        await update.message.reply_text("🔒 Bot no activado. Usá /start y enviá el código secreto.")
+        return
+
+    media = update.message.voice or update.message.audio or update.message.video_note
+    if media.duration and media.duration > MAX_SEGUNDOS_AUDIO:
+        await update.message.reply_text(
+            f"El audio es muy largo ({media.duration}s). Máximo: {MAX_SEGUNDOS_AUDIO // 60} minutos.")
+        return
+
+    await context.bot.send_chat_action(update.effective_chat.id, "typing")
+    try:
+        archivo = await media.get_file()
+        data = bytes(await archivo.download_as_bytearray())
+        texto = await asyncio.to_thread(_transcribir, data)
+    except sr.RequestError:
+        log.exception("TextoToAudio: error del servicio de reconocimiento")
+        await update.message.reply_text("⚠️ El servicio de reconocimiento no respondió. Probá de nuevo en un rato.")
+        return
+    except Exception:
+        log.exception("TextoToAudio: error transcribiendo audio")
+        await update.message.reply_text("⚠️ No pude procesar el audio.")
+        return
+
+    if not texto:
+        await update.message.reply_text("🤷 No entendí nada en el audio.")
+        return
+    await update.message.reply_text(f"📝 {texto}")
