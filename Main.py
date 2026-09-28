@@ -11,6 +11,7 @@ import MainController
 # import reportBot.main as reportBot
 # import SecretHitler.MainController as secretHitlerBot
 import BloodClocktower.Controller as bloodClocktowerBot
+import TextoToAudio.Controller as textoToAudioBot
 # import discordBot.main as discordBot
 
 import time
@@ -79,14 +80,19 @@ def run_main_controller():
 def run_blood_bot():
     bloodClocktowerBot.main(stop_event)
 
+def run_tts_bot():
+    textoToAudioBot.main(stop_event)
+
 def main():
     bot1 = threading.Thread(target=run_main_controller, name="Bot1")
     bot2 = threading.Thread(target=run_blood_bot, name="Bot2")
+    bot3 = threading.Thread(target=run_tts_bot, name="Bot3")
     bot1.start(); log.info("Iniciando MultigamesV2...")
     bot2.start(); log.info("Iniciando BloodBot...")
+    bot3.start(); log.info("Iniciando TextoToAudio...")
 
     try:
-        while bot1.is_alive() or bot2.is_alive():
+        while bot1.is_alive() or bot2.is_alive() or bot3.is_alive():
             time.sleep(0.5)  # keep main thread alive
     except KeyboardInterrupt:
         log.info("Ctrl+C detected, shutting down...")
@@ -94,6 +100,7 @@ def main():
 
     bot1.join()
     bot2.join()
+    bot3.join()
     log.info("Bots stopped cleanly.")
 
 if __name__ == '__main__':
