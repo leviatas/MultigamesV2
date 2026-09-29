@@ -6,8 +6,10 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 
 # Install Chromium (disponible en repos de Debian sin configuración extra)
+# flac: SpeechRecognition lo necesita para mandar el audio a Google (TextoToAudio);
+# el binario que trae empaquetado solo sirve en x86/x86_64, no en ARM
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends chromium \
+    && apt-get install -y --no-install-recommends chromium flac \
     && rm -rf /var/lib/apt/lists/*
 
 # Install build deps, install python requirements, then remove build tools to keep image small

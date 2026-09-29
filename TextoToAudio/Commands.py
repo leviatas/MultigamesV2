@@ -196,9 +196,9 @@ async def handle_audio(update: Update, context: ContextTypes.DEFAULT_TYPE):
         log.exception("TextoToAudio: error del servicio de reconocimiento")
         await update.message.reply_text("⚠️ El servicio de reconocimiento no respondió. Probá de nuevo en un rato.")
         return
-    except Exception:
+    except Exception as e:
         log.exception("TextoToAudio: error transcribiendo audio")
-        await update.message.reply_text("⚠️ No pude procesar el audio.")
+        await update.message.reply_text(f"⚠️ No pude procesar el audio ({type(e).__name__}: {e}).")
         return
 
     if not texto:
