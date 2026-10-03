@@ -1,8 +1,10 @@
 import asyncio
+import html
 import io
 import logging as log
 
 import av
+import edge_tts
 import speech_recognition as sr
 from gtts import gTTS
 from telegram import Update
@@ -15,6 +17,17 @@ MAX_CARACTERES = 3000
 IDIOMA = "es"
 # Acento de gTTS: "com.ar" (Argentina), "es" (España), "com.mx" (México)
 TLD = "com.ar"
+# Voces neuronales (edge-tts) por género; gTTS queda como respaldo si fallan
+VOCES = {
+    "masculino": "es-AR-TomasNeural",
+    "femenino": "es-AR-ElenaNeural",
+}
+ALIAS_GENERO = {
+    "m": "masculino", "masculino": "masculino", "hombre": "masculino", "male": "masculino",
+    "f": "femenino", "femenino": "femenino", "mujer": "femenino", "female": "femenino",
+}
+# Límite de un mensaje de Telegram (con margen para el encabezado)
+MAX_AVISO = 3500
 
 # Audio a texto
 IDIOMA_STT = "es-AR"
@@ -29,6 +42,27 @@ def _es_admin(uid):
 
 def _esta_autorizado(uid):
     return _es_admin(uid) or Storage.is_autorizado(uid)
+
+
+def _nombre_usuario(user):
+    if user.username:
+        return html.escape(f"@{user.username}")
+    return f'<a href="tg://user?id={user.id}">{html.escape(user.full_name)}</a> ({user.id})'
+
+
+async def _avisar_admin(context: ContextTypes.DEFAULT_TYPE, user, accion, texto):
+    """Le avisa al admin qué texto mandó o generó un usuario."""
+    if _es_admin(user.id):
+        return
+    if len(texto) > MAX_AVISO:
+        texto = texto[:MAX_AVISO] + "…"
+    try:
+        await context.bot.send_message(
+            ADMIN[0],
+            f"El usuario {_nombre_usuario(user)} {accion} \"{html.escape(texto)}\"",
+            parse_mode="HTML")
+    except Exception:
+        log.exception("TextoToAudio: no pude avisar al admin")
 
 
 async def _intentar_codigo(update: Update, context: ContextTypes.DEFAULT_TYPE, codigo):
@@ -65,6 +99,7 @@ async def command_help(update: Update, context: ContextTypes.DEFAULT_TYPE):
     texto = (
         "🗣️ *Texto a Audio / Audio a Texto*\n"
         "/start — activar el bot (pide el código secreto)\n"
+        "/gender — cambiar la voz entre masculina y femenina\n"
         f"• Mandá un texto y te llega como audio (máx. {MAX_CARACTERES} caracteres).\n"
         f"• Mandá una nota de voz, audio o videomensaje y te llega el texto (máx. {MAX_SEGUNDOS_AUDIO // 60} minutos)."
     )
@@ -77,6 +112,22 @@ async def command_help(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "/revocar UID — quitar acceso a un usuario"
         )
     await update.message.reply_text(texto, parse_mode="Markdown")
+
+
+async def command_gender(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    uid = update.effective_user.id
+    if not _esta_autorizado(uid):
+        await update.message.reply_text("🔒 Bot no activado. Usá /start y enviá el código secreto.")
+        return
+    if context.args:
+        nuevo = ALIAS_GENERO.get(context.args[0].strip().lower())
+        if not nuevo:
+            await update.message.reply_text("Uso: /gender (alterna), /gender masculino o /gender femenino")
+            return
+    else:
+        nuevo = "femenino" if Storage.get_gender(uid) == "masculino" else "masculino"
+    Storage.set_gender(uid, nuevo)
+    await update.message.reply_text(f"🗣️ Voz cambiada a {nuevo}.")
 
 
 async def command_codigo(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -114,11 +165,26 @@ async def command_revocar(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"El usuario {uid} no estaba activado.")
 
 
-def _generar_audio(texto):
+def _generar_audio_gtts(texto):
     buffer = io.BytesIO()
     gTTS(text=texto, lang=IDIOMA, tld=TLD).write_to_fp(buffer)
     buffer.seek(0)
     return buffer
+
+
+async def _generar_audio(texto, gender):
+    try:
+        buffer = io.BytesIO()
+        async for chunk in edge_tts.Communicate(texto, VOCES[gender]).stream():
+            if chunk["type"] == "audio":
+                buffer.write(chunk["data"])
+        if buffer.tell():
+            buffer.seek(0)
+            return buffer
+        log.warning("TextoToAudio: edge-tts no devolvió audio, uso gTTS")
+    except Exception:
+        log.exception("TextoToAudio: falló edge-tts, uso gTTS")
+    return await asyncio.to_thread(_generar_audio_gtts, texto)
 
 
 async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -137,9 +203,10 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"El texto es muy largo ({len(texto)} caracteres). Máximo: {MAX_CARACTERES}.")
         return
 
+    await _avisar_admin(context, update.effective_user, "puso el texto", texto)
     await context.bot.send_chat_action(update.effective_chat.id, "record_voice")
     try:
-        audio = await asyncio.to_thread(_generar_audio, texto)
+        audio = await _generar_audio(texto, Storage.get_gender(uid))
     except Exception:
         log.exception("TextoToAudio: error generando audio")
         await update.message.reply_text("⚠️ No pude generar el audio. Probá de nuevo en un rato.")
@@ -205,3 +272,4 @@ async def handle_audio(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("🤷 No entendí nada en el audio.")
         return
     await update.message.reply_text(f"📝 {texto}")
+    await _avisar_admin(context, update.effective_user, "convirtió el audio a este texto", texto)
