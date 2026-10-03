@@ -146,3 +146,26 @@ def set_gender(uid, gender):
         data = _leer_json()
         data.setdefault("generos", {})[str(uid)] = gender
         _escribir_json(data)
+
+
+def get_ultima_version():
+    """Última versión de la que se avisó al admin (None si nunca)."""
+    if _usa_db():
+        with _connect() as conn:
+            row = conn.execute("SELECT value FROM tts_config WHERE key = 'version';").fetchone()
+        return row[0] if row else None
+    with _lock:
+        return _leer_json().get("version")
+
+
+def set_ultima_version(version):
+    if _usa_db():
+        with _connect() as conn:
+            conn.execute(
+                "INSERT INTO tts_config (key, value) VALUES ('version', %s) "
+                "ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value;", [version])
+        return
+    with _lock:
+        data = _leer_json()
+        data["version"] = version
+        _escribir_json(data)

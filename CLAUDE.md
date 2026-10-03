@@ -125,3 +125,7 @@ Key helpers used everywhere:
 ### Constants/Cards.py
 
 Large file (~93KB) containing all game card definitions (`cartas_aventura`), player role sets (`playerSets`), action sequences (`actions`), button configurations (`comandos`), and other game data referenced by multiple controllers.
+
+### TextoToAudio Versioning
+
+The TTS bot (`TextoToAudio/`) has a version in `TextoToAudio/version.py` (`MAYOR.MINOR.PATCH`). **Every change to `TextoToAudio/` must bump `VERSION`** (MAYOR: incompatible/data migration, MINOR: new feature, PATCH: fix) and add a matching entry at the top of `CHANGELOG`. On startup, the bot notifies `ADMIN[0]` once when the version differs from the last one notified (stored in `tts_config` under key `version`).
