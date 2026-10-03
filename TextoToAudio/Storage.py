@@ -1,4 +1,4 @@
-"""Persistencia del bot TextoToAudio: código secreto y usuarios autorizados.
+"""Persistencia del bot TextoToAudio: código secreto, usuarios autorizados y género de voz.
 
 Usa PostgreSQL (DATABASE_URL) si está disponible; si no, un archivo JSON local.
 """
@@ -11,6 +11,7 @@ import urllib.parse
 import psycopg
 
 CODIGO_POR_DEFECTO = "SnowQuiereUnBot"
+GENDER_POR_DEFECTO = "masculino"
 JSON_PATH = os.path.join(os.path.dirname(__file__), "tts_data.json")
 
 _lock = threading.Lock()
@@ -38,6 +39,7 @@ def init():
     with _connect() as conn:
         conn.execute("CREATE TABLE IF NOT EXISTS tts_config (key TEXT PRIMARY KEY, value TEXT NOT NULL);")
         conn.execute("CREATE TABLE IF NOT EXISTS tts_users (uid BIGINT PRIMARY KEY, name TEXT);")
+        conn.execute("CREATE TABLE IF NOT EXISTS tts_gender (uid BIGINT PRIMARY KEY, gender TEXT NOT NULL);")
 
 
 # --- JSON fallback ---
@@ -121,3 +123,26 @@ def listar_usuarios():
             return conn.execute("SELECT uid, name FROM tts_users ORDER BY name;").fetchall()
     with _lock:
         return [(int(uid), name) for uid, name in _leer_json().get("usuarios", {}).items()]
+
+
+def get_gender(uid):
+    """Devuelve 'masculino' o 'femenino' (por defecto masculino)."""
+    if _usa_db():
+        with _connect() as conn:
+            row = conn.execute("SELECT gender FROM tts_gender WHERE uid = %s;", [uid]).fetchone()
+        return row[0] if row else GENDER_POR_DEFECTO
+    with _lock:
+        return _leer_json().get("generos", {}).get(str(uid), GENDER_POR_DEFECTO)
+
+
+def set_gender(uid, gender):
+    if _usa_db():
+        with _connect() as conn:
+            conn.execute(
+                "INSERT INTO tts_gender (uid, gender) VALUES (%s, %s) "
+                "ON CONFLICT (uid) DO UPDATE SET gender = EXCLUDED.gender;", [uid, gender])
+        return
+    with _lock:
+        data = _leer_json()
+        data.setdefault("generos", {})[str(uid)] = gender
+        _escribir_json(data)

@@ -20,6 +20,7 @@ def main(stop_event):
 
     app.add_handler(CommandHandler("start", Commands.command_start))
     app.add_handler(CommandHandler("help", Commands.command_help))
+    app.add_handler(CommandHandler("gender", Commands.command_gender))
 
     # Comandos admin
     app.add_handler(CommandHandler("codigo", Commands.command_codigo))
