@@ -12,6 +12,7 @@ from telegram.ext import ContextTypes
 
 from Constants.Config import ADMIN
 import TextoToAudio.Storage as Storage
+from TextoToAudio.version import CHANGELOG, VERSION
 
 MAX_CARACTERES = 3000
 IDIOMA = "es"
@@ -100,6 +101,7 @@ async def command_help(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "🗣️ *Texto a Audio / Audio a Texto*\n"
         "/start — activar el bot (pide el código secreto)\n"
         "/gender — cambiar la voz entre masculina y femenina\n"
+        "/version — ver la versión del bot\n"
         f"• Mandá un texto y te llega como audio (máx. {MAX_CARACTERES} caracteres).\n"
         f"• Mandá una nota de voz, audio o videomensaje y te llega el texto (máx. {MAX_SEGUNDOS_AUDIO // 60} minutos)."
     )
@@ -128,6 +130,31 @@ async def command_gender(update: Update, context: ContextTypes.DEFAULT_TYPE):
         nuevo = "femenino" if Storage.get_gender(uid) == "masculino" else "masculino"
     Storage.set_gender(uid, nuevo)
     await update.message.reply_text(f"🗣️ Voz cambiada a {nuevo}.")
+
+
+async def command_version(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    texto = f"🤖 Versión {VERSION}"
+    if VERSION in CHANGELOG:
+        texto += f"\n{CHANGELOG[VERSION]}"
+    await update.message.reply_text(texto)
+
+
+async def avisar_version(app):
+    """Al iniciar, si la versión cambió desde el último aviso, se lo informa al admin."""
+    try:
+        anterior = await asyncio.to_thread(Storage.get_ultima_version)
+        if anterior == VERSION:
+            return
+        texto = f"🚀 Bot de TTS actualizado a la versión {VERSION}"
+        if anterior:
+            texto += f" (antes {anterior})"
+        if VERSION in CHANGELOG:
+            texto += f"\n\nCambios: {CHANGELOG[VERSION]}"
+        await app.bot.send_message(ADMIN[0], texto)
+        await asyncio.to_thread(Storage.set_ultima_version, VERSION)
+        log.info("TextoToAudio: avisada la versión %s al admin", VERSION)
+    except Exception:
+        log.exception("TextoToAudio: no pude avisar la versión al admin")
 
 
 async def command_codigo(update: Update, context: ContextTypes.DEFAULT_TYPE):

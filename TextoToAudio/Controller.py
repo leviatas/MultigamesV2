@@ -5,6 +5,7 @@ from telegram.ext import Application, CommandHandler, MessageHandler, filters
 
 import TextoToAudio.Commands as Commands
 import TextoToAudio.Storage as Storage
+from TextoToAudio.version import VERSION
 
 
 def main(stop_event):
@@ -13,14 +14,15 @@ def main(stop_event):
         log.warning("TextoToAudio: TOKEN_TTS no definido, el bot no se inicia")
         return
 
-    log.info("Starting TextoToAudio bot")
+    log.info("Starting TextoToAudio bot v%s", VERSION)
     Storage.init()
 
-    app = Application.builder().token(token).build()
+    app = Application.builder().token(token).post_init(Commands.avisar_version).build()
 
     app.add_handler(CommandHandler("start", Commands.command_start))
     app.add_handler(CommandHandler("help", Commands.command_help))
     app.add_handler(CommandHandler("gender", Commands.command_gender))
+    app.add_handler(CommandHandler("version", Commands.command_version))
 
     # Comandos admin
     app.add_handler(CommandHandler("codigo", Commands.command_codigo))
