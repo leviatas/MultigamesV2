@@ -1,4 +1,4 @@
-"""Persistencia del bot TextoToAudio: código secreto, usuarios autorizados y género de voz.
+"""Persistencia del bot TextoToAudio: código secreto, usuarios autorizados y preferencias de voz.
 
 Usa PostgreSQL (DATABASE_URL) si está disponible; si no, un archivo JSON local.
 """
@@ -40,6 +40,9 @@ def init():
         conn.execute("CREATE TABLE IF NOT EXISTS tts_config (key TEXT PRIMARY KEY, value TEXT NOT NULL);")
         conn.execute("CREATE TABLE IF NOT EXISTS tts_users (uid BIGINT PRIMARY KEY, name TEXT);")
         conn.execute("CREATE TABLE IF NOT EXISTS tts_gender (uid BIGINT PRIMARY KEY, gender TEXT NOT NULL);")
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS tts_prefs ("
+            "uid BIGINT NOT NULL, key TEXT NOT NULL, value TEXT NOT NULL, PRIMARY KEY (uid, key));")
 
 
 # --- JSON fallback ---
@@ -168,4 +171,27 @@ def set_ultima_version(version):
     with _lock:
         data = _leer_json()
         data["version"] = version
+        _escribir_json(data)
+
+
+def get_pref(uid, key, default=None):
+    """Preferencia personal del usuario (proveedor, voz elegida por género, etc.)."""
+    if _usa_db():
+        with _connect() as conn:
+            row = conn.execute("SELECT value FROM tts_prefs WHERE uid = %s AND key = %s;", [uid, key]).fetchone()
+        return row[0] if row else default
+    with _lock:
+        return _leer_json().get("prefs", {}).get(str(uid), {}).get(key, default)
+
+
+def set_pref(uid, key, value):
+    if _usa_db():
+        with _connect() as conn:
+            conn.execute(
+                "INSERT INTO tts_prefs (uid, key, value) VALUES (%s, %s, %s) "
+                "ON CONFLICT (uid, key) DO UPDATE SET value = EXCLUDED.value;", [uid, key, value])
+        return
+    with _lock:
+        data = _leer_json()
+        data.setdefault("prefs", {}).setdefault(str(uid), {})[key] = value
         _escribir_json(data)

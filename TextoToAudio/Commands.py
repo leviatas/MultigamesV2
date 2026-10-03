@@ -7,7 +7,7 @@ import av
 import edge_tts
 import speech_recognition as sr
 from gtts import gTTS
-from telegram import Update
+from telegram import BotCommand, BotCommandScopeChat, InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes
 
 from Constants.Config import ADMIN
@@ -18,11 +18,44 @@ MAX_CARACTERES = 3000
 IDIOMA = "es"
 # Acento de gTTS: "com.ar" (Argentina), "es" (España), "com.mx" (México)
 TLD = "com.ar"
-# Voces neuronales (edge-tts) por género; gTTS queda como respaldo si fallan
+# Voces neuronales (edge-tts) por defecto para cada género; gTTS queda como respaldo si fallan
 VOCES = {
     "masculino": "es-AR-TomasNeural",
     "femenino": "es-AR-ElenaNeural",
 }
+# Voces en español que se pueden elegir con /voz: (país, femenina, masculina)
+VOCES_DISPONIBLES = [
+    ("🇦🇷 Argentina", "es-AR-ElenaNeural", "es-AR-TomasNeural"),
+    ("🇺🇾 Uruguay", "es-UY-ValentinaNeural", "es-UY-MateoNeural"),
+    ("🇨🇱 Chile", "es-CL-CatalinaNeural", "es-CL-LorenzoNeural"),
+    ("🇲🇽 México", "es-MX-DaliaNeural", "es-MX-JorgeNeural"),
+    ("🇪🇸 España", "es-ES-ElviraNeural", "es-ES-AlvaroNeural"),
+    ("🇨🇴 Colombia", "es-CO-SalomeNeural", "es-CO-GonzaloNeural"),
+    ("🇺🇸 EE.UU.", "es-US-PalomaNeural", "es-US-AlonsoNeural"),
+]
+_VOCES_VALIDAS = {
+    "femenino": {f for _, f, _ in VOCES_DISPONIBLES},
+    "masculino": {m for _, _, m in VOCES_DISPONIBLES},
+}
+_ADJETIVO = {"femenino": "femenina", "masculino": "masculina"}
+# Proveedores de texto a voz que se alternan con /switch
+PROVEEDORES = {"edge": "Edge (voces neuronales de Microsoft)", "gtts": "gTTS (Google Translate)"}
+PROVEEDOR_POR_DEFECTO = "edge"
+ALIAS_PROVEEDOR = {"edge": "edge", "microsoft": "edge", "gtts": "gtts", "google": "gtts"}
+
+COMANDOS = [
+    BotCommand("start", "Activar el bot"),
+    BotCommand("help", "Ayuda"),
+    BotCommand("voz", "Elegir la voz femenina y masculina"),
+    BotCommand("gender", "Alternar entre voz masculina y femenina"),
+    BotCommand("switch", "Alternar el proveedor de voz (Edge / gTTS)"),
+    BotCommand("version", "Ver la versión del bot"),
+]
+COMANDOS_ADMIN = COMANDOS + [
+    BotCommand("codigo", "Ver o cambiar el código secreto"),
+    BotCommand("usuarios", "Listar usuarios activados"),
+    BotCommand("revocar", "Quitar acceso a un usuario"),
+]
 ALIAS_GENERO = {
     "m": "masculino", "masculino": "masculino", "hombre": "masculino", "male": "masculino",
     "f": "femenino", "femenino": "femenino", "mujer": "femenino", "female": "femenino",
@@ -100,7 +133,9 @@ async def command_help(update: Update, context: ContextTypes.DEFAULT_TYPE):
     texto = (
         "🗣️ *Texto a Audio / Audio a Texto*\n"
         "/start — activar el bot (pide el código secreto)\n"
+        "/voz — elegir qué voz femenina y masculina usar\n"
         "/gender — cambiar la voz entre masculina y femenina\n"
+        "/switch — cambiar el proveedor de voz (Edge / gTTS)\n"
         "/version — ver la versión del bot\n"
         f"• Mandá un texto y te llega como audio (máx. {MAX_CARACTERES} caracteres).\n"
         f"• Mandá una nota de voz, audio o videomensaje y te llega el texto (máx. {MAX_SEGUNDOS_AUDIO // 60} minutos)."
@@ -129,7 +164,90 @@ async def command_gender(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         nuevo = "femenino" if Storage.get_gender(uid) == "masculino" else "masculino"
     Storage.set_gender(uid, nuevo)
-    await update.message.reply_text(f"🗣️ Voz cambiada a {nuevo}.")
+    texto = f"🗣️ Voz cambiada a {nuevo} ({_nombre_voz(_voz_usuario(uid, nuevo))})."
+    if _proveedor_usuario(uid) == "gtts":
+        texto += "\nOjo: con gTTS la voz es siempre la misma. Usá /switch para volver a Edge."
+    await update.message.reply_text(texto)
+
+
+def _proveedor_usuario(uid):
+    return Storage.get_pref(uid, "proveedor", PROVEEDOR_POR_DEFECTO)
+
+
+def _voz_usuario(uid, gender):
+    voz = Storage.get_pref(uid, f"voz_{gender}")
+    return voz if voz in _VOCES_VALIDAS[gender] else VOCES[gender]
+
+
+def _nombre_voz(voz):
+    """'es-AR-ElenaNeural' -> 'Elena'"""
+    return voz.split("-")[-1].replace("Neural", "")
+
+
+async def command_switch(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    uid = update.effective_user.id
+    if not _esta_autorizado(uid):
+        await update.message.reply_text("🔒 Bot no activado. Usá /start y enviá el código secreto.")
+        return
+    if context.args:
+        nuevo = ALIAS_PROVEEDOR.get(context.args[0].strip().lower())
+        if not nuevo:
+            await update.message.reply_text("Uso: /switch (alterna), /switch edge o /switch gtts")
+            return
+    else:
+        nuevo = "gtts" if _proveedor_usuario(uid) == "edge" else "edge"
+    Storage.set_pref(uid, "proveedor", nuevo)
+    await update.message.reply_text(f"🔀 Proveedor de voz: {PROVEEDORES[nuevo]}.")
+
+
+def _teclado_voces(uid):
+    fem = _voz_usuario(uid, "femenino")
+    masc = _voz_usuario(uid, "masculino")
+    filas = []
+    for pais, f, m in VOCES_DISPONIBLES:
+        filas.append([InlineKeyboardButton(pais, callback_data="voz*nada")])
+        filas.append([
+            InlineKeyboardButton(f"{'✅ ' if f == fem else ''}♀ {_nombre_voz(f)}", callback_data=f"voz*femenino*{f}"),
+            InlineKeyboardButton(f"{'✅ ' if m == masc else ''}♂ {_nombre_voz(m)}", callback_data=f"voz*masculino*{m}"),
+        ])
+    return InlineKeyboardMarkup(filas)
+
+
+def _texto_voces(uid):
+    return (
+        "🎙️ Elegí qué voz usar para cada género (✅ = la actual).\n"
+        f"Femenina: {_nombre_voz(_voz_usuario(uid, 'femenino'))} · "
+        f"Masculina: {_nombre_voz(_voz_usuario(uid, 'masculino'))}\n"
+        f"Ahora estás usando la voz {_ADJETIVO[Storage.get_gender(uid)]} (cambiala con /gender)."
+    )
+
+
+async def command_voz(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    uid = update.effective_user.id
+    if not _esta_autorizado(uid):
+        await update.message.reply_text("🔒 Bot no activado. Usá /start y enviá el código secreto.")
+        return
+    await update.message.reply_text(_texto_voces(uid), reply_markup=_teclado_voces(uid))
+
+
+async def callback_voz(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    uid = query.from_user.id
+    partes = query.data.split("*")
+    if not _esta_autorizado(uid):
+        await query.answer("🔒 Bot no activado.")
+        return
+    if len(partes) != 3 or partes[2] not in _VOCES_VALIDAS.get(partes[1], ()):
+        await query.answer()
+        return
+    _, gender, voz = partes
+    Storage.set_pref(uid, f"voz_{gender}", voz)
+    await query.answer(f"Voz {_ADJETIVO[gender]}: {_nombre_voz(voz)}")
+    try:
+        await query.edit_message_text(_texto_voces(uid), reply_markup=_teclado_voces(uid))
+    except Exception:
+        # Telegram rechaza la edición si no cambió nada (misma voz elegida de nuevo)
+        pass
 
 
 async def command_version(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -137,6 +255,20 @@ async def command_version(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if VERSION in CHANGELOG:
         texto += f"\n{CHANGELOG[VERSION]}"
     await update.message.reply_text(texto)
+
+
+async def al_iniciar(app):
+    await configurar_comandos(app)
+    await avisar_version(app)
+
+
+async def configurar_comandos(app):
+    """Registra los comandos para que aparezcan al escribir / en Telegram."""
+    try:
+        await app.bot.set_my_commands(COMANDOS)
+        await app.bot.set_my_commands(COMANDOS_ADMIN, scope=BotCommandScopeChat(ADMIN[0]))
+    except Exception:
+        log.exception("TextoToAudio: no pude registrar los comandos")
 
 
 async def avisar_version(app):
@@ -199,10 +331,12 @@ def _generar_audio_gtts(texto):
     return buffer
 
 
-async def _generar_audio(texto, gender):
+async def _generar_audio(texto, voz, proveedor):
+    if proveedor == "gtts":
+        return await asyncio.to_thread(_generar_audio_gtts, texto)
     try:
         buffer = io.BytesIO()
-        async for chunk in edge_tts.Communicate(texto, VOCES[gender]).stream():
+        async for chunk in edge_tts.Communicate(texto, voz).stream():
             if chunk["type"] == "audio":
                 buffer.write(chunk["data"])
         if buffer.tell():
@@ -233,7 +367,8 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await _avisar_admin(context, update.effective_user, "puso el texto", texto)
     await context.bot.send_chat_action(update.effective_chat.id, "record_voice")
     try:
-        audio = await _generar_audio(texto, Storage.get_gender(uid))
+        voz = _voz_usuario(uid, Storage.get_gender(uid))
+        audio = await _generar_audio(texto, voz, _proveedor_usuario(uid))
     except Exception:
         log.exception("TextoToAudio: error generando audio")
         await update.message.reply_text("⚠️ No pude generar el audio. Probá de nuevo en un rato.")
