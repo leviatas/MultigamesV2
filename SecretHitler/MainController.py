@@ -86,11 +86,16 @@ def start_round(bot, game):
 	game.board.state.chairman = None
 	# Ninguna propuesta socialista puede sobrevivir a la ronda en la que se hizo.
 	game.board.state.socialist_proposal = None
+	# Los votos predefinidos valen solo para la nominacion de esta ronda.
+	for player in game.playerlist.values():
+		player.pre_voto = None
+		player.msg_prevoto = None
 
 	Commands.print_board(bot, game, game.cid)
 	msgtext =  t("round.next_president", game) % (game.board.state.nominated_president.name, game.board.state.nominated_president.uid, game.board.state.nominated_president.name)
 	bot.send_message(game.cid, msgtext, ParseMode.MARKDOWN)
 	choose_chancellor(bot, game)
+	offer_pre_vote(bot, game)
 	# --> nominate_chosen_chancellor --> vote --> handle_voting --> count_votes --> voting_aftermath --> draw_policies
 	# --> choose_policy --> pass_two_policies --> choose_policy --> enact_policy --> start_round
 
@@ -135,6 +140,77 @@ def choose_chancellor(bot, game):
 
 	game.board.state.fase = "choose_chancellor"
 	Commands.save_game(game.cid, "choose_chancellor Round %d" % (game.board.state.currentround), game)
+
+
+def _markup_prevoto(game):
+	strcid = str(game.cid)
+	ronda = game.board.state.currentround
+	return InlineKeyboardMarkup([[
+		InlineKeyboardButton("Ja", callback_data="%s_prevoto_%d_Ja" % (strcid, ronda)),
+		InlineKeyboardButton("Nein", callback_data="%s_prevoto_%d_Nein" % (strcid, ronda))],
+		[InlineKeyboardButton(t("prevote.btn_none", game), callback_data="%s_prevoto_%d_no" % (strcid, ronda))]])
+
+
+def _texto_prevoto(game, player):
+	groupName = ""
+	if hasattr(game, 'groupName'):
+		groupName += t("common.in_group", game).format(game.groupName)
+	msg = t("prevote.ask_group", game).format(groupName, game.board.state.nominated_president.name)
+	pre_voto = getattr(player, "pre_voto", None)
+	if pre_voto:
+		msg += t("prevote.current", game).format(pre_voto)
+	else:
+		msg += t("prevote.current_none", game)
+		if getattr(player, 'auto_ja', False) and not autoja_cortado(game, player):
+			msg += t("prevote.autoja_note", game)
+	return msg
+
+
+def offer_pre_vote(bot, game):
+	# Mientras el presidente elige canciller, el resto de los jugadores vivos puede dejar su
+	# voto definido de antemano. Se registra apenas haya nominacion (sea a quien sea) y se
+	# puede cambiar o quitar hasta entonces; despues se cambia con los botones de la votacion.
+	if game.is_debugging:
+		return
+	for uid, player in game.playerlist.items():
+		if player.is_dead or uid == game.board.state.nominated_president.uid:
+			continue
+		try:
+			mensaje = bot.send_message(uid, _texto_prevoto(game, player),
+						reply_markup=_markup_prevoto(game), parse_mode=ParseMode.MARKDOWN)
+			player.msg_prevoto = mensaje.message_id
+		except Exception as e:
+			log.error("offer_pre_vote: no se pudo avisar a %s: %s" % (uid, str(e)))
+	Commands.save_game(game.cid, "pre_vote Round %d" % (game.board.state.currentround), game)
+
+
+def handle_pre_vote(update: Update, context: CallbackContext):
+	bot = context.bot
+	callback = update.callback_query
+	log.info('handle_pre_vote called: %s' % callback.data)
+	regex = re.search("(-[0-9]*)_prevoto_([0-9]+)_(Ja|Nein|no)", callback.data)
+	cid = int(regex.group(1))
+	ronda = int(regex.group(2))
+	opcion = regex.group(3)
+	uid = callback.from_user.id
+	try:
+		game = Commands.get_game(cid)
+		if (game is None or game.board is None or uid not in game.playerlist
+				or game.board.state.currentround != ronda
+				or getattr(game.board.state, "fase", None) != "choose_chancellor"):
+			bot.edit_message_text(t("prevote.closed", game), uid, callback.message.message_id)
+			return
+		player = game.playerlist[uid]
+		player.pre_voto = None if opcion == "no" else opcion
+		player.msg_prevoto = callback.message.message_id
+		log.info("Player %s (%d) pre-voted %s" % (callback.from_user.first_name, uid, opcion))
+		bot.edit_message_text(_texto_prevoto(game, player), uid, callback.message.message_id,
+					reply_markup=_markup_prevoto(game), parse_mode=ParseMode.MARKDOWN)
+		Commands.save_game(game.cid, "pre_vote Round %d" % (game.board.state.currentround), game)
+	except Exception as e:
+		log.error("handle_pre_vote: " + repr(e))
+		log.exception(e)
+
 
 def nominate_chosen_chancellor(update: Update, context: CallbackContext):
 	bot = context.bot
@@ -218,7 +294,21 @@ def vote(bot, game):
 			if hasattr(game, 'groupName'):
 				groupName += t("common.in_group", game).format(game.groupName)
 			msg = t("vote.ask_group", game).format(groupName, game.board.state.nominated_president.name, game.board.state.nominated_chancellor.name)
-			if getattr(game.playerlist[uid], 'auto_ja', False) and not autoja_cortado(game, game.playerlist[uid]):
+			player = game.playerlist[uid]
+			if getattr(player, 'msg_prevoto', None):
+				# La oferta de voto predefinido ya no sirve: se cierra para que no queden botones vivos.
+				try:
+					bot.edit_message_text(t("prevote.closed", game), uid, player.msg_prevoto)
+				except Exception as e:
+					log.error("vote: no se pudo cerrar el voto predefinido de %s: %s" % (uid, str(e)))
+				player.msg_prevoto = None
+			pre_voto = getattr(player, 'pre_voto', None)
+			if pre_voto:
+				# El voto predefinido explicito tiene prioridad sobre /startautoja.
+				game.board.state.last_votes[uid] = pre_voto
+				player.pre_voto = None
+				msg += t("vote.prevote_registered", game).format(pre_voto)
+			elif getattr(player, 'auto_ja', False) and not autoja_cortado(game, player):
 				game.board.state.last_votes[uid] = "Ja"
 				msg += t("vote.autoja_registered", game)
 			bot.send_message(uid, msg,	reply_markup=voteMarkup, parse_mode=ParseMode.MARKDOWN)
@@ -2084,6 +2174,7 @@ def main():
 	dp.add_handler(CallbackQueryHandler(pattern="(-[0-9]*)_socvoto_(si|no)", callback=handle_socialist_vote))
 	dp.add_handler(CallbackQueryHandler(pattern="(-[0-9]*)_(yesveto|noveto)", callback=choose_veto))
 	dp.add_handler(CallbackQueryHandler(pattern="(-[0-9]*)_(liberal|fascista|socialista|veto)", callback=choose_policy))
+	dp.add_handler(CallbackQueryHandler(pattern="(-[0-9]*)_prevoto_([0-9]+)_(Ja|Nein|no)", callback=handle_pre_vote))
 	dp.add_handler(CallbackQueryHandler(pattern="(-[0-9]*)_(Ja|Nein)", callback=handle_voting))
 	dp.add_handler(CallbackQueryHandler(pattern="(-[0-9]*)_(SiAna|NoAna)", callback=handle_voting_anarquia))
 	
