@@ -175,6 +175,9 @@ def offer_pre_vote(bot, game):
 	for uid, player in game.playerlist.items():
 		if player.is_dead or uid == game.board.state.nominated_president.uid:
 			continue
+		if getattr(player, 'auto_ja', False) and not autoja_cortado(game, player):
+			# Con /startautoja vigente el voto ya va a ser Ja: no tiene sentido preguntarle.
+			continue
 		try:
 			mensaje = bot.send_message(uid, _texto_prevoto(game, player),
 						reply_markup=_markup_prevoto(game), parse_mode=ParseMode.MARKDOWN)
