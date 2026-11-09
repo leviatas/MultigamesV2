@@ -4,7 +4,7 @@ ADMIN = [387393551, 441820689, 445782140] #your telegram ID
 STATS = "../stats.json"
 
 # Se incrementa manualmente (semver) con cada cambio relevante que se despliega.
-VERSION = "1.0.0"
+VERSION = "1.1.0"
 
 JUEGOS_DISPONIBLES = {
         "LostExpedition" : {
@@ -105,6 +105,16 @@ JUEGOS_DISPONIBLES = {
                     "Flip7" : "Flip 7"
                 },
         },
+	"GranPremioArcano" : {
+                "comandos" : {
+                    "GranPremioArcano" : "Gran Premio Arcano"
+                },
+        },
+	"CarreraBichos" : {
+                "comandos" : {
+                    "CarreraBichos" : "Carrera de Bichos"
+                },
+        },
 }
 
 
@@ -158,7 +168,19 @@ COMANDOS_JUEGO = {
 		"/habilidad - Usar tu habilidad de una vez por juego\n"
 		"/revelar - (Cylon) Revelarte\n"
 		"/encarcelar - Enviar a un jugador al Calabozo\n"
-		"/liberar - Liberar a un jugador del Calabozo"
+		"/liberar - Liberar a un jugador del Calabozo",
+        "GranPremioArcano":
+		"🏆 Comandos de Gran Premio Arcano:\n"
+		"/board - Ver la pista y los puntos\n"
+		"/info - Tu equipo de corredores y sus poderes (en privado)\n"
+		"/call - Reenviar los botones de quien tiene que jugar\n"
+		"/rules - Reglamento",
+        "CarreraBichos":
+		"🏟️ Comandos de Carrera de Bichos:\n"
+		"/board - Ver la pista, la plata y las apuestas\n"
+		"/info - Tu mano y tus apuestas (en privado)\n"
+		"/call - Reenviar los botones pendientes o retomar la transmisión\n"
+		"/rules - Reglamento y cartas"
 }
 
 MODULOS_DISPONIBES = {
@@ -341,6 +363,24 @@ MODULOS_DISPONIBES = {
                         },
                         "min_jugadores" : 3,
                         "max_jugadores" : 18
+                }
+        },
+	"GranPremioArcano" : {
+                "Clasico" : {
+                        "comandos" : {
+                            "Clasico" : "Clásico"
+                        },
+                        "min_jugadores" : 2,
+                        "max_jugadores" : 6
+                }
+        },
+	"CarreraBichos" : {
+                "Clasico" : {
+                        "comandos" : {
+                            "Clasico" : "Clásico"
+                        },
+                        "min_jugadores" : 2,
+                        "max_jugadores" : 8
                 }
         },
 }

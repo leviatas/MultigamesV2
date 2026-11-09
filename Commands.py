@@ -37,6 +37,8 @@ from Insider.Boardgamebox.Game import Game as GameInsider
 from BattlestarGalactica.Boardgamebox.Game import Game as GameBSG
 from PuertoBanana.Boardgamebox.Game import Game as GamePuertoBanana
 from Flip7.Boardgamebox.Game import Game as GameFlip7
+from GranPremioArcano.Boardgamebox.Game import Game as GameGranPremioArcano
+from CarreraBichos.Boardgamebox.Game import Game as GameCarreraBichos
 
 from Boardgamebox.Player import Player
 from Boardgamebox.State import State
@@ -703,6 +705,10 @@ async def CreateGame(cid, uid, tipo, groupName, bot):
 		GamesController.games[cid] = GamePuertoBanana(cid, uid, groupName, tipo)
 	elif tipo == 'Flip7':
 		GamesController.games[cid] = GameFlip7(cid, uid, groupName, tipo)
+	elif tipo == 'GranPremioArcano':
+		GamesController.games[cid] = GameGranPremioArcano(cid, uid, groupName, tipo)
+	elif tipo == 'CarreraBichos':
+		GamesController.games[cid] = GameCarreraBichos(cid, uid, groupName, tipo)
 	else:
 		GamesController.games[cid] = Game(cid, uid, groupName, tipo)
 

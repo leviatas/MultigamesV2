@@ -37,6 +37,8 @@ import Insider.Controller as InsiderController
 import BattlestarGalactica.Controller as BSGController
 import PuertoBanana.Controller as PuertoBananaController
 import Flip7.Controller as Flip7Controller
+import GranPremioArcano.Controller as GPController
+import CarreraBichos.Controller as CBController
 
 # Importo los comandos de los juegos que vaya agregando
 import JustOne.Commands as JustoneCommands
@@ -152,6 +154,12 @@ async def init_game(bot, game):
 	elif game.tipo == "Flip7":
 		game.create_board()
 		await Flip7Controller.init_game(bot, game)
+	elif game.tipo == "GranPremioArcano":
+		game.create_board()
+		await GPController.init_game(bot, game)
+	elif game.tipo == "CarreraBichos":
+		game.create_board()
+		await CBController.init_game(bot, game)
 
 
 async def init_lost_expedition(bot, game, player_number):
@@ -936,6 +944,21 @@ def main(stop_event):
 	app.add_handler(CallbackQueryHandler(pattern=r"(-[0-9]*)\*choosef3F7\*([0-9]*)\*([0-9]*)", callback=Flip7Controller.callback_choose_flip_three_target))
 	app.add_handler(CallbackQueryHandler(pattern=r"(-[0-9]*)\*choosescgiveF7\*([0-9]*)\*([0-9]*)", callback=Flip7Controller.callback_choose_sc_give))
 	app.add_handler(CallbackQueryHandler(pattern=r"(-[0-9]*)\*chooseendF7\*(.*)\*([0-9]*)", callback=Flip7Controller.callback_finish_game_buttons_f7))
+
+	# Handlers de Gran Premio Arcano
+	app.add_handler(CallbackQueryHandler(pattern=r"(-[0-9]*)\*repGP\*(.*)\*([0-9]*)", callback=GPController.callback_reparto))
+	app.add_handler(CallbackQueryHandler(pattern=r"(-[0-9]*)\*draftGP\*(.*)\*([0-9]*)", callback=GPController.callback_draft))
+	app.add_handler(CallbackQueryHandler(pattern=r"(-[0-9]*)\*elegGP\*(.*)\*([0-9]*)", callback=GPController.callback_eleccion))
+	app.add_handler(CallbackQueryHandler(pattern=r"(-[0-9]*)\*accGP\*(.*)\*([0-9]*)", callback=GPController.callback_accion))
+	app.add_handler(CallbackQueryHandler(pattern=r"(-[0-9]*)\*objGP\*(.*)\*([0-9]*)", callback=GPController.callback_objetivo))
+	app.add_handler(CallbackQueryHandler(pattern=r"(-[0-9]*)\*postGP\*(.*)\*([0-9]*)", callback=GPController.callback_post_tirada))
+	app.add_handler(CallbackQueryHandler(pattern=r"(-[0-9]*)\*chooseendGP\*(.*)\*([0-9]*)", callback=GPController.callback_finish_game_buttons_gp))
+
+	# Handlers de Carrera de Bichos
+	app.add_handler(CallbackQueryHandler(pattern=r"(-[0-9]*)\*betCB\*(.*)\*([0-9]*)", callback=CBController.callback_boleto))
+	app.add_handler(CallbackQueryHandler(pattern=r"(-[0-9]*)\*modCB\*(.*)\*([0-9]*)", callback=CBController.callback_modo))
+	app.add_handler(CallbackQueryHandler(pattern=r"(-[0-9]*)\*aporCB\*(.*)\*([0-9]*)", callback=CBController.callback_aporte))
+	app.add_handler(CallbackQueryHandler(pattern=r"(-[0-9]*)\*chooseendCB\*(.*)\*([0-9]*)", callback=CBController.callback_finish_game_buttons_cb))
 
 	app.add_handler(CommandHandler("status", command_status))
 
