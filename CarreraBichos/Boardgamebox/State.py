@@ -42,3 +42,9 @@ class State(BaseState):
         self.ticker = []           # últimos sucesos para el relato
         self.live_msg_id = None
         self.ganadores_uids = []
+
+        # --- Repetición (ver CarreraBichos/repeticion.py) ---
+        self.repeticion_actual = None  # cuadros de la carrera que se está transmitiendo
+        self.repeticion = None         # cuadros de la última carrera terminada
+        self.repeticion_file_id = None  # video ya subido a Telegram
+        self.repeticion_formato = None

@@ -548,10 +548,14 @@ def _carril(d, st, i, b, previas, golpes, lider, rnd, final=False):
     antes = previas.get(b.bid) if previas else None
     terminado = b.lugar is not None and b.pos >= LARGO_PISTA
 
-    if terminado:
+    # pos_visual: posición intermedia (con decimales) para los cuadros de transición
+    # de la repetición en video.
+    pos_visual = getattr(b, "pos_visual", None)
+    if terminado and pos_visual is None:
         cx = COLUMNA_X0 + 52
     else:
-        cx = max(ETIQ_X1 + TAM_BICHO / 2 + 4, casilla_x(min(b.pos, LARGO_PISTA - 1)) - TAM_BICHO * 0.32)
+        pos = b.pos if pos_visual is None else pos_visual
+        cx = max(ETIQ_X1 + TAM_BICHO / 2 + 4, casilla_x(min(pos, LARGO_PISTA - 1)) - TAM_BICHO * 0.32)
     delta = (b.pos - antes[0]) if antes else 0
 
     # Estela de velocidad
@@ -577,7 +581,8 @@ def _carril(d, st, i, b, previas, golpes, lider, rnd, final=False):
         cx = -1000  # en el podio final no se dibujan los que no cruzaron la meta
     sombra_y = cy + TAM_BICHO * 0.45
     d.ellipse(_caja(cx - 30, sombra_y - 5, cx + 30, sombra_y + 5), fill=(0, 0, 0, 70))
-    dibujar_bicho(d, b.bid, cx, cy, TAM_BICHO, gesto=gesto_carril(b, delta, golpe, terminado))
+    gesto = getattr(b, "gesto_visual", None) or gesto_carril(b, delta, golpe, terminado)
+    dibujar_bicho(d, b.bid, cx, cy, TAM_BICHO, gesto=gesto)
 
     if golpe:
         _texto(d, (cx + 4, y0 + 14), golpe, 26, fill=(254, 240, 138), anchor="mm", stroke=3,
@@ -737,6 +742,14 @@ def _podio(d, st, rnd):
 
 def render_cuadro(game, cartas=None, previas=None, cuenta=None, final=False, titular_fijo=None):
     """JPEG (bytes) de un cuadro de la transmisión."""
+    img = render_imagen(game, cartas, previas, cuenta, final, titular_fijo)
+    buf = BytesIO()
+    img.save(buf, format="JPEG", quality=88, optimize=True)
+    return buf.getvalue()
+
+
+def render_imagen(game, cartas=None, previas=None, cuenta=None, final=False, titular_fijo=None):
+    """Imagen RGB (W x H) de un cuadro de la transmisión."""
     st = game.board.state
     img = _fondo().copy()
     d = ImageDraw.Draw(img, "RGBA")
@@ -766,7 +779,4 @@ def render_cuadro(game, cartas=None, previas=None, cuenta=None, final=False, tit
     if final:
         _podio(d, st, rnd)
 
-    img = img.resize((W, H), Image.LANCZOS)
-    buf = BytesIO()
-    img.save(buf, format="JPEG", quality=88, optimize=True)
-    return buf.getvalue()
+    return img.resize((W, H), Image.LANCZOS)

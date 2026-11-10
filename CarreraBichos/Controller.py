@@ -22,6 +22,7 @@ from CarreraBichos.Constants.Cartas import (
 )
 import CarreraBichos.Motor as M
 import CarreraBichos.render as R
+import CarreraBichos.repeticion as RP
 
 import GamesController
 
@@ -399,9 +400,11 @@ class _Pantalla(object):
             self.con_imagen = False
             return None
 
-    async def mostrar(self, nuevo, cartas=None, eventos=None, titulo=None, **kw):
+    async def mostrar(self, nuevo, cartas=None, eventos=None, titulo=None, grabar=True, **kw):
         """Manda (`nuevo`) o actualiza el cuadro. Devuelve False si no se pudo mandar."""
         st, cid = self.game.board.state, self.game.cid
+        if grabar:
+            RP.grabar(st, cartas=cartas, **kw)
         foto = await self._foto(cartas=cartas, **kw)
         if foto is not None:
             caption = M.cuadro_en_vivo(st, cartas, eventos, titulo, con_pista=False)[:MAX_CAPTION]
@@ -430,9 +433,10 @@ async def transmitir(bot, game, retomar=False):
     try:
         titulo = "Carrera {}/{}".format(st.carrera, CANTIDAD_CARRERAS)
         if retomar:
-            ok = await pantalla.mostrar(True, titulo="🔴 *SE RETOMA LA TRANSMISIÓN* — " + titulo,
+            ok = await pantalla.mostrar(True, titulo="🔴 *SE RETOMA LA TRANSMISIÓN* — " + titulo, grabar=False,
                                         titular_fijo=("¡SE RETOMA LA TRANSMISIÓN!", (254, 202, 202)))
         else:
+            RP.empezar(st, game)
             ok = await pantalla.mostrar(True, eventos=[],
                                         titulo="*{}* — los bichos se acomodan en la largada...".format(titulo),
                                         titular_fijo=("¡EN SUS MARCAS!", (253, 230, 138)))
@@ -477,6 +481,7 @@ async def transmitir(bot, game, retomar=False):
             return
         await pantalla.mostrar(False, eventos=st.ticker + ["🏁 *¡TERMINÓ LA CARRERA!*"],
                                titulo="🏁 *FINAL* — {}".format(titulo), final=True)
+        RP.cerrar(st)
         await asyncio.sleep(1.5)
         await terminar_carrera(bot, game)
     except Exception as e:
@@ -501,7 +506,11 @@ async def terminar_carrera(bot, game):
              "💰 *Pagos{}:*\n{}").format(
         st.carrera, st.reveladas, podio, especial, secretos,
         " (x{})".format(MULTIPLICADOR_FINAL) if st.carrera == CANTIDAD_CARRERAS else "", pagos)
-    await enviar(bot, game.cid, texto)
+    boton = None
+    if RP.disponible(st):
+        boton = InlineKeyboardMarkup([[InlineKeyboardButton(
+            "🎬 Ver la repetición", callback_data="{}*repCB*{}*0".format(game.cid, st.carrera))]])
+    await enviar(bot, game.cid, texto, reply_markup=boton)
 
     if st.carrera >= CANTIDAD_CARRERAS:
         await finalizar_juego(bot, game)
@@ -598,3 +607,84 @@ async def command_cartas(update: Update, context: CallbackContext):
     """/cartas: qué hace cada carta de Carrera de Bichos (sirve en el grupo y en privado)."""
     await context.bot.send_message(update.effective_chat.id, "🃏 *Cartas de Carrera de Bichos*\n\n" + AYUDA_CARTAS,
                                    parse_mode=ParseMode.MARKDOWN)
+
+
+# ---------------------------------------------------------------------------
+# Repetición en video de la última carrera
+# ---------------------------------------------------------------------------
+
+_armando_repeticion = set()  # cids con un video en preparación
+
+
+async def mandar_repeticion(bot, game):
+    """Manda el video de la última carrera (lo arma la primera vez y después reusa el file_id)."""
+    st, cid = game.board.state, game.cid
+    rep = RP.disponible(st)
+    if not rep:
+        await enviar(bot, cid, "🎬 Todavía no hay ninguna carrera terminada para repetir.", parse_mode=None)
+        return
+    if cid in _armando_repeticion:
+        return
+    caption = "🎬 *Repetición* — carrera {}/{}".format(rep["carrera"], CANTIDAD_CARRERAS)
+    file_id = getattr(st, "repeticion_file_id", None)
+    if file_id:  # ya se subió: Telegram lo reenvía al instante
+        try:
+            await _enviar_video(bot, cid, file_id, getattr(st, "repeticion_formato", "mp4"), caption)
+            return
+        except Exception as e:
+            logger.warning("CB repetición con file_id: %s", e)
+    _armando_repeticion.add(cid)
+    aviso = await enviar(bot, cid, "🎬 Preparando la repetición de la carrera {}...".format(rep["carrera"]),
+                         parse_mode=None)
+    try:
+        datos, formato = await asyncio.to_thread(RP.armar_video, rep)
+        msg = await _enviar_video(bot, cid, datos, formato, caption,
+                                  nombre="carrera_{}.{}".format(rep["carrera"], formato))
+        media = msg.video if formato == "mp4" else msg.animation
+        # Sólo se guarda si sigue siendo la misma carrera (no terminó otra mientras tanto).
+        if media is not None and RP.disponible(st) is rep:
+            st.repeticion_file_id, st.repeticion_formato = media.file_id, formato
+            await save(bot, cid)
+    except Exception as e:
+        logger.exception("CB repetición")
+        await enviar(bot, cid, "⚠️ No pude armar la repetición: {}".format(e), parse_mode=None)
+    finally:
+        _armando_repeticion.discard(cid)
+        if aviso is not None:
+            try:
+                await bot.delete_message(cid, aviso.message_id)
+            except Exception:
+                pass
+
+
+async def _enviar_video(bot, cid, video, formato, caption, nombre=None):
+    """`video` son los bytes o un file_id ya subido."""
+    if formato == "mp4":
+        return await bot.send_video(cid, video=video, filename=nombre, caption=caption,
+                                    parse_mode=ParseMode.MARKDOWN, width=R.W, height=R.H,
+                                    supports_streaming=True, read_timeout=120, write_timeout=120)
+    return await bot.send_animation(cid, animation=video, filename=nombre, caption=caption,
+                                    parse_mode=ParseMode.MARKDOWN, read_timeout=120, write_timeout=120)
+
+
+async def callback_repeticion(update: Update, context: CallbackContext):
+    callback = update.callback_query
+    cid, carrera, _ = _parse(callback.data, "repCB")
+    game = _juego(cid) if cid is not None else None
+    rep = RP.disponible(game.board.state) if game else None
+    if not rep or str(rep["carrera"]) != carrera:
+        return await _responder(callback, "Esa repetición ya no está: solo se guarda la última carrera.")
+    if cid in _armando_repeticion:
+        return await _responder(callback, "Ya se está preparando, ¡aguanten!")
+    await _responder(callback, "🎬 Ahí va la repetición")
+    await mandar_repeticion(context.bot, game)
+
+
+async def command_repeticion(update: Update, context: CallbackContext):
+    """/repeticion: vuelve a ver en video la última carrera de la partida del grupo."""
+    game = _juego(update.effective_chat.id)
+    if game is None:
+        await enviar(context.bot, update.effective_chat.id, "No hay una Carrera de Bichos en este grupo.",
+                     parse_mode=None)
+        return
+    await mandar_repeticion(context.bot, game)

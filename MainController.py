@@ -956,6 +956,8 @@ def main(stop_event):
 
 	# Handlers de Carrera de Bichos
 	app.add_handler(CommandHandler("cartas", CBController.command_cartas))
+	app.add_handler(CommandHandler("repeticion", CBController.command_repeticion))
+	app.add_handler(CallbackQueryHandler(pattern=r"(-[0-9]*)\*repCB\*(.*)\*([0-9]*)", callback=CBController.callback_repeticion))
 	app.add_handler(CallbackQueryHandler(pattern=r"(-[0-9]*)\*betCB\*(.*)\*([0-9]*)", callback=CBController.callback_boleto))
 	app.add_handler(CallbackQueryHandler(pattern=r"(-[0-9]*)\*modCB\*(.*)\*([0-9]*)", callback=CBController.callback_modo))
 	app.add_handler(CallbackQueryHandler(pattern=r"(-[0-9]*)\*aporCB\*(.*)\*([0-9]*)", callback=CBController.callback_aporte))
