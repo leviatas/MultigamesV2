@@ -109,6 +109,15 @@ def carta_txt(carta):
     return carta
 
 
+def mano_txt(mano):
+    """Cartas de la mano, una por línea."""
+    return "\n".join("• {}".format(carta_txt(c)) for c in mano) or "-"
+
+
+# Recordatorio que va en los mensajes donde se ven cartas.
+RECORDATORIO_CARTAS = "ℹ️ ¿No te acordás qué hace cada carta? Usá /cartas"
+
+
 AYUDA_CARTAS = (
     "• *+N / −N*: ese bicho avanza o retrocede N.\n"
     "• 😵 *Mareo*: sus próximos 2 movimientos son de a 1 casilla. Si ya estaba mareado ¡se desmaya y retrocede 3!\n"
