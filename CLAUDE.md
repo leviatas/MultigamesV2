@@ -4,9 +4,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Branch Protection Rules
 
-**NEVER push directly to `develop` or `main`.** All changes must go through a Pull Request from a feature branch targeting `develop`. The only exception is if the user explicitly instructs a direct push.
+**NEVER push directly to `develop` or `main`.** All changes must go through a Pull Request from a feature branch targeting `develop` (or targeting `main` when the change is for Secret Hitler — see below). The only exception is if the user explicitly instructs a direct push.
 
 **NEVER merge a Pull Request without explicit user approval.** Always create the PR and then ask the user before merging it.
+
+### What each branch is for
+
+- **`develop`** → the **Multigames bot** (the bot with many games: Gran Premio Arcano, Carrera de Bichos, JustOne, etc.) plus the bots started by `main()` in `Main.py` (Blood on the Clocktower, TextoToAudio). Almost all work goes here. A push to `develop` triggers `.github/workflows/deploy.yml` (self-hosted runner that runs `deploy.sh`).
+- **`main`** → reserved **exclusively for Secret Hitler** changes. On `main`, `Main.py` starts only `secretHitlerBot.main()`. A push to `main` triggers `.github/workflows/fly.yml` (deploy to Fly.io).
+
+Do not suggest merging `develop` into `main` (or vice versa) to "deploy" Multigames changes: they are separate deployments. Only Secret Hitler changes go to `main`.
 
 **NEVER modify CI/CD configuration** (`.github/workflows/`, `fly.toml`, `Dockerfile*`, `Procfile`, etc.) unless the user explicitly instructs it. This includes changing deploy triggers, branches, secrets, or any pipeline behavior.
 
@@ -23,18 +30,20 @@ pip install -r requirements.txt
 # Required environment variable
 export DATABASE_URL="postgres://user:pass@host:port/dbname"
 
-# Run only Secret Hitler (current __main__ default — see Main.py line 84)
 python Main.py
-
-# Run the full multi-bot setup (edit Main.py to call main() instead)
-# main() starts Bot1 (MainController) and Bot2 (SecretHitler) as daemon threads
 ```
+
+What `python Main.py` starts depends on the branch (see "What each branch is for"):
+- On `develop`: `main()` starts the Multigames bot (`MainController`), Blood on the Clocktower and TextoToAudio in threads.
+- On `main`: only `secretHitlerBot.main()`.
 
 There is no test suite. `MainTest.py` is a standalone runner for isolated manual testing of SecretHitler.
 
 ## Deployment
 
-- **CI/CD**: Push to `main` triggers `.github/workflows/fly.yml`, which deploys to Fly.io (`flyctl deploy --remote-only`).
+- **CI/CD**: each branch has its own GitHub Action and its own deployment:
+  - Push to `develop` → `.github/workflows/deploy.yml`: self-hosted runner, runs `deploy.sh` in `DEPLOY_DIR`. Deploys the **Multigames** bot.
+  - Push to `main` → `.github/workflows/fly.yml`: deploys to Fly.io (`flyctl deploy --remote-only`). Deploys **Secret Hitler** only.
 - **Docker**: `CMD ["python", "Main.py"]` — includes Google Chrome (used by `html2image` for rendering).
 - **Database**: PostgreSQL, schema in `DBCreate.sql`. Key table: `games` (id, groupName, tipojuego, data TEXT — JSON-serialized game object via `jsonpickle`).
 
