@@ -2,7 +2,8 @@ from Boardgamebox.Game import Game as BaseGame
 from GranPremioArcano.Boardgamebox.Player import Player
 from GranPremioArcano.Boardgamebox.Board import Board
 from GranPremioArcano.Constants.Corredores import (
-    LARGO_PISTA, PUNTOS_ORO, PUNTOS_PLATA, CANTIDAD_CARRERAS, DESCRIPCION_CASILLA
+    LARGO_PISTA, PUNTOS_ORO, PUNTOS_PLATA, CANTIDAD_CARRERAS, DESCRIPCION_CASILLA,
+    PRIMERA_CURVA, SEGUNDA_CURVA, CORREDORES,
 )
 
 
@@ -38,12 +39,16 @@ class Game(BaseGame):
             "(tu *tirada*). Algunos poderes te dan opciones en vez de tirar.\n"
             "• *Adelantar*: empezar un movimiento detrás de alguien y terminarlo delante.\n"
             "• *Tropezar* 💫: el corredor pierde su próxima tirada.\n"
-            "• *Teletransportar* ✨: se pone en otra casilla sin moverse (no adelanta a nadie).\n\n"
+            "• *Teletransportar* ✨: se pone en otra casilla sin moverse (no adelanta a nadie).\n"
+            "• *Eliminado* ☠️: sale de la carrera.\n"
+            "• *Fichas de punto*: son puntos de tu jugador.\n"
+            "• *Curvas*: la primera es la casilla {}, la segunda la {}.\n\n"
+            "Hay {} corredores distintos; con /info ves los poderes de tu equipo.\n\n"
             "La pista tiene {} casillas. La *carrera termina* apenas el segundo corredor "
             "cruza la meta. 🥇 Oro: {} puntos según la carrera; 🥈 Plata: {}.\n\n"
             "Las carreras 2 y 4 son en la 🌋 *Pista Salvaje*: {}.\n\n"
             "Después de la carrera {} gana quien sume más puntos.".format(
-                CANTIDAD_CARRERAS, LARGO_PISTA,
+                CANTIDAD_CARRERAS, PRIMERA_CURVA, SEGUNDA_CURVA, len(CORREDORES), LARGO_PISTA,
                 "/".join(str(p) for p in PUNTOS_ORO), "/".join(str(p) for p in PUNTOS_PLATA),
                 ", ".join(DESCRIPCION_CASILLA.values()), CANTIDAD_CARRERAS
             )

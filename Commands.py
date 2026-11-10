@@ -333,6 +333,9 @@ async def command_board(update: Update, context: CallbackContext):
 				await bot.send_photo(cid, photo=game.board.render_board_image(game))
 			else:
 				await bot.send_photo(cid, photo=game.board.render_board_image(game))
+		elif game.tipo == "GranPremioArcano" and game.board.state.fase_actual == "Carrera":
+			import GranPremioArcano.Controller as GPController
+			await GPController.enviar_pista(bot, game, "", game.board.print_board(game).split("\n")[0])
 		else:
 			await bot.send_message(cid, game.board.print_board(game), ParseMode.MARKDOWN)
 	else:

@@ -3,6 +3,7 @@
 # Flujo de Telegram de Gran Premio Arcano: configuración, draft, elección secreta de
 # corredores y turnos con el dado animado de Telegram.
 
+import asyncio
 import logging as log
 import random
 import re
@@ -12,13 +13,14 @@ from telegram.constants import ParseMode
 from telegram.ext import CallbackContext
 
 from Utils import get_game, save, player_call
-from Utils.animacion import lanzar, en_curso, enviar, editar, tirar_dado
+from Utils.animacion import lanzar, en_curso, enviar, editar, tirar_dado, enviar_foto
 from Constants.Config import ADMIN
 from GranPremioArcano.Boardgamebox.Game import Game
 from GranPremioArcano.Constants.Corredores import (
     CORREDORES, CANTIDAD_CARRERAS, NOMBRE_PISTA, DESCRIPCION_CASILLA, etiqueta, ficha,
 )
 import GranPremioArcano.Motor as M
+import GranPremioArcano.render as R
 
 import GamesController
 
@@ -26,6 +28,37 @@ logger = log.getLogger(__name__)
 
 TIPO = "GranPremioArcano"
 MAX_LINEAS_LOG = 35
+# Telegram permite captions de hasta 1024 caracteres.
+MAX_CAPTION = 1000
+
+
+async def imagen_pista(game):
+    """Bytes del PNG de la pista, o None si no se pudo renderizar (sin Chrome, etc.).
+    El render lanza Chrome (~1 s): corre en un hilo para no trabar el bot."""
+    try:
+        buf = await asyncio.to_thread(R.render_pista, game)
+        return buf.getvalue()
+    except Exception as e:
+        logger.warning("GP render de la pista falló, uso texto: %s", e)
+        return None
+
+
+async def enviar_pista(bot, game, encabezado, pie, reply_markup=None):
+    """Manda la pista como imagen con `encabezado` + `pie` de caption (y los botones).
+
+    Si el texto no entra en el caption, el encabezado va antes como mensaje aparte.
+    Si la imagen falla, manda todo como texto con la pista dibujada en caracteres."""
+    foto = await imagen_pista(game)
+    if foto is not None:
+        caption = (encabezado + "\n\n" if encabezado else "") + pie
+        if len(caption) > MAX_CAPTION:
+            if encabezado:
+                await enviar(bot, game.cid, encabezado)
+            caption = pie[:MAX_CAPTION]
+        if await enviar_foto(bot, game.cid, foto, caption=caption, reply_markup=reply_markup):
+            return
+    texto = (encabezado + "\n\n" if encabezado else "") + M.dibujar_pista(game) + "\n" + pie
+    await enviar(bot, game.cid, texto, reply_markup=reply_markup)
 
 
 def clave_tarea(cid):
@@ -312,7 +345,10 @@ async def callback_eleccion(update: Update, context: CallbackContext):
                 jugador.name, ", ".join(p.name for p in faltan)))
             await save(bot, cid)
             return
-        await revelar_y_largar(bot, game)
+        st = game.board.state
+        st.fase_actual = "Largando"
+        await save(bot, cid)
+        lanzar(clave_tarea(cid), _tarea_segura(bot, game, revelar_y_largar(bot, game)))
     except Exception as e:
         await bot.send_message(ADMIN[0], "GP callback_eleccion error: {}".format(e))
 
@@ -330,6 +366,14 @@ async def revelar_y_largar(bot, game):
     lineas.append("\nLarga {}.".format(player_call(primero)))
     await enviar(bot, game.cid, "\n".join(lineas))
     await save(bot, game.cid)
+    await continuar_previas(bot, game)
+
+
+async def continuar_previas(bot, game):
+    """Elecciones antes de largar (Cambiante, Heredero, Suplente, Estratega, Alma Gemela)."""
+    if M.siguiente_previa(game):
+        await pedir_objetivo(bot, game)
+        return
     await proximo_turno(bot, game)
 
 
@@ -361,11 +405,11 @@ async def enviar_prompt_turno(bot, game, relato=None):
     jugador = game.playerlist[c.uid]
     st.subfase = "Accion"
     relato = _relato(st) if relato is None else relato
-    texto = (relato + "\n\n" if relato else "") + M.dibujar_pista(game)
-    texto += "\n👉 Turno de {} — {}\n_{}_".format(
-        M.nombre_corto(c), player_call(jugador), CORREDORES[c.rid]["poder"])
+    pie = "👉 Turno de {} — {}\n_{}_".format(
+        M.nombre_corto(c), player_call(jugador), M.texto_poderes(c))
     opciones = {"{}_{}".format(st.turno_n, k): v for k, v in M.opciones_turno(game).items()}
-    await enviar(bot, game.cid, texto, reply_markup=teclado(game.cid, "accGP", c.uid, opciones, columnas=2))
+    await enviar_pista(bot, game, relato, pie,
+                       reply_markup=teclado(game.cid, "accGP", c.uid, opciones, columnas=2))
     await save(bot, game.cid)
 
 
@@ -379,9 +423,21 @@ def _validar_turno(game, data_key, uid, actor, subfase):
     except ValueError:
         return None
     c = M.corredor_actual(st)
-    if turno_n != st.turno_n or c is None or c.uid != uid or not es_actor_valido(game, actor, uid):
+    if c is None:
+        return None
+    # En las elecciones puede actuar otro jugador (el que adivina al Tramposo, o el
+    # dueño de un corredor que elige antes de largar).
+    esperado = st.pendiente.get("actor", c.uid) if subfase == "Objetivo" else c.uid
+    if turno_n != st.turno_n or esperado != uid or not es_actor_valido(game, actor, uid):
         return None
     return accion
+
+
+async def _quitar_botones(bot, callback):
+    try:
+        await bot.edit_message_reply_markup(callback.message.chat_id, callback.message.message_id, reply_markup=None)
+    except Exception:
+        pass
 
 
 async def callback_accion(update: Update, context: CallbackContext):
@@ -397,26 +453,45 @@ async def callback_accion(update: Update, context: CallbackContext):
             return await _responder(callback, "No es tu turno o ese botón ya no vale.")
         await _responder(callback)
         st = game.board.state
-        try:
-            await bot.edit_message_reply_markup(cid, callback.message.message_id, reply_markup=None)
-        except Exception:
-            pass
-
-        if accion == "payaso":
-            st.subfase = "Objetivo"
-            c = M.corredor_actual(st)
-            opciones = {"{}_{}".format(st.turno_n, st.corredores.index(o)): M.nombre_corto(o)
-                        for o in M.objetivos_payaso(st, c)}
-            await enviar(bot, cid, "🤡 ¿A quién le hacés la zancadilla?",
-                         reply_markup=teclado(cid, "objGP", uid, opciones, columnas=2))
-            await save(bot, cid)
-            return
+        await _quitar_botones(bot, callback)
 
         st.subfase = "Procesando"
+        if M.tipo_accion(accion) == "objetivo":
+            M.preparar_objetivo(game, accion)
+            await save(bot, cid)
+            lanzar(clave_tarea(cid), _tarea_segura(bot, game, pedir_objetivo(bot, game)))
+            return
         await save(bot, cid)
         lanzar(clave_tarea(cid), _tarea_segura(bot, game, procesar_accion(bot, game, accion)))
     except Exception as e:
         await bot.send_message(ADMIN[0], "GP callback_accion error: {}".format(e))
+
+
+async def pedir_objetivo(bot, game):
+    """Pide la elección que está en st.pendiente (a quién, qué número, qué poder...)."""
+    st = game.board.state
+    st.turno_n += 1
+    st.subfase = "Objetivo"
+    actor = st.pendiente.get("actor")
+    texto, privado = M.texto_objetivo(game)
+    opciones = {"{}_{}".format(st.turno_n, k): v for k, v in M.opciones_objetivo(game).items()}
+    markup = teclado(game.cid, "objGP", actor, opciones, columnas=1 if len(opciones) <= 4 else 2)
+    jugador = game.playerlist.get(actor)
+    llamado = "\n👉 {}".format(player_call(jugador)) if jugador else ""
+    relato = _relato(st)
+    enviado = None
+    if privado:
+        try:
+            enviado = await bot.send_message(destino_privado(game, actor), texto,
+                                             parse_mode=ParseMode.MARKDOWN, reply_markup=markup)
+            await enviar(bot, game.cid, (relato + "\n\n" if relato else "") + "🤫 {} elige en privado...{}".format(
+                M.nombre_corto(M.sujeto(st)), llamado))
+        except Exception as e:
+            logger.warning("GP pedir_objetivo privado: %s", e)
+    if enviado is None:
+        texto = (relato + "\n\n" if relato else "") + texto + llamado
+        await enviar(bot, game.cid, texto, reply_markup=markup)
+    await save(bot, game.cid)
 
 
 async def callback_objetivo(update: Update, context: CallbackContext):
@@ -427,20 +502,40 @@ async def callback_objetivo(update: Update, context: CallbackContext):
         game = _juego(cid)
         if not game:
             return await _responder(callback)
-        idx = _validar_turno(game, data_key, uid, callback.from_user.id, "Objetivo")
+        clave = _validar_turno(game, data_key, uid, callback.from_user.id, "Objetivo")
         st = game.board.state
-        if idx is None or not idx.isdigit() or int(idx) >= len(st.corredores):
+        if clave is None or clave not in M.opciones_objetivo(game):
             return await _responder(callback, "Ese botón ya no vale.")
         await _responder(callback)
-        try:
-            await bot.edit_message_reply_markup(cid, callback.message.message_id, reply_markup=None)
-        except Exception:
-            pass
-        M.usar_payaso(game, int(idx))
-        # Sigue el mismo turno, ahora sin la opción del Payaso.
-        await enviar_prompt_turno(bot, game)
+        await _quitar_botones(bot, callback)
+        st.subfase = "Procesando"
+        await save(bot, cid)
+        lanzar(clave_tarea(cid), _tarea_segura(bot, game, procesar_objetivo(bot, game, clave)))
     except Exception as e:
         await bot.send_message(ADMIN[0], "GP callback_objetivo error: {}".format(e))
+
+
+async def procesar_objetivo(bot, game, clave):
+    sigue = M.aplicar_objetivo(game, clave)
+    if sigue == "previa":
+        await continuar_previas(bot, game)
+    elif sigue == "objetivo":
+        await pedir_objetivo(bot, game)
+    elif sigue == "accion":
+        await seguir_turno(bot, game)
+    else:
+        await terminar_turno(bot, game)
+
+
+async def seguir_turno(bot, game):
+    """Después de un poder de "antes de moverse": el mismo corredor sigue su turno."""
+    st = game.board.state
+    if M.carrera_terminada(st):
+        await terminar_carrera(bot, game)
+    elif not M.en_carrera(M.corredor_actual(st)):
+        await terminar_turno(bot, game)
+    else:
+        await enviar_prompt_turno(bot, game)
 
 
 async def callback_post_tirada(update: Update, context: CallbackContext):
@@ -453,14 +548,10 @@ async def callback_post_tirada(update: Update, context: CallbackContext):
             return await _responder(callback)
         opcion = _validar_turno(game, data_key, uid, callback.from_user.id, "PostTirada")
         st = game.board.state
-        dados = st.pendiente.get("dados", [])
-        if opcion is None or opcion not in M.opciones_post_tirada(game, dados):
+        if opcion is None or opcion not in M.opciones_post_tirada(game):
             return await _responder(callback, "Ese botón ya no vale.")
         await _responder(callback)
-        try:
-            await bot.edit_message_reply_markup(cid, callback.message.message_id, reply_markup=None)
-        except Exception:
-            pass
+        await _quitar_botones(bot, callback)
         st.subfase = "Procesando"
         await save(bot, cid)
         lanzar(clave_tarea(cid), _tarea_segura(bot, game, procesar_post(bot, game, opcion)))
@@ -479,32 +570,69 @@ async def _tarea_segura(bot, game, coro):
         await enviar(bot, game.cid, "⚠️ Hubo un problema procesando el turno. Usen /call para retomarlo.", parse_mode=None)
 
 
+async def tirar(bot, game):
+    """Tira el dado de Telegram, repite los 6 si está el Aguafiestas y aplica el Paralizador."""
+    valor = await tirar_dado(bot, game.cid)
+    for _ in range(M.MAX_REPETICIONES_SEIS):
+        if valor != 6 or not M.hay_aguafiestas(game.board.state):
+            break
+        M.repetir_seis(game)
+        valor = await tirar_dado(bot, game.cid)
+    return M.ajustar_dado(game, valor)
+
+
+async def nueva_tirada(bot, game):
+    """Tira (o vuelve a tirar) el dado del turno."""
+    st = game.board.state
+    c = M.corredor_actual(st)
+    if M.tiene(st, c, "maestro"):
+        M.tirar_seis(game)
+        return
+    st.pendiente["dado"] = await tirar(bot, game)
+    if M.critico_fuerza(game):
+        st.pendiente["dado"] = await tirar(bot, game)
+
+
 async def procesar_accion(bot, game, accion):
     st = game.board.state
-    if accion in ("tirar", "par", "impar"):
-        c = M.corredor_actual(st)
-        dados = [await tirar_dado(bot, game.cid)]
-        if c.rid == "ardilla":
-            dados.append(await tirar_dado(bot, game.cid))
-        st.pendiente["dados"] = dados
-        st.pendiente["apuesta"] = accion if accion in ("par", "impar") else None
+    tipo = M.tipo_accion(accion)
+    if tipo == "tirada":
+        prediccion = int(accion[4:]) if accion.startswith("adiv") else None
+        st.pendiente["prediccion"] = prediccion
+        if prediccion is not None:
+            st.log.append("🔮 {} predice un {}.".format(M.nombre(game, M.corredor_actual(st)), prediccion))
+        await nueva_tirada(bot, game)
         await decidir_o_mover(bot, game)
-        return
-    M.accion_alternativa(game, accion)
-    await terminar_turno(bot, game)
+    elif tipo == "previa":
+        M.accion_previa(game, accion)
+        await seguir_turno(bot, game)
+    else:
+        M.accion_alternativa(game, accion)
+        await terminar_turno(bot, game)
 
 
 async def decidir_o_mover(bot, game):
     st = game.board.state
-    dados = st.pendiente["dados"]
-    opciones = M.opciones_post_tirada(game, dados)
+    if M.carrera_terminada(st):
+        await terminar_turno(bot, game)
+        return
+    opciones = M.opciones_post_tirada(game)
     if not opciones:
-        M.aplicar_tirada(game, dados[0], st.pendiente.get("apuesta"))
+        M.resolver_tirada(game)
         await terminar_turno(bot, game)
         return
     c = M.corredor_actual(st)
     st.subfase = "PostTirada"
-    texto = "🎲 {} sacó *{}*. ¿Qué hacés?".format(M.nombre_corto(c), " y ".join(str(d) for d in dados))
+    st.turno_n += 1
+    p = st.pendiente
+    if p.get("dado") is None:
+        texto = "🎲 {} sacó {}. ¿Con qué número se queda?".format(
+            M.nombre_corto(c), " ".join(str(d) for d in p.get("dados6", [])))
+    else:
+        texto = "🎲 {} sacó *{}*. ¿Qué hacés?".format(M.nombre_corto(c), p["dado"])
+    relato = _relato(st)
+    if relato:
+        texto = relato + "\n\n" + texto
     teclas = {"{}_{}".format(st.turno_n, k): v for k, v in opciones.items()}
     await enviar(bot, game.cid, texto, reply_markup=teclado(game.cid, "postGP", c.uid, teclas, columnas=2))
     await save(bot, game.cid)
@@ -512,20 +640,26 @@ async def decidir_o_mover(bot, game):
 
 async def procesar_post(bot, game, opcion):
     st = game.board.state
-    dados = st.pendiente["dados"]
-    apuesta = st.pendiente.get("apuesta")
-    if opcion == "retirar":
-        st.pendiente["rerolled"] = True
-        st.log.append("🎩 El Mago no está conforme con el {} y vuelve a tirar...".format(dados[0]))
-        st.pendiente["dados"] = [await tirar_dado(bot, game.cid)]
+    if opcion.startswith("m") and opcion[1:].isdigit():
+        M.elegir_maestro(game, int(opcion[1:]))
         await decidir_o_mover(bot, game)
         return
-    if opcion in ("d0", "d1"):
-        M.aplicar_tirada(game, dados[int(opcion[1])], apuesta)
-    elif opcion == "doble":
-        M.aplicar_tirada(game, dados[0], apuesta, doble=True)
-    else:
-        M.aplicar_tirada(game, dados[0], apuesta)
+    if opcion in ("rep_apostador", "rep_ilusionista"):
+        M.registrar_repeticion(game, opcion)
+        if M.carrera_terminada(st):
+            await terminar_turno(bot, game)
+            return
+        await nueva_tirada(bot, game)
+        await decidir_o_mover(bot, game)
+        return
+    if opcion == "seguir":
+        if M.presumido_sigue(game, await tirar(bot, game)):
+            await decidir_o_mover(bot, game)
+            return
+        M.resolver_tirada(game)
+        await terminar_turno(bot, game)
+        return
+    M.resolver_tirada(game, doble=(opcion == "cohete"))
     await terminar_turno(bot, game)
 
 
@@ -553,9 +687,7 @@ async def terminar_carrera(bot, game):
     resultado = M.puntuar_carrera(game)
     tabla = "\n".join("• {}: *{}*".format(p.name, p.puntos)
                       for p in sorted(game.player_sequence, key=lambda p: -p.puntos))
-    texto = (relato + "\n\n" if relato else "") + M.dibujar_pista(game) + "\n" + resultado + \
-        "\n\n📊 *Puntos:*\n" + tabla
-    await enviar(bot, game.cid, texto)
+    await enviar_pista(bot, game, relato, resultado + "\n\n📊 *Puntos:*\n" + tabla)
 
     for p in game.player_sequence:
         p.usados += p.elegidos
@@ -638,8 +770,17 @@ async def recordar(bot, game):
         if en_curso(clave_tarea(game.cid)):
             await enviar(bot, game.cid, "⏳ Se está resolviendo el turno...", parse_mode=None)
             return
-        if st.subfase == "PostTirada" and st.pendiente.get("dados"):
-            await decidir_o_mover(bot, game)
+        if st.subfase == "PostTirada" and (st.pendiente.get("dado") is not None or st.pendiente.get("dados6")):
+            st.subfase = "Procesando"
+            lanzar(clave_tarea(game.cid), _tarea_segura(bot, game, decidir_o_mover(bot, game)))
+        elif st.pendiente.get("objetivo"):
+            st.subfase = "Procesando"
+            lanzar(clave_tarea(game.cid), _tarea_segura(bot, game, pedir_objetivo(bot, game)))
         else:
             st.turno_n += 1
-            await enviar_prompt_turno(bot, game, relato="⏰ ¡Les recuerdo que la carrera sigue!")
+            st.subfase = "Procesando"
+            lanzar(clave_tarea(game.cid), _tarea_segura(bot, game, enviar_prompt_turno(
+                bot, game, relato="⏰ ¡Les recuerdo que la carrera sigue!")))
+    elif fase == "Largando":
+        if not en_curso(clave_tarea(game.cid)):
+            lanzar(clave_tarea(game.cid), _tarea_segura(bot, game, revelar_y_largar(bot, game)))
