@@ -203,6 +203,12 @@ async def pedir_pick(bot, game):
     st = game.board.state
     uid = st.draft_orden[st.draft_idx]
     jugador = game.playerlist[uid]
+    if len(st.draft_cartas) == 1:
+        # No hay nada que elegir: se lo lleva solo.
+        rid = st.draft_cartas[0]
+        await enviar(bot, game.cid, "🃏 Queda un solo corredor: {} se lleva {}".format(jugador.name, ficha(rid)))
+        await registrar_pick(bot, game, jugador, rid)
+        return
     opciones = {r: etiqueta(r) for r in st.draft_cartas}
     msg = await enviar(
         bot, game.cid,
@@ -229,26 +235,32 @@ async def callback_draft(update: Update, context: CallbackContext):
         await _responder(callback)
 
         jugador = game.playerlist[uid]
-        st.draft_cartas.remove(rid)
-        jugador.corredores.append(rid)
         await editar(bot, cid, callback.message.message_id,
                      "✅ {} eligió {}".format(jugador.name, ficha(rid)))
-        st.draft_idx += 1
-
-        if st.draft_idx < len(st.draft_orden):
-            await pedir_pick(bot, game)
-            return
-
-        st.draft_ronda += 1
-        if st.draft_ronda < st.draft_total_rondas:
-            await iniciar_ronda_draft(bot, game)
-            return
-
-        await anunciar_equipos(bot, game)
-        await iniciar_eleccion(bot, game)
-        await save(bot, cid)
+        await registrar_pick(bot, game, jugador, rid)
     except Exception as e:
         await bot.send_message(ADMIN[0], "GP callback_draft error: {}".format(e))
+
+
+async def registrar_pick(bot, game, jugador, rid):
+    """Anota la elección y sigue con el próximo pick, la próxima ronda o la elección."""
+    st = game.board.state
+    st.draft_cartas.remove(rid)
+    jugador.corredores.append(rid)
+    st.draft_idx += 1
+
+    if st.draft_idx < len(st.draft_orden):
+        await pedir_pick(bot, game)
+        return
+
+    st.draft_ronda += 1
+    if st.draft_ronda < st.draft_total_rondas:
+        await iniciar_ronda_draft(bot, game)
+        return
+
+    await anunciar_equipos(bot, game)
+    await iniciar_eleccion(bot, game)
+    await save(bot, game.cid)
 
 
 async def anunciar_equipos(bot, game):

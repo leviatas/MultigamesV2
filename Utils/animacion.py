@@ -100,6 +100,32 @@ async def enviar_foto(bot, chat_id, foto_bytes, caption=None, reply_markup=None,
     return None
 
 
+async def editar_foto(bot, chat_id, message_id, foto_bytes, caption=None, reply_markup=None, parse_mode="Markdown",
+                      reintentos=3):
+    """Cambia la imagen (y el caption) de un mensaje con foto, tolerando el rate limit.
+
+    Devuelve True si el mensaje quedó actualizado."""
+    from io import BytesIO
+    from telegram import InputMediaPhoto
+    for _ in range(reintentos):
+        try:
+            await bot.edit_message_media(
+                chat_id=chat_id, message_id=message_id, reply_markup=reply_markup,
+                media=InputMediaPhoto(media=BytesIO(foto_bytes), caption=caption, parse_mode=parse_mode))
+            return True
+        except RetryAfter as e:
+            await asyncio.sleep(_segundos(e.retry_after) + 0.5)
+        except BadRequest as e:
+            if "not modified" in str(e).lower():
+                return True
+            logger.warning("editar_foto(): BadRequest %s", e)
+            return False
+        except (TimedOut, NetworkError) as e:
+            logger.warning("editar_foto(): red %s", e)
+            await asyncio.sleep(1.5)
+    return False
+
+
 async def tirar_dado(bot, chat_id, espera=3.6):
     """Tira el dado animado de Telegram y espera a que termine la animación.
 
