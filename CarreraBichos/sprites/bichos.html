@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<!--
+  Sprites de Carrera de Bichos dibujados con <canvas>.
+
+  Abrir este archivo en un navegador muestra la hoja con los 4 bichos y todos sus
+  gestos. `generar_sprites.py` lo abre con Playwright y guarda cada sprite como PNG
+  transparente en esta carpeta ({bicho}_{gesto}.png), que es lo que usa render.py.
+
+  Cada sprite es un cuadrado de 128x128 unidades: el bicho mira a la derecha y su
+  cuerpo ocupa la caja central de 100x100 (de 14 a 114), así hay lugar para alas
+  levantadas, gotas de sudor, burbujas, etc.
+-->
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Bichos de la carrera</title>
+<style>
+  body { margin: 0; padding: 16px; background: #1e293b; color: #e2e8f0; font: 14px sans-serif; }
+  table { border-collapse: collapse; }
+  td, th { padding: 4px 8px; text-align: center; }
+  canvas { background: repeating-conic-gradient(#334155 0 25%, #3b4a60 0 50%) 0 0 / 20px 20px; border-radius: 8px; }
+</style>
+</head>
+<body>
+<table id="hoja"></table>
+<script>
+"use strict";
+const U = 128;
+const BICHOS = ["gallina", "chancho", "sapo", "pato"];
+const GESTOS = ["normal", "turbo", "golpe", "mareado", "dormido", "triste", "festeja"];
+const TAU = Math.PI * 2;
+
+// --------------------------------------------------------------------------
+// Utilidades de dibujo
+// --------------------------------------------------------------------------
+const E = (cx, cy, rx, ry, rot = 0) => { const p = new Path2D(); p.ellipse(cx, cy, rx, ry, rot, 0, TAU); return p; };
+const S = (d) => new Path2D(d);
+
+function rg(ctx, cx, cy, r, c0, c1) {
+  const g = ctx.createRadialGradient(cx - r * 0.35, cy - r * 0.45, r * 0.05, cx, cy, r * 1.15);
+  g.addColorStop(0, c0); g.addColorStop(1, c1);
+  return g;
+}
+function lg(ctx, x0, y0, x1, y1, c0, c1) {
+  const g = ctx.createLinearGradient(x0, y0, x1, y1);
+  g.addColorStop(0, c0); g.addColorStop(1, c1);
+  return g;
+}
+
+// Dibuja varias figuras con un único contorno exterior: primero todos los bordes
+// (gruesos) y después todos los rellenos, así las uniones quedan limpias.
+function grupo(ctx, items, borde, lw = 2.2) {
+  ctx.save();
+  ctx.lineJoin = "round"; ctx.lineCap = "round"; ctx.strokeStyle = borde; ctx.lineWidth = lw * 2;
+  for (const it of items) if (!it.nb) ctx.stroke(it.p);
+  for (const it of items) { ctx.fillStyle = it.f; ctx.fill(it.p); }
+  ctx.restore();
+}
+function figura(ctx, p, f, borde, lw = 2.2) { grupo(ctx, [{ p, f }], borde, lw); }
+function relleno(ctx, p, f) { ctx.fillStyle = f; ctx.fill(p); }
+function linea(ctx, d, color, w) {
+  ctx.save(); ctx.lineJoin = "round"; ctx.lineCap = "round";
+  ctx.strokeStyle = color; ctx.lineWidth = w; ctx.stroke(typeof d === "string" ? S(d) : d);
+  ctx.restore();
+}
+// Trazo con borde (patas, cola enrulada...).
+function trazo(ctx, d, color, w, borde, lw = 2.2) { linea(ctx, d, borde, w + lw * 2); linea(ctx, d, color, w); }
+
+function brillo(ctx, x, y, rx, ry, rot = -0.5, a = 0.55) {
+  relleno(ctx, E(x, y, rx, ry, rot), `rgba(255,255,255,${a})`);
+}
+
+function rotar(ctx, ang, cx, cy, fn) {
+  ctx.save(); ctx.translate(cx, cy); ctx.rotate(ang); ctx.translate(-cx, -cy); fn(); ctx.restore();
+}
+
+// --------------------------------------------------------------------------
+// Caras: ojos, cejas y efectos compartidos
+// --------------------------------------------------------------------------
+function ojo(ctx, x, y, r, g, borde, piel) {
+  switch (g) {
+    case "golpe": // ojo apretado >
+      linea(ctx, `M${x - r * 0.8} ${y - r * 0.75} L${x + r * 0.6} ${y} L${x - r * 0.8} ${y + r * 0.75}`, borde, r * 0.5);
+      return;
+    case "mareado": {
+      const p = new Path2D();
+      for (let t = 0; t <= TAU * 2.4; t += 0.15) {
+        const rr = r * 0.12 + r * 0.85 * t / (TAU * 2.4);
+        const px = x + Math.cos(t) * rr, py = y + Math.sin(t) * rr;
+        t === 0 ? p.moveTo(px, py) : p.lineTo(px, py);
+      }
+      figura(ctx, E(x, y, r * 1.05, r * 1.1), "#ffffff", borde, 1.4);
+      linea(ctx, p, "#7c3aed", r * 0.26);
+      return;
+    }
+    case "dormido": // ojo cerrado con pestañas
+      linea(ctx, `M${x - r} ${y - r * 0.1} Q${x} ${y + r * 0.9} ${x + r} ${y - r * 0.1}`, borde, r * 0.38);
+      linea(ctx, `M${x - r * 0.35} ${y + r * 0.45} L${x - r * 0.55} ${y + r * 0.95} M${x + r * 0.3} ${y + r * 0.45} L${x + r * 0.45} ${y + r * 0.95}`, borde, r * 0.22);
+      return;
+    case "festeja": // ojo feliz ^
+      linea(ctx, `M${x - r} ${y + r * 0.45} Q${x} ${y - r * 1.1} ${x + r} ${y + r * 0.45}`, borde, r * 0.42);
+      return;
+  }
+  // Ojo abierto (normal, turbo, triste)
+  figura(ctx, E(x, y, r * 0.88, r * 1.05), "#ffffff", borde, 1.4);
+  const dx = g === "triste" ? r * 0.15 : r * 0.32, dy = g === "triste" ? r * 0.38 : 0.05 * r;
+  const rp = g === "turbo" ? r * 0.46 : r * 0.55;
+  relleno(ctx, E(x + dx, y + dy, rp, rp * 1.12), "#1f1a17");
+  relleno(ctx, E(x + dx + rp * 0.35, y + dy - rp * 0.4, rp * 0.36, rp * 0.36), "#ffffff");
+  if (g === "turbo") { // párpado decidido
+    ctx.save();
+    ctx.clip(E(x, y, r * 0.88, r * 1.05));
+    relleno(ctx, S(`M${x - r * 1.2} ${y - r * 1.3} L${x + r * 1.2} ${y - r * 1.3} L${x + r * 1.2} ${y - r * 0.05} L${x - r * 1.2} ${y - r * 0.55} Z`), piel);
+    ctx.restore();
+    linea(ctx, `M${x - r * 0.95} ${y - r * 0.55} L${x + r * 0.95} ${y - r * 0.05}`, borde, r * 0.24);
+  }
+}
+
+// Ceja: en perfil, la punta "de adelante" es la de la derecha.
+function ceja(ctx, x, y, largo, g, color) {
+  const a = { normal: 0.25, turbo: 0.55, golpe: -0.45, mareado: -0.2, dormido: 0.05, triste: -0.55, festeja: -0.3 }[g];
+  const dx = Math.cos(a) * largo / 2, dy = Math.sin(a) * largo / 2;
+  const curva = g === "festeja" || g === "golpe" ? -largo * 0.25 : 0;
+  linea(ctx, `M${x - dx} ${y - dy} Q${x} ${y + curva} ${x + dx} ${y + dy}`, color, largo * 0.28);
+}
+
+function gota(ctx, x, y, s, rot = 0) { // gota de sudor
+  rotar(ctx, rot, x, y, () => {
+    figura(ctx, S(`M${x} ${y - s} Q${x + s * 0.75} ${y} ${x} ${y + s * 0.6} Q${x - s * 0.75} ${y} ${x} ${y - s} Z`),
+      lg(ctx, x, y - s, x, y + s, "#e0f2fe", "#38bdf8"), "#0c4a6e", 1);
+    brillo(ctx, x - s * 0.15, y + s * 0.05, s * 0.12, s * 0.22, 0, 0.9);
+  });
+}
+
+function lagrima(ctx, x, y, s) {
+  figura(ctx, S(`M${x} ${y} Q${x + s * 0.7} ${y + s} ${x} ${y + s * 1.6} Q${x - s * 0.7} ${y + s} ${x} ${y} Z`),
+    lg(ctx, x, y, x, y + s * 1.6, "#bae6fd", "#0ea5e9"), "#075985", 0.9);
+}
+
+function burbuja(ctx, x, y, r) { // burbuja de la siesta
+  figura(ctx, E(x, y, r, r * 0.92), "rgba(186,230,253,0.75)", "#0369a1", 1);
+  brillo(ctx, x - r * 0.35, y - r * 0.35, r * 0.25, r * 0.15, -0.6, 0.95);
+}
+
+function lineasImpacto(ctx, x, y, r, color) {
+  for (let k = 0; k < 5; k++) {
+    const a = -2.4 + k * 0.42;
+    linea(ctx, `M${x + Math.cos(a) * r} ${y + Math.sin(a) * r} L${x + Math.cos(a) * r * 1.45} ${y + Math.sin(a) * r * 1.45}`, color, 2.4);
+  }
+}
+
+// Cinta que flamea (cola de bufanda o de vincha): va de (x0, y0) a (x1, y1)
+// ondulando, con la punta cortada en V. Se dibuja ANTES del cuerpo.
+function cinta(ctx, x0, y0, x1, y1, ancho, color, oscuro, borde, ondas = 1.6) {
+  const N = 28, dx = x1 - x0, dy = y1 - y0, L = Math.hypot(dx, dy);
+  const nx = -dy / L, ny = dx / L, arriba = [], abajo = [];
+  for (let i = 0; i <= N; i++) {
+    const t = i / N, onda = Math.sin(t * Math.PI * ondas) * 4.5 * t;
+    const cx = x0 + dx * t + nx * onda, cy = y0 + dy * t + ny * onda, w = ancho * (1 - 0.2 * t) / 2;
+    arriba.push([cx + nx * w, cy + ny * w]); abajo.push([cx - nx * w, cy - ny * w]);
+  }
+  const [ex, ey] = [x0 + dx * 0.9, y0 + dy * 0.9];
+  const pts = [...arriba, [ex + nx * Math.sin(0.9 * Math.PI * ondas) * 4, ey + ny * Math.sin(0.9 * Math.PI * ondas) * 4], ...abajo.reverse()];
+  const p = new Path2D(); pts.forEach(([x, y], i) => i ? p.lineTo(x, y) : p.moveTo(x, y)); p.closePath();
+  figura(ctx, p, lg(ctx, 0, Math.min(y0, y1) - 6, 0, Math.max(y0, y1) + 6, color, oscuro), borde, 1.7);
+}
+
+// Nudo de la bufanda en el cuello (se dibuja DESPUÉS del cuerpo).
+function nudo(ctx, x, y, ancho, rot, color, oscuro, borde, quieto) {
+  if (quieto) figura(ctx, S(`M${x - 3} ${y + 2} q-1 10 -5 17 l8 1 q2 -8 3 -17 z`), lg(ctx, x, y, x, y + 18, color, oscuro), borde, 1.7);
+  figura(ctx, E(x, y, ancho, 5.2, rot), lg(ctx, x, y - 5, x, y + 5, color, oscuro), borde, 1.8);
+  linea(ctx, `M${x - ancho * 0.7} ${y - 1} Q${x} ${y + 2.5} ${x + ancho * 0.7} ${y - 1 + ancho * 0.25}`, "rgba(255,255,255,0.45)", 1.4);
+}
+
+const CORRE = (g) => g !== "dormido" && g !== "festeja";
+const INCLINACION = { normal: 0.04, turbo: 0.14, golpe: -0.2, mareado: 0.16, dormido: 0, triste: -0.04, festeja: -0.06 };
+
+// --------------------------------------------------------------------------
+// GALLINA TURBO
+// --------------------------------------------------------------------------
+function gallina(ctx, g) {
+  const B = "#4a3426", piel = "#fffaf0", naranja = "#f59e0b", naranjaO = "#c2410c", rojo = "#ef4444", rojoO = "#b91c1c";
+  const corre = CORRE(g);
+
+  // Patas
+  const patas = corre
+    ? [["M58 92 L50 102 L40 104", "M36 101 L40 104 L36 108"], ["M70 92 L78 101 L88 106", "M86 101 L88 106 L84 110"]]
+    : [["M56 92 L54 110", "M48 112 L54 110 L60 112"], ["M70 92 L72 110", "M66 112 L72 110 L78 112"]];
+  for (const [p, dedos] of patas) { trazo(ctx, p, naranja, 3.6, B, 1.8); trazo(ctx, dedos, naranja, 2.6, B, 1.6); }
+
+  // Cola de la bufanda (detrás del cuerpo)
+  if (corre) cinta(ctx, 76, 56, 30, 38, 8, "#fb923c", "#ea580c", B);
+  // Cuerpo, cola de plumas, cuello y cabeza
+  const blanco = rg(ctx, 60, 74, 34, "#ffffff", "#ead9c0");
+  const cresta = rg(ctx, 86, 26, 12, "#fb7185", rojoO);
+  const plumas = [
+    { p: E(30, 52, 7, 17, -0.55), f: rg(ctx, 30, 52, 16, "#ffffff", "#e7d6bd") },
+    { p: E(24, 60, 6.5, 15, -0.95), f: rg(ctx, 24, 60, 16, "#ffffff", "#e7d6bd") },
+    { p: E(36, 48, 6, 14, -0.2), f: rg(ctx, 36, 48, 14, "#ffffff", "#e7d6bd") },
+  ];
+  grupo(ctx, [
+    { p: E(78, 28, 5.5, 6.5, -0.3), f: cresta }, { p: E(86, 25, 6, 7.5), f: cresta }, { p: E(94, 29, 5.5, 6.5, 0.4), f: cresta },
+    ...plumas,
+    { p: E(60, 74, 31, 24, 0.12), f: blanco },
+    { p: E(78, 56, 12, 16, 0.5), f: blanco },
+    { p: E(87, 42, 16, 16), f: rg(ctx, 87, 42, 16, "#ffffff", "#efe2cd") },
+  ], B);
+  // Panza con sombra suave
+  relleno(ctx, E(62, 86, 22, 8, 0.1), "rgba(180,150,110,0.18)");
+  brillo(ctx, 80, 34, 6, 3.5, -0.6, 0.7);
+
+  // Moco (barbilla) y pico
+  const abierto = g === "turbo" || g === "golpe" || g === "festeja" || g === "mareado";
+  figura(ctx, E(99, 55, 4.5, 6.5, 0.2), rg(ctx, 99, 55, 6, "#fb7185", rojoO), B, 1.6);
+  if (abierto) {
+    figura(ctx, S("M98 41 Q108 41 114 46 Q106 47 98 47 Z"), lg(ctx, 98, 41, 98, 47, "#fcd34d", naranja), naranjaO, 1.5);
+    figura(ctx, S("M98 49 Q106 50 111 54 Q104 55 98 53 Z"), lg(ctx, 98, 49, 98, 55, naranja, naranjaO), naranjaO, 1.5);
+    relleno(ctx, S("M99 47.5 L108 49 L99 49.5 Z"), "#7f1d1d");
+    if (g === "mareado") figura(ctx, S("M104 52 q6 2 7 7 q-4 3 -8 -2 z"), "#f472b6", "#9d174d", 1.1);
+  } else {
+    const baja = g === "triste" || g === "dormido" ? 3 : 0;
+    figura(ctx, S(`M98 42 Q108 ${43 + baja} 113 ${47 + baja} Q106 ${51 + baja} 98 51 Z`), lg(ctx, 98, 42, 98, 51, "#fcd34d", naranja), naranjaO, 1.5);
+    linea(ctx, `M99 ${46.5 + baja / 2} L${109} ${48 + baja}`, naranjaO, 1);
+  }
+
+  // Ala
+  if (g === "festeja") {
+    grupo(ctx, [{ p: S("M56 66 C46 52 44 34 52 22 C56 30 60 26 62 34 C66 30 68 38 68 44 C68 56 64 64 56 66 Z"), f: rg(ctx, 58, 44, 22, "#ffffff", "#e2cfb3") }], B, 2);
+    linea(ctx, "M58 56 C56 46 56 38 56 30 M63 56 C62 48 62 42 63 37", "rgba(150,120,90,0.45)", 1.4);
+  } else {
+    const ala = g === "golpe" ? "M44 70 C40 54 50 46 64 50 C76 54 80 66 74 76 C68 84 52 84 44 70 Z"
+      : "M42 72 C42 58 56 52 70 58 C80 62 82 74 72 80 C62 86 46 84 42 72 Z";
+    grupo(ctx, [{ p: S(ala), f: rg(ctx, 60, 64, 22, "#ffffff", "#e2cfb3") }], B, 2);
+    linea(ctx, "M48 72 Q58 74 70 70 M50 77 Q60 79 70 76", "rgba(150,120,90,0.45)", 1.4);
+  }
+
+  // Nudo de la bufanda
+  nudo(ctx, 80, 59, 11, 0.5, "#fb923c", "#ea580c", B, !corre);
+
+  // Antiparras en la frente
+  linea(ctx, "M73 34 Q86 26 101 34", "#334155", 3.4);
+  figura(ctx, E(91, 30, 6, 5, 0.25), rg(ctx, 91, 30, 6, "#a5f3fc", "#0891b2"), "#1e293b", 1.6);
+  brillo(ctx, 89, 28.5, 2, 1.2, -0.5, 0.9);
+
+  // Cara
+  ojo(ctx, 90, 41, 5.4, g, B, piel);
+  ceja(ctx, 90, 34.5, 9, g, B);
+  efectosCara(ctx, g, { lagrima: [92, 46], gota: [74, 30], burbuja: [104, 56] });
+}
+
+// --------------------------------------------------------------------------
+// CHANCHO RAYO
+// --------------------------------------------------------------------------
+function chancho(ctx, g) {
+  const B = "#831843", rosa = "#f9a8d4", rosaO = "#f472b6", pezuna = "#4a2236";
+  const corre = CORRE(g);
+
+  // Cola enrulada
+  trazo(ctx, "M28 66 C20 64 16 56 22 52 C28 48 30 56 24 58 C18 60 14 56 14 52", rosaO, 3, B, 1.8);
+
+  // Patas de atrás (las de más lejos, más oscuras)
+  const patasLejos = corre ? [[34, 88, 0.55], [70, 90, -0.5]] : [[38, 92, 0], [72, 92, 0]];
+  const patasCerca = corre ? [[44, 90, 0.35], [80, 88, -0.65]] : [[48, 92, 0], [82, 92, 0]];
+  const pata = (x, y, rot, oscuro) => rotar(ctx, rot, x, y, () => {
+    grupo(ctx, [
+      { p: S(`M${x - 5.5} ${y - 6} L${x + 5.5} ${y - 6} L${x + 5} ${y + 13} L${x - 5} ${y + 13} Z`), f: oscuro ? "#ec7fb8" : rg(ctx, x, y, 10, "#fbcfe8", rosaO) },
+      { p: S(`M${x - 5.2} ${y + 11} L${x + 5.2} ${y + 11} L${x + 5.6} ${y + 18} L${x - 5.6} ${y + 18} Z`), f: pezuna },
+    ], B, 1.8);
+    linea(ctx, `M${x} ${y + 12} L${x} ${y + 18}`, "#1f0f17", 1);
+  });
+  for (const [x, y, r] of patasLejos) pata(x, y, r, true);
+
+  // Cuerpo y cabeza
+  const cuerpo = rg(ctx, 56, 70, 38, "#fde2f0", rosa);
+  grupo(ctx, [
+    { p: S("M72 42 L74 24 L84 40 Z"), f: rosaO }, // oreja de atrás
+    { p: E(56, 72, 36, 24), f: cuerpo },
+    { p: E(90, 56, 21, 19), f: rg(ctx, 90, 56, 22, "#fde2f0", rosa) },
+  ], B);
+  relleno(ctx, E(58, 88, 26, 7), "rgba(190,24,93,0.12)");
+  brillo(ctx, 44, 58, 12, 5, -0.25, 0.5);
+  brillo(ctx, 84, 44, 6, 3, -0.6, 0.6);
+
+  // Rayo en el costado
+  figura(ctx, S("M50 56 L62 56 L56 68 L66 68 L46 90 L52 74 L42 74 Z"), lg(ctx, 50, 56, 56, 90, "#fef08a", "#f59e0b"), "#92400e", 1.6);
+
+  for (const [x, y, r] of patasCerca) pata(x, y, r, false);
+
+  // Oreja de adelante (cae hacia la cara)
+  const orejaCaida = g === "triste" || g === "dormido";
+  figura(ctx, S(orejaCaida ? "M78 42 L72 28 Q86 30 90 42 Z" : "M78 42 L82 20 Q92 28 90 42 Z"), rg(ctx, 90, 32, 10, "#fbcfe8", rosaO), B, 2);
+  relleno(ctx, S(orejaCaida ? "M81 40 L77 31 Q85 33 87 40 Z" : "M81 40 L83 27 Q88 33 87 40 Z"), "#ec4899");
+
+  // Hocico
+  figura(ctx, E(108, 58, 8, 10, 0.05), rg(ctx, 108, 58, 10, "#fbcfe8", "#ec4899"), B, 2);
+  relleno(ctx, E(106, 55, 1.8, 3.2), B);
+  relleno(ctx, E(111, 55.5, 1.8, 3.2), B);
+  if (g === "dormido") burbuja(ctx, 117, 66, 6);
+
+  // Cachete
+  relleno(ctx, E(96, 64, 5, 3.2), "rgba(244,63,94,0.45)");
+
+  // Boca
+  boca(ctx, g, 100, 72, 9, B, "#7f1d1d");
+
+  // Cara
+  ojo(ctx, 94, 49, 5.2, g, B, rosa);
+  ceja(ctx, 94, 42, 9, g, B);
+  efectosCara(ctx, g, { lagrima: [95, 54], gota: [76, 38], burbuja: null });
+}
+
+// Boca genérica (chancho y sapo). (x, y) = comisura de adelante; `a` = ancho.
+function boca(ctx, g, x, y, a, borde, interior) {
+  switch (g) {
+    case "turbo": // sonrisa decidida con dientes apretados
+      figura(ctx, S(`M${x - a} ${y - 2} Q${x - a / 2} ${y + 5} ${x + 1} ${y - 3} Q${x - a / 2} ${y + 1} ${x - a} ${y - 2} Z`), "#ffffff", borde, 1.4);
+      break;
+    case "golpe":
+      figura(ctx, E(x - a / 2, y + 1, a * 0.38, a * 0.48), interior, borde, 1.6);
+      break;
+    case "mareado":
+      linea(ctx, `M${x - a} ${y} q${a / 4} -3 ${a / 2} 0 t${a / 2} 0`, borde, 1.8);
+      figura(ctx, S(`M${x - a * 0.45} ${y + 1} q1 7 5 6 q2 -3 0 -7 z`), "#f472b6", "#9d174d", 1.1);
+      break;
+    case "dormido":
+      figura(ctx, E(x - a / 2, y, a * 0.18, a * 0.22), interior, borde, 1.2);
+      break;
+    case "triste":
+      linea(ctx, `M${x - a} ${y + 3} Q${x - a / 2} ${y - 3} ${x} ${y + 2}`, borde, 2);
+      break;
+    case "festeja":
+      figura(ctx, S(`M${x - a - 1} ${y - 3} Q${x - a / 2} ${y + 10} ${x + 2} ${y - 4} Z`), interior, borde, 1.6);
+      relleno(ctx, E(x - a / 2, y + 3, a * 0.3, 2), "#f472b6");
+      break;
+    default:
+      linea(ctx, `M${x - a} ${y - 1} Q${x - a / 2} ${y + 4} ${x} ${y - 2}`, borde, 2);
+  }
+}
+
+// --------------------------------------------------------------------------
+// SAPO SALTARÍN
+// --------------------------------------------------------------------------
+function sapo(ctx, g) {
+  const B = "#14532d", verde = "#4ade80", verdeO = "#16a34a", panza = "#ecfccb";
+  const corre = CORRE(g);
+  const piel = rg(ctx, 60, 64, 40, "#bbf7d0", verde);
+
+  // Pata trasera de más lejos
+  const pataTrasera = (oscuro) => {
+    const f = oscuro ? verdeO : piel;
+    if (corre) {
+      grupo(ctx, [
+        { p: E(36, 86, 15, 10, -0.5), f },
+        { p: S("M26 92 L10 104 L4 102 L2 108 L10 108 L8 112 L22 106 L32 96 Z"), f },
+      ], B, 2);
+    } else {
+      grupo(ctx, [
+        { p: E(40, 92, 16, 11, -0.2), f },
+        { p: S("M38 100 L58 108 L62 104 L66 110 L58 112 L42 110 Z"), f },
+      ], B, 2);
+    }
+  };
+  pataTrasera(true);
+  if (corre) { cinta(ctx, 62, 52, 26, 40, 6, "#fde047", "#ca8a04", "#713f12", 1.8); cinta(ctx, 62, 54, 30, 52, 5, "#fde047", "#ca8a04", "#713f12", 2.2); }
+  if (g === "festeja") { // brazo levantado, detrás de la cabeza
+    grupo(ctx, [{ p: S("M56 70 C54 58 54 44 56 30 L63 31 C62 44 62 58 64 70 Z"), f: piel }], B, 2);
+    figura(ctx, S("M55 32 L50 22 L56 27 L59 18 L61 27 L67 22 L63 33 Z"), piel, B, 1.6);
+  }
+
+  // Cuerpo, cabeza y ojos saltones
+  const ojoDomo = rg(ctx, 74, 36, 12, "#dcfce7", verde);
+  grupo(ctx, [
+    { p: E(76, 37, 11, 11), f: ojoDomo },
+    { p: E(56, 80, 32, 22, -0.08), f: piel },
+    { p: E(80, 62, 28, 20, -0.12), f: piel },
+    { p: E(96, 35, 11, 11), f: rg(ctx, 96, 35, 12, "#dcfce7", verde) },
+  ], B);
+  // Panza
+  relleno(ctx, E(72, 82, 22, 13, -0.15), lg(ctx, 72, 70, 72, 96, panza, "#d9f99d"));
+  // Manchas
+  for (const [x, y, r] of [[42, 70, 5], [54, 64, 3.5], [36, 82, 3], [60, 74, 2.5], [68, 50, 3]]) relleno(ctx, E(x, y, r, r * 0.8), "rgba(21,128,61,0.55)");
+  brillo(ctx, 70, 54, 10, 4, -0.2, 0.45);
+  brillo(ctx, 92, 29, 3.5, 2, -0.6, 0.8);
+  brillo(ctx, 72, 31, 3.5, 2, -0.6, 0.8);
+
+  // Vincha amarilla de atleta (entre los ojos)
+  figura(ctx, S("M60 50 Q84 40 108 46 L108 52 Q84 46 61 57 Z"), lg(ctx, 80, 44, 80, 56, "#fde047", "#eab308"), "#713f12", 1.6);
+
+  // Pata trasera de adelante y brazo
+  pataTrasera(false);
+  {
+    const brazo = corre ? "M78 78 Q88 82 96 90 L100 88 L102 94 L94 96 L90 94 Q82 88 76 84 Z"
+      : "M76 80 Q82 90 84 98 L80 100 L86 102 L92 100 L88 96 Q86 88 82 78 Z";
+    grupo(ctx, [{ p: S(brazo), f: piel }], B, 2);
+  }
+
+  // Ojos (los blancos van dentro de los domos)
+  ojo(ctx, 76, 37, 6.4, g, B, verde);
+  ojo(ctx, 96, 35, 6.4, g, B, verde);
+  if (g !== "dormido" && g !== "festeja") { ceja(ctx, 76, 26, 8, g, B); ceja(ctx, 97, 24, 8, g, B); }
+
+  // Bocaza
+  const bocas = {
+    normal: () => linea(ctx, "M76 66 Q92 74 106 62", B, 2.2),
+    turbo: () => { figura(ctx, S("M76 64 Q92 78 107 60 Q92 70 76 64 Z"), "#ffffff", B, 1.6); },
+    golpe: () => { figura(ctx, E(96, 70, 6, 7), "#7f1d1d", B, 1.6); relleno(ctx, E(96, 73, 3.5, 2.5), "#f472b6"); },
+    mareado: () => { linea(ctx, "M76 68 q5 -4 10 0 t10 0 t8 -4", B, 2); figura(ctx, S("M94 69 q2 10 7 9 q3 -4 -1 -10 z"), "#f472b6", "#9d174d", 1.1); },
+    dormido: () => linea(ctx, "M80 68 Q92 72 104 66", B, 2),
+    triste: () => linea(ctx, "M78 70 Q92 62 106 68", B, 2.2),
+    festeja: () => { figura(ctx, S("M74 62 Q92 86 108 58 Z"), "#7f1d1d", B, 1.6); relleno(ctx, E(92, 72, 7, 3.5), "#f472b6"); },
+  };
+  bocas[g]();
+  relleno(ctx, E(102, 52, 1.4, 1.1), B); // fosa nasal
+  if (g === "dormido") burbuja(ctx, 110, 54, 6);
+  relleno(ctx, E(86, 60, 4.5, 2.6), "rgba(244,63,94,0.35)");
+  efectosCara(ctx, g, { lagrima: [100, 42], gota: [62, 30], burbuja: null });
+}
+
+// --------------------------------------------------------------------------
+// PATO BÓLIDO
+// --------------------------------------------------------------------------
+function pato(ctx, g) {
+  const B = "#713f12", amarillo = "#facc15", amarilloO = "#eab308", naranja = "#fb923c", naranjaO = "#c2410c";
+  const azul = "#0ea5e9", azulO = "#0369a1";
+  const corre = CORRE(g);
+
+  // Patas palmeadas
+  const patas = corre
+    ? [["M56 92 L48 102", "M48 102 L36 104 L40 108 L50 106 Z"], ["M68 92 L76 102", "M76 102 L88 100 L88 106 L78 106 Z"]]
+    : [["M56 92 L55 108", "M55 108 L44 111 L48 113 L60 112 Z"], ["M68 92 L69 108", "M69 108 L80 108 L82 113 L68 112 Z"]];
+  for (const [p, palma] of patas) {
+    trazo(ctx, p, naranja, 3.4, B, 1.8);
+    figura(ctx, S(palma), lg(ctx, 0, 100, 0, 112, naranja, naranjaO), naranjaO, 1.4);
+  }
+
+  if (corre) cinta(ctx, 74, 57, 28, 40, 8, "#38bdf8", "#0284c7", "#0c4a6e");
+
+  // Cuerpo, cola y cabeza
+  const cuerpo = rg(ctx, 58, 72, 36, "#fef9c3", amarillo);
+  grupo(ctx, [
+    { p: S("M30 70 L12 50 L18 64 L8 60 L28 80 Z"), f: rg(ctx, 20, 62, 16, "#fef08a", amarilloO) },
+    { p: E(58, 76, 33, 21, 0.06), f: cuerpo },
+    { p: E(76, 60, 11, 15, 0.45), f: cuerpo },
+    { p: E(86, 44, 17, 17), f: rg(ctx, 86, 44, 18, "#fef9c3", amarillo) },
+  ], B);
+  relleno(ctx, E(62, 90, 24, 6), "rgba(161,98,7,0.18)");
+  brillo(ctx, 46, 64, 12, 4.5, -0.2, 0.5);
+
+  // Pico
+  const abierto = g === "turbo" || g === "golpe" || g === "festeja" || g === "mareado";
+  if (abierto) {
+    figura(ctx, S("M98 44 Q112 40 118 44 Q116 49 98 50 Z"), lg(ctx, 98, 40, 98, 50, "#fdba74", naranja), naranjaO, 1.6);
+    figura(ctx, S("M98 52 Q110 52 116 57 Q110 61 98 56 Z"), lg(ctx, 98, 52, 98, 60, naranja, naranjaO), naranjaO, 1.6);
+    relleno(ctx, S("M99 50 L112 51.5 L99 52.5 Z"), "#7f1d1d");
+    if (g === "mareado") figura(ctx, S("M108 56 q7 3 6 9 q-5 2 -8 -6 z"), "#f472b6", "#9d174d", 1.1);
+  } else {
+    const baja = g === "triste" || g === "dormido" ? 3 : 0;
+    figura(ctx, S(`M97 45 Q112 ${42 + baja} 118 ${48 + baja} Q116 ${55 + baja} 104 ${55 + baja} Q98 55 97 53 Z`), lg(ctx, 98, 42, 98, 56, "#fdba74", naranja), naranjaO, 1.6);
+    linea(ctx, `M99 50 Q108 ${50 + baja} 116 ${50 + baja}`, naranjaO, 1);
+    relleno(ctx, E(105, 46 + baja / 2, 1.3, 0.9), naranjaO);
+  }
+  if (g === "dormido") burbuja(ctx, 118, 62, 6);
+
+  // Casco de carrera
+  figura(ctx, S("M70 42 C70 24 86 18 98 26 C104 30 106 36 104 40 L72 46 Z"), rg(ctx, 86, 30, 18, "#7dd3fc", azul), "#0c4a6e", 2);
+  linea(ctx, "M76 42 C78 30 88 24 98 28", "#ffffff", 3);
+  figura(ctx, S("M88 38 L106 34 Q108 38 105 41 L90 43 Z"), "rgba(15,23,42,0.85)", "#0c4a6e", 1.4); // visera
+  brillo(ctx, 80, 28, 5, 2.5, -0.5, 0.7);
+  relleno(ctx, E(72, 36, 3.5, 3.5), azulO);
+
+  // Ala
+  if (g === "festeja") {
+    grupo(ctx, [{ p: S("M54 68 C44 54 44 36 52 26 C54 34 58 30 60 38 C64 34 66 42 66 48 C66 58 62 66 54 68 Z"), f: rg(ctx, 56, 46, 22, "#fef08a", amarilloO) }], B, 2);
+  } else {
+    const ala = g === "golpe" ? "M40 70 C38 56 50 50 64 54 C76 58 76 70 68 78 C58 84 44 82 40 70 Z"
+      : "M38 74 C40 62 54 58 68 62 C78 66 78 76 68 82 C56 88 42 86 38 74 Z";
+    grupo(ctx, [{ p: S(ala), f: rg(ctx, 58, 68, 22, "#fef08a", amarilloO) }], B, 2);
+    linea(ctx, "M44 76 Q56 78 68 74 M46 81 Q56 83 66 80", "rgba(161,98,7,0.5)", 1.4);
+  }
+
+  // Nudo de la bufanda
+  nudo(ctx, 78, 60, 10.5, 0.45, "#38bdf8", "#0284c7", "#0c4a6e", !corre);
+
+  // Cara
+  ojo(ctx, 92, 46, 5.2, g, B, amarillo);
+  ceja(ctx, 92, 39.5, 8, g, B);
+  efectosCara(ctx, g, { lagrima: [94, 51], gota: [70, 52], burbuja: null });
+}
+
+function efectosCara(ctx, g, pos) {
+  if (g === "triste" && pos.lagrima) lagrima(ctx, pos.lagrima[0], pos.lagrima[1], 4.2);
+  if (g === "turbo" && pos.gota) { gota(ctx, pos.gota[0], pos.gota[1], 5, -0.7); gota(ctx, pos.gota[0] - 9, pos.gota[1] + 7, 3.4, -0.9); }
+  if (g === "golpe" && pos.gota) lineasImpacto(ctx, pos.gota[0] + 14, pos.gota[1] + 6, 20, "#fde047");
+}
+
+const DIBUJO = { gallina, chancho, sapo, pato };
+
+function dibujar(ctx, bicho, gesto, px) {
+  ctx.save();
+  ctx.clearRect(0, 0, px, px);
+  ctx.scale(px / U, px / U);
+  // Sombra de contacto la pone render.py; acá sólo el bicho, inclinado según el gesto.
+  rotar(ctx, INCLINACION[gesto], 64, 92, () => {
+    if (gesto === "festeja") ctx.translate(0, -4);
+    DIBUJO[bicho](ctx, gesto);
+  });
+  ctx.restore();
+}
+
+function sprite(bicho, gesto, px) {
+  const c = document.createElement("canvas");
+  c.width = c.height = px;
+  dibujar(c.getContext("2d"), bicho, gesto, px);
+  return c;
+}
+
+// Usado por generar_sprites.py: {"gallina_normal": "data:image/png;base64,...", ...}
+window.exportar = (px = 256) => {
+  const out = {};
+  for (const b of BICHOS) for (const g of GESTOS) out[`${b}_${g}`] = sprite(b, g, px).toDataURL("image/png");
+  return out;
+};
+
+// Con ?exportar en la URL deja el JSON en el DOM para leerlo con chrome --dump-dom.
+if (location.search.includes("exportar")) {
+  const pre = document.createElement("pre");
+  pre.id = "sprites";
+  pre.textContent = JSON.stringify(window.exportar(+(new URLSearchParams(location.search).get("px")) || 384));
+  document.body.appendChild(pre);
+}
+
+// Hoja de vista previa
+const hoja = document.getElementById("hoja");
+hoja.innerHTML = "<tr><th></th>" + GESTOS.map((g) => `<th>${g}</th>`).join("") + "</tr>";
+for (const b of BICHOS) {
+  const tr = document.createElement("tr");
+  tr.innerHTML = `<th>${b}</th>`;
+  for (const g of GESTOS) { const td = document.createElement("td"); td.appendChild(sprite(b, g, window.TAM_PREVIA || 150)); tr.appendChild(td); }
+  hoja.appendChild(tr);
+}
+</script>
+</body>
+</html>
