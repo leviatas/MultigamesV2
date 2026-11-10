@@ -155,7 +155,27 @@ async def iniciar_apuestas(bot, game):
     texto += "Cada uno toma {} boletos. Normal: si pierde, $0. 🔥 Fuerte: cobra doble, si pierde paga ${}.".format(
         game.apuestas_por_jugador(), MULTA_FUERTE)
     await enviar(bot, game.cid, texto)
+    await enviar_manos(bot, game)
     await pedir_apuesta(bot, game)
+
+
+async def enviar_manos(bot, game):
+    """Manda a cada jugador por privado sus cartas, para apostar sabiendo qué puede meter al mazo."""
+    st = game.board.state
+    sin_privado = []
+    for p in game.player_sequence:
+        texto = "🏟️ *{}* — carrera {}/{}\n💰 Tenés *${}*\n\n🃏 *Tu mano:* {}".format(
+            game.groupName, st.carrera, CANTIDAD_CARRERAS, p.dinero,
+            ", ".join(carta_txt(c) for c in p.mano) or "-")
+        try:
+            await bot.send_message(destino_privado(game, p.uid), texto, parse_mode=ParseMode.MARKDOWN)
+        except Exception as e:
+            logger.warning("CB enviar_manos: %s", e)
+            sin_privado.append(p)
+    if sin_privado:
+        await enviar(bot, game.cid,
+                     "{} no puedo mandarte tu mano por privado. Abrí el chat con el bot, tocá Start y usá /info.".format(
+                         ", ".join(player_call(p) for p in sin_privado)))
 
 
 def _tablon(game):
@@ -190,6 +210,10 @@ async def pedir_apuesta(bot, game):
         _tablon(game), player_call(jugador),
         sum(1 for u in st.orden_apuestas[:st.apuesta_idx + 1] if u == uid), game.apuestas_por_jugador(),
         jugador.dinero)
+    if jugador.apuestas:
+        texto += "\n🎫 Tus boletos: {}".format(", ".join(
+            "{}{} (paga ${})".format(M.boleto_txt(game, a["t"]), " 🔥" if a["fuerte"] else "", a["pago"])
+            for a in jugador.apuestas))
     msg = await enviar(bot, game.cid, texto, reply_markup=teclado(game.cid, "betCB", uid, opciones, columnas=2))
     st.apuesta_msg_id = msg.message_id if msg else None
     await save(bot, game.cid)
