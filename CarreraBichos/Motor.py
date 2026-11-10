@@ -440,16 +440,18 @@ def cartas_por_cuadro(st):
     return 2
 
 
-def cuadro_en_vivo(st, cartas=None, eventos=None, titulo=None):
+def cuadro_en_vivo(st, cartas=None, eventos=None, titulo=None, con_pista=True):
     """Un cuadro de la transmisión: las cartas, la pista y lo que pasó con ellas.
-    Sin `eventos` se repite lo último relatado (sirve para retomar)."""
+    Sin `eventos` se repite lo último relatado (sirve para retomar).
+    Con `con_pista=False` es el relato que acompaña a la imagen (la pista ya se ve ahí)."""
     titulo = titulo or "🔴 *EN VIVO* — Carrera {}/{}".format(st.carrera, CANTIDAD_CARRERAS)
     texto = "🏟️ " + titulo + "\n"
     if cartas:
         nombres = " · ".join("*{}*".format(carta_txt(c)) for c in cartas)
         texto += "🃏 Carta{} {}: {}   (quedan {})\n".format(
             "s" if len(cartas) > 1 else "", st.reveladas, nombres, len(st.mazo))
-    texto += dibujar_pista(st)
+    if con_pista:
+        texto += dibujar_pista(st)
     if eventos is not None:
         st.ticker = eventos[-MAX_TICKER:]
     if st.ticker:

@@ -4,7 +4,7 @@ ADMIN = [387393551, 441820689, 445782140] #your telegram ID
 STATS = "../stats.json"
 
 # Se incrementa manualmente (semver) con cada cambio relevante que se despliega.
-VERSION = "1.2.1"
+VERSION = "1.3.0"
 
 JUEGOS_DISPONIBLES = {
         "LostExpedition" : {

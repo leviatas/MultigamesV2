@@ -12,7 +12,7 @@ from telegram.constants import ParseMode
 from telegram.ext import CallbackContext
 
 from Utils import get_game, save, player_call
-from Utils.animacion import lanzar, en_curso, enviar, editar
+from Utils.animacion import lanzar, en_curso, enviar, editar, enviar_foto, editar_foto
 from Constants.Config import ADMIN
 from CarreraBichos.Boardgamebox.Game import Game
 from CarreraBichos.Boardgamebox.State import Bicho
@@ -21,6 +21,7 @@ from CarreraBichos.Constants.Cartas import (
     MULTA_FUERTE, MULTIPLICADOR_FINAL, carta_txt, bicho_txt,
 )
 import CarreraBichos.Motor as M
+import CarreraBichos.render as R
 
 import GamesController
 
@@ -376,32 +377,83 @@ async def largar(bot, game):
     lanzar(clave_tarea(game.cid), transmitir(bot, game))
 
 
+MAX_CAPTION = 1000  # Telegram permite captions de hasta 1024 caracteres
+
+
+class _Pantalla(object):
+    """El mensaje de la transmisión: una imagen que se va reemplazando cuadro a cuadro,
+    con el relato en el caption. Si la imagen falla, sigue en texto (pista dibujada
+    con caracteres), como antes."""
+
+    def __init__(self, bot, game):
+        self.bot, self.game = bot, game
+        self.con_imagen = True
+        self.msg_es_foto = False
+
+    async def _foto(self, **kw):
+        if not self.con_imagen:
+            return None
+        try:
+            return await asyncio.to_thread(R.render_cuadro, self.game, **kw)
+        except Exception as e:
+            logger.warning("CB render del cuadro falló, sigo en texto: %s", e)
+            self.con_imagen = False
+            return None
+
+    async def mostrar(self, nuevo, cartas=None, eventos=None, titulo=None, **kw):
+        """Manda (`nuevo`) o actualiza el cuadro. Devuelve False si no se pudo mandar."""
+        st, cid = self.game.board.state, self.game.cid
+        foto = await self._foto(cartas=cartas, **kw)
+        if foto is not None:
+            caption = M.cuadro_en_vivo(st, cartas, eventos, titulo, con_pista=False)[:MAX_CAPTION]
+            if not nuevo and self.msg_es_foto:
+                return await editar_foto(self.bot, cid, st.live_msg_id, foto, caption=caption)
+            msg = await enviar_foto(self.bot, cid, foto, caption=caption)
+            if msg is not None:
+                st.live_msg_id, self.msg_es_foto = msg.message_id, True
+                return True
+            self.con_imagen = False
+        texto = M.cuadro_en_vivo(st, cartas, eventos if foto is None else None, titulo)
+        if not nuevo and not self.msg_es_foto and st.live_msg_id:
+            return await editar(self.bot, cid, st.live_msg_id, texto)
+        msg = await enviar(self.bot, cid, texto)
+        if msg is None:
+            return False
+        st.live_msg_id, self.msg_es_foto = msg.message_id, False
+        return True
+
+
 async def transmitir(bot, game, retomar=False):
     st = game.board.state
     cid = game.cid
+    reloj = asyncio.get_running_loop().time
+    pantalla = _Pantalla(bot, game)
     try:
         titulo = "Carrera {}/{}".format(st.carrera, CANTIDAD_CARRERAS)
         if retomar:
-            msg = await enviar(bot, cid, M.cuadro_en_vivo(st, titulo="🔴 *SE RETOMA LA TRANSMISIÓN* — " + titulo))
+            ok = await pantalla.mostrar(True, titulo="🔴 *SE RETOMA LA TRANSMISIÓN* — " + titulo,
+                                        titular_fijo=("¡SE RETOMA LA TRANSMISIÓN!", (254, 202, 202)))
         else:
-            msg = await enviar(bot, cid, M.cuadro_en_vivo(
-                st, titulo="*{}* — los bichos se acomodan en la largada...".format(titulo)))
-        if msg is None:
+            ok = await pantalla.mostrar(True, eventos=[],
+                                        titulo="*{}* — los bichos se acomodan en la largada...".format(titulo),
+                                        titular_fijo=("¡EN SUS MARCAS!", (253, 230, 138)))
+        if not ok:
             raise RuntimeError("no se pudo enviar el mensaje de la carrera")
-        st.live_msg_id = msg.message_id
 
         if not retomar:
-            for paso in ("3️⃣ ...", "2️⃣ ...", "1️⃣ ... 🔥 se queman {} cartas boca abajo".format(len(st.quemadas)),
-                         "🔫 *¡¡LARGARON!!*"):
+            for paso, cuenta in (("3️⃣ ...", "3"), ("2️⃣ ...", "2"),
+                                 ("1️⃣ ... 🔥 se queman {} cartas boca abajo".format(len(st.quemadas)), "1"),
+                                 ("🔫 *¡¡LARGARON!!*", "¡¡LARGARON!!")):
                 await asyncio.sleep(1.5)
-                await editar(bot, cid, st.live_msg_id,
-                             M.cuadro_en_vivo(st, eventos=[], titulo="*{}* — {}".format(titulo, paso)))
+                await pantalla.mostrar(False, eventos=[], titulo="*{}* — {}".format(titulo, paso), cuenta=cuenta)
             await asyncio.sleep(1.0)
 
         desde_guardado = 0
         while not M.carrera_terminada(st):
             if not _sigue_vigente(game):
                 return
+            inicio = reloj()
+            previas = R.instantanea(st)
             cartas, eventos = [], []
             for _ in range(M.cartas_por_cuadro(st)):
                 if M.carrera_terminada(st):
@@ -409,7 +461,7 @@ async def transmitir(bot, game, retomar=False):
                 carta, ev = M.paso_de_carrera(st)
                 cartas.append(carta)
                 eventos += ev
-            await editar(bot, cid, st.live_msg_id, M.cuadro_en_vivo(st, cartas, eventos))
+            await pantalla.mostrar(False, cartas, eventos, previas=previas)
             desde_guardado += 1
             if desde_guardado >= GUARDAR_CADA:
                 desde_guardado = 0
@@ -419,12 +471,14 @@ async def transmitir(bot, game, retomar=False):
                 pausa += 1.8  # que se saboree el cruce de meta
             elif any("😱" in e for e in eventos):
                 pausa += 0.6
-            await asyncio.sleep(pausa)
+            # La pausa cuenta desde que arrancó el cuadro: subir la imagen ya lleva su tiempo.
+            await asyncio.sleep(max(0.5, pausa - (reloj() - inicio)))
 
         if not _sigue_vigente(game):
             return
-        await editar(bot, cid, st.live_msg_id, M.cuadro_en_vivo(
-            st, eventos=st.ticker + ["🏁 *¡TERMINÓ LA CARRERA!*"], titulo="🏁 *FINAL* — {}".format(titulo)))
+        await pantalla.mostrar(False, eventos=st.ticker + ["🏁 *¡TERMINÓ LA CARRERA!*"],
+                               titulo="🏁 *FINAL* — {}".format(titulo), final=True)
+        await asyncio.sleep(1.5)
         await terminar_carrera(bot, game)
     except Exception as e:
         logger.exception("CB transmitir error")
