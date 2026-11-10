@@ -84,6 +84,22 @@ async def enviar(bot, chat_id, texto, reply_markup=None, parse_mode="Markdown", 
     return None
 
 
+async def enviar_foto(bot, chat_id, foto_bytes, caption=None, reply_markup=None, parse_mode="Markdown", reintentos=3):
+    """send_photo tolerante al rate limit. `foto_bytes` son los bytes del PNG (se arma
+    un BytesIO nuevo en cada intento, porque Telegram lo consume). Devuelve el Message o None."""
+    from io import BytesIO
+    for _ in range(reintentos):
+        try:
+            return await bot.send_photo(chat_id, photo=BytesIO(foto_bytes), caption=caption,
+                                        parse_mode=parse_mode, reply_markup=reply_markup)
+        except RetryAfter as e:
+            await asyncio.sleep(_segundos(e.retry_after) + 0.5)
+        except (TimedOut, NetworkError) as e:
+            logger.warning("enviar_foto(): red %s", e)
+            await asyncio.sleep(1.5)
+    return None
+
+
 async def tirar_dado(bot, chat_id, espera=3.6):
     """Tira el dado animado de Telegram y espera a que termine la animación.
 
