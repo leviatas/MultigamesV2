@@ -5,10 +5,13 @@ Se usa Pillow (y no HTML + Chrome como en Gran Premio Arcano) porque durante la
 carrera se genera un cuadro cada ~3 segundos: dibujar tarda unas decenas de
 milisegundos y no lanza procesos.
 
-No usa emojis (la imagen Docker no tiene fuente de emoji a color): los bichos,
-las tribunas y las cartas están dibujados con figuras. Se dibuja al doble de
-tamaño y se achica al final para que los bordes queden suaves.
+No usa emojis (la imagen Docker no tiene fuente de emoji a color). Los bichos son
+sprites PNG dibujados con <canvas> (CarreraBichos/sprites/bichos.html, regenerables
+con generar_sprites.py), uno por gesto: normal, turbo, golpe, mareado, dormido,
+triste y festeja. Si falta un PNG se usa el dibujo vectorial de respaldo. Se dibuja
+al doble de tamaño y se achica al final para que los bordes queden suaves.
 """
+import os
 import random
 from functools import lru_cache
 from io import BytesIO
@@ -203,9 +206,74 @@ def _ojos(s, x, y, mareado):
 
 DIBUJO = {"gallina": _gallina, "chancho": _chancho, "sapo": _sapo, "pato": _pato}
 
+# ---------------------------------------------------------------------------
+# Sprites PNG (dibujados con canvas en sprites/bichos.html)
+# ---------------------------------------------------------------------------
 
-def dibujar_bicho(d, bid, cx, cy, tam, mareado=False):
-    DIBUJO[bid](_Sprite(d, cx, cy, tam), mareado)
+SPRITES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "sprites")
+GESTOS = ("normal", "turbo", "golpe", "mareado", "dormido", "triste", "festeja")
+# El sprite mide 128 unidades y el cuerpo del bicho ocupa las 100 del centro.
+ESCALA_SPRITE = 1.28
+
+
+@lru_cache(maxsize=None)
+def _sprite_original(bid, gesto):
+    ruta = os.path.join(SPRITES_DIR, "{}_{}.png".format(bid, gesto))
+    try:
+        with Image.open(ruta) as im:
+            return im.convert("RGBA")
+    except OSError:
+        return None
+
+
+@lru_cache(maxsize=256)
+def _sprite(bid, gesto, lado):
+    base = _sprite_original(bid, gesto)
+    if base is None and gesto != "normal":
+        base = _sprite_original(bid, "normal")
+    if base is None:
+        return None
+    return base.resize((lado, lado), Image.LANCZOS)
+
+
+def dibujar_bicho(d, bid, cx, cy, tam, mareado=False, gesto=None):
+    """Dibuja el bicho centrado en (cx, cy) con el cuerpo en una caja de `tam`."""
+    gesto = gesto or ("mareado" if mareado else "normal")
+    lado = _p(tam * ESCALA_SPRITE)
+    spr = _sprite(bid, gesto, lado)
+    if spr is None:
+        DIBUJO[bid](_Sprite(d, cx, cy, tam), gesto == "mareado")
+        return
+    x, y = _p(cx) - lado // 2, _p(cy) - lado // 2
+    img = d._image  # la imagen sobre la que dibuja este ImageDraw
+    if x + lado <= 0 or y + lado <= 0 or x >= img.width or y >= img.height:
+        return
+    img.paste(spr, (x, y), spr)
+
+
+def gesto_carril(b, delta, golpe, terminado):
+    """Qué cara pone el bicho en su carril según lo que le acaba de pasar."""
+    if terminado:
+        return "festeja"
+    if golpe:
+        return "golpe"
+    if b.mareado > 0:
+        return "mareado"
+    if b.dormido:
+        return "dormido"
+    if delta < 0:
+        return "triste"
+    if delta >= 3:
+        return "turbo"
+    return "normal"
+
+
+def gesto_carta(tipo, valor):
+    """Cara del bicho dibujado en una carta revelada."""
+    if tipo == "MOV":
+        return "turbo" if valor >= 3 else ("triste" if valor < 0 else "normal")
+    return {"MAREO": "mareado", "PETARDO": "golpe", "SIESTA": "dormido", "CAFE": "turbo",
+            "CHOQUE": "turbo", "CAMBIO": "festeja"}.get(tipo, "normal")
 
 
 # ---------------------------------------------------------------------------
@@ -509,7 +577,7 @@ def _carril(d, st, i, b, previas, golpes, lider, rnd, final=False):
         cx = -1000  # en el podio final no se dibujan los que no cruzaron la meta
     sombra_y = cy + TAM_BICHO * 0.45
     d.ellipse(_caja(cx - 30, sombra_y - 5, cx + 30, sombra_y + 5), fill=(0, 0, 0, 70))
-    dibujar_bicho(d, b.bid, cx, cy, TAM_BICHO, mareado=b.mareado > 0 and not terminado)
+    dibujar_bicho(d, b.bid, cx, cy, TAM_BICHO, gesto=gesto_carril(b, delta, golpe, terminado))
 
     if golpe:
         _texto(d, (cx + 4, y0 + 14), golpe, 26, fill=(254, 240, 138), anchor="mm", stroke=3,
@@ -574,7 +642,7 @@ def _carta(d, x, y, carta):
     d.rectangle(_caja(x + 60, y, x + 72, y + alto), fill=acento)
     if bid in BICHOS:
         d.ellipse(_caja(x + 6, y + 18, x + 66, y + 78), fill=COLOR[bid]["claro"])
-        dibujar_bicho(d, bid, x + 36, y + 48, 54)
+        dibujar_bicho(d, bid, x + 36, y + 48, 54, gesto=gesto_carta(tipo, v))
     else:
         _texto(d, (x + 36, y + alto / 2), "TODOS", 15, fill=BLANCO, anchor="mm")
     if tipo == "MOV":
@@ -659,7 +727,8 @@ def _podio(d, st, rnd):
         d.rectangle(_caja(cx - 100, base - alto, cx + 100, base), fill=color, outline=BLANCO, width=_p(4))
         _texto(d, (cx, base - alto / 2), "{}º".format(lugar), 56, fill=NEGRO, anchor="mm")
         tam = 150 if lugar == 1 else 120
-        dibujar_bicho(d, bid, cx, base - alto - tam * 0.46, tam)
+        dibujar_bicho(d, bid, cx, base - alto - tam * 0.46, tam,
+                      gesto={1: "festeja", 2: "normal", 3: "triste"}[lugar])
         _texto(d, (cx, base - alto - tam - 4), BICHOS[bid]["nombre"].upper(), 20, fill=COLOR[bid]["acento"],
                anchor="mm", stroke=3)
         if lugar == 1:
