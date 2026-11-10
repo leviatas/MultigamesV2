@@ -1,5 +1,5 @@
 from Boardgamebox.Player import Player as BasePlayer
-from CarreraBichos.Constants.Cartas import carta_txt
+from CarreraBichos.Constants.Cartas import mano_txt, RECORDATORIO_CARTAS
 
 
 class Player(BasePlayer):
@@ -18,5 +18,5 @@ class Player(BasePlayer):
             texto += "*Tus apuestas:*\n" + "\n".join(
                 "• {}{} (paga ${})".format(boleto_txt(game, a["t"]), " 🔥" if a["fuerte"] else "", a["pago"])
                 for a in self.apuestas) + "\n\n"
-        texto += "*Tu mano:* " + (", ".join(carta_txt(c) for c in self.mano) or "-")
+        texto += "*Tu mano:*\n" + mano_txt(self.mano) + "\n\n" + RECORDATORIO_CARTAS
         return texto

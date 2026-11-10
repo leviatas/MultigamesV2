@@ -18,7 +18,7 @@ from CarreraBichos.Boardgamebox.Game import Game
 from CarreraBichos.Boardgamebox.State import Bicho
 from CarreraBichos.Constants.Cartas import (
     ORDEN_BICHOS, CANTIDAD_CARRERAS, DINERO_INICIAL, MANO_INICIAL, PAUSA_CARTA, APUESTAS_ESPECIALES,
-    MULTA_FUERTE, MULTIPLICADOR_FINAL, carta_txt, bicho_txt,
+    MULTA_FUERTE, MULTIPLICADOR_FINAL, carta_txt, bicho_txt, mano_txt, RECORDATORIO_CARTAS, AYUDA_CARTAS,
 )
 import CarreraBichos.Motor as M
 import CarreraBichos.render as R
@@ -151,7 +151,7 @@ async def iniciar_apuestas(bot, game):
         st.carrera, CANTIDAD_CARRERAS, "\n🔥🔥 *CARRERA FINAL: todo paga x{}* 🔥🔥".format(MULTIPLICADOR_FINAL) if final else "")
     texto += "🃏 *Mazo base (público)* — {} cartas:\n{}\n".format(
         len(st.mazo_base), ", ".join(carta_txt(c) for c in M.ordenar_para_mostrar(st.mazo_base)))
-    texto += "_(+ una carta secreta de cada jugador)_\n\n"
+    texto += "_(+ una carta secreta de cada jugador)_\n{}\n\n".format(RECORDATORIO_CARTAS)
     texto += "❓ *Apuesta especial:* {}\n\n".format(pregunta)
     texto += "Cada uno toma {} boletos. Normal: si pierde, $0. 🔥 Fuerte: cobra doble, si pierde paga ${}.".format(
         game.apuestas_por_jugador(), MULTA_FUERTE)
@@ -165,9 +165,8 @@ async def enviar_manos(bot, game):
     st = game.board.state
     sin_privado = []
     for p in game.player_sequence:
-        texto = "🏟️ *{}* — carrera {}/{}\n💰 Tenés *${}*\n\n🃏 *Tu mano:* {}".format(
-            game.groupName, st.carrera, CANTIDAD_CARRERAS, p.dinero,
-            ", ".join(carta_txt(c) for c in p.mano) or "-")
+        texto = "🏟️ *{}* — carrera {}/{}\n💰 Tenés *${}*\n\n🃏 *Tu mano:*\n{}\n\n{}".format(
+            game.groupName, st.carrera, CANTIDAD_CARRERAS, p.dinero, mano_txt(p.mano), RECORDATORIO_CARTAS)
         try:
             await bot.send_message(destino_privado(game, p.uid), texto, parse_mode=ParseMode.MARKDOWN)
         except Exception as e:
@@ -320,8 +319,8 @@ async def pedir_aporte(bot, game, jugador):
     st = game.board.state
     opciones = {str(i): carta_txt(c) for i, c in enumerate(jugador.mano)}
     apuestas = ", ".join(M.boleto_boton(a["t"], a["pago"]) + ("🔥" if a["fuerte"] else "") for a in jugador.apuestas)
-    texto = "🏟️ *{}* — carrera {}\nTus apuestas: {}\n\n🤫 ¿Qué carta metés en el mazo?".format(
-        game.groupName, st.carrera, apuestas or "-")
+    texto = "🏟️ *{}* — carrera {}\nTus apuestas: {}\n\n🃏 *Tu mano:*\n{}\n\n🤫 ¿Qué carta metés en el mazo?\n{}".format(
+        game.groupName, st.carrera, apuestas or "-", mano_txt(jugador.mano), RECORDATORIO_CARTAS)
     try:
         await bot.send_message(destino_privado(game, jugador.uid), texto, parse_mode=ParseMode.MARKDOWN,
                                reply_markup=teclado(game.cid, "aporCB", jugador.uid, opciones))
@@ -593,3 +592,9 @@ async def recordar(bot, game):
         # Se cortó entre el final de la carrera y las apuestas siguientes.
         st.fase_actual = "Carrera"
         await terminar_carrera(bot, game)
+
+
+async def command_cartas(update: Update, context: CallbackContext):
+    """/cartas: qué hace cada carta de Carrera de Bichos (sirve en el grupo y en privado)."""
+    await context.bot.send_message(update.effective_chat.id, "🃏 *Cartas de Carrera de Bichos*\n\n" + AYUDA_CARTAS,
+                                   parse_mode=ParseMode.MARKDOWN)
