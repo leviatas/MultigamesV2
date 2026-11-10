@@ -4,7 +4,7 @@ ADMIN = [387393551, 441820689, 445782140] #your telegram ID
 STATS = "../stats.json"
 
 # Se incrementa manualmente (semver) con cada cambio relevante que se despliega.
-VERSION = "1.4.1"
+VERSION = "1.5.0"
 
 JUEGOS_DISPONIBLES = {
         "LostExpedition" : {
@@ -180,6 +180,7 @@ COMANDOS_JUEGO = {
 		"/board - Ver la pista, la plata y las apuestas\n"
 		"/info - Tu mano y tus apuestas (en privado)\n"
 		"/cartas - Qué hace cada carta\n"
+		"/repeticion - Volver a ver en video la última carrera\n"
 		"/call - Reenviar los botones pendientes o retomar la transmisión\n"
 		"/rules - Reglamento y cartas"
 }
