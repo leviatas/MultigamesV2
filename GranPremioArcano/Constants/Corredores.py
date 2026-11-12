@@ -164,8 +164,8 @@ CORREDORES = {
 }
 
 # Largo de la pista (circuito "Wild Worlds"): se larga en la SALIDA (casilla 0, fuera
-# del recorrido), el recorrido tiene las casillas 1 a 29 y se llega a la meta al
-# alcanzar LARGO_PISTA (pasar la casilla 29).
+# del recorrido), el recorrido tiene las casillas 1 a 29 y la casilla 30 es la
+# LLEGADA: el que alcanza LARGO_PISTA cruza la meta.
 LARGO_PISTA = 30
 
 # Curvas del circuito: las esquinas de la imagen de la pista (arriba a la derecha y

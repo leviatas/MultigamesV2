@@ -6,7 +6,7 @@ negro con el título WILD WORLDS. Sentido horario:
   - fila superior (izq. -> der.): SALIDA y casillas 1 a 12
   - lateral derecho (arriba -> abajo): casillas 13 y 14
   - fila inferior (der. -> izq.): casillas 15 a 29
-  - lateral izquierdo: la META, después de la casilla 29.
+  - lateral izquierdo: la LLEGADA (casilla 30), después de la casilla 29.
 Los corredores en la SALIDA están en la posición 0 (fuera del recorrido).
 
 No usa emojis (la imagen Docker no tiene fuente de emoji a color): las casillas
@@ -201,11 +201,11 @@ def construir_html(game):
             estilo += clases_estilo
         celdas.append('<div class="{}" style="{}">{}</div>'.format(" ".join(clases), estilo, contenido))
 
-    # SALIDA (antes de la casilla 1) y META (después de la 29).
+    # SALIDA (antes de la casilla 1) y LLEGADA (casilla 30, después de la 29).
     celdas.append('<div class="salida" style="grid-row:1;grid-column:1 / 4">'
                   '<span class="cartel">START</span>{}</div>'.format(bloque_fichas(por_casilla.get(0, []))))
     celdas.append('<div class="meta" style="grid-row:2 / 4;grid-column:1">'
-                  '<span class="cartel-v">META</span></div>')
+                  '<span class="num">30</span><span class="cartel-v">LLEGADA</span></div>')
 
     # Tabla de corredores: primero los que llegaron, después por posición.
     orden = sorted(st.corredores, key=lambda c: (c.eliminado, c.lugar is None, c.lugar or 0, -c.pos))
@@ -276,10 +276,11 @@ body {{ margin:0; padding:{m}px; width:{w}px; height:{h}px; overflow:hidden;
              repeating-conic-gradient(#111 0 25%, #fff 0 50%) 0 0/18px 18px; }}
 .cartel {{ position:absolute; top:4px; left:8px; font-size:20px; font-weight:900; letter-spacing:3px; color:#fde047;
   text-shadow:0 2px 3px #000; z-index:2; }}
+.meta .num {{ background:#111; padding:0 4px; border-radius:4px; }}
 .meta {{ position:relative; border-radius:8px; border:3px solid #fff;
   background: repeating-conic-gradient(#111 0 25%, #fff 0 50%) 0 0/20px 20px; }}
 .cartel-v {{ position:absolute; left:50%; top:50%; transform:translate(-50%,-50%) rotate(-90deg);
-  font-size:24px; font-weight:900; letter-spacing:4px; color:#fde047; background:#111; padding:4px 10px;
+  font-size:20px; font-weight:900; letter-spacing:3px; color:#fde047; background:#111; white-space:nowrap; padding:4px 10px;
   border-radius:6px; }}
 .fichas {{ position:absolute; left:3px; right:3px; top:22px; bottom:4px; display:flex; flex-wrap:wrap;
   align-content:center; justify-content:center; gap:3px; z-index:3; }}
