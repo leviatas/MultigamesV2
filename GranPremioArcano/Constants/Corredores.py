@@ -163,12 +163,15 @@ CORREDORES = {
         "poder": "Antes de la carrera, copia el poder de cualquier corredor rival."},
 }
 
-# Largo de la pista: se larga en la casilla 0 y se llega a la meta al alcanzar LARGO_PISTA.
-LARGO_PISTA = 24
+# Largo de la pista (circuito "Wild Worlds"): se larga en la SALIDA (casilla 0, fuera
+# del recorrido), el recorrido tiene las casillas 1 a 29 y la casilla 30 es la
+# LLEGADA: el que alcanza LARGO_PISTA cruza la meta.
+LARGO_PISTA = 30
 
-# Curvas del circuito (las esquinas de la imagen de la pista).
-PRIMERA_CURVA = 8
-SEGUNDA_CURVA = 12
+# Curvas del circuito: las esquinas de la imagen de la pista (arriba a la derecha y
+# abajo a la derecha).
+PRIMERA_CURVA = 12
+SEGUNDA_CURVA = 15
 
 CANTIDAD_CARRERAS = 4
 
@@ -179,18 +182,37 @@ PUNTOS_PLATA = [1, 2, 2, 3]
 # Las carreras 2 y 4 se corren en la Pista Salvaje, con casillas especiales.
 PISTA_POR_CARRERA = ["mansa", "salvaje", "mansa", "salvaje"]
 
+# Casillas especiales de la Pista Salvaje: posición -> (tipo, valor).
+#   estrella: +valor puntos · tropiezo: el corredor tropieza ·
+#   flecha: avanza valor casillas (negativo = retrocede)
 CASILLAS_SALVAJES = {
-    4: "turbo", 6: "gema", 8: "pozo", 11: "remolino", 13: "turbo",
-    15: "gema", 17: "pozo", 20: "remolino", 22: "gema",
+    1: ("estrella", 1),
+    5: ("tropiezo", 0),
+    7: ("flecha", 3),
+    11: ("flecha", 1),
+    13: ("estrella", 1),
+    16: ("flecha", 4),
+    17: ("tropiezo", 0),
+    23: ("flecha", 2),
+    24: ("flecha", -2),
+    26: ("tropiezo", 0),
 }
 
-SIMBOLO_CASILLA = {"turbo": "»", "remolino": "«", "pozo": "o", "gema": "$"}
+
+def simbolo_casilla(tipo, valor):
+    """Símbolo de una casilla especial en la pista de texto."""
+    if tipo == "estrella":
+        return "*"
+    if tipo == "tropiezo":
+        return "x"
+    return ">" if valor > 0 else "<"
+
 
 DESCRIPCION_CASILLA = {
-    "turbo": "» Turbo: avanza 3",
-    "remolino": "« Remolino: retrocede 3",
-    "pozo": "o Pozo: tropieza",
-    "gema": "$ Gema: +1 punto",
+    "estrella": "* Estrella: +1 punto",
+    "tropiezo": "x Trip: tropieza",
+    "avanza": "> Flecha: avanza 1 a 4",
+    "retrocede": "< Flecha roja: retrocede 2",
 }
 
 NOMBRE_PISTA = {"mansa": "🌳 Pista Mansa", "salvaje": "🌋 Pista Salvaje"}

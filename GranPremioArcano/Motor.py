@@ -19,7 +19,7 @@ import random
 
 from GranPremioArcano.Boardgamebox.State import Corredor
 from GranPremioArcano.Constants.Corredores import (
-    CORREDORES, LARGO_PISTA, PISTA_POR_CARRERA, CASILLAS_SALVAJES, SIMBOLO_CASILLA,
+    CORREDORES, LARGO_PISTA, PISTA_POR_CARRERA, CASILLAS_SALVAJES, simbolo_casilla,
     PUNTOS_ORO, PUNTOS_PLATA, NOMBRE_PISTA, CANTIDAD_CARRERAS, PRIMERA_CURVA, SEGUNDA_CURVA,
     etiqueta,
 )
@@ -459,19 +459,19 @@ def resolver_detencion(game, c, prof):
     pos = c.pos
 
     if tipo_pista(st) == "salvaje" and pos in CASILLAS_SALVAJES:
-        casilla = CASILLAS_SALVAJES[pos]
-        if casilla == "turbo":
-            st.log.append("   » ¡Casilla turbo!")
-            mover(game, c, 3, prof=prof + 1)
-        elif casilla == "remolino":
-            st.log.append("   « ¡Un remolino lo arrastra!")
-            mover(game, c, -3, prof=prof + 1)
-        elif casilla == "pozo":
-            tropezar(game, c, " en un pozo")
-        elif casilla == "gema":
-            jugador = sumar_puntos(game, c, 1)
-            st.log.append("   💎 ¡{} junta una gema! +1 punto para {}.".format(
-                nombre_corto(c), jugador.name if jugador else "?"))
+        casilla, valor = CASILLAS_SALVAJES[pos]
+        if casilla == "flecha" and valor > 0:
+            st.log.append("   ➡️ ¡Flecha! Avanza {}.".format(valor))
+            mover(game, c, valor, prof=prof + 1)
+        elif casilla == "flecha":
+            st.log.append("   ⬅️ ¡Flecha roja! Retrocede {}.".format(-valor))
+            mover(game, c, valor, prof=prof + 1)
+        elif casilla == "tropiezo":
+            tropezar(game, c, " en una casilla trampa")
+        elif casilla == "estrella":
+            jugador = sumar_puntos(game, c, valor)
+            st.log.append("   ⭐ ¡{} atrapa una estrella! +{} punto para {}.".format(
+                nombre_corto(c), valor, jugador.name if jugador else "?"))
 
     if not en_carrera(c) or c.pos != pos or carrera_terminada(st) or pos == 0:
         return
@@ -1495,7 +1495,7 @@ def dibujar_pista(game):
     fondo = []
     for i in range(LARGO_PISTA):
         if salvaje and i in CASILLAS_SALVAJES:
-            fondo.append(SIMBOLO_CASILLA[CASILLAS_SALVAJES[i]])
+            fondo.append(simbolo_casilla(*CASILLAS_SALVAJES[i]))
         elif i in (PRIMERA_CURVA, SEGUNDA_CURVA):
             fondo.append(":")
         else:
