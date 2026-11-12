@@ -191,7 +191,7 @@ CASILLAS_SALVAJES = {
     7: ("flecha", 3),
     11: ("flecha", 1),
     13: ("estrella", 1),
-    16: ("flecha", 4),
+    16: ("flecha", -4),
     17: ("tropiezo", 0),
     23: ("flecha", 2),
     24: ("flecha", -2),
@@ -211,8 +211,8 @@ def simbolo_casilla(tipo, valor):
 DESCRIPCION_CASILLA = {
     "estrella": "* Estrella: +1 punto",
     "tropiezo": "x Trip: tropieza",
-    "avanza": "> Flecha: avanza 1 a 4",
-    "retrocede": "< Flecha roja: retrocede 2",
+    "avanza": "> Flecha: avanza 1 a 3",
+    "retrocede": "< Flecha roja: retrocede 2 o 4",
 }
 
 NOMBRE_PISTA = {"mansa": "🌳 Pista Mansa", "salvaje": "🌋 Pista Salvaje"}
