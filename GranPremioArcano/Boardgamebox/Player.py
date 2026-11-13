@@ -22,9 +22,9 @@ class Player(BasePlayer):
             return texto
         for c in st.corredores:
             if c.rid == rid and c.uid == self.uid:
-                extra = [p for p in c.poderes if p not in (c.rid, "mutante")]
+                extra = [p for p in c.poderes if p != c.rid]
                 if extra:
-                    titulo = "🧬 Mutó y también tiene" if "mutante" in c.poderes else "➕ Además tiene"
+                    titulo = "🧬 Mutó y también tiene" if c.rid == "mutante" else "➕ Ahora tiene"
                     texto += "\n   {}:\n".format(titulo) + "\n".join("   " + ficha(p) for p in extra)
                 break
         return texto

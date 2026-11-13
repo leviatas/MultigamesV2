@@ -211,21 +211,30 @@ def poderes_mutados(c):
     return [p for p in c.poderes if p not in (c.rid, "mutante")]
 
 
-def texto_mutaciones(game):
-    """Recordatorio público de los poderes que tiene cada Mutante en carrera ("" si no hay)."""
+def _linea_poder(p):
+    return "   {} {}: {}".format(CORREDORES[p]["emoji"], CORREDORES[p]["nombre"], CORREDORES[p]["poder"])
+
+
+def texto_poderes_ganados(game):
+    """Recordatorio público, para debajo del tablero, de los poderes que tienen en
+    carrera el Mutante (los que robó) y el Cambiante (el que eligió, más lo que haya
+    robado si eligió al Mutante). "" si no hay nada que recordar."""
     st = game.board.state
     if st.fase_actual != "Carrera":
         return ""
     lineas = []
     for c in activos(st):
-        extra = poderes_mutados(c)
-        if not extra:
-            continue
         jugador = game.playerlist.get(c.uid)
-        lineas.append("🧬 *{}* ({}) también tiene:\n{}".format(
-            CORREDORES[c.rid]["nombre"], jugador.name if jugador else "?",
-            "\n".join("   {} {}: {}".format(CORREDORES[p]["emoji"], CORREDORES[p]["nombre"],
-                                            CORREDORES[p]["poder"]) for p in extra)))
+        dueno = jugador.name if jugador else "?"
+        if c.rid == "cambiante" and "previo_cambiante" in c.usados:
+            if c.poderes:
+                lineas.append("🦎 *{}* ({}) usa:\n{}".format(
+                    CORREDORES[c.rid]["nombre"], dueno, "\n".join(_linea_poder(p) for p in c.poderes)))
+            continue
+        extra = poderes_mutados(c)
+        if extra:
+            lineas.append("🧬 *{}* ({}) también tiene:\n{}".format(
+                CORREDORES[c.rid]["nombre"], dueno, "\n".join(_linea_poder(p) for p in extra)))
     return "\n".join(lineas)
 
 
@@ -1555,7 +1564,7 @@ def texto_tablero(game):
         texto += dibujar_pista(game) + "\n"
     else:
         texto += "\nFase: {}\n".format(st.fase_actual)
-    mutaciones = texto_mutaciones(game)
+    mutaciones = texto_poderes_ganados(game)
     if mutaciones:
         texto += "\n" + mutaciones + "\n"
     texto += "\n*Puntos:* " + " · ".join(

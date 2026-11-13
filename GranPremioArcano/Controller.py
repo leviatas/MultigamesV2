@@ -48,7 +48,7 @@ async def enviar_pista(bot, game, encabezado, pie, reply_markup=None):
 
     Si el texto no entra en el caption, el encabezado va antes como mensaje aparte.
     Si la imagen falla, manda todo como texto con la pista dibujada en caracteres."""
-    mutaciones = M.texto_mutaciones(game)
+    mutaciones = M.texto_poderes_ganados(game)
     foto = await imagen_pista(game)
     if foto is not None:
         pie_foto = pie
