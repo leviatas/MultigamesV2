@@ -204,6 +204,31 @@ def texto_poderes(c):
     return texto
 
 
+def poderes_mutados(c):
+    """Poderes que el Mutante fue robando en esta carrera (además del propio)."""
+    if "mutante" not in c.poderes:
+        return []
+    return [p for p in c.poderes if p not in (c.rid, "mutante")]
+
+
+def texto_mutaciones(game):
+    """Recordatorio público de los poderes que tiene cada Mutante en carrera ("" si no hay)."""
+    st = game.board.state
+    if st.fase_actual != "Carrera":
+        return ""
+    lineas = []
+    for c in activos(st):
+        extra = poderes_mutados(c)
+        if not extra:
+            continue
+        jugador = game.playerlist.get(c.uid)
+        lineas.append("🧬 *{}* ({}) también tiene:\n{}".format(
+            CORREDORES[c.rid]["nombre"], jugador.name if jugador else "?",
+            "\n".join("   {} {}: {}".format(CORREDORES[p]["emoji"], CORREDORES[p]["nombre"],
+                                            CORREDORES[p]["poder"]) for p in extra)))
+    return "\n".join(lineas)
+
+
 # ---------------------------------------------------------------------------
 # Efectos básicos
 # ---------------------------------------------------------------------------
@@ -1530,6 +1555,9 @@ def texto_tablero(game):
         texto += dibujar_pista(game) + "\n"
     else:
         texto += "\nFase: {}\n".format(st.fase_actual)
+    mutaciones = texto_mutaciones(game)
+    if mutaciones:
+        texto += "\n" + mutaciones + "\n"
     texto += "\n*Puntos:* " + " · ".join(
         "{} {}".format(p.name, p.puntos) for p in sorted(game.player_sequence, key=lambda p: -p.puntos))
     return texto
