@@ -210,8 +210,9 @@ def construir_html(game):
     celdas.append('<div class="meta" style="grid-row:2 / 4;grid-column:1">'
                   '<span class="num">30</span><span class="cartel-v">LLEGADA</span></div>')
 
-    # Tabla de corredores: primero los que llegaron, después por posición.
-    orden = sorted(st.corredores, key=lambda c: (c.eliminado, c.lugar is None, c.lugar or 0, -c.pos))
+    # Tabla de corredores en el orden de turnos (el del turno actual va resaltado).
+    orden = [st.corredores[i] for i in st.orden_turnos if i < len(st.corredores)]
+    orden += [c for c in st.corredores if not any(c is o for o in orden)]
     filas_tabla = []
     for c in orden:
         jugador = game.playerlist.get(c.uid)
