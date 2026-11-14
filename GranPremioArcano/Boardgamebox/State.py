@@ -65,7 +65,8 @@ class State(BaseState):
         self.jabali = None
         # El Cancelador canceló la carrera
         self.cancelada = False
-        # Marinero: índice del corredor que juega a continuación, y desde dónde se retoma
+        # Marinero: índice del corredor que juega a continuación (el orden sigue desde él).
+        # `reanudar` sólo queda por partidas guardadas con la regla anterior.
         self.siguiente_forzado = None
         self.reanudar = None
         # Índice del corredor que ya jugó un turno extra seguido (no encadena otro)
