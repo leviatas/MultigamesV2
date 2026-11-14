@@ -43,12 +43,12 @@ async def imagen_pista(game):
         return None
 
 
-async def enviar_pista(bot, game, encabezado, pie, reply_markup=None):
+async def enviar_pista(bot, game, encabezado, pie, reply_markup=None, mutaciones=""):
     """Manda la pista como imagen con `encabezado` + `pie` de caption (y los botones).
 
     Si el texto no entra en el caption, el encabezado va antes como mensaje aparte.
-    Si la imagen falla, manda todo como texto con la pista dibujada en caracteres."""
-    mutaciones = M.texto_poderes_ganados(game)
+    Si la imagen falla, manda todo como texto con la pista dibujada en caracteres.
+    `mutaciones`: poderes ganados del corredor en turno, que van debajo del pie."""
     foto = await imagen_pista(game)
     if foto is not None:
         pie_foto = pie
@@ -431,7 +431,8 @@ async def enviar_prompt_turno(bot, game, relato=None):
         M.nombre_corto(c), player_call(jugador), M.texto_poderes(c))
     opciones = {"{}_{}".format(st.turno_n, k): v for k, v in M.opciones_turno(game).items()}
     await enviar_pista(bot, game, relato, pie,
-                       reply_markup=teclado(game.cid, "accGP", c.uid, opciones, columnas=2))
+                       reply_markup=teclado(game.cid, "accGP", c.uid, opciones, columnas=2),
+                       mutaciones=M.texto_poderes_ganados(game, solo=c))
     await save(bot, game.cid)
 
 
@@ -773,6 +774,20 @@ async def callback_finish_game_buttons_gp(update: Update, context: CallbackConte
 # ---------------------------------------------------------------------------
 # Recordatorio (/call)
 # ---------------------------------------------------------------------------
+
+async def command_mutante(update: Update, context: CallbackContext):
+    """/mutante: poderes que ganaron en esta carrera el Mutante y el Cambiante."""
+    cid = update.effective_chat.id
+    game = get_game(cid)
+    if not game or game.tipo != "GranPremioArcano" or not game.board:
+        await context.bot.send_message(cid, "No hay una partida de Gran Premio Arcano en este chat.")
+        return
+    if game.board.state.fase_actual != "Carrera":
+        await context.bot.send_message(cid, "No hay una carrera en curso.")
+        return
+    texto = M.texto_poderes_ganados(game) or "🧬 Nadie ganó poderes extra en esta carrera."
+    await context.bot.send_message(cid, texto, parse_mode=ParseMode.MARKDOWN)
+
 
 async def recordar(bot, game):
     st = game.board.state
