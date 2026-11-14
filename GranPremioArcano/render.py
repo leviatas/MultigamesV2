@@ -26,6 +26,9 @@ from GranPremioArcano.Constants.Corredores import (
 COLUMNAS = 15
 ANCHO_COL, HUECO, MARGEN = 86, 6, 20
 ALTO_FILAS = [112, 150, 150, 112]
+# Telegram recorta los costados de la vista previa de fotos muy apaisadas: se agrega
+# margen arriba y abajo (con el mismo fondo) para no pasar de esta proporción.
+PROPORCION_MAXIMA = 1.9
 
 COLORES_JUGADOR = ["#ef4444", "#3b82f6", "#22c55e", "#f59e0b", "#a855f7", "#ec4899"]
 
@@ -237,7 +240,9 @@ def construir_html(game):
 
     pista_txt = "PISTA SALVAJE" if salvaje else "PISTA MANSA"
     ancho = COLUMNAS * ANCHO_COL + (COLUMNAS - 1) * HUECO + 2 * MARGEN
-    alto = sum(ALTO_FILAS) + (len(ALTO_FILAS) - 1) * HUECO + 2 * MARGEN
+    alto_tablero = sum(ALTO_FILAS) + (len(ALTO_FILAS) - 1) * HUECO + 2 * MARGEN
+    alto = max(alto_tablero, -(-ancho * 10 // int(PROPORCION_MAXIMA * 10)))
+    margen_sup = MARGEN + (alto - alto_tablero) // 2
     if salvaje:
         leyenda = ('<div class="caja leyenda"><b class="ley estrella">&#9733;</b> Estrella +1 pto '
                    '<b class="ley trip">TRIP</b> tropieza<br><b class="ley verde">&#8594;</b> avanza '
@@ -247,7 +252,7 @@ def construir_html(game):
 
     html = """<!DOCTYPE html><html><head><meta charset="utf-8"><style>
 * {{ box-sizing: border-box; }}
-body {{ margin:0; padding:{m}px; width:{w}px; height:{h}px; overflow:hidden;
+body {{ margin:0; padding:{mt}px {m}px {m}px; width:{w}px; height:{h}px; overflow:hidden;
   font-family:'DejaVu Sans','Liberation Sans',Arial,sans-serif;
   background: linear-gradient(135deg,#3f2a14 0%,#5b3a1a 50%,#3f2a14 100%); }}
 .tablero {{ display:grid; grid-template-columns:repeat({cols},{cw}px); grid-template-rows:{filas};
@@ -349,7 +354,7 @@ body {{ margin:0; padding:{m}px; width:{w}px; height:{h}px; overflow:hidden;
 </div>
 </div>
 </body></html>""".format(
-        m=MARGEN, w=ancho, h=alto, cols=COLUMNAS, cw=ANCHO_COL, g=HUECO,
+        m=MARGEN, mt=margen_sup, w=ancho, h=alto, cols=COLUMNAS, cw=ANCHO_COL, g=HUECO,
         filas=" ".join("{}px".format(a) for a in ALTO_FILAS), arte=SVG_CENTRO,
         celdas="\n".join(celdas), n=st.carrera, total=CANTIDAD_CARRERAS, pista=pista_txt,
         tabla="".join(filas_tabla), puntos=puntos, leyenda=leyenda,
