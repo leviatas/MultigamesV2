@@ -1428,6 +1428,7 @@ async def callback_admin_menu_opc(update: Update, context: CallbackContext):
 
     elif opcion == "stats":
         opciones_stats = {
+            "activos": "🕹 Partidas en curso",
             "tipos": "🎮 Tipos de Juegos",
             "jugadores": "👥 Jugadores",
             "cantidad": "🔢 Cantidad",
@@ -1554,6 +1555,66 @@ async def callback_admin_menu_game_history(update: Update, context: CallbackCont
 
 
 
+def _hace_cuanto(momento, ahora):
+    """Texto corto con el tiempo transcurrido desde `momento`."""
+    segundos = int((ahora - momento).total_seconds())
+    if segundos < 60:
+        return "recién"
+    minutos = segundos // 60
+    if minutos < 60:
+        return f"hace {minutos} min"
+    horas = minutos // 60
+    if horas < 24:
+        return f"hace {horas} h"
+    return f"hace {horas // 24} d"
+
+
+def _admin_stats_activos(all_games):
+    """Arma el listado de partidas (en curso y sin iniciar) ordenado por última actividad.
+    Devuelve una lista de mensajes HTML que respetan el límite de Telegram."""
+    import html
+    ahora = datetime.datetime.now()
+    minimo = datetime.datetime.min
+
+    def ultima(game):
+        last = getattr(game, 'last_activity', None)
+        return last if isinstance(last, datetime.datetime) else minimo
+
+    def linea(game):
+        last = ultima(game)
+        last_str = f"{last.strftime('%d/%m %H:%M')} ({_hace_cuanto(last, ahora)})" if last != minimo else "—"
+        texto = f"• <b>{html.escape(str(game.groupName))}</b> — {html.escape(str(game.tipo))}"
+        if game.modo:
+            texto += f" ({html.escape(str(game.modo))})"
+        texto += f"\n   👥 {len(game.playerlist)}"
+        if game.board:
+            fase = getattr(game.board.state, 'fase_actual', None)
+            if fase:
+                texto += f" | Fase: <code>{html.escape(str(fase))}</code>"
+        texto += f"\n   🕒 {last_str}"
+        return texto
+
+    juegos = sorted(all_games.values(), key=ultima, reverse=True)
+    en_curso = [g for g in juegos if g.board]
+    sin_iniciar = [g for g in juegos if not g.board]
+
+    lineas = [f"🕹 <b>Partidas en curso ({len(en_curso)}):</b>", ""]
+    lineas += [linea(g) for g in en_curso] or ["<i>No hay partidas en curso.</i>"]
+    if sin_iniciar:
+        lineas += ["", f"⏸ <b>Sin iniciar ({len(sin_iniciar)}):</b>", ""]
+        lineas += [linea(g) for g in sin_iniciar]
+
+    mensajes, actual = [], ""
+    for l in lineas:
+        if len(actual) + len(l) + 1 > 4000:
+            mensajes.append(actual)
+            actual = ""
+        actual += l + "\n"
+    if actual.strip():
+        mensajes.append(actual)
+    return mensajes
+
+
 async def callback_admin_menu_stats(update: Update, context: CallbackContext):
     bot = context.bot
     callback = update.callback_query
@@ -1562,6 +1623,12 @@ async def callback_admin_menu_stats(update: Update, context: CallbackContext):
     opcion = regex.group(2)
 
     all_games = MainController.getGamesByTipo("Todos") or {}
+
+    if opcion == "activos":
+        for texto in _admin_stats_activos(all_games):
+            await bot.send_message(callback.message.chat_id, texto, parse_mode=ParseMode.HTML)
+        await callback.answer()
+        return
 
     if opcion == "tipos":
         contador = {}
