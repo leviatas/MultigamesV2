@@ -196,12 +196,9 @@ def con_poder(st, poder, excluir=None):
 
 
 def texto_poderes(c):
-    texto = CORREDORES[c.rid]["poder"]
-    prestados = [p for p in c.poderes if p != c.rid]
-    if prestados:
-        texto += " — Ahora usa: " + ", ".join(
-            "{} ({})".format(CORREDORES[p]["nombre"], CORREDORES[p]["poder"]) for p in prestados)
-    return texto
+    """Poder propio del corredor. Los poderes ganados (Mutante, Cambiante) los
+    detalla aparte texto_poderes_ganados, así no se repiten."""
+    return CORREDORES[c.rid]["poder"]
 
 
 def poderes_mutados(c):
@@ -215,15 +212,18 @@ def _linea_poder(p):
     return "   {} {}: {}".format(CORREDORES[p]["emoji"], CORREDORES[p]["nombre"], CORREDORES[p]["poder"])
 
 
-def texto_poderes_ganados(game):
-    """Recordatorio público, para debajo del tablero, de los poderes que tienen en
-    carrera el Mutante (los que robó) y el Cambiante (el que eligió, más lo que haya
-    robado si eligió al Mutante). "" si no hay nada que recordar."""
+def texto_poderes_ganados(game, solo=None):
+    """Poderes que tienen en carrera el Mutante (los que robó) y el Cambiante (el que
+    eligió, más lo que haya robado si eligió al Mutante). Con `solo`, sólo los de ese
+    corredor (se muestra en su turno); sin él, los de todos (/mutante).
+    "" si no hay nada que mostrar."""
     st = game.board.state
     if st.fase_actual != "Carrera":
         return ""
     lineas = []
     for c in activos(st):
+        if solo is not None and c is not solo:
+            continue
         jugador = game.playerlist.get(c.uid)
         dueno = jugador.name if jugador else "?"
         if c.rid == "cambiante" and "previo_cambiante" in c.usados:
@@ -1564,9 +1564,6 @@ def texto_tablero(game):
         texto += dibujar_pista(game) + "\n"
     else:
         texto += "\nFase: {}\n".format(st.fase_actual)
-    mutaciones = texto_poderes_ganados(game)
-    if mutaciones:
-        texto += "\n" + mutaciones + "\n"
     texto += "\n*Puntos:* " + " · ".join(
         "{} {}".format(p.name, p.puntos) for p in sorted(game.player_sequence, key=lambda p: -p.puntos))
     return texto

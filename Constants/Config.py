@@ -173,6 +173,7 @@ COMANDOS_JUEGO = {
 		"🏆 Comandos de Gran Premio Arcano:\n"
 		"/board - Ver la pista y los puntos\n"
 		"/info - Tu equipo de corredores y sus poderes (en privado)\n"
+		"/mutante - Poderes que ganaron el Mutante y el Cambiante en esta carrera\n"
 		"/call - Reenviar los botones de quien tiene que jugar\n"
 		"/rules - Reglamento",
         "CarreraBichos":

@@ -953,6 +953,7 @@ def main(stop_event):
 	app.add_handler(CallbackQueryHandler(pattern=r"(-[0-9]*)\*objGP\*(.*)\*([0-9]*)", callback=GPController.callback_objetivo))
 	app.add_handler(CallbackQueryHandler(pattern=r"(-[0-9]*)\*postGP\*(.*)\*([0-9]*)", callback=GPController.callback_post_tirada))
 	app.add_handler(CallbackQueryHandler(pattern=r"(-[0-9]*)\*chooseendGP\*(.*)\*([0-9]*)", callback=GPController.callback_finish_game_buttons_gp))
+	app.add_handler(CommandHandler("mutante", GPController.command_mutante))
 
 	# Handlers de Carrera de Bichos
 	app.add_handler(CommandHandler("cartas", CBController.command_cartas))
