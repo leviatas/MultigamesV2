@@ -74,7 +74,7 @@ CORREDORES = {
     "condenado": {"emoji": "⛓️", "sigla": "CD", "nombre": "El Condenado",
         "poder": "Comienza con 4 fichas de punto. Si saca 6, en vez de avanzar vuelve a la salida y pierde 1 ficha."},
     "marinero": {"emoji": "⚓", "sigla": "MA", "nombre": "El Marinero",
-        "poder": "Cuando alguien saca 1, él pasa a ser el siguiente en el orden de turnos."},
+        "poder": "Cuando alguien saca 1, él juega a continuación y el orden de turnos sigue desde él (se saltean los del medio)."},
     "perfeccionista": {"emoji": "📏", "sigla": "PF", "nombre": "El Perfeccionista",
         "poder": "Los demás solamente pueden cruzar la meta sacando exactamente la cantidad necesaria. Si se pasan, no avanzan."},
     "pegado": {"emoji": "🐟", "sigla": "PE", "nombre": "El Pegado",

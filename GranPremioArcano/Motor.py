@@ -1348,7 +1348,7 @@ def resolver_tirada(game, doble=False):
         marineros = con_poder(st, "marinero", excluir=c)
         if marineros:
             st.siguiente_forzado = indice(st, marineros[0])
-            st.log.append("   ⚓ ¡Un 1! {} se cuela: juega a continuación.".format(nombre_corto(marineros[0])))
+            st.log.append("   ⚓ ¡Un 1! {} juega a continuación y el orden sigue desde él.".format(nombre_corto(marineros[0])))
             activo(game, marineros[0], 1)
     if valor == 6:
         for s in con_poder(st, "sirviente", excluir=c):
@@ -1448,20 +1448,21 @@ def _siguiente_natural(st):
 
 
 def avanzar_turno(game):
-    """Pasa al próximo corredor que siga en carrera (respetando al Marinero)."""
+    """Pasa al próximo corredor que siga en carrera. Si alguien sacó 1, juega el
+    Marinero y el orden sigue desde él (se saltean los que estaban en el medio)."""
     st = game.board.state
     st.pendiente = {}
     st.extra_de = None
     forzado = st.siguiente_forzado
     st.siguiente_forzado = None
     if st.reanudar is not None:
+        # Partidas guardadas con la regla anterior (el Marinero se colaba y se retomaba).
         st.turno_idx = st.reanudar
         st.reanudar = None
     natural = _siguiente_natural(st)
     if (forzado is not None and natural is not None and forzado in st.orden_turnos
             and en_carrera(st.corredores[forzado]) and st.orden_turnos[natural] != forzado
             and st.orden_turnos[st.turno_idx] != forzado):
-        st.reanudar = st.turno_idx
         st.turno_idx = st.orden_turnos.index(forzado)
         return
     if natural is not None:
