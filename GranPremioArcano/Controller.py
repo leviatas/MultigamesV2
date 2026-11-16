@@ -35,12 +35,15 @@ MAX_CAPTION = 1000
 async def imagen_pista(game):
     """Bytes del PNG de la pista, o None si no se pudo renderizar (sin Chrome, etc.).
     El render lanza Chrome (~1 s): corre en un hilo para no trabar el bot."""
-    try:
-        buf = await asyncio.to_thread(R.render_pista, game)
-        return buf.getvalue()
-    except Exception as e:
-        logger.warning("GP render de la pista falló, uso texto: %s", e)
-        return None
+    for intento in range(2):
+        try:
+            buf = await asyncio.to_thread(R.render_pista, game)
+            return buf.getvalue()
+        except Exception:
+            # Chrome a veces falla de forma transitoria: se reintenta una vez antes del texto.
+            logger.warning("GP render de la pista falló (intento %d/2)%s", intento + 1,
+                           "" if intento == 0 else ", uso texto", exc_info=True)
+    return None
 
 
 async def enviar_pista(bot, game, encabezado, pie, reply_markup=None, mutaciones=""):
