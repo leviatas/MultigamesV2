@@ -1536,24 +1536,27 @@ def dibujar_pista(game):
         else:
             fondo.append("·")
 
+    # Dos líneas por corredor (nombre arriba, pista abajo) para que entre en el ancho
+    # de un celular: la pista son 30 caracteres más la meta "|".
     lineas = []
     orden = sorted(st.corredores, key=lambda c: (c.eliminado, c.lugar is None, c.lugar or 0, -c.pos))
     for c in orden:
         emoji = CORREDORES[c.rid]["emoji"]
         jugador = game.playerlist.get(c.uid)
-        dueno = jugador.name[:10] if jugador else "?"
+        dueno = jugador.name[:20] if jugador else "?"
         if c.eliminado:
-            pista = "".join(fondo) + "|☠️"
-        elif c.lugar is not None:
-            pista = "".join(fondo) + "|" + emoji + ("🥇" if c.lugar == 1 else "🥈")
-        else:
-            celdas = list(fondo)
-            celdas[c.pos] = emoji
-            pista = "".join(celdas) + "|🏁"
+            lineas.append("☠️ {} {} — eliminado".format(emoji, dueno))
+            continue
+        if c.lugar is not None:
+            lineas.append("{} {} {} — llegó".format("🥇" if c.lugar == 1 else "🥈", emoji, dueno))
+            continue
         marca = " 💫" if c.tropezado and en_carrera(c) else ""
         if st.jabali == indice(st, c):
             marca += " 🐗"
-        lineas.append("{} {}{}".format(pista, dueno, marca))
+        celdas = list(fondo)
+        celdas[c.pos] = emoji
+        lineas.append("{} {}{}".format(emoji, dueno, marca))
+        lineas.append("".join(celdas) + "|")
     return "```\n" + "\n".join(lineas) + "\n```"
 
 
