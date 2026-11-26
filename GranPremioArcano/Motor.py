@@ -1291,6 +1291,20 @@ def resolver_caotico(game, c, valor):
         st.pendiente.pop("caotico6", None)
 
 
+def tirada_rival(game, c, valor):
+    """El Rival tira cada vez que otro corredor saca un número; si coincide, avanza
+    esa cantidad. Se resuelve siempre, aunque el corredor no llegue a moverse."""
+    st = game.board.state
+    for r in con_poder(st, "rival", excluir=c):
+        tiro = random.randint(1, 6)
+        if tiro == valor:
+            st.log.append("   😤 {} también saca {}: avanza {}.".format(nombre_corto(r), tiro, valor))
+            mover(game, r, valor, fuente=r, prof=1)
+            activo(game, r, 1)
+        else:
+            st.log.append("   😤 {} tira un {}: no coincide.".format(nombre_corto(r), tiro))
+
+
 def resolver_tirada(game, doble=False):
     """Mueve al corredor actual según su dado ya decidido (st.pendiente["dado"])."""
     st = game.board.state
@@ -1304,11 +1318,13 @@ def resolver_tirada(game, doble=False):
 
     if p.get("fallo"):
         st.log.append("🎲 {} no se mueve.".format(nombre(game, c)))
+        tirada_rival(game, c, valor)
         return
     if previos:
         st.log.append("🎲 {} suma *{}* en sus tiradas.".format(nombre(game, c), base))
     else:
         st.log.append("🎲 {} saca *{}*.".format(nombre(game, c), valor))
+    tirada_rival(game, c, valor)
 
     if tiene(st, c, "caotico"):
         resolver_caotico(game, c, valor)
@@ -1356,12 +1372,6 @@ def resolver_tirada(game, doble=False):
             mover(game, s, 2, fuente=s, prof=1)
             activo(game, s, 1)
     saboteadores = con_poder(st, "saboteador", excluir=c) if valor == 3 else []
-    for r in con_poder(st, "rival", excluir=c):
-        tiro = random.randint(1, 6)
-        if tiro == valor:
-            st.log.append("   😤 El Rival también saca {}: avanza {}.".format(tiro, valor))
-            mover(game, r, valor, fuente=r, prof=1)
-            activo(game, r, 1)
     if p.get("prediccion") is not None and tiene(st, c, "adivino"):
         if p["prediccion"] == valor:
             p["extra"] = True
